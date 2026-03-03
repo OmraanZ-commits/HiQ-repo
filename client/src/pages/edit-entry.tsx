@@ -5,7 +5,7 @@ import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
 import { UnileverHeader } from "@/components/unilever-header";
 import { StatusFlow } from "@/components/status-flow";
-import { CLUSTERS, DEPOTS, CHANNELS } from "@/lib/distribution-data";
+import { CLUSTERS, DEPOTS, CHANNELS, TOP_CHANNELS, MT_SUB_CHANNELS } from "@/lib/distribution-data";
 import indiaMapImg from "@assets/image_1772525341107.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,6 +153,20 @@ export default function EditEntry() {
     });
   };
 
+  const toggleMT = (checked: boolean) => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const current = (prev.channel as string[]) || [];
+      const mtCodes = ["MT", ...MT_SUB_CHANNELS.map(c => c.code)];
+      if (checked) {
+        const merged = new Set([...current, ...mtCodes]);
+        return { ...prev, channel: Array.from(merged) };
+      } else {
+        return { ...prev, channel: current.filter(c => !mtCodes.includes(c)) };
+      }
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form) return;
@@ -194,6 +208,10 @@ export default function EditEntry() {
   const allClustersSelected = CLUSTERS.every(c => selectedGeo.includes(c.name));
   const allDepotsSelected = DEPOTS.every(d => selectedDepots.includes(d));
   const allChannelsSelected = CHANNELS.every(c => selectedChannels.includes(c.code));
+  const mtSelected = selectedChannels.includes("MT");
+  const allMtSubsSelected = MT_SUB_CHANNELS.every(c => selectedChannels.includes(c.code));
+  const someMtSubsSelected = MT_SUB_CHANNELS.some(c => selectedChannels.includes(c.code));
+  const selectedClusterDefs = CLUSTERS.filter(c => selectedGeo.includes(c.name));
 
   return (
     <div className="min-h-screen bg-background">
@@ -439,24 +457,51 @@ export default function EditEntry() {
                           </label>
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1" data-testid="checkboxes-channel">
-                          {CHANNELS.map(ch => {
+                      <CardContent className="space-y-3" data-testid="checkboxes-channel">
+                        <div className="flex flex-wrap gap-x-6 gap-y-1">
+                          {TOP_CHANNELS.map(ch => {
                             const isChecked = selectedChannels.includes(ch.code);
                             return (
-                              <label key={ch.code} className={`flex items-center justify-between py-1.5 px-2 rounded cursor-pointer transition-colors ${ch.parent ? "pl-6" : ""} ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
-                                <div className="flex items-center gap-2.5">
+                              <label key={ch.code} className={`flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={() => toggleArrayItem("channel", ch.code)}
+                                  data-testid={`checkbox-channel-${ch.code.toLowerCase()}`}
+                                />
+                                <span className="text-xs font-medium">{ch.code}</span>
+                                <span className="text-[10px] text-muted-foreground">({ch.type})</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                        <div className="rounded-lg border p-3 bg-muted/20">
+                          <label className="flex items-center gap-2 cursor-pointer mb-2" data-testid="checkbox-channel-mt">
+                            <Checkbox
+                              checked={mtSelected && allMtSubsSelected}
+                              onCheckedChange={(checked) => toggleMT(!!checked)}
+                            />
+                            <span className="text-xs font-semibold">MT</span>
+                            <span className="text-[10px] text-muted-foreground">(Modern Trade)</span>
+                            {someMtSubsSelected && !allMtSubsSelected && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0">partial</Badge>
+                            )}
+                          </label>
+                          <div className="ml-6 flex flex-wrap gap-x-5 gap-y-1 border-l-2 border-primary/20 pl-3">
+                            {MT_SUB_CHANNELS.map(ch => {
+                              const isChecked = selectedChannels.includes(ch.code);
+                              return (
+                                <label key={ch.code} className={`flex items-center gap-2 py-1 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
                                   <Checkbox
                                     checked={isChecked}
                                     onCheckedChange={() => toggleArrayItem("channel", ch.code)}
                                     data-testid={`checkbox-channel-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
                                   />
-                                  <span className={`text-xs ${ch.parent ? "text-muted-foreground" : "font-medium"}`}>{ch.code}</span>
-                                </div>
-                                <span className="text-[10px] text-muted-foreground">{ch.type}</span>
-                              </label>
-                            );
-                          })}
+                                  <span className="text-xs">{ch.code}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -464,13 +509,31 @@ export default function EditEntry() {
 
                   <div className="space-y-5">
                     <Card className="overflow-hidden" data-testid="india-map-container">
-                      <div className="relative bg-[#4fc3f7]/10 rounded-t-lg">
+                      <div className="relative rounded-t-lg">
                         <img
                           src={indiaMapImg}
                           alt="India distribution map"
                           className="w-full h-auto object-contain"
                           data-testid="india-map-image"
                         />
+                        {selectedClusterDefs.map(cluster => (
+                          <div
+                            key={cluster.name}
+                            className="absolute transition-all duration-300"
+                            style={{
+                              left: `${cluster.pinX}%`,
+                              top: `${cluster.pinY}%`,
+                              transform: "translate(-50%, -100%)",
+                            }}
+                            title={cluster.name}
+                            data-testid={`map-pin-${cluster.name.toLowerCase().replace(/[\s-]+/g, "-")}`}
+                          >
+                            <svg width="18" height="24" viewBox="0 0 18 24" fill="none">
+                              <path d="M9 0C4.03 0 0 4.03 0 9c0 6.75 9 15 9 15s9-8.25 9-15c0-4.97-4.03-9-9-9z" fill="#e91e63" />
+                              <circle cx="9" cy="9" r="3.5" fill="white" />
+                            </svg>
+                          </div>
+                        ))}
                       </div>
                       <CardContent className="pt-3 pb-4">
                         <div className="flex items-center justify-between mb-2">
