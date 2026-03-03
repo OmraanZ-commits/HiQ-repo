@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useNetworkEntries } from "@/controllers/useNetworkEntries";
+import { useLifecycleData } from "@/controllers/useLifecycleData";
 import { UnileverHeader } from "@/components/unilever-header";
 import { StatsCards } from "@/components/stats-cards";
 import { NetworkTable } from "@/components/network-table";
@@ -28,6 +29,7 @@ export default function Dashboard() {
     setShowFilters,
   } = useNetworkEntries();
 
+  const { lifecycleMap } = useLifecycleData();
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewEntry, setViewEntry] = useState<NetworkEntry | null>(null);
 
@@ -158,6 +160,7 @@ export default function Dashboard() {
                 entries={filteredEntries}
                 onView={handleView}
                 onEdit={handleEdit}
+                lifecycleMap={lifecycleMap}
               />
             )}
           </CardContent>

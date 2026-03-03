@@ -286,3 +286,18 @@
     inset: -1px;
   }
 }
+
+@keyframes lifecycle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.15);
+  }
+}
+
+.lifecycle-blink {
+  animation: lifecycle-pulse 1.2s ease-in-out infinite;
+}

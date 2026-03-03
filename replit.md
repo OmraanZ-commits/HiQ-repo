@@ -17,6 +17,7 @@ A central portal for managing network visibility across all Unilever product cat
 - Styling: Tailwind CSS with Unilever-branded color tokens (HSL 199 blue primary)
 
 ## Key Features
+- **Lifecycle color flags**: Amber (Production Started, FTR Approved), Red (Stock Movement Initiated), Blinking Red (CBU Transition Complete / Ready for Transition) — shown in table, edit page, detail dialog, and status flow
 - Dashboard with gradient stat cards (Total, Active, Draft, Production Started)
 - Data table with CBU Created Date, Assigned Person columns, search, and status filtering
 - Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
@@ -78,6 +79,11 @@ A central portal for managing network visibility across all Unilever product cat
 - `server_py/services/state_management/storage.py` - PostgreSQL storage for statuses + transitions
 - `server_py/services/state_management/router.py` - FastAPI router for State Management
 
+### Lifecycle Service
+- `server_py/services/lifecycle/engine.py` - Computation logic: maps status → colorFlag/flagLabel/urgencyLevel/doh
+- `server_py/services/lifecycle/router.py` - FastAPI router for lifecycle data (GET /api/lifecycle, GET /api/lifecycle/:id)
+- `client/src/controllers/useLifecycleData.ts` - Frontend hook + helper for lifecycle flag classes
+
 ### Express Proxy (Development)
 - `server/routes.ts` - Spawns uvicorn, proxies /api/* requests to FastAPI on port 8000
 - `server/index.ts` - Express server entry point, serves Vite frontend + API proxy
@@ -99,6 +105,11 @@ Manages status transitions, validation, and transition history.
 - `GET /api/state/:entryId` - Get current status with step info
 - `GET /api/state/:entryId/history` - Get transition history
 - `POST /api/state/:entryId/transition` - Transition status (validates rules, e.g. Draft→Active requires dates + distribution)
+
+### Lifecycle Service (`/api/lifecycle/`)
+Computes lifecycle color flags, labels, and DOH values based on entry status. Read-only — no DB writes.
+- `GET /api/lifecycle` - Get lifecycle data for all entries (batch map of entryId → flags)
+- `GET /api/lifecycle/:entryId` - Get lifecycle data for single entry
 
 ### Legacy Endpoints (`/api/network-entries/`)
 Same router as List Master, mounted at legacy path for backward compatibility.

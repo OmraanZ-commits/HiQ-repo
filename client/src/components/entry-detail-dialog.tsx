@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { StatusFlow } from "@/components/status-flow";
 import type { NetworkEntry } from "@shared/schema";
+import { useLifecycleData, getLifecycleFlagClasses } from "@/controllers/useLifecycleData";
 
 interface EntryDetailDialogProps {
   open: boolean;
@@ -31,9 +32,12 @@ function getStatusVariant(status: string | null): "default" | "secondary" | "des
 }
 
 export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDialogProps) {
+  const { lifecycleMap } = useLifecycleData();
+
   if (!entry) return null;
 
   const computedYear = entry.cbuCreatedDate ? new Date(entry.cbuCreatedDate).getFullYear() : "-";
+  const lifecycle = lifecycleMap[entry.id];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -46,10 +50,19 @@ export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDial
             <Badge variant={getStatusVariant(entry.networkStatus)} data-testid="badge-detail-status">
               {entry.networkStatus || "Draft"}
             </Badge>
+            {lifecycle?.colorFlag && (
+              <div className="flex items-center gap-1.5">
+                <span className={`inline-block w-2.5 h-2.5 rounded-full ${getLifecycleFlagClasses(lifecycle.colorFlag)}`} data-testid="flag-detail" />
+                <span className="text-xs text-muted-foreground">{lifecycle.flagLabel}</span>
+                {lifecycle.doh !== null && (
+                  <span className="text-xs text-muted-foreground">(DOH: {lifecycle.doh}d)</span>
+                )}
+              </div>
+            )}
           </div>
         </DialogHeader>
 
-        <StatusFlow currentStatus={entry.networkStatus} />
+        <StatusFlow currentStatus={entry.networkStatus} colorFlag={lifecycle?.colorFlag} />
 
         <div className="space-y-6 mt-2">
           <Section title="Basic Information">

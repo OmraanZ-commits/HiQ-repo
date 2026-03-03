@@ -3,6 +3,7 @@ import { StatusFlow } from "@/components/status-flow";
 import { CLUSTERS, DEPOTS, TOP_CHANNELS, MT_SUB_CHANNELS } from "@/lib/distribution-data";
 import { PeoplePicker } from "@/components/people-picker";
 import { useNetworkEntryForm, addDays, formatDateDisplay, LEAF_CHANNELS } from "@/controllers/useNetworkEntryForm";
+import { useLifecycleData, getLifecycleFlagClasses } from "@/controllers/useLifecycleData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,9 @@ export default function EditEntry() {
     mtSelected, allMtSubsSelected, someMtSubsSelected,
     computedYear, isDraft,
   } = useNetworkEntryForm();
+
+  const { lifecycleMap } = useLifecycleData();
+  const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
 
   if (isLoading) {
     return (
@@ -87,6 +91,12 @@ export default function EditEntry() {
                 <Badge variant={getStatusVariant(entry.networkStatus)} data-testid="badge-edit-status">
                   {entry.networkStatus || "Draft"}
                 </Badge>
+                {lifecycle?.colorFlag && (
+                  <div className="flex items-center gap-1.5">
+                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${getLifecycleFlagClasses(lifecycle.colorFlag)}`} data-testid="flag-edit" />
+                    <span className="text-xs text-muted-foreground">{lifecycle.flagLabel}</span>
+                  </div>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
                 CBU Code: <span className="font-mono">{entry.cbuCode}</span>
@@ -102,7 +112,7 @@ export default function EditEntry() {
           </Button>
         </div>
 
-        <StatusFlow currentStatus={entry.networkStatus} />
+        <StatusFlow currentStatus={entry.networkStatus} colorFlag={lifecycle?.colorFlag} />
 
         <div className="flex items-center gap-2 mb-5 px-1">
           <Lock className="h-3.5 w-3.5 text-muted-foreground" />

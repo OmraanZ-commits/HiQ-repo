@@ -10,6 +10,10 @@ from server_py.services.state_management.router import (
     get_state_storage,
     set_list_storage,
 )
+from server_py.services.lifecycle.router import (
+    router as lifecycle_router,
+    set_list_storage as lifecycle_set_list_storage,
+)
 
 app = FastAPI(title="Unilever Network Visibility API", version="1.0.0", redirect_slashes=False)
 
@@ -24,6 +28,7 @@ app.add_middleware(
 app.include_router(list_master_router, prefix="/api/list-master", tags=["List Master"])
 app.include_router(list_master_router, prefix="/api/network-entries", tags=["Legacy"])
 app.include_router(state_router, prefix="/api/state", tags=["State Management"])
+app.include_router(lifecycle_router, prefix="/api/lifecycle", tags=["Lifecycle"])
 
 SEEDS = [
     InsertNetworkEntry(
@@ -223,6 +228,7 @@ async def startup():
     list_storage.seed_entries(SEEDS)
 
     set_list_storage(list_storage)
+    lifecycle_set_list_storage(list_storage)
 
     state_storage = get_state_storage()
     entries = list_storage.get_all()
@@ -233,7 +239,7 @@ async def startup():
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "services": ["list-master", "state-management"]}
+    return {"status": "ok", "services": ["list-master", "state-management", "lifecycle"]}
 
 
 if __name__ == "__main__":
