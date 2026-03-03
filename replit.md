@@ -1,18 +1,19 @@
 # Unilever Network Visibility Portal
 
 ## Overview
-A central portal for managing network visibility across all Unilever product categories. Built with Unilever's brand identity (blue gradient header, Open Sans typography). Uses MVC architecture.
+A central portal for managing network visibility across all Unilever product categories. Built with Unilever's brand identity (blue gradient header, Open Sans typography). Uses MVC architecture with a Python/FastAPI backend.
 
 ## Architecture (MVC)
-- **Models**: `shared/schema.ts` - Data schemas and TypeScript types
+- **Models**: `shared/schema.ts` (frontend types) + `server_py/models.py` (Pydantic models)
 - **Views**: `client/src/components/` and `client/src/pages/` - React components
-- **Controllers**: `client/src/controllers/` - Business logic hooks (useNetworkEntries)
-- **Backend**: Express.js REST API with in-memory storage
+- **Controllers**: `client/src/controllers/` - Business logic hooks (useNetworkEntries, useNetworkEntryForm)
+- **Backend**: Python/FastAPI microservices proxied through Express (dev) or standalone (production)
 
 ## Tech Stack
 - Frontend: React + TypeScript, Vite, TanStack Query, wouter routing, shadcn/ui
-- Backend: Express.js REST API
-- Storage: In-memory with seed data (5 entries)
+- Backend: Python 3.11 + FastAPI (uvicorn)
+- Proxy: Express.js serves Vite frontend and proxies /api/* to FastAPI in development
+- Storage: In-memory with seed data (5 entries) — ready for DB migration
 - Styling: Tailwind CSS with Unilever-branded color tokens (HSL 199 blue primary)
 
 ## Key Features
@@ -32,6 +33,7 @@ A central portal for managing network visibility across all Unilever product cat
 - Read-only fields for data-sourced values; editable fields for manual input
 - No create new / delete entry actions (view + edit only)
 - Draft entries seed with blank start/end dates and empty distribution fields
+- Configurable API base URL (VITE_API_BASE_URL) for separate frontend/backend deployment
 
 ## Status Flow
 7-step progression exported as STATUS_FLOW constant:
@@ -44,14 +46,17 @@ A central portal for managing network visibility across all Unilever product cat
 7. CBU Transition Complete
 
 ## Data Model
-`networkEntries` table with ~38 fields covering:
+`NetworkEntry` with ~38 fields covering:
 - Basic info (CBU code, dates, annexure, network type, assigned person)
 - Product details (brand, BG, format, profit centre, etc.)
 - Dimensions (weight, length, width, height, EAN, ITF)
 - Distribution (geography=18 Indian clusters, depot=24 depot codes, channel=9 channels with MT sub-channels, all from Excel master data)
 
 ## File Structure
-- `client/src/controllers/useNetworkEntries.ts` - Controller hook
+
+### Frontend
+- `client/src/controllers/useNetworkEntries.ts` - Dashboard controller hook
+- `client/src/controllers/useNetworkEntryForm.ts` - Edit page controller hook
 - `client/src/pages/dashboard.tsx` - Main dashboard page
 - `client/src/pages/edit-entry.tsx` - Fullscreen edit page
 - `client/src/components/unilever-header.tsx` - Branded header
@@ -59,15 +64,25 @@ A central portal for managing network visibility across all Unilever product cat
 - `client/src/components/status-flow.tsx` - 7-step status progress bar
 - `client/src/components/network-table.tsx` - Data table (view + edit actions, assigned person column)
 - `client/src/components/entry-detail-dialog.tsx` - View details dialog with status flow
-- `server/routes.ts` - API gateway mounting microservices + legacy endpoints
-- `server/services/list-master/` - List Master microservice (storage + routes)
-- `server/services/state-management/` - State Management microservice (storage + routes)
-- `server/storage.ts` - Seed data + bridge to microservices for legacy compatibility
-- `client/src/lib/distribution-data.ts` - Master data constants (clusters, depots, channels from Excel)
 - `client/src/components/people-picker.tsx` - Searchable people picker with avatars
+- `client/src/lib/distribution-data.ts` - Master data constants (clusters, depots, channels from Excel)
+- `client/src/lib/queryClient.ts` - API client with configurable VITE_API_BASE_URL
 - `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
-## Microservice Architecture
+### Python Backend
+- `server_py/main.py` - FastAPI app entry point, CORS, router mounting, seed data
+- `server_py/models.py` - Pydantic models (NetworkEntry, StateTransition, STATUS_FLOW)
+- `server_py/services/list_master/storage.py` - In-memory CRUD storage
+- `server_py/services/list_master/router.py` - FastAPI router for List Master
+- `server_py/services/state_management/storage.py` - In-memory status + transitions storage
+- `server_py/services/state_management/router.py` - FastAPI router for State Management
+
+### Express Proxy (Development)
+- `server/routes.ts` - Spawns uvicorn, proxies /api/* requests to FastAPI on port 8000
+- `server/index.ts` - Express server entry point, serves Vite frontend + API proxy
+- `server/storage.ts` - Minimal user storage (auth placeholder)
+
+## Microservice Architecture (Python/FastAPI)
 
 ### List Master Service (`/api/list-master/`)
 Manages CRUD operations for network entries data.
@@ -85,12 +100,13 @@ Manages status transitions, validation, and transition history.
 - `POST /api/state/:entryId/transition` - Transition status (validates rules, e.g. Draft→Active requires dates + distribution)
 
 ### Legacy Endpoints (`/api/network-entries/`)
-Maintained for backward compatibility, delegates to List Master service.
-- `GET /api/network-entries` - List all entries
-- `GET /api/network-entries/:id` - Get single entry
-- `POST /api/network-entries` - Create entry
-- `PATCH /api/network-entries/:id` - Update entry
-- `DELETE /api/network-entries/:id` - Delete entry
+Same router as List Master, mounted at legacy path for backward compatibility.
+
+## Deployment Architecture
+- Frontend: Separate app service (React/Vite build)
+- Backend: Separate app service (Python/FastAPI via uvicorn)
+- Each microservice will have its own database tables
+- Set VITE_API_BASE_URL env var to point frontend to backend URL
 
 ## Routes
 - `/` - Dashboard with table and stats
