@@ -11,9 +11,9 @@ A central portal for managing network visibility across all Unilever product cat
 
 ## Tech Stack
 - Frontend: React + TypeScript, Vite, TanStack Query, wouter routing, shadcn/ui
-- Backend: Python 3.11 + FastAPI (uvicorn)
+- Backend: Python 3.12 + FastAPI (uvicorn)
+- Database: PostgreSQL via SQLAlchemy (Replit dev / Docker local / Azure PostgreSQL production)
 - Proxy: Express.js serves Vite frontend and proxies /api/* to FastAPI in development
-- Storage: In-memory with seed data (5 entries) — ready for DB migration
 - Styling: Tailwind CSS with Unilever-branded color tokens (HSL 199 blue primary)
 
 ## Key Features
@@ -70,11 +70,12 @@ A central portal for managing network visibility across all Unilever product cat
 - `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
 ### Python Backend
-- `server_py/main.py` - FastAPI app entry point, CORS, router mounting, seed data
+- `server_py/main.py` - FastAPI app entry point, CORS, router mounting, seed data, table creation on startup
 - `server_py/models.py` - Pydantic models (NetworkEntry, StateTransition, STATUS_FLOW)
-- `server_py/services/list_master/storage.py` - In-memory CRUD storage
+- `server_py/db.py` - SQLAlchemy engine, session, ORM models (NetworkEntryModel, EntryStatusModel, StateTransitionModel), field mapping utils
+- `server_py/services/list_master/storage.py` - PostgreSQL CRUD storage for network entries
 - `server_py/services/list_master/router.py` - FastAPI router for List Master
-- `server_py/services/state_management/storage.py` - In-memory status + transitions storage
+- `server_py/services/state_management/storage.py` - PostgreSQL storage for statuses + transitions
 - `server_py/services/state_management/router.py` - FastAPI router for State Management
 
 ### Express Proxy (Development)
@@ -102,10 +103,19 @@ Manages status transitions, validation, and transition history.
 ### Legacy Endpoints (`/api/network-entries/`)
 Same router as List Master, mounted at legacy path for backward compatibility.
 
+## Database Tables
+- `network_entries` — List Master service: all ~38 fields, UUID primary key, snake_case columns
+- `entry_statuses` — State Management service: entry_id (UUID PK), current_status, updated_at
+- `state_transitions` — State Management service: id (UUID PK), entry_id, from/to status, transition_date, triggered_by, metadata (JSONB), created_at
+- Field mapping between camelCase API and snake_case DB handled in `server_py/db.py`
+- Auto-seeds 5 entries on first startup; skips if tables already populated
+
 ## Deployment Architecture
-- Frontend: Separate app service (React/Vite build)
-- Backend: Separate app service (Python/FastAPI via uvicorn)
-- Each microservice will have its own database tables
+- Frontend: Separate Azure App Service (React/Vite build)
+- Backend: Separate Azure App Service (Python/FastAPI via uvicorn)
+- Database: Azure Database for PostgreSQL (or Docker PostgreSQL for local dev)
+- Each microservice has its own tables in the same database
+- Set DATABASE_URL env var for PostgreSQL connection
 - Set VITE_API_BASE_URL env var to point frontend to backend URL
 
 ## Routes

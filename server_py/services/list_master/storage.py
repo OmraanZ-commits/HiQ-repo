@@ -1,53 +1,99 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+from server_py.db import (
+    SessionLocal,
+    NetworkEntryModel,
+    db_row_to_api,
+    api_data_to_db,
+)
 from server_py.models import NetworkEntry, InsertNetworkEntry, UpdateNetworkEntry
 
 
 class ListMasterStorage:
-    def __init__(self):
-        self._entries: dict[str, NetworkEntry] = {}
-
     def seed_entries(self, seeds: list[InsertNetworkEntry]):
-        for seed in seeds:
-            entry_id = str(uuid.uuid4())
-            self._entries[entry_id] = NetworkEntry(
-                id=entry_id,
-                createdAt=datetime.utcnow().isoformat(),
-                **seed.model_dump(),
+        db = SessionLocal()
+        try:
+            count = db.query(NetworkEntryModel).count()
+            if count > 0:
+                return
+            for seed in seeds:
+                data = api_data_to_db(seed.model_dump())
+                entry = NetworkEntryModel(
+                    id=uuid.uuid4(),
+                    created_at=datetime.now(timezone.utc),
+                    **data,
+                )
+                db.add(entry)
+            db.commit()
+        finally:
+            db.close()
+
+    def get_all(self) -> list[dict]:
+        db = SessionLocal()
+        try:
+            rows = db.query(NetworkEntryModel).order_by(NetworkEntryModel.created_at.desc()).all()
+            return [db_row_to_api(r) for r in rows]
+        finally:
+            db.close()
+
+    def get_by_id(self, entry_id: str) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return None
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
+    def create(self, data: InsertNetworkEntry) -> dict:
+        db = SessionLocal()
+        try:
+            db_data = api_data_to_db(data.model_dump())
+            entry = NetworkEntryModel(
+                id=uuid.uuid4(),
+                created_at=datetime.now(timezone.utc),
+                **db_data,
             )
+            db.add(entry)
+            db.commit()
+            db.refresh(entry)
+            return db_row_to_api(entry)
+        finally:
+            db.close()
 
-    def get_all(self) -> list[NetworkEntry]:
-        entries = list(self._entries.values())
-        entries.sort(key=lambda e: e.createdAt or "", reverse=True)
-        return entries
-
-    def get_by_id(self, entry_id: str) -> Optional[NetworkEntry]:
-        return self._entries.get(entry_id)
-
-    def create(self, data: InsertNetworkEntry) -> NetworkEntry:
-        entry_id = str(uuid.uuid4())
-        entry = NetworkEntry(
-            id=entry_id,
-            createdAt=datetime.utcnow().isoformat(),
-            **data.model_dump(),
-        )
-        self._entries[entry_id] = entry
-        return entry
-
-    def update(self, entry_id: str, data: UpdateNetworkEntry) -> Optional[NetworkEntry]:
-        existing = self._entries.get(entry_id)
-        if not existing:
-            return None
-        update_data = data.model_dump(exclude_unset=True)
-        updated_dict = existing.model_dump()
-        updated_dict.update(update_data)
-        updated = NetworkEntry(**updated_dict)
-        self._entries[entry_id] = updated
-        return updated
+    def update(self, entry_id: str, data: UpdateNetworkEntry) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return None
+            update_fields = data.model_dump(exclude_unset=True)
+            db_fields = api_data_to_db(update_fields)
+            for key, value in db_fields.items():
+                setattr(row, key, value)
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
 
     def delete(self, entry_id: str) -> bool:
-        if entry_id in self._entries:
-            del self._entries[entry_id]
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return False
+            db.delete(row)
+            db.commit()
             return True
-        return False
+        finally:
+            db.close()

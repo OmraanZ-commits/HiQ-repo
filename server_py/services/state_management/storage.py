@@ -1,31 +1,90 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+from server_py.db import SessionLocal, EntryStatusModel, StateTransitionModel
 from server_py.models import StateTransition
 
 
 class StateStorage:
-    def __init__(self):
-        self._statuses: dict[str, str] = {}
-        self._transitions: list[StateTransition] = []
-
     def seed_statuses(self, entries: list[dict]):
-        for entry in entries:
-            self._statuses[entry["id"]] = entry["status"]
+        db = SessionLocal()
+        try:
+            count = db.query(EntryStatusModel).count()
+            if count > 0:
+                return
+            for entry in entries:
+                status_row = EntryStatusModel(
+                    entry_id=entry["id"],
+                    current_status=entry["status"],
+                    updated_at=datetime.now(timezone.utc),
+                )
+                db.add(status_row)
+            db.commit()
+        finally:
+            db.close()
 
     def get_status(self, entry_id: str) -> Optional[str]:
-        return self._statuses.get(entry_id)
+        db = SessionLocal()
+        try:
+            row = db.query(EntryStatusModel).filter(
+                EntryStatusModel.entry_id == entry_id
+            ).first()
+            if not row:
+                return None
+            return row.current_status
+        finally:
+            db.close()
 
     def set_status(self, entry_id: str, status: str):
-        self._statuses[entry_id] = status
+        db = SessionLocal()
+        try:
+            row = db.query(EntryStatusModel).filter(
+                EntryStatusModel.entry_id == entry_id
+            ).first()
+            if row:
+                row.current_status = status
+                row.updated_at = datetime.now(timezone.utc)
+            else:
+                row = EntryStatusModel(
+                    entry_id=entry_id,
+                    current_status=status,
+                    updated_at=datetime.now(timezone.utc),
+                )
+                db.add(row)
+            db.commit()
+        finally:
+            db.close()
 
     def get_all_statuses(self) -> dict[str, str]:
-        return dict(self._statuses)
+        db = SessionLocal()
+        try:
+            rows = db.query(EntryStatusModel).all()
+            return {str(r.entry_id): r.current_status for r in rows}
+        finally:
+            db.close()
 
     def get_history(self, entry_id: str) -> list[StateTransition]:
-        transitions = [t for t in self._transitions if t.entryId == entry_id]
-        transitions.sort(key=lambda t: t.createdAt, reverse=True)
-        return transitions
+        db = SessionLocal()
+        try:
+            rows = db.query(StateTransitionModel).filter(
+                StateTransitionModel.entry_id == entry_id
+            ).order_by(StateTransitionModel.created_at.desc()).all()
+            return [
+                StateTransition(
+                    id=str(r.id),
+                    entryId=str(r.entry_id),
+                    fromStatus=r.from_status,
+                    toStatus=r.to_status,
+                    transitionDate=r.transition_date or "",
+                    triggeredBy=r.triggered_by,
+                    metadata=r.metadata_,
+                    createdAt=r.created_at.isoformat() if r.created_at else "",
+                )
+                for r in rows
+            ]
+        finally:
+            db.close()
 
     def add_transition(
         self,
@@ -35,16 +94,46 @@ class StateStorage:
         triggered_by: Optional[str] = None,
         metadata: Optional[dict] = None,
     ) -> StateTransition:
-        transition = StateTransition(
-            id=str(uuid.uuid4()),
-            entryId=entry_id,
-            fromStatus=from_status,
-            toStatus=to_status,
-            transitionDate=datetime.utcnow().strftime("%Y-%m-%d"),
-            triggeredBy=triggered_by,
-            metadata=metadata,
-            createdAt=datetime.utcnow().isoformat(),
-        )
-        self._transitions.append(transition)
-        self._statuses[entry_id] = to_status
-        return transition
+        db = SessionLocal()
+        try:
+            now = datetime.now(timezone.utc)
+            transition = StateTransitionModel(
+                id=uuid.uuid4(),
+                entry_id=entry_id,
+                from_status=from_status,
+                to_status=to_status,
+                transition_date=now.strftime("%Y-%m-%d"),
+                triggered_by=triggered_by,
+                metadata_=metadata,
+                created_at=now,
+            )
+            db.add(transition)
+
+            status_row = db.query(EntryStatusModel).filter(
+                EntryStatusModel.entry_id == entry_id
+            ).first()
+            if status_row:
+                status_row.current_status = to_status
+                status_row.updated_at = now
+            else:
+                db.add(EntryStatusModel(
+                    entry_id=entry_id,
+                    current_status=to_status,
+                    updated_at=now,
+                ))
+
+            db.commit()
+            db.refresh(transition)
+
+            return StateTransition(
+                id=str(transition.id),
+                entryId=str(transition.entry_id),
+                fromStatus=transition.from_status,
+                toStatus=transition.to_status,
+                transitionDate=transition.transition_date or "",
+                triggeredBy=transition.triggered_by,
+                metadata=transition.metadata_,
+                createdAt=transition.created_at.isoformat() if transition.created_at else "",
+            )
+        finally:
+            db.close()

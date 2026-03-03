@@ -86,19 +86,19 @@ async def transition_status(entry_id: str, req: TransitionRequest):
         entry = _list_storage.get_by_id(entry_id)
         if entry:
             errors = []
-            if not entry.networkChangeDate:
+            if not entry.get("networkChangeDate"):
                 errors.append("Network Change Date is required")
-            if not entry.startDate:
+            if not entry.get("startDate"):
                 errors.append("Start Date is required")
-            if not entry.endDate:
+            if not entry.get("endDate"):
                 errors.append("End Date is required")
-            if entry.startDate and entry.networkChangeDate and entry.startDate < entry.networkChangeDate:
+            if entry.get("startDate") and entry.get("networkChangeDate") and entry["startDate"] < entry["networkChangeDate"]:
                 errors.append("Start Date must be on or after Network Change Date")
-            if entry.startDate and entry.endDate and entry.endDate < entry.startDate:
+            if entry.get("startDate") and entry.get("endDate") and entry["endDate"] < entry["startDate"]:
                 errors.append("End Date must be on or after Start Date")
-            geo = entry.geography or []
-            dep = entry.depot or []
-            ch = [c for c in (entry.channel or []) if c != "MT"]
+            geo = entry.get("geography") or []
+            dep = entry.get("depot") or []
+            ch = [c for c in (entry.get("channel") or []) if c != "MT"]
             if len(geo) == 0:
                 errors.append("At least one cluster must be selected")
             if len(dep) == 0:

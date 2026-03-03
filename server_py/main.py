@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from server_py.models import InsertNetworkEntry
+from server_py.db import create_tables
 from server_py.services.list_master.router import router as list_master_router, get_storage as get_list_storage
 from server_py.services.state_management.router import (
     router as state_router,
@@ -216,6 +217,8 @@ SEEDS = [
 
 @app.on_event("startup")
 async def startup():
+    create_tables()
+
     list_storage = get_list_storage()
     list_storage.seed_entries(SEEDS)
 
@@ -224,7 +227,7 @@ async def startup():
     state_storage = get_state_storage()
     entries = list_storage.get_all()
     state_storage.seed_statuses(
-        [{"id": e.id, "status": e.networkStatus or "Draft"} for e in entries]
+        [{"id": e["id"], "status": e.get("networkStatus", "Draft")} for e in entries]
     )
 
 
