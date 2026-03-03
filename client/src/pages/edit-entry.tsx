@@ -14,7 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle } from "lucide-react";
 import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
@@ -36,6 +37,18 @@ function computeYear(dateStr: string | null | undefined): number | null {
   return isNaN(d.getTime()) ? null : d.getFullYear();
 }
 
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+function formatDateDisplay(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 export default function EditEntry() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -48,12 +61,16 @@ export default function EditEntry() {
 
   const [form, setForm] = useState<InsertNetworkEntry | null>(null);
   const [activeTab, setActiveTab] = useState("basic");
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   useEffect(() => {
     if (entry && !form) {
+      const autoChangeDate = (!entry.networkChangeDate && entry.cbuCreatedDate)
+        ? addDays(entry.cbuCreatedDate, 15)
+        : entry.networkChangeDate;
       setForm({
         cbuCreatedDate: entry.cbuCreatedDate,
-        networkChangeDate: entry.networkChangeDate,
+        networkChangeDate: autoChangeDate,
         annexureNumber: entry.annexureNumber,
         basepack: entry.basepack,
         basepackDescription: entry.basepackDescription,
@@ -167,10 +184,65 @@ export default function EditEntry() {
     });
   };
 
+  const validateForActivation = (): string[] => {
+    if (!form || !entry) return [];
+    const errors: string[] = [];
+    const isDraft = entry.networkStatus === "Draft";
+    if (!isDraft) return [];
+
+    if (!form.networkChangeDate) errors.push("Network Change Date is required");
+    if (!form.startDate) errors.push("Start Date is required");
+    if (!form.endDate) errors.push("End Date is required");
+
+    if (form.networkChangeDate && form.cbuCreatedDate) {
+      const minChangeDate = addDays(form.cbuCreatedDate, 1);
+      if (form.networkChangeDate < minChangeDate) {
+        errors.push("Network Change Date must be after CBU Created Date");
+      }
+    }
+    if (form.networkChangeDate && form.startDate && form.startDate < form.networkChangeDate) {
+      errors.push("Start Date must be on or after Network Change Date");
+    }
+    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+      errors.push("End Date must be on or after Start Date");
+    }
+
+    const geo = (form.geography as string[]) || [];
+    const dep = (form.depot as string[]) || [];
+    const ch = (form.channel as string[]) || [];
+    if (geo.length === 0) errors.push("At least one cluster must be selected");
+    if (dep.length === 0) errors.push("At least one depot must be selected");
+    if (ch.filter(c => c !== "MT").length === 0) errors.push("At least one channel must be selected");
+
+    return errors;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form || !entry) return;
+
+    const isDraft = entry.networkStatus === "Draft";
+    if (isDraft) {
+      const errors = validateForActivation();
+      if (errors.length > 0) {
+        toast({
+          title: "Validation Failed",
+          description: errors.join(". "),
+          variant: "destructive",
+        });
+        return;
+      }
+      setShowConfirmDialog(true);
+    } else {
+      updateMutation.mutate(form);
+    }
+  };
+
+  const handleConfirmSubmit = () => {
     if (!form) return;
-    updateMutation.mutate(form);
+    const submissionData = { ...form, networkStatus: "Active" };
+    setShowConfirmDialog(false);
+    updateMutation.mutate(submissionData);
   };
 
   if (isLoading) {
@@ -243,7 +315,7 @@ export default function EditEntry() {
           </div>
           <Button onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-save">
             {updateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Changes
+            {entry.networkStatus === "Draft" ? "Submit & Activate" : "Save Changes"}
           </Button>
         </div>
 
@@ -296,14 +368,32 @@ export default function EditEntry() {
                     <ReadOnlyField label="Year (auto-calculated)" value={computedYear != null ? String(computedYear) : null} testId="input-year" />
                     <ReadOnlyField label="Network Status (calculated)" value={form.networkStatus} testId="input-network-status" />
                     <ReadOnlyField label="Assigned Person" value={form.assignedPerson} testId="input-assigned-person" />
-                    <FormField label="Network Change Date">
-                      <Input type="date" value={form.networkChangeDate || ""} onChange={e => updateField("networkChangeDate", e.target.value)} data-testid="input-network-change-date" />
+                    <FormField label="Network Change Date" hint={form.cbuCreatedDate ? `Auto-calculated: CBU date + 15 days. Min: ${formatDateDisplay(addDays(form.cbuCreatedDate, 1))}` : undefined}>
+                      <Input
+                        type="date"
+                        value={form.networkChangeDate || ""}
+                        min={form.cbuCreatedDate ? addDays(form.cbuCreatedDate, 1) : undefined}
+                        onChange={e => updateField("networkChangeDate", e.target.value)}
+                        data-testid="input-network-change-date"
+                      />
                     </FormField>
-                    <FormField label="Start Date">
-                      <Input type="date" value={form.startDate || ""} onChange={e => updateField("startDate", e.target.value)} data-testid="input-start-date" />
+                    <FormField label="Start Date" hint={form.networkChangeDate ? `Must be on or after change date: ${formatDateDisplay(form.networkChangeDate)}` : undefined}>
+                      <Input
+                        type="date"
+                        value={form.startDate || ""}
+                        min={form.networkChangeDate || undefined}
+                        onChange={e => updateField("startDate", e.target.value)}
+                        data-testid="input-start-date"
+                      />
                     </FormField>
-                    <FormField label="End Date">
-                      <Input type="date" value={form.endDate || ""} onChange={e => updateField("endDate", e.target.value)} data-testid="input-end-date" />
+                    <FormField label="End Date" hint={form.startDate ? `Must be on or after start date: ${formatDateDisplay(form.startDate)}` : undefined}>
+                      <Input
+                        type="date"
+                        value={form.endDate || ""}
+                        min={form.startDate || undefined}
+                        onChange={e => updateField("endDate", e.target.value)}
+                        data-testid="input-end-date"
+                      />
                     </FormField>
                   </CardContent>
                 </Card>
@@ -564,16 +654,109 @@ export default function EditEntry() {
             </TabsContent>
           </Tabs>
         </form>
+
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="max-w-lg" data-testid="dialog-confirm-submit">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Confirm Activation
+              </DialogTitle>
+              <DialogDescription>
+                Review the summary below before moving this entry from Draft to Active.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground text-xs mb-0.5">Network Change Date</p>
+                  <p className="font-medium" data-testid="summary-change-date">{formatDateDisplay(form?.networkChangeDate)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs mb-0.5">Start Date</p>
+                  <p className="font-medium" data-testid="summary-start-date">{formatDateDisplay(form?.startDate)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs mb-0.5">End Date</p>
+                  <p className="font-medium" data-testid="summary-end-date">{formatDateDisplay(form?.endDate)}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm border-t pt-3">
+                <div>
+                  <p className="text-muted-foreground text-xs mb-0.5">Predecessor CBU</p>
+                  <p className="font-mono text-xs" data-testid="summary-predecessor">{form?.predecessorCode || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs mb-0.5">Successor CBU</p>
+                  <p className="font-mono text-xs" data-testid="summary-successor">{form?.successorCode || "-"}</p>
+                </div>
+              </div>
+              <div className="border-t pt-3">
+                <p className="text-muted-foreground text-xs mb-2">Distribution Matrix Preview</p>
+                {(() => {
+                  const geo = (form?.geography as string[]) || [];
+                  const dep = (form?.depot as string[]) || [];
+                  const ch = ((form?.channel as string[]) || []).filter(c => c !== "MT");
+                  return geo.length > 0 && dep.length > 0 && ch.length > 0 ? (
+                    <div className="overflow-x-auto max-h-40">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-1 pr-2 text-muted-foreground font-medium">Cluster</th>
+                            <th className="text-left py-1 pr-2 text-muted-foreground font-medium">Depot</th>
+                            {ch.slice(0, 5).map(c => (
+                              <th key={c} className="text-center py-1 px-1 text-muted-foreground font-medium">{c}</th>
+                            ))}
+                            {ch.length > 5 && <th className="text-center py-1 px-1 text-muted-foreground">+{ch.length - 5}</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {geo.slice(0, 5).map((g, i) => (
+                            <tr key={g} className="border-b border-border/50">
+                              <td className="py-1 pr-2 font-medium">{g.length > 16 ? g.substring(0, 14) + "..." : g}</td>
+                              <td className="py-1 pr-2 font-mono text-muted-foreground">{dep[i % dep.length]}</td>
+                              {ch.slice(0, 5).map(c => (
+                                <td key={c} className="text-center py-1 px-1">
+                                  <Check className="h-3 w-3 text-primary mx-auto" />
+                                </td>
+                              ))}
+                              {ch.length > 5 && <td className="text-center py-1 px-1 text-muted-foreground">...</td>}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {geo.length > 5 && (
+                        <p className="text-[10px] text-muted-foreground mt-1 text-center">+ {geo.length - 5} more clusters</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No distribution data selected.</p>
+                  );
+                })()}
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)} data-testid="button-cancel-confirm">
+                Cancel
+              </Button>
+              <Button onClick={handleConfirmSubmit} disabled={updateMutation.isPending} data-testid="button-confirm-activate">
+                {updateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                Confirm & Activate
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
 }
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-sm font-medium">{label}</Label>
       {children}
+      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }

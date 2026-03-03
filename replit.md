@@ -20,12 +20,18 @@ A central portal for managing network visibility across all Unilever product cat
 - Data table with CBU Created Date, Assigned Person columns, search, and status filtering
 - Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
 - Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Transition Complete)
-- Distribution tab: dark navy themed left filter panel (collapsible Geography/Depot/Channel sections from Excel master data), right panel with coverage stat cards, distribution matrix preview, and India SVG cluster map with state highlighting
+- Distribution tab: light-themed cards (Geography/Depots/Channels) with select-all toggles, distribution matrix preview
+- MT channel as parent group with 5 sub-channels; "partial" badge when partially selected; leaf count = 8
 - View detail dialog with organized sections and status flow
 - Year auto-calculated from CBU Created Date
+- Network Change Date auto-calculated as CBU Created Date + 15 days for Draft entries
+- Date validation: Change Date min = CBU+1 day, Start Date min = Change Date, End Date min = Start Date
+- Draft→Active validation: requires all 3 dates + at least 1 cluster, depot, channel
+- Confirmation dialog before activation showing: dates, predecessor/successor CBU, distribution matrix preview
 - Assigned Person field with avatar initials in table
 - Read-only fields for data-sourced values; editable fields for manual input
 - No create new / delete entry actions (view + edit only)
+- Draft entries seed with blank start/end dates and empty distribution fields
 
 ## Status Flow
 7-step progression exported as STATUS_FLOW constant:
