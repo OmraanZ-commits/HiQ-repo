@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Download, Filter, Search, X, BarChart3 } from "lucide-react";
-import type { NetworkEntry } from "@shared/schema";
+import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
@@ -127,9 +127,9 @@ export default function Dashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Production Started">Production Started</SelectItem>
+                      {STATUS_FLOW.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

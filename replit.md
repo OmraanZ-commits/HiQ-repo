@@ -17,16 +17,29 @@ A central portal for managing network visibility across all Unilever product cat
 
 ## Key Features
 - Dashboard with gradient stat cards (Total, Active, Draft, Production Started)
-- Data table with CBU Created Date column, search, and status filtering
+- Data table with CBU Created Date, Assigned Person columns, search, and status filtering
 - Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
-- View detail dialog with organized sections
+- Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Transition Complete)
+- Enhanced distribution tab with decorative background, glassmorphism cards, and category icons
+- View detail dialog with organized sections and status flow
 - Year auto-calculated from CBU Created Date
+- Assigned Person field with avatar initials in table
+- Read-only fields for data-sourced values; editable fields for manual input
 - No create new / delete entry actions (view + edit only)
-- Removed sourcing matrix label
+
+## Status Flow
+7-step progression exported as STATUS_FLOW constant:
+1. Draft
+2. Active
+3. Pricing Updated
+4. Production Started
+5. FTR Approved
+6. Stock Movement Initiated
+7. CBU Transition Complete
 
 ## Data Model
-`networkEntries` table with ~37 fields covering:
-- Basic info (CBU code, dates, annexure, network type)
+`networkEntries` table with ~38 fields covering:
+- Basic info (CBU code, dates, annexure, network type, assigned person)
 - Product details (brand, BG, format, profit centre, etc.)
 - Dimensions (weight, length, width, height, EAN, ITF)
 - Distribution (geography, depot, channel as arrays)
@@ -37,11 +50,12 @@ A central portal for managing network visibility across all Unilever product cat
 - `client/src/pages/edit-entry.tsx` - Fullscreen edit page
 - `client/src/components/unilever-header.tsx` - Branded header
 - `client/src/components/stats-cards.tsx` - Gradient stat cards
-- `client/src/components/network-table.tsx` - Data table (view + edit actions)
-- `client/src/components/entry-detail-dialog.tsx` - View details dialog
+- `client/src/components/status-flow.tsx` - 7-step status progress bar
+- `client/src/components/network-table.tsx` - Data table (view + edit actions, assigned person column)
+- `client/src/components/entry-detail-dialog.tsx` - View details dialog with status flow
 - `server/routes.ts` - REST API endpoints
 - `server/storage.ts` - In-memory storage with CRUD and seed data
-- `shared/schema.ts` - Data model and types
+- `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
 ## API Endpoints
 - `GET /api/network-entries` - List all entries

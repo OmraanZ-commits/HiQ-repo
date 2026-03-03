@@ -4,16 +4,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
 import { UnileverHeader } from "@/components/unilever-header";
+import { StatusFlow } from "@/components/status-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Globe, Building2, Radio } from "lucide-react";
 import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
 
 const CHANNELS = ["CD", "CSD", "COOP", "CPC", "GT", "KA", "OH", "RD", "MT", "Retail", "MT-ECOM", "MT-QCOM"];
@@ -25,6 +25,10 @@ function getStatusVariant(status: string | null): "default" | "secondary" | "des
     case "Active": return "default";
     case "Draft": return "secondary";
     case "Production Started": return "outline";
+    case "Pricing Updated": return "outline";
+    case "FTR Approved": return "default";
+    case "Stock Movement Initiated": return "default";
+    case "CBU Transition Complete": return "default";
     default: return "secondary";
   }
 }
@@ -85,6 +89,7 @@ export default function EditEntry() {
         csdIndexNo: entry.csdIndexNo,
         pcAtChannelState: entry.pcAtChannelState,
         sourcingMatrixSection: entry.sourcingMatrixSection,
+        assignedPerson: entry.assignedPerson,
         geography: entry.geography || [],
         depot: entry.depot || [],
         channel: entry.channel || [],
@@ -186,6 +191,9 @@ export default function EditEntry() {
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
                 CBU Code: <span className="font-mono">{entry.cbuCode}</span>
+                {entry.assignedPerson && (
+                  <span className="ml-3">Assigned to: <span className="font-medium text-foreground">{entry.assignedPerson}</span></span>
+                )}
               </p>
             </div>
           </div>
@@ -202,6 +210,8 @@ export default function EditEntry() {
             Save Changes
           </Button>
         </div>
+
+        <StatusFlow currentStatus={entry.networkStatus} />
 
         <div className="flex items-center gap-2 mb-5 px-1">
           <Lock className="h-3.5 w-3.5 text-muted-foreground" />
@@ -254,6 +264,7 @@ export default function EditEntry() {
                     <ReadOnlyField label="CBU Created Date" value={form.cbuCreatedDate} testId="input-cbu-created-date" />
                     <ReadOnlyField label="Year (auto-calculated)" value={computedYear != null ? String(computedYear) : null} testId="input-year" />
                     <ReadOnlyField label="Network Status (calculated)" value={form.networkStatus} testId="input-network-status" />
+                    <ReadOnlyField label="Assigned Person" value={form.assignedPerson} testId="input-assigned-person" />
                     <FormField label="Network Change Date">
                       <Input
                         type="date"
@@ -345,60 +356,96 @@ export default function EditEntry() {
             </TabsContent>
 
             <TabsContent value="distribution" className="mt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader className="pb-4">
-                    <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Geography</h3>
-                  </CardHeader>
-                  <CardContent className="space-y-3" data-testid="checkboxes-geography">
-                    {GEOGRAPHIES.map(g => (
-                      <label key={g} className="flex items-center gap-3 cursor-pointer py-1">
-                        <Checkbox
-                          checked={(form.geography || []).includes(g)}
-                          onCheckedChange={() => toggleArrayItem("geography", g)}
-                          data-testid={`checkbox-geo-${g.toLowerCase().replace(/\s/g, "-")}`}
-                        />
-                        <span className="text-sm">{g}</span>
-                      </label>
-                    ))}
-                  </CardContent>
-                </Card>
+              <div className="relative rounded-xl overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#1f36c7]/[0.04] via-[#0d8ecf]/[0.06] to-[#00b0d7]/[0.04]" />
+                <div
+                  className="absolute inset-0 opacity-[0.03]"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230d8ecf' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                  }}
+                />
+                <div
+                  className="absolute top-0 right-0 w-64 h-64 opacity-[0.06] pointer-events-none"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='80' fill='none' stroke='%230d8ecf' stroke-width='1'/%3E%3Ccircle cx='100' cy='100' r='60' fill='none' stroke='%230d8ecf' stroke-width='0.5'/%3E%3Ccircle cx='100' cy='100' r='40' fill='none' stroke='%230d8ecf' stroke-width='0.5'/%3E%3Cline x1='20' y1='100' x2='180' y2='100' stroke='%230d8ecf' stroke-width='0.5'/%3E%3Cline x1='100' y1='20' x2='100' y2='180' stroke='%230d8ecf' stroke-width='0.5'/%3E%3C/svg%3E")`,
+                    backgroundSize: "contain",
+                    backgroundRepeat: "no-repeat",
+                  }}
+                />
 
-                <Card>
-                  <CardHeader className="pb-4">
-                    <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Depot</h3>
-                  </CardHeader>
-                  <CardContent className="space-y-3" data-testid="checkboxes-depot">
-                    {DEPOTS.map(d => (
-                      <label key={d} className="flex items-center gap-3 cursor-pointer py-1">
-                        <Checkbox
-                          checked={(form.depot || []).includes(d)}
-                          onCheckedChange={() => toggleArrayItem("depot", d)}
-                          data-testid={`checkbox-depot-${d.toLowerCase()}`}
-                        />
-                        <span className="text-sm">{d}</span>
-                      </label>
-                    ))}
-                  </CardContent>
-                </Card>
+                <div className="relative z-10 p-6">
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1f36c7] to-[#00b0d7] flex items-center justify-center">
+                      <MapPin className="h-4 w-4 text-white" />
+                    </div>
+                    <h3 className="text-base font-semibold">Distribution Network</h3>
+                  </div>
 
-                <Card>
-                  <CardHeader className="pb-4">
-                    <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Channel</h3>
-                  </CardHeader>
-                  <CardContent className="space-y-3" data-testid="checkboxes-channel">
-                    {CHANNELS.map(c => (
-                      <label key={c} className="flex items-center gap-3 cursor-pointer py-1">
-                        <Checkbox
-                          checked={(form.channel || []).includes(c)}
-                          onCheckedChange={() => toggleArrayItem("channel", c)}
-                          data-testid={`checkbox-channel-${c.toLowerCase()}`}
-                        />
-                        <span className="text-sm">{c}</span>
-                      </label>
-                    ))}
-                  </CardContent>
-                </Card>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <Card className="border-[#0d8ecf]/10 bg-white/80 dark:bg-card/80 backdrop-blur-sm shadow-sm">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-[#1f36c7]" />
+                          <h4 className="text-sm font-semibold text-[#1f36c7] dark:text-[#4db8e8]">Geography</h4>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2.5" data-testid="checkboxes-geography">
+                        {GEOGRAPHIES.map(g => (
+                          <label key={g} className="flex items-center gap-3 cursor-pointer py-1.5 px-2 rounded-md hover:bg-[#0d8ecf]/5 transition-colors">
+                            <Checkbox
+                              checked={(form.geography || []).includes(g)}
+                              onCheckedChange={() => toggleArrayItem("geography", g)}
+                              data-testid={`checkbox-geo-${g.toLowerCase().replace(/\s/g, "-")}`}
+                            />
+                            <span className="text-sm">{g}</span>
+                          </label>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-[#0d8ecf]/10 bg-white/80 dark:bg-card/80 backdrop-blur-sm shadow-sm">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-[#0d8ecf]" />
+                          <h4 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Depot</h4>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2.5" data-testid="checkboxes-depot">
+                        {DEPOTS.map(d => (
+                          <label key={d} className="flex items-center gap-3 cursor-pointer py-1.5 px-2 rounded-md hover:bg-[#0d8ecf]/5 transition-colors">
+                            <Checkbox
+                              checked={(form.depot || []).includes(d)}
+                              onCheckedChange={() => toggleArrayItem("depot", d)}
+                              data-testid={`checkbox-depot-${d.toLowerCase()}`}
+                            />
+                            <span className="text-sm">{d}</span>
+                          </label>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-[#0d8ecf]/10 bg-white/80 dark:bg-card/80 backdrop-blur-sm shadow-sm">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Radio className="h-4 w-4 text-[#00b0d7]" />
+                          <h4 className="text-sm font-semibold text-[#00b0d7] dark:text-[#4db8e8]">Channel</h4>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2.5" data-testid="checkboxes-channel">
+                        {CHANNELS.map(c => (
+                          <label key={c} className="flex items-center gap-3 cursor-pointer py-1.5 px-2 rounded-md hover:bg-[#0d8ecf]/5 transition-colors">
+                            <Checkbox
+                              checked={(form.channel || []).includes(c)}
+                              onCheckedChange={() => toggleArrayItem("channel", c)}
+                              data-testid={`checkbox-channel-${c.toLowerCase()}`}
+                            />
+                            <span className="text-sm">{c}</span>
+                          </label>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
               </div>
             </TabsContent>
           </Tabs>

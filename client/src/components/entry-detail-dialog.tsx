@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { StatusFlow } from "@/components/status-flow";
 import type { NetworkEntry } from "@shared/schema";
 
 interface EntryDetailDialogProps {
@@ -9,20 +10,24 @@ interface EntryDetailDialogProps {
   entry: NetworkEntry | null;
 }
 
-function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "Active": return "default";
-    case "Draft": return "secondary";
-    case "Production Started": return "outline";
-    default: return "secondary";
-  }
-}
-
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "-";
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
+  switch (status) {
+    case "Active": return "default";
+    case "Draft": return "secondary";
+    case "Production Started": return "outline";
+    case "Pricing Updated": return "outline";
+    case "FTR Approved": return "default";
+    case "Stock Movement Initiated": return "default";
+    case "CBU Transition Complete": return "default";
+    default: return "secondary";
+  }
 }
 
 export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDialogProps) {
@@ -44,6 +49,8 @@ export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDial
           </div>
         </DialogHeader>
 
+        <StatusFlow currentStatus={entry.networkStatus} />
+
         <div className="space-y-6 mt-2">
           <Section title="Basic Information">
             <DetailGrid>
@@ -57,6 +64,7 @@ export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDial
               <DetailItem label="Start Date" value={formatDate(entry.startDate)} testId="detail-start-date" />
               <DetailItem label="End Date" value={formatDate(entry.endDate)} testId="detail-end-date" />
               <DetailItem label="Copy CBU" value={entry.copyCbu} testId="detail-copy-cbu" />
+              <DetailItem label="Assigned Person" value={entry.assignedPerson} testId="detail-assigned-person" />
             </DetailGrid>
           </Section>
 

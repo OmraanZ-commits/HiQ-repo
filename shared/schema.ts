@@ -3,6 +3,16 @@ import { pgTable, text, varchar, date, integer, real, timestamp, boolean } from 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const STATUS_FLOW = [
+  "Draft",
+  "Active",
+  "Pricing Updated",
+  "Production Started",
+  "FTR Approved",
+  "Stock Movement Initiated",
+  "CBU Transition Complete",
+] as const;
+
 export const networkEntries = pgTable("network_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   cbuCreatedDate: date("cbu_created_date"),
@@ -39,6 +49,7 @@ export const networkEntries = pgTable("network_entries", {
   csdIndexNo: text("csd_index_no"),
   pcAtChannelState: text("pc_at_channel_state"),
   sourcingMatrixSection: text("sourcing_matrix_section"),
+  assignedPerson: text("assigned_person"),
   geography: text("geography").array(),
   depot: text("depot").array(),
   channel: text("channel").array(),

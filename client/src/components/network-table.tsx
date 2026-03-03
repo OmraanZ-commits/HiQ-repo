@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, Pencil, ChevronLeft, ChevronRight, User } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { useState, useEffect } from "react";
 
@@ -25,6 +25,10 @@ function getStatusVariant(status: string | null): "default" | "secondary" | "des
     case "Active": return "default";
     case "Draft": return "secondary";
     case "Production Started": return "outline";
+    case "Pricing Updated": return "outline";
+    case "FTR Approved": return "default";
+    case "Stock Movement Initiated": return "default";
+    case "CBU Transition Complete": return "default";
     default: return "secondary";
   }
 }
@@ -56,7 +60,7 @@ export function NetworkTable({ entries, onView, onEdit }: NetworkTableProps) {
               <TableHead className="font-semibold text-xs">Material Description</TableHead>
               <TableHead className="font-semibold text-xs">Brand</TableHead>
               <TableHead className="font-semibold text-xs">BG</TableHead>
-              <TableHead className="font-semibold text-xs">Network Type</TableHead>
+              <TableHead className="font-semibold text-xs">Assigned Person</TableHead>
               <TableHead className="font-semibold text-xs">CBU Created Date</TableHead>
               <TableHead className="font-semibold text-xs">Status</TableHead>
               <TableHead className="text-right font-semibold text-xs w-[100px]">Actions</TableHead>
@@ -84,7 +88,16 @@ export function NetworkTable({ entries, onView, onEdit }: NetworkTableProps) {
                   </TableCell>
                   <TableCell className="text-sm font-medium">{entry.brand || "-"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{entry.bg || "-"}</TableCell>
-                  <TableCell className="text-sm">{entry.typeOfNetwork || "-"}</TableCell>
+                  <TableCell className="text-sm" data-testid={`text-assigned-${entry.id}`}>
+                    {entry.assignedPerson ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1f36c7] to-[#0d8ecf] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                          {entry.assignedPerson.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                        </div>
+                        <span className="truncate max-w-[100px]">{entry.assignedPerson}</span>
+                      </div>
+                    ) : "-"}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground" data-testid={`text-date-${entry.id}`}>
                     {formatDate(entry.cbuCreatedDate)}
                   </TableCell>
