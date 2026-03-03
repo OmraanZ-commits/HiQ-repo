@@ -98,6 +98,19 @@ class StateTransitionModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+class SagaLogModel(Base):
+    __tablename__ = "saga_logs"
+
+    id = Column(String, primary_key=True)
+    saga_type = Column(String, nullable=False)
+    entry_id = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False, default="pending")
+    steps = Column(JSONB, nullable=True)
+    started_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    completed_at = Column(DateTime, nullable=True)
+    error = Column(String, nullable=True)
+
+
 def create_tables():
     Base.metadata.create_all(bind=engine)
 

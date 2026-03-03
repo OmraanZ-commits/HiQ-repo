@@ -217,7 +217,7 @@ export function useNetworkEntryForm() {
   const transitionMutation = useMutation({
     mutationFn: async (data: { form: InsertNetworkEntry; entryId: string }) => {
       await apiRequest("PATCH", `/api/list-master/${data.entryId}`, data.form);
-      await apiRequest("POST", `/api/state/${data.entryId}/transition`, {
+      await apiRequest("POST", `/api/saga/transition/${data.entryId}`, {
         toStatus: "Active",
         triggeredBy: data.form.assignedPerson || "System",
         metadata: {
@@ -229,6 +229,7 @@ export function useNetworkEntryForm() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lifecycle"] });
       toast({ title: "Entry activated successfully" });
       navigate("/");
     },
