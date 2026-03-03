@@ -96,13 +96,14 @@ export function NetworkTable({ entries, onView, onEdit, lifecycleMap = {} }: Net
               <TableHead className="font-semibold text-xs">Assigned Person</TableHead>
               <TableHead className="font-semibold text-xs">CBU Created Date</TableHead>
               <TableHead className="font-semibold text-xs">Status</TableHead>
+              <TableHead className="font-semibold text-xs">Trigger</TableHead>
               <TableHead className="text-right font-semibold text-xs w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                   No network entries found matching your criteria.
                 </TableCell>
               </TableRow>
@@ -137,12 +138,19 @@ export function NetworkTable({ entries, onView, onEdit, lifecycleMap = {} }: Net
                       {formatDate(entry.cbuCreatedDate)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getStatusVariant(entry.networkStatus)} data-testid={`badge-status-${entry.id}`}>
-                          {entry.networkStatus || "Draft"}
-                        </Badge>
-                        <LifecycleFlag lifecycle={lifecycle} />
-                      </div>
+                      <Badge variant={getStatusVariant(entry.networkStatus)} data-testid={`badge-status-${entry.id}`}>
+                        {entry.networkStatus || "Draft"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell data-testid={`cell-trigger-${entry.id}`}>
+                      {lifecycle?.colorFlag ? (
+                        <div className="flex items-center gap-1.5">
+                          <LifecycleFlag lifecycle={lifecycle} />
+                          <span className="text-xs text-muted-foreground truncate max-w-[140px]">{lifecycle.flagLabel}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
