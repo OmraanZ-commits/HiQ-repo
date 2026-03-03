@@ -74,6 +74,7 @@ class NetworkEntryModel(Base):
     geography = Column(ARRAY(Text), nullable=True, default=[])
     depot = Column(ARRAY(Text), nullable=True, default=[])
     channel = Column(ARRAY(Text), nullable=True, default=[])
+    channel_mapping = Column(JSONB, nullable=True, default={})
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
@@ -141,6 +142,7 @@ FIELD_MAP_TO_DB = {
     "pcAtChannelState": "pc_at_channel_state",
     "sourcingMatrixSection": "sourcing_matrix_section",
     "assignedPerson": "assigned_person",
+    "channelMapping": "channel_mapping",
     "createdAt": "created_at",
 }
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, date, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, date, integer, real, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -53,6 +53,7 @@ export const networkEntries = pgTable("network_entries", {
   geography: text("geography").array(),
   depot: text("depot").array(),
   channel: text("channel").array(),
+  channelMapping: jsonb("channel_mapping").$type<Record<string, string[]>>(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

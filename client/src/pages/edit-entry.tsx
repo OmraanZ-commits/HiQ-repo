@@ -33,12 +33,12 @@ export default function EditEntry() {
     entry, form, isLoading, activeTab, setActiveTab,
     showConfirmDialog, setShowConfirmDialog,
     updateField, toggleArrayItem,
-    toggleAllClusters, toggleAllDepots, toggleAllChannels, toggleMT,
+    toggleGeoChannel, toggleAllGeoChannels, applyChannelsToAllGeos,
+    toggleAllClusters, toggleAllDepots,
     handleSubmit, handleConfirmSubmit, isPending, navigate,
-    selectedGeo, selectedDepots, selectedChannels,
+    selectedGeo, selectedDepots, selectedChannels, channelMapping,
     allClustersSelected, allDepotsSelected,
-    selectedLeafCount, allChannelsSelected,
-    mtSelected, allMtSubsSelected, someMtSubsSelected,
+    selectedLeafCount,
     computedYear, isDraft,
   } = useNetworkEntryForm();
 
@@ -333,105 +333,150 @@ export default function EditEntry() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Radio className="h-4 w-4 text-primary" />
-                            <h3 className="text-sm font-semibold">Channels</h3>
-                            <Badge variant="secondary" className="text-[10px]">{selectedLeafCount}/{LEAF_CHANNELS.length}</Badge>
+                            <h3 className="text-sm font-semibold">Channels by Geography</h3>
+                            <Badge variant="secondary" className="text-[10px]">{selectedLeafCount} channel(s)</Badge>
                           </div>
-                          <label className="flex items-center gap-2 cursor-pointer" data-testid="toggle-all-channels">
-                            <Checkbox
-                              checked={allChannelsSelected}
-                              onCheckedChange={toggleAllChannels}
-                            />
-                            <span className="text-xs font-medium">All Channels</span>
-                          </label>
                         </div>
+                        {selectedGeo.length === 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">Select geographies above to configure channels per cluster.</p>
+                        )}
                       </CardHeader>
-                      <CardContent className="space-y-3" data-testid="checkboxes-channel">
-                        <div className="flex flex-wrap gap-x-6 gap-y-1">
-                          {TOP_CHANNELS.map(ch => {
-                            const isChecked = selectedChannels.includes(ch.code);
+                      {selectedGeo.length > 0 && (
+                        <CardContent className="space-y-3" data-testid="checkboxes-channel">
+                          {selectedGeo.map((geo, geoIdx) => {
+                            const geoChannels = channelMapping[geo] || [];
+                            const geoLeafCount = LEAF_CHANNELS.filter(c => geoChannels.includes(c.code)).length;
+                            const allGeoSelected = LEAF_CHANNELS.every(c => geoChannels.includes(c.code));
+                            const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+                            const geoMtAllSelected = mtSubCodes.every(c => geoChannels.includes(c));
+                            const geoMtSomeSelected = mtSubCodes.some(c => geoChannels.includes(c));
                             return (
-                              <label key={ch.code} className={`flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
-                                <Checkbox
-                                  checked={isChecked}
-                                  onCheckedChange={() => toggleArrayItem("channel", ch.code)}
-                                  data-testid={`checkbox-channel-${ch.code.toLowerCase()}`}
-                                />
-                                <span className="text-xs font-medium">{ch.code}</span>
-                                <span className="text-[10px] text-muted-foreground">({ch.type})</span>
-                              </label>
+                              <div key={geo} className="rounded-lg border p-3" data-testid={`geo-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                                    <span className="text-xs font-semibold">{geo}</span>
+                                    <Badge variant="secondary" className="text-[9px]">{geoLeafCount}/{LEAF_CHANNELS.length}</Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {geoIdx === 0 && selectedGeo.length > 1 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-[10px] px-2"
+                                        onClick={() => applyChannelsToAllGeos(geo)}
+                                        data-testid="btn-apply-channels-to-all"
+                                      >
+                                        Apply to all
+                                      </Button>
+                                    )}
+                                    <label className="flex items-center gap-1.5 cursor-pointer" data-testid={`toggle-all-channels-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}>
+                                      <Checkbox
+                                        checked={allGeoSelected}
+                                        onCheckedChange={() => toggleAllGeoChannels(geo)}
+                                      />
+                                      <span className="text-[10px] font-medium">All</span>
+                                    </label>
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                                  {TOP_CHANNELS.map(ch => {
+                                    const isChecked = geoChannels.includes(ch.code);
+                                    return (
+                                      <label key={ch.code} className={`flex items-center gap-1.5 py-1 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                                        <Checkbox
+                                          checked={isChecked}
+                                          onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
+                                          data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-${ch.code.toLowerCase()}`}
+                                        />
+                                        <span className="text-[11px]">{ch.code}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                                <div className="rounded border p-2 bg-muted/10">
+                                  <label className="flex items-center gap-1.5 cursor-pointer mb-1.5">
+                                    <Checkbox
+                                      checked={geoMtAllSelected}
+                                      onCheckedChange={() => toggleGeoChannel(geo, "MT")}
+                                      data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-mt`}
+                                    />
+                                    <span className="text-[11px] font-semibold">MT</span>
+                                    {geoMtSomeSelected && !geoMtAllSelected && (
+                                      <Badge variant="outline" className="text-[8px] px-1 py-0">partial</Badge>
+                                    )}
+                                  </label>
+                                  <div className="ml-5 flex flex-wrap gap-x-3 gap-y-0.5 border-l-2 border-primary/20 pl-2">
+                                    {MT_SUB_CHANNELS.map(ch => {
+                                      const isChecked = geoChannels.includes(ch.code);
+                                      return (
+                                        <label key={ch.code} className={`flex items-center gap-1.5 py-0.5 px-1.5 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                                          <Checkbox
+                                            checked={isChecked}
+                                            onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
+                                            data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                          />
+                                          <span className="text-[10px]">{ch.code}</span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
                             );
                           })}
-                        </div>
-
-                        <div className="rounded-lg border p-3 bg-muted/20">
-                          <label className="flex items-center gap-2 cursor-pointer mb-2" data-testid="checkbox-channel-mt">
-                            <Checkbox
-                              checked={mtSelected && allMtSubsSelected}
-                              onCheckedChange={(checked) => toggleMT(!!checked)}
-                            />
-                            <span className="text-xs font-semibold">MT</span>
-                            <span className="text-[10px] text-muted-foreground">(Modern Trade)</span>
-                            {someMtSubsSelected && !allMtSubsSelected && (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0">partial</Badge>
-                            )}
-                          </label>
-                          <div className="ml-6 flex flex-wrap gap-x-5 gap-y-1 border-l-2 border-primary/20 pl-3">
-                            {MT_SUB_CHANNELS.map(ch => {
-                              const isChecked = selectedChannels.includes(ch.code);
-                              return (
-                                <label key={ch.code} className={`flex items-center gap-2 py-1 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
-                                  <Checkbox
-                                    checked={isChecked}
-                                    onCheckedChange={() => toggleArrayItem("channel", ch.code)}
-                                    data-testid={`checkbox-channel-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
-                                  />
-                                  <span className="text-xs">{ch.code}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </CardContent>
+                        </CardContent>
+                      )}
                     </Card>
 
                 <Card data-testid="distribution-matrix">
                   <CardHeader className="pb-3">
                     <div>
                       <p className="text-sm font-semibold">Distribution Matrix Preview</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Shows coverage by geography, depot, and channel</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Shows coverage by geography, depot, and channel (per geography)</p>
                     </div>
                   </CardHeader>
                   <CardContent>
                     {(() => {
-                      const matrixChannels = selectedChannels.filter(c => c !== "MT");
-                      return selectedGeo.length > 0 && selectedDepots.length > 0 && matrixChannels.length > 0 ? (
+                      const allMatrixChannels = Array.from(new Set(
+                        selectedGeo.flatMap(g => (channelMapping[g] || []).filter(c => c !== "MT"))
+                      ));
+                      return selectedGeo.length > 0 && selectedDepots.length > 0 && allMatrixChannels.length > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
                             <thead>
                               <tr className="border-b">
                                 <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Geography</th>
                                 <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Depot</th>
-                                {matrixChannels.slice(0, 6).map(ch => (
+                                {allMatrixChannels.slice(0, 6).map(ch => (
                                   <th key={ch} className="text-center py-2 px-2 text-muted-foreground font-medium">{ch}</th>
                                 ))}
-                                {matrixChannels.length > 6 && <th className="text-center py-2 px-2 text-muted-foreground font-medium">+{matrixChannels.length - 6}</th>}
+                                {allMatrixChannels.length > 6 && <th className="text-center py-2 px-2 text-muted-foreground font-medium">+{allMatrixChannels.length - 6}</th>}
                               </tr>
                             </thead>
                             <tbody>
                               {selectedGeo.slice(0, 8).map((geo, geoIdx) => {
                                 const depotCode = selectedDepots[geoIdx % selectedDepots.length];
+                                const geoChannels = (channelMapping[geo] || []).filter(c => c !== "MT");
                                 return (
                                   <tr key={geo} className="border-b border-border/50">
                                     <td className="py-2 pr-3 font-medium">{geo.length > 22 ? geo.substring(0, 20) + "..." : geo}</td>
                                     <td className="py-2 pr-3 font-mono text-muted-foreground">{depotCode}</td>
-                                    {matrixChannels.slice(0, 6).map(ch => (
+                                    {allMatrixChannels.slice(0, 6).map(ch => (
                                       <td key={ch} className="text-center py-2 px-2">
-                                        <div className="w-5 h-5 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                                          <Check className="h-3 w-3 text-primary" />
-                                        </div>
+                                        {geoChannels.includes(ch) ? (
+                                          <div className="w-5 h-5 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                                            <Check className="h-3 w-3 text-primary" />
+                                          </div>
+                                        ) : (
+                                          <div className="w-5 h-5 mx-auto rounded-full bg-muted/30 flex items-center justify-center">
+                                            <span className="text-[10px] text-muted-foreground">-</span>
+                                          </div>
+                                        )}
                                       </td>
                                     ))}
-                                    {matrixChannels.length > 6 && (
+                                    {allMatrixChannels.length > 6 && (
                                       <td className="text-center py-2 px-2 text-muted-foreground">...</td>
                                     )}
                                   </tr>
@@ -495,33 +540,41 @@ export default function EditEntry() {
                 {(() => {
                   const geo = (form?.geography as string[]) || [];
                   const dep = (form?.depot as string[]) || [];
-                  const ch = ((form?.channel as string[]) || []).filter(c => c !== "MT");
-                  return geo.length > 0 && dep.length > 0 && ch.length > 0 ? (
+                  const mapping = (form?.channelMapping as Record<string, string[]>) || {};
+                  const allCh = Array.from(new Set(geo.flatMap(g => (mapping[g] || []).filter(c => c !== "MT"))));
+                  return geo.length > 0 && dep.length > 0 && allCh.length > 0 ? (
                     <div className="overflow-x-auto max-h-40">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b">
                             <th className="text-left py-1 pr-2 text-muted-foreground font-medium">Cluster</th>
                             <th className="text-left py-1 pr-2 text-muted-foreground font-medium">Depot</th>
-                            {ch.slice(0, 5).map(c => (
+                            {allCh.slice(0, 5).map(c => (
                               <th key={c} className="text-center py-1 px-1 text-muted-foreground font-medium">{c}</th>
                             ))}
-                            {ch.length > 5 && <th className="text-center py-1 px-1 text-muted-foreground">+{ch.length - 5}</th>}
+                            {allCh.length > 5 && <th className="text-center py-1 px-1 text-muted-foreground">+{allCh.length - 5}</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {geo.slice(0, 5).map((g, i) => (
-                            <tr key={g} className="border-b border-border/50">
-                              <td className="py-1 pr-2 font-medium">{g.length > 16 ? g.substring(0, 14) + "..." : g}</td>
-                              <td className="py-1 pr-2 font-mono text-muted-foreground">{dep[i % dep.length]}</td>
-                              {ch.slice(0, 5).map(c => (
-                                <td key={c} className="text-center py-1 px-1">
-                                  <Check className="h-3 w-3 text-primary mx-auto" />
-                                </td>
-                              ))}
-                              {ch.length > 5 && <td className="text-center py-1 px-1 text-muted-foreground">...</td>}
-                            </tr>
-                          ))}
+                          {geo.slice(0, 5).map((g, i) => {
+                            const geoCh = (mapping[g] || []).filter(c => c !== "MT");
+                            return (
+                              <tr key={g} className="border-b border-border/50">
+                                <td className="py-1 pr-2 font-medium">{g.length > 16 ? g.substring(0, 14) + "..." : g}</td>
+                                <td className="py-1 pr-2 font-mono text-muted-foreground">{dep[i % dep.length]}</td>
+                                {allCh.slice(0, 5).map(c => (
+                                  <td key={c} className="text-center py-1 px-1">
+                                    {geoCh.includes(c) ? (
+                                      <Check className="h-3 w-3 text-primary mx-auto" />
+                                    ) : (
+                                      <span className="text-muted-foreground">-</span>
+                                    )}
+                                  </td>
+                                ))}
+                                {allCh.length > 5 && <td className="text-center py-1 px-1 text-muted-foreground">...</td>}
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                       {geo.length > 5 && (

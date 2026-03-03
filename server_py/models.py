@@ -52,6 +52,7 @@ class NetworkEntryBase(BaseModel):
     geography: Optional[List[str]] = Field(default_factory=list)
     depot: Optional[List[str]] = Field(default_factory=list)
     channel: Optional[List[str]] = Field(default_factory=list)
+    channelMapping: Optional[dict] = Field(default_factory=dict)
 
 
 class InsertNetworkEntry(NetworkEntryBase):
@@ -102,6 +103,7 @@ class UpdateNetworkEntry(BaseModel):
     geography: Optional[List[str]] = None
     depot: Optional[List[str]] = None
     channel: Optional[List[str]] = None
+    channelMapping: Optional[dict] = None
 
 
 class StateTransition(BaseModel):

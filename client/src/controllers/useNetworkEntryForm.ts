@@ -84,6 +84,7 @@ export function useNetworkEntryForm() {
         geography: entry.geography || [],
         depot: entry.depot || [],
         channel: entry.channel || [],
+        channelMapping: (entry.channelMapping as Record<string, string[]>) || {},
       });
     }
   }, [entry]);
@@ -108,14 +109,85 @@ export function useNetworkEntryForm() {
     });
   };
 
-  const toggleArrayItem = (field: "geography" | "depot" | "channel", value: string) => {
+  const deriveChannelFromMapping = (mapping: Record<string, string[]>): string[] => {
+    const all = new Set<string>();
+    Object.values(mapping).forEach(channels => channels.forEach(c => all.add(c)));
+    const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+    if (mtSubCodes.some(c => all.has(c))) all.add("MT");
+    return Array.from(all);
+  };
+
+  const toggleArrayItem = (field: "geography" | "depot", value: string) => {
     setForm(prev => {
       if (!prev) return prev;
       const arr = (prev[field] as string[]) || [];
-      return {
-        ...prev,
-        [field]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value],
-      };
+      const updated = arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value];
+      if (field === "geography") {
+        const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
+        if (!arr.includes(value)) {
+          if (!mapping[value]) mapping[value] = [];
+        } else {
+          delete mapping[value];
+        }
+        return { ...prev, [field]: updated, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
+      }
+      return { ...prev, [field]: updated };
+    });
+  };
+
+  const toggleGeoChannel = (geo: string, channelCode: string) => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
+      const geoChannels = [...(mapping[geo] || [])];
+      const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+
+      if (channelCode === "MT") {
+        const hasMT = mtSubCodes.every(c => geoChannels.includes(c));
+        if (hasMT) {
+          mapping[geo] = geoChannels.filter(c => c !== "MT" && !mtSubCodes.includes(c));
+        } else {
+          const merged = new Set([...geoChannels, "MT", ...mtSubCodes]);
+          mapping[geo] = Array.from(merged);
+        }
+      } else {
+        if (geoChannels.includes(channelCode)) {
+          mapping[geo] = geoChannels.filter(c => c !== channelCode);
+          if (mtSubCodes.includes(channelCode)) {
+            mapping[geo] = mapping[geo].filter(c => c !== "MT");
+          }
+        } else {
+          mapping[geo] = [...geoChannels, channelCode];
+          if (mtSubCodes.includes(channelCode) && mtSubCodes.every(c => c === channelCode || mapping[geo].includes(c))) {
+            mapping[geo] = [...mapping[geo], "MT"];
+          }
+        }
+      }
+      return { ...prev, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
+    });
+  };
+
+  const toggleAllGeoChannels = (geo: string) => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
+      const leafCodes = LEAF_CHANNELS.map(c => c.code);
+      const allCodes = ["MT", ...leafCodes];
+      const geoChannels = mapping[geo] || [];
+      const isAllSelected = leafCodes.every(c => geoChannels.includes(c));
+      mapping[geo] = isAllSelected ? [] : [...allCodes];
+      return { ...prev, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
+    });
+  };
+
+  const applyChannelsToAllGeos = (sourceGeo: string) => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
+      const sourceChannels = [...(mapping[sourceGeo] || [])];
+      const selectedGeos = (prev.geography as string[]) || [];
+      selectedGeos.forEach(geo => { mapping[geo] = [...sourceChannels]; });
+      return { ...prev, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
     });
   };
 
@@ -124,7 +196,12 @@ export function useNetworkEntryForm() {
       if (!prev) return prev;
       const allNames = CLUSTERS.map(c => c.name);
       const isAllSelected = allNames.every(n => (prev.geography as string[])?.includes(n));
-      return { ...prev, geography: isAllSelected ? [] : allNames };
+      if (isAllSelected) {
+        return { ...prev, geography: [], channelMapping: {}, channel: [] };
+      }
+      const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
+      allNames.forEach(n => { if (!mapping[n]) mapping[n] = []; });
+      return { ...prev, geography: allNames, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
     });
   };
 
@@ -133,30 +210,6 @@ export function useNetworkEntryForm() {
       if (!prev) return prev;
       const isAllSelected = DEPOTS.every(d => (prev.depot as string[])?.includes(d));
       return { ...prev, depot: isAllSelected ? [] : [...DEPOTS] };
-    });
-  };
-
-  const toggleAllChannels = () => {
-    setForm(prev => {
-      if (!prev) return prev;
-      const leafCodes = LEAF_CHANNELS.map(c => c.code);
-      const allCodes = ["MT", ...leafCodes];
-      const isAllSelected = leafCodes.every(c => (prev.channel as string[])?.includes(c));
-      return { ...prev, channel: isAllSelected ? [] : allCodes };
-    });
-  };
-
-  const toggleMT = (checked: boolean) => {
-    setForm(prev => {
-      if (!prev) return prev;
-      const current = (prev.channel as string[]) || [];
-      const mtCodes = ["MT", ...MT_SUB_CHANNELS.map(c => c.code)];
-      if (checked) {
-        const merged = new Set([...current, ...mtCodes]);
-        return { ...prev, channel: Array.from(merged) };
-      } else {
-        return { ...prev, channel: current.filter(c => !mtCodes.includes(c)) };
-      }
     });
   };
 
@@ -247,13 +300,10 @@ export function useNetworkEntryForm() {
   const selectedGeo = (form?.geography || []) as string[];
   const selectedDepots = (form?.depot || []) as string[];
   const selectedChannels = (form?.channel || []) as string[];
+  const channelMapping = ((form?.channelMapping as Record<string, string[]>) || {});
   const allClustersSelected = CLUSTERS.every(c => selectedGeo.includes(c.name));
   const allDepotsSelected = DEPOTS.every(d => selectedDepots.includes(d));
   const selectedLeafCount = LEAF_CHANNELS.filter(c => selectedChannels.includes(c.code)).length;
-  const allChannelsSelected = LEAF_CHANNELS.every(c => selectedChannels.includes(c.code));
-  const mtSelected = selectedChannels.includes("MT");
-  const allMtSubsSelected = MT_SUB_CHANNELS.every(c => selectedChannels.includes(c.code));
-  const someMtSubsSelected = MT_SUB_CHANNELS.some(c => selectedChannels.includes(c.code));
   const computedYear = form ? computeYear(form.cbuCreatedDate) : null;
   const isDraft = entry?.networkStatus === "Draft";
 
@@ -267,10 +317,11 @@ export function useNetworkEntryForm() {
     setShowConfirmDialog,
     updateField,
     toggleArrayItem,
+    toggleGeoChannel,
+    toggleAllGeoChannels,
+    applyChannelsToAllGeos,
     toggleAllClusters,
     toggleAllDepots,
-    toggleAllChannels,
-    toggleMT,
     handleSubmit,
     handleConfirmSubmit,
     isPending: updateMutation.isPending || transitionMutation.isPending,
@@ -279,13 +330,10 @@ export function useNetworkEntryForm() {
     selectedGeo,
     selectedDepots,
     selectedChannels,
+    channelMapping,
     allClustersSelected,
     allDepotsSelected,
     selectedLeafCount,
-    allChannelsSelected,
-    mtSelected,
-    allMtSubsSelected,
-    someMtSubsSelected,
     computedYear,
     isDraft,
   };

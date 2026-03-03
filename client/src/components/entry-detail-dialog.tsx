@@ -123,7 +123,30 @@ export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDial
             <div className="space-y-4">
               <DetailArrayItem label="Geography / Clusters" values={entry.geography} testId="detail-geography" />
               <DetailArrayItem label="Depots" values={entry.depot} testId="detail-depot" />
-              <DetailArrayItem label="Channels" values={entry.channel} testId="detail-channel" />
+              {(() => {
+                const mapping = (entry.channelMapping as Record<string, string[]>) || null;
+                if (mapping && Object.keys(mapping).length > 0) {
+                  return (
+                    <div data-testid="detail-channel-mapping">
+                      <p className="text-xs text-muted-foreground mb-2">Channels by Geography</p>
+                      <div className="space-y-1.5">
+                        {Object.entries(mapping).map(([geo, channels]) => (
+                          <div key={geo} className="flex items-start gap-2">
+                            <span className="text-xs font-medium min-w-[120px]">{geo.length > 20 ? geo.substring(0, 18) + "..." : geo}:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {(channels as string[]).filter(c => c !== "MT").map(ch => (
+                                <Badge key={ch} variant="secondary" className="text-[10px] px-1.5 py-0">{ch}</Badge>
+                              ))}
+                              {(channels as string[]).filter(c => c !== "MT").length === 0 && <span className="text-xs text-muted-foreground">-</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return <DetailArrayItem label="Channels" values={entry.channel} testId="detail-channel" />;
+              })()}
             </div>
           </Section>
         </div>

@@ -73,6 +73,11 @@ SEEDS = [
         geography=["DELHI-GREATER DELHI", "PUNJAB-HARYANA-HILLS", "UTTAR PRADESH"],
         depot=["DLGH", "JPRH", "VABH"],
         channel=["GT", "MT", "MT Retail"],
+        channelMapping={
+            "DELHI-GREATER DELHI": ["GT", "MT", "MT Retail"],
+            "PUNJAB-HARYANA-HILLS": ["GT"],
+            "UTTAR PRADESH": ["GT", "MT", "MT Retail"],
+        },
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2026-01-20",
@@ -147,6 +152,14 @@ SEEDS = [
         geography=["TAMIL NADU", "KARNATAKA", "MUMBAI-PUNE", "DELHI-GREATER DELHI", "WEST BENGAL", "BIHAR"],
         depot=["CHKH", "BNDH", "MMDH", "DLGH", "KOPH", "PATH"],
         channel=["GT", "MT", "Ecom", "Qcom", "KA"],
+        channelMapping={
+            "TAMIL NADU": ["GT", "MT", "Ecom", "Qcom"],
+            "KARNATAKA": ["GT", "MT", "Ecom"],
+            "MUMBAI-PUNE": ["GT", "MT", "Ecom", "Qcom", "KA"],
+            "DELHI-GREATER DELHI": ["GT", "MT", "KA"],
+            "WEST BENGAL": ["GT", "Ecom"],
+            "BIHAR": ["GT"],
+        },
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2026-02-05",
@@ -221,6 +234,20 @@ SEEDS = [
         geography=["DELHI-GREATER DELHI", "PUNJAB-HARYANA-HILLS", "UTTAR PRADESH", "RAJASTHAN", "MADHYA PRADESH", "GUJARAT", "MUMBAI-PUNE", "GREATER MAHARASHTRA", "TAMIL NADU", "KARNATAKA", "WEST BENGAL", "BIHAR"],
         depot=["DLGH", "JPRH", "VABH", "RJ2H", "INDH", "VJDH", "MMDH", "SHAH", "CHKH", "BNDH", "KOPH", "PATH"],
         channel=["GT", "RD", "KA", "MT", "MT Retail", "Ecom"],
+        channelMapping={
+            "DELHI-GREATER DELHI": ["GT", "RD", "KA", "MT", "MT Retail", "Ecom"],
+            "PUNJAB-HARYANA-HILLS": ["GT", "RD"],
+            "UTTAR PRADESH": ["GT", "RD", "MT", "Ecom"],
+            "RAJASTHAN": ["GT", "RD"],
+            "MADHYA PRADESH": ["GT", "RD"],
+            "GUJARAT": ["GT", "RD", "MT", "MT Retail"],
+            "MUMBAI-PUNE": ["GT", "RD", "KA", "MT", "MT Retail", "Ecom"],
+            "GREATER MAHARASHTRA": ["GT", "RD"],
+            "TAMIL NADU": ["GT", "RD", "MT", "Ecom"],
+            "KARNATAKA": ["GT", "RD", "MT", "Ecom"],
+            "WEST BENGAL": ["GT", "RD", "Ecom"],
+            "BIHAR": ["GT", "RD"],
+        },
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2025-10-15",
@@ -259,6 +286,12 @@ SEEDS = [
         geography=["TAMIL NADU", "KARNATAKA", "KERALA", "ANDHRA PRADESH-TELANGANA"],
         depot=["CHKH", "BNDH", "ERKH", "HYRH"],
         channel=["GT", "MT", "Ecom"],
+        channelMapping={
+            "TAMIL NADU": ["GT", "MT", "Ecom"],
+            "KARNATAKA": ["GT", "Ecom"],
+            "KERALA": ["GT"],
+            "ANDHRA PRADESH-TELANGANA": ["GT", "MT", "Ecom"],
+        },
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2025-09-05",
@@ -298,6 +331,16 @@ SEEDS = [
         geography=["DELHI-GREATER DELHI", "UTTAR PRADESH", "BIHAR", "WEST BENGAL", "RAJASTHAN", "MADHYA PRADESH", "PUNJAB-HARYANA-HILLS", "MUMBAI-PUNE"],
         depot=["DLGH", "VABH", "PATH", "KOPH", "RJ2H", "INDH", "JPRH", "MMDH"],
         channel=["GT", "RD", "MT", "MT Retail", "KA", "Ecom", "Qcom"],
+        channelMapping={
+            "DELHI-GREATER DELHI": ["GT", "RD", "MT", "MT Retail", "KA", "Ecom", "Qcom"],
+            "UTTAR PRADESH": ["GT", "RD", "MT", "Ecom"],
+            "BIHAR": ["GT", "RD"],
+            "WEST BENGAL": ["GT", "RD", "Ecom"],
+            "RAJASTHAN": ["GT", "RD"],
+            "MADHYA PRADESH": ["GT", "RD"],
+            "PUNJAB-HARYANA-HILLS": ["GT", "RD", "MT", "MT Retail"],
+            "MUMBAI-PUNE": ["GT", "RD", "KA", "MT", "MT Retail", "Ecom", "Qcom"],
+        },
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2025-08-10",
@@ -337,6 +380,18 @@ SEEDS = [
         geography=["DELHI-GREATER DELHI", "MUMBAI-PUNE", "TAMIL NADU", "KARNATAKA", "WEST BENGAL", "UTTAR PRADESH", "KERALA", "GREATER MAHARASHTRA", "ANDHRA PRADESH-TELANGANA", "RAJASTHAN"],
         depot=["DLGH", "MMDH", "CHKH", "BNDH", "KOPH", "VABH", "ERKH", "SHAH", "HYRH", "RJ2H"],
         channel=["GT", "RD", "KA", "MT", "MT Retail", "MT LFS", "Ecom", "Qcom"],
+        channelMapping={
+            "DELHI-GREATER DELHI": ["GT", "RD", "KA", "MT", "MT Retail", "Ecom", "Qcom"],
+            "MUMBAI-PUNE": ["GT", "RD", "KA", "MT", "MT Retail", "MT LFS", "Ecom", "Qcom"],
+            "TAMIL NADU": ["GT", "RD", "MT", "Ecom"],
+            "KARNATAKA": ["GT", "RD", "MT", "Ecom"],
+            "WEST BENGAL": ["GT", "RD", "Ecom"],
+            "UTTAR PRADESH": ["GT", "RD", "MT", "Ecom"],
+            "KERALA": ["GT", "RD"],
+            "GREATER MAHARASHTRA": ["GT", "RD", "MT", "MT Retail"],
+            "ANDHRA PRADESH-TELANGANA": ["GT", "RD", "MT", "Ecom"],
+            "RAJASTHAN": ["GT", "RD"],
+        },
     ),
 ]
 

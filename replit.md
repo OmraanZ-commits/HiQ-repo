@@ -32,8 +32,10 @@ Each microservice follows: **Router → Service → Storage**
 - Data table with CBU Created Date, Assigned Person columns, search, status filtering, and Trigger column
 - Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
 - Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Ready for Transition)
-- Distribution tab: light-themed cards (Geography/Depots/Channels) with select-all toggles, distribution matrix preview
+- Distribution tab: Geography/Clusters card, Channels by Geography card (per-geography channel selection), Depots card, Distribution Matrix Preview
+- Per-geography channel selection: each selected geography gets its own channel picker section with GT/RD/CSD + MT sub-channels; "Apply to all" button on first geography to copy channels to all selected geos; "All" toggle per geography
 - MT channel as parent group with 5 sub-channels; "partial" badge when partially selected; leaf count = 8
+- `channelMapping` (JSONB): stores per-geography channel selections as `Record<string, string[]>`; flat `channel` array auto-derived as union for backward compatibility
 - View detail dialog with organized sections and status flow
 - Year auto-calculated from CBU Created Date
 - Network Change Date auto-calculated as CBU Created Date + 15 days for Draft entries
@@ -61,7 +63,7 @@ Each microservice follows: **Router → Service → Storage**
 - Basic info (CBU code, dates, annexure, network type, assigned person)
 - Product details (brand, BG, format, profit centre, etc.)
 - Dimensions (weight, length, width, height, EAN, ITF)
-- Distribution (geography=18 Indian clusters, depot=24 depot codes, channel=9 channels with MT sub-channels, all from Excel master data)
+- Distribution (geography=18 Indian clusters, depot=24 depot codes, channel=9 channels with MT sub-channels, channelMapping=per-geography channel selections as JSONB)
 
 ## File Structure
 
@@ -159,7 +161,7 @@ On failure at any step, compensating actions run in reverse order. All steps are
 - `pending` → `running` → `compensating` → `compensated` (failure with rollback)
 
 ## Database Tables
-- `network_entries` — List Master service: all ~38 fields, UUID primary key, snake_case columns
+- `network_entries` — List Master service: all ~39 fields (including `channel_mapping` JSONB), UUID primary key, snake_case columns
 - `entry_statuses` — State Management service: entry_id (UUID PK), current_status, updated_at
 - `state_transitions` — State Management service: id (UUID PK), entry_id, from/to status, transition_date, triggered_by, metadata (JSONB), created_at
 - `saga_logs` — Saga Orchestrator: id (string PK), saga_type, entry_id, status, steps (JSONB array), started_at, completed_at, error
