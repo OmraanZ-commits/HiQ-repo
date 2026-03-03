@@ -5,8 +5,8 @@ import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
 import { UnileverHeader } from "@/components/unilever-header";
 import { StatusFlow } from "@/components/status-flow";
-import { IndiaMap } from "@/components/india-map";
-import { CLUSTERS, DEPOTS, CHANNELS, getSelectedRegions } from "@/lib/distribution-data";
+import { CLUSTERS, DEPOTS, CHANNELS } from "@/lib/distribution-data";
+import indiaMapImg from "@assets/image_1772525341107.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio } from "lucide-react";
 import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
@@ -49,9 +49,6 @@ export default function EditEntry() {
 
   const [form, setForm] = useState<InsertNetworkEntry | null>(null);
   const [activeTab, setActiveTab] = useState("basic");
-  const [geoOpen, setGeoOpen] = useState(true);
-  const [depotOpen, setDepotOpen] = useState(true);
-  const [channelOpen, setChannelOpen] = useState(true);
 
   useEffect(() => {
     if (entry && !form) {
@@ -130,6 +127,32 @@ export default function EditEntry() {
     });
   };
 
+  const toggleAllClusters = () => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const allNames = CLUSTERS.map(c => c.name);
+      const isAllSelected = allNames.every(n => (prev.geography as string[])?.includes(n));
+      return { ...prev, geography: isAllSelected ? [] : allNames };
+    });
+  };
+
+  const toggleAllDepots = () => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const isAllSelected = DEPOTS.every(d => (prev.depot as string[])?.includes(d));
+      return { ...prev, depot: isAllSelected ? [] : [...DEPOTS] };
+    });
+  };
+
+  const toggleAllChannels = () => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const allCodes = CHANNELS.map(c => c.code);
+      const isAllSelected = allCodes.every(c => (prev.channel as string[])?.includes(c));
+      return { ...prev, channel: isAllSelected ? [] : allCodes };
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form) return;
@@ -168,7 +191,9 @@ export default function EditEntry() {
   const selectedGeo = (form.geography || []) as string[];
   const selectedDepots = (form.depot || []) as string[];
   const selectedChannels = (form.channel || []) as string[];
-  const highlightedStates = getSelectedRegions(selectedGeo);
+  const allClustersSelected = CLUSTERS.every(c => selectedGeo.includes(c.name));
+  const allDepotsSelected = DEPOTS.every(d => selectedDepots.includes(d));
+  const allChannelsSelected = CHANNELS.every(c => selectedChannels.includes(c.code));
 
   return (
     <div className="min-h-screen bg-background">
@@ -322,60 +347,64 @@ export default function EditEntry() {
             </TabsContent>
 
             <TabsContent value="distribution" className="mt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5">
-                <Card className="h-fit" data-testid="distribution-filters">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <MapPin className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">Filters</p>
-                        <p className="text-[10px] text-muted-foreground">Choose scope. Depots are filtered by geography.</p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-0 pt-0">
-                    <div className="border-t pt-3">
-                      <button type="button" className="flex items-center justify-between w-full mb-2" onClick={() => setGeoOpen(!geoOpen)} data-testid="toggle-geography">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-primary">Geography</span>
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{selectedGeo.length} selected</Badge>
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
+                  <div className="space-y-5">
+                    <Card data-testid="distribution-geography">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-semibold">Geography / Clusters</h3>
+                            <Badge variant="secondary" className="text-[10px]">{selectedGeo.length}/{CLUSTERS.length}</Badge>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer" data-testid="toggle-all-clusters">
+                            <Checkbox
+                              checked={allClustersSelected}
+                              onCheckedChange={toggleAllClusters}
+                            />
+                            <span className="text-xs font-medium">All Clusters</span>
+                          </label>
                         </div>
-                        {geoOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                      </button>
-                      {geoOpen && (
-                        <div className="space-y-0.5 max-h-[280px] overflow-y-auto pr-1" data-testid="checkboxes-geography">
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1" data-testid="checkboxes-geography">
                           {CLUSTERS.map(cluster => {
                             const isChecked = selectedGeo.includes(cluster.name);
                             return (
-                              <label key={cluster.name} className={`flex items-center justify-between py-1.5 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
-                                <div className="flex items-center gap-2.5">
-                                  <Checkbox
-                                    checked={isChecked}
-                                    onCheckedChange={() => toggleArrayItem("geography", cluster.name)}
-                                    data-testid={`checkbox-geo-${cluster.name.toLowerCase().replace(/[\s-]+/g, "-")}`}
-                                  />
-                                  <span className="text-xs">{cluster.name}</span>
-                                </div>
-                                <span className="text-[10px] text-muted-foreground">{cluster.depotCount} depots</span>
+                              <label key={cluster.name} className={`flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={() => toggleArrayItem("geography", cluster.name)}
+                                  data-testid={`checkbox-geo-${cluster.name.toLowerCase().replace(/[\s-]+/g, "-")}`}
+                                />
+                                <span className="text-xs">{cluster.name}</span>
                               </label>
                             );
                           })}
                         </div>
-                      )}
-                    </div>
+                      </CardContent>
+                    </Card>
 
-                    <div className="border-t pt-3 mt-3">
-                      <button type="button" className="flex items-center justify-between w-full mb-2" onClick={() => setDepotOpen(!depotOpen)} data-testid="toggle-depot">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-primary">Depot</span>
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{selectedDepots.length} selected</Badge>
+                    <Card data-testid="distribution-depot">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-semibold">Depots</h3>
+                            <Badge variant="secondary" className="text-[10px]">{selectedDepots.length}/{DEPOTS.length}</Badge>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer" data-testid="toggle-all-depots">
+                            <Checkbox
+                              checked={allDepotsSelected}
+                              onCheckedChange={toggleAllDepots}
+                            />
+                            <span className="text-xs font-medium">All Depots</span>
+                          </label>
                         </div>
-                        {depotOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                      </button>
-                      {depotOpen && (
-                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 max-h-[200px] overflow-y-auto pr-1" data-testid="checkboxes-depot">
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-4 md:grid-cols-6 gap-x-3 gap-y-1" data-testid="checkboxes-depot">
                           {DEPOTS.map(depot => {
                             const isChecked = selectedDepots.includes(depot);
                             return (
@@ -390,19 +419,28 @@ export default function EditEntry() {
                             );
                           })}
                         </div>
-                      )}
-                    </div>
+                      </CardContent>
+                    </Card>
 
-                    <div className="border-t pt-3 mt-3">
-                      <button type="button" className="flex items-center justify-between w-full mb-2" onClick={() => setChannelOpen(!channelOpen)} data-testid="toggle-channel">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-primary">Channel</span>
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{selectedChannels.length} selected</Badge>
+                    <Card data-testid="distribution-channel">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Radio className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-semibold">Channels</h3>
+                            <Badge variant="secondary" className="text-[10px]">{selectedChannels.length}/{CHANNELS.length}</Badge>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer" data-testid="toggle-all-channels">
+                            <Checkbox
+                              checked={allChannelsSelected}
+                              onCheckedChange={toggleAllChannels}
+                            />
+                            <span className="text-xs font-medium">All Channels</span>
+                          </label>
                         </div>
-                        {channelOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                      </button>
-                      {channelOpen && (
-                        <div className="space-y-0.5 max-h-[240px] overflow-y-auto pr-1" data-testid="checkboxes-channel">
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1" data-testid="checkboxes-channel">
                           {CHANNELS.map(ch => {
                             const isChecked = selectedChannels.includes(ch.code);
                             return (
@@ -420,133 +458,112 @@ export default function EditEntry() {
                             );
                           })}
                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="space-y-5">
-                  <div className="grid grid-cols-3 gap-3">
-                    <Card className="bg-gradient-to-br from-primary/5 to-primary/10" data-testid="stat-coverage">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-muted-foreground">Coverage</span>
-                          <Badge className="text-[10px]">Active</Badge>
-                        </div>
-                        <p className="text-2xl font-bold text-foreground">{selectedGeo.length}</p>
-                        <p className="text-[10px] text-muted-foreground">Clusters in scope</p>
-                        <div className="mt-2 h-1.5 rounded-full bg-muted">
-                          <div className="h-full rounded-full bg-gradient-to-r from-[#1f36c7] to-[#00b0d7]" style={{ width: `${Math.min(100, (selectedGeo.length / CLUSTERS.length) * 100)}%` }} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-primary/5 to-primary/10" data-testid="stat-depots">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-muted-foreground">Depots</span>
-                          <Badge variant="secondary" className="text-[10px]">Filtered</Badge>
-                        </div>
-                        <p className="text-2xl font-bold text-foreground">{selectedDepots.length}</p>
-                        <p className="text-[10px] text-muted-foreground">Selected depots</p>
-                        <div className="mt-2 h-1.5 rounded-full bg-muted">
-                          <div className="h-full rounded-full bg-gradient-to-r from-[#1f36c7] to-[#00b0d7]" style={{ width: `${Math.min(100, (selectedDepots.length / DEPOTS.length) * 100)}%` }} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-primary/5 to-primary/10" data-testid="stat-channels">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-muted-foreground">Channels</span>
-                          <Badge variant="outline" className="text-[10px]">Applied</Badge>
-                        </div>
-                        <p className="text-2xl font-bold text-foreground">{selectedChannels.length}</p>
-                        <p className="text-[10px] text-muted-foreground">Selected channels</p>
-                        <div className="mt-2 h-1.5 rounded-full bg-muted">
-                          <div className="h-full rounded-full bg-gradient-to-r from-[#1f36c7] to-[#00b0d7]" style={{ width: `${Math.min(100, (selectedChannels.length / CHANNELS.length) * 100)}%` }} />
-                        </div>
                       </CardContent>
                     </Card>
                   </div>
 
-                  <Card data-testid="distribution-matrix">
-                    <CardHeader className="pb-3">
-                      <div>
-                        <p className="text-sm font-semibold">Distribution Matrix Preview</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Shows coverage by geography, depot, and channel</p>
+                  <div className="space-y-5">
+                    <Card className="overflow-hidden" data-testid="india-map-container">
+                      <div className="relative bg-[#4fc3f7]/10 rounded-t-lg">
+                        <img
+                          src={indiaMapImg}
+                          alt="India distribution map"
+                          className="w-full h-auto object-contain"
+                          data-testid="india-map-image"
+                        />
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      {selectedGeo.length > 0 && selectedDepots.length > 0 && selectedChannels.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Geography</th>
-                                <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Depot</th>
-                                {selectedChannels.slice(0, 5).map(ch => (
-                                  <th key={ch} className="text-center py-2 px-2 text-muted-foreground font-medium">{ch}</th>
-                                ))}
-                                {selectedChannels.length > 5 && <th className="text-center py-2 px-2 text-muted-foreground font-medium">+{selectedChannels.length - 5}</th>}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {selectedGeo.slice(0, 6).map((geo, geoIdx) => {
-                                const depotCode = selectedDepots[geoIdx % selectedDepots.length];
-                                return (
-                                  <tr key={geo} className="border-b border-border/50">
-                                    <td className="py-2.5 pr-3 font-medium">{geo.length > 18 ? geo.substring(0, 16) + "..." : geo}</td>
-                                    <td className="py-2.5 pr-3 font-mono text-muted-foreground">{depotCode}</td>
-                                    {selectedChannels.slice(0, 5).map(ch => (
-                                      <td key={ch} className="text-center py-2.5 px-2">
-                                        <div className="w-5 h-5 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                                          <Check className="h-3 w-3 text-primary" />
-                                        </div>
-                                      </td>
-                                    ))}
-                                    {selectedChannels.length > 5 && (
-                                      <td className="text-center py-2.5 px-2 text-muted-foreground">...</td>
-                                    )}
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                          {selectedGeo.length > 6 && (
-                            <p className="text-[10px] text-muted-foreground mt-2 text-center">+ {selectedGeo.length - 6} more clusters</p>
-                          )}
+                      <CardContent className="pt-3 pb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-semibold">Coverage</p>
+                          <Badge variant="secondary" className="text-[10px]">{selectedGeo.length} clusters</Badge>
                         </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground text-center py-6">Select geography, depots, and channels to see the distribution matrix.</p>
-                      )}
-                    </CardContent>
-                  </Card>
+                        <div className="h-1.5 rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-gradient-to-r from-[#1f36c7] to-[#00b0d7] transition-all duration-300" style={{ width: `${Math.min(100, (selectedGeo.length / CLUSTERS.length) * 100)}%` }} />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-foreground">{selectedGeo.length}</p>
+                            <p className="text-[9px] text-muted-foreground">Clusters</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-foreground">{selectedDepots.length}</p>
+                            <p className="text-[9px] text-muted-foreground">Depots</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-foreground">{selectedChannels.length}</p>
+                            <p className="text-[9px] text-muted-foreground">Channels</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                  <Card data-testid="india-map-container">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold">India Cluster Map</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">Highlighted regions show selected clusters</p>
-                        </div>
-                        <Badge variant="secondary" className="text-[10px]">
-                          {highlightedStates.length} states covered
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="max-w-[320px] mx-auto">
-                        <IndiaMap highlightedStates={highlightedStates} />
-                      </div>
-                      {selectedGeo.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-4 justify-center">
-                          {selectedGeo.map(g => (
-                            <Badge key={g} variant="secondary" className="text-[10px]">{g}</Badge>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                    {selectedGeo.length > 0 && (
+                      <Card data-testid="selected-clusters-list">
+                        <CardContent className="pt-4 pb-4">
+                          <p className="text-xs font-semibold mb-2">Selected Clusters</p>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedGeo.map(g => (
+                              <Badge key={g} variant="secondary" className="text-[9px] px-1.5 py-0.5">{g}</Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
                 </div>
+
+                <Card data-testid="distribution-matrix">
+                  <CardHeader className="pb-3">
+                    <div>
+                      <p className="text-sm font-semibold">Distribution Matrix Preview</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Shows coverage by geography, depot, and channel</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedGeo.length > 0 && selectedDepots.length > 0 && selectedChannels.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Geography</th>
+                              <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Depot</th>
+                              {selectedChannels.slice(0, 6).map(ch => (
+                                <th key={ch} className="text-center py-2 px-2 text-muted-foreground font-medium">{ch}</th>
+                              ))}
+                              {selectedChannels.length > 6 && <th className="text-center py-2 px-2 text-muted-foreground font-medium">+{selectedChannels.length - 6}</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedGeo.slice(0, 8).map((geo, geoIdx) => {
+                              const depotCode = selectedDepots[geoIdx % selectedDepots.length];
+                              return (
+                                <tr key={geo} className="border-b border-border/50">
+                                  <td className="py-2 pr-3 font-medium">{geo.length > 22 ? geo.substring(0, 20) + "..." : geo}</td>
+                                  <td className="py-2 pr-3 font-mono text-muted-foreground">{depotCode}</td>
+                                  {selectedChannels.slice(0, 6).map(ch => (
+                                    <td key={ch} className="text-center py-2 px-2">
+                                      <div className="w-5 h-5 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                                        <Check className="h-3 w-3 text-primary" />
+                                      </div>
+                                    </td>
+                                  ))}
+                                  {selectedChannels.length > 6 && (
+                                    <td className="text-center py-2 px-2 text-muted-foreground">...</td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {selectedGeo.length > 8 && (
+                          <p className="text-[10px] text-muted-foreground mt-2 text-center">+ {selectedGeo.length - 8} more clusters</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-6">Select geography, depots, and channels to see the distribution matrix.</p>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
           </Tabs>
