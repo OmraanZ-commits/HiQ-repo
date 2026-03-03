@@ -13,11 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock } from "lucide-react";
 import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
 
 const CHANNELS = ["CD", "CSD", "COOP", "CPC", "GT", "KA", "OH", "RD", "MT", "Retail", "MT-ECOM", "MT-QCOM"];
-const NETWORK_TYPES = ["New Launch", "Relaunch", "Discontinuation", "Pack Change", "Weight Change", "Price Change", "Extension"];
 const GEOGRAPHIES = ["North", "South", "East", "West", "Pan India"];
 const DEPOTS = ["Mumbai", "Delhi", "Chennai", "Kolkata", "Bangalore", "Hyderabad", "Pune", "Ahmedabad"];
 
@@ -110,9 +109,6 @@ export default function EditEntry() {
     setForm(prev => {
       if (!prev) return prev;
       const updated = { ...prev, [field]: value };
-      if (field === "cbuCreatedDate") {
-        updated.year = computeYear(value as string);
-      }
       return updated;
     });
   };
@@ -207,6 +203,13 @@ export default function EditEntry() {
           </Button>
         </div>
 
+        <div className="flex items-center gap-2 mb-5 px-1">
+          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">
+            Fields sourced directly from data are read-only. Only manually entered fields can be edited.
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1" data-testid="tabs-edit">
@@ -235,53 +238,11 @@ export default function EditEntry() {
                     <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Identification</h3>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <FormField label="CBU Code / Material ID" required>
-                      <Input
-                        value={form.cbuCode || ""}
-                        onChange={e => updateField("cbuCode", e.target.value)}
-                        placeholder="Enter CBU code"
-                        data-testid="input-cbu-code"
-                      />
-                    </FormField>
-                    <FormField label="Material Description" required>
-                      <Input
-                        value={form.materialDescription || ""}
-                        onChange={e => updateField("materialDescription", e.target.value)}
-                        placeholder="Enter material description"
-                        data-testid="input-material-description"
-                      />
-                    </FormField>
-                    <FormField label="Annexure Number" required>
-                      <Input
-                        value={form.annexureNumber || ""}
-                        onChange={e => updateField("annexureNumber", e.target.value)}
-                        placeholder="Enter annexure number"
-                        data-testid="input-annexure-number"
-                      />
-                    </FormField>
-                    <FormField label="Type of Network / Annexure" required>
-                      <Select
-                        value={form.typeOfNetwork || ""}
-                        onValueChange={v => updateField("typeOfNetwork", v)}
-                      >
-                        <SelectTrigger data-testid="select-type-of-network">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {NETWORK_TYPES.map(t => (
-                            <SelectItem key={t} value={t}>{t}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormField>
-                    <FormField label="Copy from Existing CBU" required>
-                      <Input
-                        value={form.copyCbu || ""}
-                        onChange={e => updateField("copyCbu", e.target.value)}
-                        placeholder="Enter existing CBU code"
-                        data-testid="input-copy-cbu"
-                      />
-                    </FormField>
+                    <ReadOnlyField label="CBU Code / Material ID" value={form.cbuCode} testId="input-cbu-code" />
+                    <ReadOnlyField label="Material Description" value={form.materialDescription} testId="input-material-description" />
+                    <ReadOnlyField label="Annexure Number" value={form.annexureNumber} testId="input-annexure-number" />
+                    <ReadOnlyField label="Type of Network / Annexure" value={form.typeOfNetwork} testId="input-type-of-network" />
+                    <ReadOnlyField label="Copy from Existing CBU" value={form.copyCbu} testId="input-copy-cbu" />
                   </CardContent>
                 </Card>
 
@@ -290,22 +251,9 @@ export default function EditEntry() {
                     <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Dates & Timeline</h3>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <FormField label="CBU Created Date" required>
-                      <Input
-                        type="date"
-                        value={form.cbuCreatedDate || ""}
-                        onChange={e => updateField("cbuCreatedDate", e.target.value)}
-                        data-testid="input-cbu-created-date"
-                      />
-                    </FormField>
-                    <FormField label="Year (auto-calculated)">
-                      <Input
-                        value={computedYear ?? "-"}
-                        disabled
-                        className="bg-muted/50"
-                        data-testid="input-year"
-                      />
-                    </FormField>
+                    <ReadOnlyField label="CBU Created Date" value={form.cbuCreatedDate} testId="input-cbu-created-date" />
+                    <ReadOnlyField label="Year (auto-calculated)" value={computedYear != null ? String(computedYear) : null} testId="input-year" />
+                    <ReadOnlyField label="Network Status (calculated)" value={form.networkStatus} testId="input-network-status" />
                     <FormField label="Network Change Date">
                       <Input
                         type="date"
@@ -342,54 +290,12 @@ export default function EditEntry() {
                     <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Product Classification</h3>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <FormField label="Basepack" required>
-                      <Input
-                        value={form.basepack || ""}
-                        onChange={e => updateField("basepack", e.target.value)}
-                        placeholder="Enter basepack"
-                        data-testid="input-basepack"
-                      />
-                    </FormField>
-                    <FormField label="Basepack Description" required>
-                      <Input
-                        value={form.basepackDescription || ""}
-                        onChange={e => updateField("basepackDescription", e.target.value)}
-                        placeholder="Enter basepack description"
-                        data-testid="input-basepack-description"
-                      />
-                    </FormField>
-                    <FormField label="BG" required>
-                      <Input
-                        value={form.bg || ""}
-                        onChange={e => updateField("bg", e.target.value)}
-                        placeholder="Enter BG"
-                        data-testid="input-bg"
-                      />
-                    </FormField>
-                    <FormField label="Profit Centre" required>
-                      <Input
-                        value={form.profitCentre || ""}
-                        onChange={e => updateField("profitCentre", e.target.value)}
-                        placeholder="Enter profit centre"
-                        data-testid="input-profit-centre"
-                      />
-                    </FormField>
-                    <FormField label="Sales Category" required>
-                      <Input
-                        value={form.salesCategory || ""}
-                        onChange={e => updateField("salesCategory", e.target.value)}
-                        placeholder="Enter sales category"
-                        data-testid="input-sales-category"
-                      />
-                    </FormField>
-                    <FormField label="Small C" required>
-                      <Input
-                        value={form.smallC || ""}
-                        onChange={e => updateField("smallC", e.target.value)}
-                        placeholder="Enter Small C"
-                        data-testid="input-small-c"
-                      />
-                    </FormField>
+                    <ReadOnlyField label="Basepack" value={form.basepack} testId="input-basepack" />
+                    <ReadOnlyField label="Basepack Description" value={form.basepackDescription} testId="input-basepack-description" />
+                    <ReadOnlyField label="BG" value={form.bg} testId="input-bg" />
+                    <ReadOnlyField label="Profit Centre" value={form.profitCentre} testId="input-profit-centre" />
+                    <ReadOnlyField label="Sales Category" value={form.salesCategory} testId="input-sales-category" />
+                    <ReadOnlyField label="Small C" value={form.smallC} testId="input-small-c" />
                   </CardContent>
                 </Card>
 
@@ -398,54 +304,12 @@ export default function EditEntry() {
                     <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Brand & References</h3>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <FormField label="Brand" required>
-                      <Input
-                        value={form.brand || ""}
-                        onChange={e => updateField("brand", e.target.value)}
-                        placeholder="Enter brand"
-                        data-testid="input-brand"
-                      />
-                    </FormField>
-                    <FormField label="Format" required>
-                      <Input
-                        value={form.format || ""}
-                        onChange={e => updateField("format", e.target.value)}
-                        placeholder="Enter format"
-                        data-testid="input-format"
-                      />
-                    </FormField>
-                    <FormField label="Predecessor Code">
-                      <Input
-                        value={form.predecessorCode || ""}
-                        onChange={e => updateField("predecessorCode", e.target.value)}
-                        placeholder="Enter predecessor code"
-                        data-testid="input-predecessor-code"
-                      />
-                    </FormField>
-                    <FormField label="Successor Code">
-                      <Input
-                        value={form.successorCode || ""}
-                        onChange={e => updateField("successorCode", e.target.value)}
-                        placeholder="Enter successor code"
-                        data-testid="input-successor-code"
-                      />
-                    </FormField>
-                    <FormField label="Header Code">
-                      <Input
-                        value={form.headerCode || ""}
-                        onChange={e => updateField("headerCode", e.target.value)}
-                        placeholder="For kitted packs"
-                        data-testid="input-header-code"
-                      />
-                    </FormField>
-                    <FormField label="CSD Index No.">
-                      <Input
-                        value={form.csdIndexNo || ""}
-                        onChange={e => updateField("csdIndexNo", e.target.value)}
-                        placeholder="Enter CSD index number"
-                        data-testid="input-csd-index"
-                      />
-                    </FormField>
+                    <ReadOnlyField label="Brand" value={form.brand} testId="input-brand" />
+                    <ReadOnlyField label="Format" value={form.format} testId="input-format" />
+                    <ReadOnlyField label="Predecessor Code" value={form.predecessorCode} testId="input-predecessor-code" />
+                    <ReadOnlyField label="Successor Code" value={form.successorCode} testId="input-successor-code" />
+                    <ReadOnlyField label="Header Code" value={form.headerCode} testId="input-header-code" />
+                    <ReadOnlyField label="CSD Index No." value={form.csdIndexNo} testId="input-csd-index" />
                     <FormField label="FTR Images Link">
                       <Input
                         value={form.ftrImagesLink || ""}
@@ -454,14 +318,7 @@ export default function EditEntry() {
                         data-testid="input-ftr-link"
                       />
                     </FormField>
-                    <FormField label="PC at Channel/State Level">
-                      <Input
-                        value={form.pcAtChannelState || ""}
-                        onChange={e => updateField("pcAtChannelState", e.target.value)}
-                        placeholder="Enter price circular"
-                        data-testid="input-pc-channel"
-                      />
-                    </FormField>
+                    <ReadOnlyField label="PC at Channel/State Level" value={form.pcAtChannelState} testId="input-pc-channel" />
                   </CardContent>
                 </Card>
               </div>
@@ -474,80 +331,14 @@ export default function EditEntry() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField label="Case Config">
-                      <Input
-                        value={form.caseConfig || ""}
-                        onChange={e => updateField("caseConfig", e.target.value)}
-                        placeholder="Enter case config"
-                        data-testid="input-case-config"
-                      />
-                    </FormField>
-                    <FormField label="EAN">
-                      <Input
-                        value={form.ean || ""}
-                        onChange={e => updateField("ean", e.target.value)}
-                        placeholder="Enter EAN"
-                        data-testid="input-ean"
-                      />
-                    </FormField>
-                    <FormField label="ITF">
-                      <Input
-                        value={form.itf || ""}
-                        onChange={e => updateField("itf", e.target.value)}
-                        placeholder="Enter ITF"
-                        data-testid="input-itf"
-                      />
-                    </FormField>
-                    <FormField label="Net Weight (g)">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.netWeight ?? ""}
-                        onChange={e => updateField("netWeight", e.target.value ? parseFloat(e.target.value) : null)}
-                        placeholder="Enter net weight"
-                        data-testid="input-net-weight"
-                      />
-                    </FormField>
-                    <FormField label="Gross Weight (g)">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.grossWeight ?? ""}
-                        onChange={e => updateField("grossWeight", e.target.value ? parseFloat(e.target.value) : null)}
-                        placeholder="Enter gross weight"
-                        data-testid="input-gross-weight"
-                      />
-                    </FormField>
-                    <FormField label="Length (mm)">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.length ?? ""}
-                        onChange={e => updateField("length", e.target.value ? parseFloat(e.target.value) : null)}
-                        placeholder="Enter length"
-                        data-testid="input-length"
-                      />
-                    </FormField>
-                    <FormField label="Width (mm)">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.width ?? ""}
-                        onChange={e => updateField("width", e.target.value ? parseFloat(e.target.value) : null)}
-                        placeholder="Enter width"
-                        data-testid="input-width"
-                      />
-                    </FormField>
-                    <FormField label="Height (mm)">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.height ?? ""}
-                        onChange={e => updateField("height", e.target.value ? parseFloat(e.target.value) : null)}
-                        placeholder="Enter height"
-                        data-testid="input-height"
-                      />
-                    </FormField>
+                    <ReadOnlyField label="Case Config" value={form.caseConfig} testId="input-case-config" />
+                    <ReadOnlyField label="EAN" value={form.ean} testId="input-ean" />
+                    <ReadOnlyField label="ITF" value={form.itf} testId="input-itf" />
+                    <ReadOnlyField label="Net Weight (g)" value={form.netWeight != null ? String(form.netWeight) : null} testId="input-net-weight" />
+                    <ReadOnlyField label="Gross Weight (g)" value={form.grossWeight != null ? String(form.grossWeight) : null} testId="input-gross-weight" />
+                    <ReadOnlyField label="Length (mm)" value={form.length != null ? String(form.length) : null} testId="input-length" />
+                    <ReadOnlyField label="Width (mm)" value={form.width != null ? String(form.width) : null} testId="input-width" />
+                    <ReadOnlyField label="Height (mm)" value={form.height != null ? String(form.height) : null} testId="input-height" />
                   </div>
                 </CardContent>
               </Card>
@@ -617,14 +408,28 @@ export default function EditEntry() {
   );
 }
 
-function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm font-medium">
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
+      <Label className="text-sm font-medium">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function ReadOnlyField({ label, value, testId }: { label: string; value: string | null | undefined; testId: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+        <Lock className="h-3 w-3" />
+        {label}
+      </Label>
+      <Input
+        value={value || "-"}
+        disabled
+        className="bg-muted/40 cursor-not-allowed"
+        data-testid={testId}
+      />
     </div>
   );
 }
