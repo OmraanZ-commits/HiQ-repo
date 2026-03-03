@@ -1,62 +1,61 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, CheckCircle, Clock, AlertTriangle } from "lucide-react";
-import type { NetworkEntry } from "@shared/schema";
+import { FileText, CheckCircle, Clock, Zap } from "lucide-react";
 
 interface StatsCardsProps {
-  entries: NetworkEntry[];
+  stats: {
+    total: number;
+    active: number;
+    draft: number;
+    productionStarted: number;
+  };
 }
 
-export function StatsCards({ entries }: StatsCardsProps) {
-  const total = entries.length;
-  const active = entries.filter(e => e.networkStatus === "Active").length;
-  const draft = entries.filter(e => e.networkStatus === "Draft").length;
-  const productionStarted = entries.filter(e => e.networkStatus === "Production Started").length;
-
-  const stats = [
+export function StatsCards({ stats }: StatsCardsProps) {
+  const cards = [
     {
       label: "Total Entries",
-      value: total,
+      value: stats.total,
       icon: FileText,
-      color: "text-[#0d8ecf]",
-      bg: "bg-[#0d8ecf]/10",
+      gradient: "from-[#1f36c7] to-[#0d8ecf]",
+      textColor: "text-white",
     },
     {
       label: "Active",
-      value: active,
+      value: stats.active,
       icon: CheckCircle,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-500/10",
+      gradient: "from-emerald-500 to-teal-500",
+      textColor: "text-white",
     },
     {
       label: "Draft",
-      value: draft,
+      value: stats.draft,
       icon: Clock,
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-500/10",
+      gradient: "from-amber-400 to-orange-500",
+      textColor: "text-white",
     },
     {
       label: "Production Started",
-      value: productionStarted,
-      icon: AlertTriangle,
-      color: "text-violet-600 dark:text-violet-400",
-      bg: "bg-violet-500/10",
+      value: stats.productionStarted,
+      icon: Zap,
+      gradient: "from-violet-500 to-purple-600",
+      textColor: "text-white",
     },
   ];
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="stats-cards">
-      {stats.map((stat) => (
-        <Card key={stat.label} className="hover-elevate">
+      {cards.map((card) => (
+        <Card key={card.label} className={`bg-gradient-to-br ${card.gradient} border-0 hover-elevate`}>
           <CardContent className="p-5">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold mt-1" data-testid={`stat-${stat.label.toLowerCase().replace(/\s/g, "-")}`}>
-                  {stat.value}
+                <p className={`text-sm ${card.textColor} opacity-85`}>{card.label}</p>
+                <p className={`text-3xl font-bold mt-1 ${card.textColor}`} data-testid={`stat-${card.label.toLowerCase().replace(/\s/g, "-")}`}>
+                  {card.value}
                 </p>
               </div>
-              <div className={`${stat.bg} p-3 rounded-md`}>
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              <div className="bg-white/20 p-3 rounded-md">
+                <card.icon className={`h-6 w-6 ${card.textColor}`} />
               </div>
             </div>
           </CardContent>

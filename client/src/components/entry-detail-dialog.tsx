@@ -18,14 +18,23 @@ function getStatusVariant(status: string | null): "default" | "secondary" | "des
   }
 }
 
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDialogProps) {
   if (!entry) return null;
+
+  const computedYear = entry.cbuCreatedDate ? new Date(entry.cbuCreatedDate).getFullYear() : "-";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <DialogTitle className="text-lg font-semibold" data-testid="text-detail-title">
               {entry.materialDescription || entry.cbuCode || "Network Entry"}
             </DialogTitle>
@@ -42,11 +51,11 @@ export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDial
               <DetailItem label="Material Description" value={entry.materialDescription} testId="detail-material-desc" />
               <DetailItem label="Annexure Number" value={entry.annexureNumber} testId="detail-annexure" />
               <DetailItem label="Type of Network" value={entry.typeOfNetwork} testId="detail-network-type" />
-              <DetailItem label="CBU Created Date" value={entry.cbuCreatedDate} testId="detail-cbu-date" />
-              <DetailItem label="Network Change Date" value={entry.networkChangeDate} testId="detail-change-date" />
-              <DetailItem label="Start Date" value={entry.startDate} testId="detail-start-date" />
-              <DetailItem label="End Date" value={entry.endDate} testId="detail-end-date" />
-              <DetailItem label="Year" value={entry.year?.toString()} testId="detail-year" />
+              <DetailItem label="CBU Created Date" value={formatDate(entry.cbuCreatedDate)} testId="detail-cbu-date" />
+              <DetailItem label="Year (from CBU Date)" value={String(computedYear)} testId="detail-year" />
+              <DetailItem label="Network Change Date" value={formatDate(entry.networkChangeDate)} testId="detail-change-date" />
+              <DetailItem label="Start Date" value={formatDate(entry.startDate)} testId="detail-start-date" />
+              <DetailItem label="End Date" value={formatDate(entry.endDate)} testId="detail-end-date" />
               <DetailItem label="Copy CBU" value={entry.copyCbu} testId="detail-copy-cbu" />
             </DetailGrid>
           </Section>
@@ -68,7 +77,6 @@ export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDial
               <DetailItem label="Header Code" value={entry.headerCode} testId="detail-header-code" />
               <DetailItem label="CSD Index No." value={entry.csdIndexNo} testId="detail-csd-index" />
               <DetailItem label="PC at Channel/State" value={entry.pcAtChannelState} testId="detail-pc-channel" />
-              <DetailItem label="Sourcing Matrix" value={entry.sourcingMatrixSection} testId="detail-sourcing" />
               <DetailItem label="FTR Images Link" value={entry.ftrImagesLink} testId="detail-ftr" />
             </DetailGrid>
           </Section>

@@ -1,102 +1,43 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
+import { useNetworkEntries } from "@/controllers/useNetworkEntries";
 import { UnileverHeader } from "@/components/unilever-header";
 import { StatsCards } from "@/components/stats-cards";
 import { NetworkTable } from "@/components/network-table";
-import { EntryFormDialog } from "@/components/entry-form-dialog";
 import { EntryDetailDialog } from "@/components/entry-detail-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Download, Filter, Search, X } from "lucide-react";
-import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
+import { Download, Filter, Search, X, BarChart3 } from "lucide-react";
+import type { NetworkEntry } from "@shared/schema";
 
 export default function Dashboard() {
-  const { toast } = useToast();
-  const [formOpen, setFormOpen] = useState(false);
+  const [, navigate] = useLocation();
+  const {
+    entries,
+    filteredEntries,
+    isLoading,
+    stats,
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    showFilters,
+    setShowFilters,
+  } = useNetworkEntries();
+
   const [detailOpen, setDetailOpen] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<NetworkEntry | null>(null);
   const [viewEntry, setViewEntry] = useState<NetworkEntry | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showFilters, setShowFilters] = useState(false);
-
-  const { data: entries = [], isLoading } = useQuery<NetworkEntry[]>({
-    queryKey: ["/api/network-entries"],
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data: InsertNetworkEntry) => apiRequest("POST", "/api/network-entries", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
-      setFormOpen(false);
-      setEditingEntry(null);
-      toast({ title: "Entry created successfully" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: InsertNetworkEntry }) =>
-      apiRequest("PATCH", `/api/network-entries/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
-      setFormOpen(false);
-      setEditingEntry(null);
-      toast({ title: "Entry updated successfully" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/network-entries/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
-      toast({ title: "Entry deleted successfully" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const filteredEntries = entries.filter(entry => {
-    const matchesSearch = !searchQuery ||
-      (entry.cbuCode?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (entry.materialDescription?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (entry.brand?.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesStatus = statusFilter === "all" || entry.networkStatus === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   const handleEdit = (entry: NetworkEntry) => {
-    setEditingEntry(entry);
-    setFormOpen(true);
+    navigate(`/edit/${entry.id}`);
   };
 
   const handleView = (entry: NetworkEntry) => {
     setViewEntry(entry);
     setDetailOpen(true);
-  };
-
-  const handleSubmit = (data: InsertNetworkEntry) => {
-    if (editingEntry) {
-      updateMutation.mutate({ id: editingEntry.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  const handleNewEntry = () => {
-    setEditingEntry(null);
-    setFormOpen(true);
   };
 
   return (
@@ -105,20 +46,21 @@ export default function Dashboard() {
 
       <main className="max-w-[1400px] mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap" data-testid="page-header">
-          <div>
-            <h2 className="text-xl font-bold" data-testid="text-page-title">Network Visibility</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Central portal for managing network visibility across all categories
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-[#1f36c7] to-[#00b0d7] p-2.5 rounded-md">
+              <BarChart3 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold" data-testid="text-page-title">Network Visibility</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Central portal for managing network visibility across all categories
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" data-testid="button-export">
               <Download className="h-4 w-4 mr-1.5" />
               Export
-            </Button>
-            <Button size="sm" onClick={handleNewEntry} data-testid="button-new-entry">
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Entry
             </Button>
           </div>
         </div>
@@ -135,11 +77,11 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <StatsCards entries={entries} />
+          <StatsCards stats={stats} />
         )}
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-md">
                 <div className="relative flex-1">
@@ -216,23 +158,11 @@ export default function Dashboard() {
                 entries={filteredEntries}
                 onView={handleView}
                 onEdit={handleEdit}
-                onDelete={(id) => deleteMutation.mutate(id)}
               />
             )}
           </CardContent>
         </Card>
       </main>
-
-      <EntryFormDialog
-        open={formOpen}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) setEditingEntry(null);
-        }}
-        onSubmit={handleSubmit}
-        entry={editingEntry}
-        isPending={createMutation.isPending || updateMutation.isPending}
-      />
 
       <EntryDetailDialog
         open={detailOpen}
