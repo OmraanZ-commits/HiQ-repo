@@ -17,11 +17,11 @@ A central portal for managing network visibility across all Unilever product cat
 - Styling: Tailwind CSS with Unilever-branded color tokens (HSL 199 blue primary)
 
 ## Key Features
-- **Lifecycle color flags**: Amber (Production Started, FTR Approved), Red (Stock Movement Initiated), Blinking Red (CBU Transition Complete / Ready for Transition) — shown in table, edit page, detail dialog, and status flow
+- **Lifecycle color flags**: Amber (Production Started, FTR Approved), Red (Stock Movement Initiated), Blinking Red (CBU Ready for Transition / Ready for Transition) — shown in table, edit page, detail dialog, and status flow
 - Dashboard with gradient stat cards (Total, Active, Draft, Production Started)
 - Data table with CBU Created Date, Assigned Person columns, search, and status filtering
 - Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
-- Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Transition Complete)
+- Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Ready for Transition)
 - Distribution tab: light-themed cards (Geography/Depots/Channels) with select-all toggles, distribution matrix preview
 - MT channel as parent group with 5 sub-channels; "partial" badge when partially selected; leaf count = 8
 - View detail dialog with organized sections and status flow
@@ -44,7 +44,7 @@ A central portal for managing network visibility across all Unilever product cat
 4. Production Started
 5. FTR Approved
 6. Stock Movement Initiated
-7. CBU Transition Complete
+7. CBU Ready for Transition
 
 ## Data Model
 `NetworkEntry` with ~38 fields covering:

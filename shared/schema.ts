@@ -10,7 +10,7 @@ export const STATUS_FLOW = [
   "Production Started",
   "FTR Approved",
   "Stock Movement Initiated",
-  "CBU Transition Complete",
+  "CBU Ready for Transition",
 ] as const;
 
 export const networkEntries = pgTable("network_entries", {

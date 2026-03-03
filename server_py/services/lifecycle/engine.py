@@ -30,7 +30,7 @@ def compute_lifecycle(entry: dict) -> dict:
         flag_label = "Stock In Motion"
         urgency_level = 2
 
-    elif status in ("CBU Transition Complete",):
+    elif status in ("CBU Ready for Transition",):
         color_flag = "blinking-red"
         flag_label = "Ready for Transition"
         urgency_level = 3
