@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { UnileverHeader } from "@/components/unilever-header";
 import { StatusFlow } from "@/components/status-flow";
 import { CLUSTERS, DEPOTS, CHANNELS, TOP_CHANNELS, MT_SUB_CHANNELS } from "@/lib/distribution-data";
+import { PeoplePicker } from "@/components/people-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -367,7 +368,13 @@ export default function EditEntry() {
                     <ReadOnlyField label="CBU Created Date" value={form.cbuCreatedDate} testId="input-cbu-created-date" />
                     <ReadOnlyField label="Year (auto-calculated)" value={computedYear != null ? String(computedYear) : null} testId="input-year" />
                     <ReadOnlyField label="Network Status (calculated)" value={form.networkStatus} testId="input-network-status" />
-                    <ReadOnlyField label="Assigned Person" value={form.assignedPerson} testId="input-assigned-person" />
+                    <FormField label="Assigned Person">
+                      <PeoplePicker
+                        value={form.assignedPerson}
+                        onChange={(val) => updateField("assignedPerson", val)}
+                        testId="input-assigned-person"
+                      />
+                    </FormField>
                     <FormField label="Network Change Date" hint={form.cbuCreatedDate ? `Auto-calculated: CBU date + 15 days. Min: ${formatDateDisplay(addDays(form.cbuCreatedDate, 1))}` : undefined}>
                       <Input
                         type="date"
