@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from server_py.models import STATUS_FLOW, TransitionRequest
+from server_py.models import STATUS_FLOW
 from server_py.services.state_management.service import StateManagementService
 from server_py.services.state_management.storage import StateStorage
 from server_py.services.list_master.storage import ListMasterStorage
@@ -50,33 +50,4 @@ async def get_history(entry_id: str):
         "service": "state-management",
         "entryId": entry_id,
         "transitions": history,
-    }
-
-
-@router.post("/{entry_id}/transition")
-async def transition_status(entry_id: str, req: TransitionRequest):
-    if not _service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-    try:
-        validation = _service.validate_transition(entry_id, req.toStatus)
-    except LookupError as e:
-        raise HTTPException(status_code=404, detail={"service": "state-management", "message": str(e)})
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail={"service": "state-management", "message": str(e)})
-
-    current_status = validation["currentStatus"]
-
-    transition_result = _service.record_transition(
-        entry_id=entry_id,
-        from_status=current_status,
-        to_status=req.toStatus,
-        triggered_by=req.triggeredBy,
-        metadata=req.metadata,
-    )
-
-    return {
-        "service": "state-management",
-        "transition": transition_result,
-        "currentStatus": req.toStatus,
-        "previousStatus": current_status,
     }

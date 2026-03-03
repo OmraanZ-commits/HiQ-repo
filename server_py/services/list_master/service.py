@@ -1,5 +1,5 @@
-from typing import Optional
-from server_py.models import UpdateNetworkEntry
+from typing import Optional, List
+from server_py.models import InsertNetworkEntry, UpdateNetworkEntry
 from server_py.services.list_master.storage import ListMasterStorage
 
 
@@ -7,8 +7,23 @@ class ListMasterService:
     def __init__(self, storage: ListMasterStorage):
         self.storage = storage
 
-    def get_entry(self, entry_id: str) -> Optional[dict]:
+    def get_all(self) -> List[dict]:
+        return self.storage.get_all()
+
+    def get_by_id(self, entry_id: str) -> Optional[dict]:
         return self.storage.get_by_id(entry_id)
+
+    def create(self, data: InsertNetworkEntry) -> dict:
+        return self.storage.create(data)
+
+    def update(self, entry_id: str, data: UpdateNetworkEntry) -> Optional[dict]:
+        return self.storage.update(entry_id, data)
+
+    def delete(self, entry_id: str) -> bool:
+        return self.storage.delete(entry_id)
+
+    def seed_entries(self, entries: List[InsertNetworkEntry]):
+        self.storage.seed_entries(entries)
 
     def update_status(self, entry_id: str, new_status: str) -> dict:
         entry = self.storage.get_by_id(entry_id)

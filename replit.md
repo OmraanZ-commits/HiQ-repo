@@ -9,13 +9,16 @@ A central portal for managing network visibility across all Unilever product cat
 - **Models**: `shared/schema.ts` (frontend types) + `server_py/models.py` (Pydantic models)
 - **Views**: `client/src/components/` and `client/src/pages/` - React components
 - **Controllers**: `client/src/controllers/` - Business logic hooks (useNetworkEntries, useNetworkEntryForm, useLifecycleData)
+- **Lib/Utils**: `client/src/lib/` - Pure utility functions (date-utils, distribution-data, queryClient)
 
 ### Backend (Layered Microservices + Saga)
 Each microservice follows: **Router → Service → Storage**
-- **Router**: Thin HTTP layer (request parsing, response formatting, status codes)
+- **Router**: Thin HTTP layer (request parsing, response formatting, status codes). Zero business logic.
 - **Service**: Business logic, validation, orchestration, compensating actions
 - **Storage**: Database access only, no business logic
 - **Saga Orchestrator**: Coordinates multi-step workflows across services with compensation on failure
+
+All status transitions go exclusively through the Saga Orchestrator (`/api/saga/transition/{id}`). There is no direct transition endpoint on the State Management router.
 
 ## Tech Stack
 - Frontend: React + TypeScript, Vite, TanStack Query, wouter routing, shadcn/ui
@@ -71,6 +74,9 @@ Each microservice follows: **Router → Service → Storage**
 - `client/src/controllers/useNetworkEntries.ts` - Dashboard controller hook
 - `client/src/controllers/useNetworkEntryForm.ts` - Edit page controller hook (uses saga endpoint for activation)
 - `client/src/controllers/useLifecycleData.ts` - Lifecycle data hook + flag class helpers
+- `client/src/lib/date-utils.ts` - Date utility functions (addDays, formatDateDisplay, computeYear)
+- `client/src/lib/distribution-data.ts` - Master data constants (clusters, depots, channels from Excel)
+- `client/src/lib/queryClient.ts` - API client with configurable VITE_API_BASE_URL
 - `client/src/pages/dashboard.tsx` - Main dashboard page
 - `client/src/pages/edit-entry.tsx` - Fullscreen edit page
 - `client/src/components/unilever-header.tsx` - Branded header
@@ -79,24 +85,22 @@ Each microservice follows: **Router → Service → Storage**
 - `client/src/components/network-table.tsx` - Data table with Trigger column for lifecycle flags
 - `client/src/components/entry-detail-dialog.tsx` - View details dialog with status flow and lifecycle info
 - `client/src/components/people-picker.tsx` - Searchable people picker with avatars
-- `client/src/lib/distribution-data.ts` - Master data constants (clusters, depots, channels from Excel)
-- `client/src/lib/queryClient.ts` - API client with configurable VITE_API_BASE_URL
 - `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
 ### Python Backend — Microservices (Router → Service → Storage)
 
 #### List Master Service
-- `server_py/services/list_master/router.py` - FastAPI router (thin HTTP layer)
-- `server_py/services/list_master/service.py` - Business logic: update_status, compensate_status_update
+- `server_py/services/list_master/router.py` - Thin HTTP layer, delegates all ops to ListMasterService
+- `server_py/services/list_master/service.py` - Business logic: CRUD pass-through, update_status, compensate_status_update
 - `server_py/services/list_master/storage.py` - PostgreSQL CRUD storage
 
 #### State Management Service
-- `server_py/services/state_management/router.py` - FastAPI router (thin HTTP layer)
+- `server_py/services/state_management/router.py` - Read-only endpoints (flow, status, history). No transition endpoint — transitions go through saga.
 - `server_py/services/state_management/service.py` - Business logic: validate_transition, record_transition, compensate_transition
 - `server_py/services/state_management/storage.py` - PostgreSQL storage for statuses + transitions
 
 #### Lifecycle Service
-- `server_py/services/lifecycle/router.py` - FastAPI router
+- `server_py/services/lifecycle/router.py` - Thin HTTP layer, delegates to LifecycleService
 - `server_py/services/lifecycle/service.py` - Business logic: recompute_entry, recompute_all
 - `server_py/services/lifecycle/engine.py` - Computation logic: maps status → colorFlag/flagLabel/urgencyLevel/doh
 
@@ -106,7 +110,8 @@ Each microservice follows: **Router → Service → Storage**
 - `server_py/saga/router.py` - Saga API endpoints (execute transition, query saga logs)
 
 #### Core
-- `server_py/main.py` - FastAPI app entry point, CORS, router mounting, service wiring, seed data
+- `server_py/main.py` - FastAPI app entry point, CORS, router mounting, service wiring
+- `server_py/seed_data.py` - Seed data for 8 network entries covering all 7 statuses
 - `server_py/models.py` - Pydantic models (NetworkEntry, StateTransition, STATUS_FLOW)
 - `server_py/db.py` - SQLAlchemy engine, session, ORM models, SagaLogModel, field mapping utils
 
@@ -117,7 +122,7 @@ Each microservice follows: **Router → Service → Storage**
 ## Microservice API Endpoints
 
 ### List Master Service (`/api/list-master/`)
-Manages CRUD operations for network entries data.
+Manages CRUD operations for network entries data. All routes go through ListMasterService.
 - `GET /api/list-master` - List all entries
 - `GET /api/list-master/:id` - Get single entry
 - `POST /api/list-master` - Create entry
@@ -125,11 +130,10 @@ Manages CRUD operations for network entries data.
 - `DELETE /api/list-master/:id` - Delete entry
 
 ### State Management Service (`/api/state/`)
-Manages status transitions, validation, and transition history.
+Read-only status queries and transition history. All mutations go through the Saga.
 - `GET /api/state/flow` - Get status flow definition (7 steps)
 - `GET /api/state/:entryId` - Get current status with step info
 - `GET /api/state/:entryId/history` - Get transition history
-- `POST /api/state/:entryId/transition` - Direct transition (bypasses saga — for simple cases)
 
 ### Lifecycle Service (`/api/lifecycle/`)
 Computes lifecycle color flags, labels, and DOH values based on entry status. Read-only — no DB writes.
@@ -137,7 +141,7 @@ Computes lifecycle color flags, labels, and DOH values based on entry status. Re
 - `GET /api/lifecycle/:entryId` - Get lifecycle data for single entry
 
 ### Saga Orchestrator (`/api/saga/`)
-Coordinates multi-step workflows with compensation on failure.
+Coordinates multi-step workflows with compensation on failure. The sole path for status transitions.
 - `POST /api/saga/transition/:entryId` - Execute status transition saga (4 steps: validate → record → update → recompute)
 - `GET /api/saga/:sagaId` - Get saga execution log by ID
 - `GET /api/saga/entry/:entryId` - Get all saga logs for an entry
