@@ -5,6 +5,8 @@ import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
 import { UnileverHeader } from "@/components/unilever-header";
 import { StatusFlow } from "@/components/status-flow";
+import { IndiaMap } from "@/components/india-map";
+import { CLUSTERS, DEPOTS, CHANNELS, getSelectedRegions } from "@/lib/distribution-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +15,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Globe, Building2, Radio } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, ChevronDown, ChevronUp, Check } from "lucide-react";
 import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
-
-const CHANNELS = ["CD", "CSD", "COOP", "CPC", "GT", "KA", "OH", "RD", "MT", "Retail", "MT-ECOM", "MT-QCOM"];
-const GEOGRAPHIES = ["North", "South", "East", "West", "Pan India"];
-const DEPOTS = ["Mumbai", "Delhi", "Chennai", "Kolkata", "Bangalore", "Hyderabad", "Pune", "Ahmedabad"];
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -51,6 +49,9 @@ export default function EditEntry() {
 
   const [form, setForm] = useState<InsertNetworkEntry | null>(null);
   const [activeTab, setActiveTab] = useState("basic");
+  const [geoOpen, setGeoOpen] = useState(true);
+  const [depotOpen, setDepotOpen] = useState(true);
+  const [channelOpen, setChannelOpen] = useState(true);
 
   useEffect(() => {
     if (entry && !form) {
@@ -164,6 +165,10 @@ export default function EditEntry() {
   }
 
   const computedYear = computeYear(form.cbuCreatedDate);
+  const selectedGeo = (form.geography || []) as string[];
+  const selectedDepots = (form.depot || []) as string[];
+  const selectedChannels = (form.channel || []) as string[];
+  const highlightedStates = getSelectedRegions(selectedGeo);
 
   return (
     <div className="min-h-screen bg-background">
@@ -172,12 +177,7 @@ export default function EditEntry() {
       <main className="max-w-[1200px] mx-auto px-6 py-6">
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/")}
-              data-testid="button-back"
-            >
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")} data-testid="button-back">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -197,16 +197,8 @@ export default function EditEntry() {
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleSubmit}
-            disabled={updateMutation.isPending}
-            data-testid="button-save"
-          >
-            {updateMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
+          <Button onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-save">
+            {updateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Save Changes
           </Button>
         </div>
@@ -224,20 +216,16 @@ export default function EditEntry() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1" data-testid="tabs-edit">
               <TabsTrigger value="basic" className="gap-2" data-testid="tab-basic">
-                <Info className="h-4 w-4" />
-                Basic Info
+                <Info className="h-4 w-4" /> Basic Info
               </TabsTrigger>
               <TabsTrigger value="product" className="gap-2" data-testid="tab-product">
-                <Package className="h-4 w-4" />
-                Product Details
+                <Package className="h-4 w-4" /> Product Details
               </TabsTrigger>
               <TabsTrigger value="dimensions" className="gap-2" data-testid="tab-dimensions">
-                <Ruler className="h-4 w-4" />
-                Dimensions
+                <Ruler className="h-4 w-4" /> Dimensions
               </TabsTrigger>
               <TabsTrigger value="distribution" className="gap-2" data-testid="tab-distribution">
-                <MapPin className="h-4 w-4" />
-                Distribution
+                <MapPin className="h-4 w-4" /> Distribution
               </TabsTrigger>
             </TabsList>
 
@@ -255,7 +243,6 @@ export default function EditEntry() {
                     <ReadOnlyField label="Copy from Existing CBU" value={form.copyCbu} testId="input-copy-cbu" />
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="pb-4">
                     <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Dates & Timeline</h3>
@@ -266,28 +253,13 @@ export default function EditEntry() {
                     <ReadOnlyField label="Network Status (calculated)" value={form.networkStatus} testId="input-network-status" />
                     <ReadOnlyField label="Assigned Person" value={form.assignedPerson} testId="input-assigned-person" />
                     <FormField label="Network Change Date">
-                      <Input
-                        type="date"
-                        value={form.networkChangeDate || ""}
-                        onChange={e => updateField("networkChangeDate", e.target.value)}
-                        data-testid="input-network-change-date"
-                      />
+                      <Input type="date" value={form.networkChangeDate || ""} onChange={e => updateField("networkChangeDate", e.target.value)} data-testid="input-network-change-date" />
                     </FormField>
                     <FormField label="Start Date">
-                      <Input
-                        type="date"
-                        value={form.startDate || ""}
-                        onChange={e => updateField("startDate", e.target.value)}
-                        data-testid="input-start-date"
-                      />
+                      <Input type="date" value={form.startDate || ""} onChange={e => updateField("startDate", e.target.value)} data-testid="input-start-date" />
                     </FormField>
                     <FormField label="End Date">
-                      <Input
-                        type="date"
-                        value={form.endDate || ""}
-                        onChange={e => updateField("endDate", e.target.value)}
-                        data-testid="input-end-date"
-                      />
+                      <Input type="date" value={form.endDate || ""} onChange={e => updateField("endDate", e.target.value)} data-testid="input-end-date" />
                     </FormField>
                   </CardContent>
                 </Card>
@@ -309,7 +281,6 @@ export default function EditEntry() {
                     <ReadOnlyField label="Small C" value={form.smallC} testId="input-small-c" />
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader className="pb-4">
                     <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Brand & References</h3>
@@ -322,12 +293,7 @@ export default function EditEntry() {
                     <ReadOnlyField label="Header Code" value={form.headerCode} testId="input-header-code" />
                     <ReadOnlyField label="CSD Index No." value={form.csdIndexNo} testId="input-csd-index" />
                     <FormField label="FTR Images Link">
-                      <Input
-                        value={form.ftrImagesLink || ""}
-                        onChange={e => updateField("ftrImagesLink", e.target.value)}
-                        placeholder="Enter FTR images link"
-                        data-testid="input-ftr-link"
-                      />
+                      <Input value={form.ftrImagesLink || ""} onChange={e => updateField("ftrImagesLink", e.target.value)} placeholder="Enter FTR images link" data-testid="input-ftr-link" />
                     </FormField>
                     <ReadOnlyField label="PC at Channel/State Level" value={form.pcAtChannelState} testId="input-pc-channel" />
                   </CardContent>
@@ -356,94 +322,222 @@ export default function EditEntry() {
             </TabsContent>
 
             <TabsContent value="distribution" className="mt-0">
-              <div className="relative rounded-xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#1f36c7]/[0.04] via-[#0d8ecf]/[0.06] to-[#00b0d7]/[0.04]" />
-                <div
-                  className="absolute inset-0 opacity-[0.03]"
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230d8ecf' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                  }}
-                />
-                <div
-                  className="absolute top-0 right-0 w-64 h-64 opacity-[0.06] pointer-events-none"
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='80' fill='none' stroke='%230d8ecf' stroke-width='1'/%3E%3Ccircle cx='100' cy='100' r='60' fill='none' stroke='%230d8ecf' stroke-width='0.5'/%3E%3Ccircle cx='100' cy='100' r='40' fill='none' stroke='%230d8ecf' stroke-width='0.5'/%3E%3Cline x1='20' y1='100' x2='180' y2='100' stroke='%230d8ecf' stroke-width='0.5'/%3E%3Cline x1='100' y1='20' x2='100' y2='180' stroke='%230d8ecf' stroke-width='0.5'/%3E%3C/svg%3E")`,
-                    backgroundSize: "contain",
-                    backgroundRepeat: "no-repeat",
-                  }}
-                />
-
-                <div className="relative z-10 p-6">
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1f36c7] to-[#00b0d7] flex items-center justify-center">
-                      <MapPin className="h-4 w-4 text-white" />
+              <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5">
+                <div className="space-y-4" data-testid="distribution-filters">
+                  <div className="rounded-xl border border-border bg-gradient-to-b from-[#0c1e3a] to-[#0a1628] text-white p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-[#0d8ecf]/20 flex items-center justify-center">
+                          <MapPin className="h-4 w-4 text-[#4db8e8]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">Filters</p>
+                          <p className="text-[10px] text-slate-400">Choose scope. Depots are filtered by geography.</p>
+                        </div>
+                      </div>
                     </div>
-                    <h3 className="text-base font-semibold">Distribution Network</h3>
+
+                    <div className="border-t border-white/10 pt-3">
+                      <button type="button" className="flex items-center justify-between w-full mb-2" onClick={() => setGeoOpen(!geoOpen)} data-testid="toggle-geography">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-[#4db8e8]">Geography</span>
+                          <Badge className="bg-[#0d8ecf]/30 text-[#4db8e8] text-[10px] px-1.5 py-0 border-0">{selectedGeo.length} selected</Badge>
+                        </div>
+                        {geoOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                      </button>
+                      {geoOpen && (
+                        <div className="space-y-0.5 max-h-[280px] overflow-y-auto pr-1" data-testid="checkboxes-geography">
+                          {CLUSTERS.map(cluster => {
+                            const isChecked = selectedGeo.includes(cluster.name);
+                            return (
+                              <label key={cluster.name} className={`flex items-center justify-between py-1.5 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-[#0d8ecf]/15" : "hover:bg-white/5"}`}>
+                                <div className="flex items-center gap-2.5">
+                                  <Checkbox
+                                    checked={isChecked}
+                                    onCheckedChange={() => toggleArrayItem("geography", cluster.name)}
+                                    className="border-slate-500 data-[state=checked]:bg-[#0d8ecf] data-[state=checked]:border-[#0d8ecf]"
+                                    data-testid={`checkbox-geo-${cluster.name.toLowerCase().replace(/[\s-]+/g, "-")}`}
+                                  />
+                                  <span className="text-xs">{cluster.name}</span>
+                                </div>
+                                <span className="text-[10px] text-slate-500">{cluster.depotCount} depots</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-white/10 pt-3 mt-3">
+                      <button type="button" className="flex items-center justify-between w-full mb-2" onClick={() => setDepotOpen(!depotOpen)} data-testid="toggle-depot">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-[#4db8e8]">Depot</span>
+                          <Badge className="bg-[#0d8ecf]/30 text-[#4db8e8] text-[10px] px-1.5 py-0 border-0">{selectedDepots.length} selected</Badge>
+                        </div>
+                        {depotOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                      </button>
+                      {depotOpen && (
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 max-h-[200px] overflow-y-auto pr-1" data-testid="checkboxes-depot">
+                          {DEPOTS.map(depot => {
+                            const isChecked = selectedDepots.includes(depot);
+                            return (
+                              <label key={depot} className={`flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-[#0d8ecf]/15" : "hover:bg-white/5"}`}>
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={() => toggleArrayItem("depot", depot)}
+                                  className="border-slate-500 data-[state=checked]:bg-[#0d8ecf] data-[state=checked]:border-[#0d8ecf]"
+                                  data-testid={`checkbox-depot-${depot.toLowerCase()}`}
+                                />
+                                <span className="text-xs font-mono">{depot}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-white/10 pt-3 mt-3">
+                      <button type="button" className="flex items-center justify-between w-full mb-2" onClick={() => setChannelOpen(!channelOpen)} data-testid="toggle-channel">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-[#4db8e8]">Channel</span>
+                          <Badge className="bg-[#0d8ecf]/30 text-[#4db8e8] text-[10px] px-1.5 py-0 border-0">{selectedChannels.length} selected</Badge>
+                        </div>
+                        {channelOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                      </button>
+                      {channelOpen && (
+                        <div className="space-y-0.5 max-h-[240px] overflow-y-auto pr-1" data-testid="checkboxes-channel">
+                          {CHANNELS.map(ch => {
+                            const isChecked = selectedChannels.includes(ch.code);
+                            return (
+                              <label key={ch.code} className={`flex items-center justify-between py-1.5 px-2 rounded cursor-pointer transition-colors ${ch.parent ? "pl-6" : ""} ${isChecked ? "bg-[#0d8ecf]/15" : "hover:bg-white/5"}`}>
+                                <div className="flex items-center gap-2.5">
+                                  <Checkbox
+                                    checked={isChecked}
+                                    onCheckedChange={() => toggleArrayItem("channel", ch.code)}
+                                    className="border-slate-500 data-[state=checked]:bg-[#0d8ecf] data-[state=checked]:border-[#0d8ecf]"
+                                    data-testid={`checkbox-channel-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                  />
+                                  <span className={`text-xs ${ch.parent ? "text-slate-300" : "font-medium"}`}>{ch.code}</span>
+                                </div>
+                                <span className="text-[10px] text-slate-500">{ch.type}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-5">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg border border-border bg-gradient-to-br from-[#0c1e3a] to-[#0d3052] p-4 text-white" data-testid="stat-coverage">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-400">Coverage</span>
+                        <Badge className="bg-[#0d8ecf] text-white text-[10px] border-0">Active</Badge>
+                      </div>
+                      <p className="text-2xl font-bold">{selectedGeo.length}</p>
+                      <p className="text-[10px] text-slate-400">Clusters in scope</p>
+                      <div className="mt-2 h-1.5 rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf]" style={{ width: `${Math.min(100, (selectedGeo.length / CLUSTERS.length) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-gradient-to-br from-[#0c1e3a] to-[#0d3052] p-4 text-white" data-testid="stat-depots">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-400">Depots</span>
+                        <Badge className="bg-[#0d8ecf] text-white text-[10px] border-0">Filtered</Badge>
+                      </div>
+                      <p className="text-2xl font-bold">{selectedDepots.length}</p>
+                      <p className="text-[10px] text-slate-400">Selected depots</p>
+                      <div className="mt-2 h-1.5 rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf]" style={{ width: `${Math.min(100, (selectedDepots.length / DEPOTS.length) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-gradient-to-br from-[#0c1e3a] to-[#0d3052] p-4 text-white" data-testid="stat-channels">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-400">Channels</span>
+                        <Badge className="bg-[#0d8ecf] text-white text-[10px] border-0">Applied</Badge>
+                      </div>
+                      <p className="text-2xl font-bold">{selectedChannels.length}</p>
+                      <p className="text-[10px] text-slate-400">Selected channels</p>
+                      <div className="mt-2 h-1.5 rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf]" style={{ width: `${Math.min(100, (selectedChannels.length / CHANNELS.length) * 100)}%` }} />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                    <Card className="border-[#0d8ecf]/10 bg-white/80 dark:bg-card/80 backdrop-blur-sm shadow-sm">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4 text-[#1f36c7]" />
-                          <h4 className="text-sm font-semibold text-[#1f36c7] dark:text-[#4db8e8]">Geography</h4>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2.5" data-testid="checkboxes-geography">
-                        {GEOGRAPHIES.map(g => (
-                          <label key={g} className="flex items-center gap-3 cursor-pointer py-1.5 px-2 rounded-md hover:bg-[#0d8ecf]/5 transition-colors">
-                            <Checkbox
-                              checked={(form.geography || []).includes(g)}
-                              onCheckedChange={() => toggleArrayItem("geography", g)}
-                              data-testid={`checkbox-geo-${g.toLowerCase().replace(/\s/g, "-")}`}
-                            />
-                            <span className="text-sm">{g}</span>
-                          </label>
-                        ))}
-                      </CardContent>
-                    </Card>
+                  <div className="rounded-xl border border-border bg-gradient-to-br from-[#0c1e3a] to-[#0a1628] p-5 text-white" data-testid="distribution-matrix">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-sm font-semibold">Distribution Matrix Preview</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Shows coverage by geography → depot → channel</p>
+                      </div>
+                    </div>
+                    {selectedGeo.length > 0 && selectedDepots.length > 0 && selectedChannels.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left py-2 pr-3 text-slate-400 font-medium">Geography</th>
+                              <th className="text-left py-2 pr-3 text-slate-400 font-medium">Depot</th>
+                              {selectedChannels.slice(0, 5).map(ch => (
+                                <th key={ch} className="text-center py-2 px-2 text-slate-400 font-medium">{ch}</th>
+                              ))}
+                              {selectedChannels.length > 5 && <th className="text-center py-2 px-2 text-slate-400 font-medium">+{selectedChannels.length - 5}</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedGeo.slice(0, 6).map((geo, geoIdx) => {
+                              const clusterDepots = selectedDepots.slice(geoIdx, geoIdx + 1);
+                              const depotCode = clusterDepots[0] || selectedDepots[geoIdx % selectedDepots.length];
+                              return (
+                                <tr key={geo} className="border-b border-white/5">
+                                  <td className="py-2.5 pr-3 font-medium text-slate-200">{geo.length > 18 ? geo.substring(0, 16) + "..." : geo}</td>
+                                  <td className="py-2.5 pr-3 font-mono text-slate-400">{depotCode}</td>
+                                  {selectedChannels.slice(0, 5).map(ch => (
+                                    <td key={ch} className="text-center py-2.5 px-2">
+                                      <div className="w-5 h-5 mx-auto rounded-full bg-[#0d8ecf]/20 flex items-center justify-center">
+                                        <Check className="h-3 w-3 text-[#4db8e8]" />
+                                      </div>
+                                    </td>
+                                  ))}
+                                  {selectedChannels.length > 5 && (
+                                    <td className="text-center py-2.5 px-2 text-slate-500">—</td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {selectedGeo.length > 6 && (
+                          <p className="text-[10px] text-slate-500 mt-2 text-center">+ {selectedGeo.length - 6} more clusters</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 text-center py-6">Select geography, depots, and channels to see the distribution matrix.</p>
+                    )}
+                  </div>
 
-                    <Card className="border-[#0d8ecf]/10 bg-white/80 dark:bg-card/80 backdrop-blur-sm shadow-sm">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-[#0d8ecf]" />
-                          <h4 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Depot</h4>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2.5" data-testid="checkboxes-depot">
-                        {DEPOTS.map(d => (
-                          <label key={d} className="flex items-center gap-3 cursor-pointer py-1.5 px-2 rounded-md hover:bg-[#0d8ecf]/5 transition-colors">
-                            <Checkbox
-                              checked={(form.depot || []).includes(d)}
-                              onCheckedChange={() => toggleArrayItem("depot", d)}
-                              data-testid={`checkbox-depot-${d.toLowerCase()}`}
-                            />
-                            <span className="text-sm">{d}</span>
-                          </label>
+                  <div className="rounded-xl border border-border bg-gradient-to-br from-[#0c1e3a] to-[#0a1628] p-5 text-white" data-testid="india-map-container">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-semibold">India Cluster Map</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Highlighted regions show selected clusters for this material</p>
+                      </div>
+                      <Badge className="bg-[#0d8ecf]/20 text-[#4db8e8] text-[10px] border-0">
+                        {highlightedStates.length} states covered
+                      </Badge>
+                    </div>
+                    <div className="max-w-[320px] mx-auto">
+                      <IndiaMap highlightedStates={highlightedStates} />
+                    </div>
+                    {selectedGeo.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-4 justify-center">
+                        {selectedGeo.map(g => (
+                          <Badge key={g} className="bg-[#0d8ecf]/20 text-[#4db8e8] text-[10px] border border-[#0d8ecf]/30">{g}</Badge>
                         ))}
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-[#0d8ecf]/10 bg-white/80 dark:bg-card/80 backdrop-blur-sm shadow-sm">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Radio className="h-4 w-4 text-[#00b0d7]" />
-                          <h4 className="text-sm font-semibold text-[#00b0d7] dark:text-[#4db8e8]">Channel</h4>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2.5" data-testid="checkboxes-channel">
-                        {CHANNELS.map(c => (
-                          <label key={c} className="flex items-center gap-3 cursor-pointer py-1.5 px-2 rounded-md hover:bg-[#0d8ecf]/5 transition-colors">
-                            <Checkbox
-                              checked={(form.channel || []).includes(c)}
-                              onCheckedChange={() => toggleArrayItem("channel", c)}
-                              data-testid={`checkbox-channel-${c.toLowerCase()}`}
-                            />
-                            <span className="text-sm">{c}</span>
-                          </label>
-                        ))}
-                      </CardContent>
-                    </Card>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -471,12 +565,7 @@ function ReadOnlyField({ label, value, testId }: { label: string; value: string 
         <Lock className="h-3 w-3" />
         {label}
       </Label>
-      <Input
-        value={value || "-"}
-        disabled
-        className="bg-muted/40 cursor-not-allowed"
-        data-testid={testId}
-      />
+      <Input value={value || "-"} disabled className="bg-muted/40 cursor-not-allowed" data-testid={testId} />
     </div>
   );
 }

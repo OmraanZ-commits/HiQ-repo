@@ -108,9 +108,9 @@ export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDial
 
           <Section title="Distribution">
             <div className="space-y-4">
-              <DetailArrayItem label="Geography" values={entry.geography} testId="detail-geography" />
-              <DetailArrayItem label="Depot" values={entry.depot} testId="detail-depot" />
-              <DetailArrayItem label="Channel" values={entry.channel} testId="detail-channel" />
+              <DetailArrayItem label="Geography / Clusters" values={entry.geography} testId="detail-geography" />
+              <DetailArrayItem label="Depots" values={entry.depot} testId="detail-depot" />
+              <DetailArrayItem label="Channels" values={entry.channel} testId="detail-channel" />
             </div>
           </Section>
         </div>

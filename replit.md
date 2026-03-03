@@ -20,7 +20,7 @@ A central portal for managing network visibility across all Unilever product cat
 - Data table with CBU Created Date, Assigned Person columns, search, and status filtering
 - Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
 - Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Transition Complete)
-- Enhanced distribution tab with decorative background, glassmorphism cards, and category icons
+- Distribution tab: dark navy themed left filter panel (collapsible Geography/Depot/Channel sections from Excel master data), right panel with coverage stat cards, distribution matrix preview, and India SVG cluster map with state highlighting
 - View detail dialog with organized sections and status flow
 - Year auto-calculated from CBU Created Date
 - Assigned Person field with avatar initials in table
@@ -42,7 +42,7 @@ A central portal for managing network visibility across all Unilever product cat
 - Basic info (CBU code, dates, annexure, network type, assigned person)
 - Product details (brand, BG, format, profit centre, etc.)
 - Dimensions (weight, length, width, height, EAN, ITF)
-- Distribution (geography, depot, channel as arrays)
+- Distribution (geography=18 Indian clusters, depot=24 depot codes, channel=9 channels with MT sub-channels, all from Excel master data)
 
 ## File Structure
 - `client/src/controllers/useNetworkEntries.ts` - Controller hook
@@ -54,6 +54,8 @@ A central portal for managing network visibility across all Unilever product cat
 - `client/src/components/network-table.tsx` - Data table (view + edit actions, assigned person column)
 - `client/src/components/entry-detail-dialog.tsx` - View details dialog with status flow
 - `server/routes.ts` - REST API endpoints
+- `client/src/lib/distribution-data.ts` - Master data constants (clusters, depots, channels from Excel)
+- `client/src/components/india-map.tsx` - SVG India map with cluster-to-state highlighting
 - `server/storage.ts` - In-memory storage with CRUD and seed data
 - `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
