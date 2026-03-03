@@ -1,0 +1,101 @@
+import { Search, Bell, User, Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
+
+export function UnileverHeader() {
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50" data-testid="header">
+      <div className="bg-gradient-to-r from-[#1f36c7] via-[#0d8ecf] to-[#00b0d7] text-white">
+        <div className="flex items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-8">
+            <h1
+              className="text-2xl font-bold italic tracking-wide"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+              data-testid="text-logo"
+            >
+              Unilever
+            </h1>
+            <nav className="hidden lg:flex items-center">
+              <div className="bg-white/15 backdrop-blur-sm rounded-full px-1 py-1 flex items-center gap-1">
+                <NavItem label="Dashboard" active />
+                <NavItem label="Network Entries" />
+                <NavItem label="Reports" />
+                <NavItem label="Settings" />
+              </div>
+            </nav>
+          </div>
+          <div className="flex items-center gap-3">
+            {searchOpen ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="search"
+                  placeholder="Search entries..."
+                  className="h-8 w-48 bg-white/20 border-white/30 text-white placeholder:text-white/60 text-sm"
+                  data-testid="input-search"
+                  autoFocus
+                  onBlur={() => setSearchOpen(false)}
+                />
+              </div>
+            ) : (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-white no-default-hover-elevate no-default-active-elevate"
+                onClick={() => setSearchOpen(true)}
+                data-testid="button-search"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-white no-default-hover-elevate no-default-active-elevate relative"
+              data-testid="button-notifications"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1 right-1 h-2 w-2 bg-orange-400 rounded-full" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-white no-default-hover-elevate no-default-active-elevate"
+              data-testid="button-user-menu"
+            >
+              <User className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div className="bg-gradient-to-r from-[#1f36c7]/5 via-[#0d8ecf]/5 to-[#00b0d7]/5 border-b border-border">
+        <div className="px-6 py-2 flex items-center gap-2">
+          <span className="text-xs text-muted-foreground" data-testid="text-breadcrumb">
+            Central Portal
+          </span>
+          <span className="text-xs text-muted-foreground">/</span>
+          <span className="text-xs font-medium" data-testid="text-breadcrumb-current">
+            Network Visibility
+          </span>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function NavItem({ label, active = false }: { label: string; active?: boolean }) {
+  return (
+    <button
+      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+        active
+          ? "bg-white text-[#0d8ecf]"
+          : "text-white/90 hover:text-white hover:bg-white/10"
+      }`}
+      data-testid={`nav-${label.toLowerCase().replace(/\s/g, "-")}`}
+    >
+      {label}
+    </button>
+  );
+}
