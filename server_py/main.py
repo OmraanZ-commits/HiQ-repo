@@ -18,7 +18,14 @@ from server_py.services.lifecycle.router import (
     set_list_storage as lifecycle_set_list_storage,
     get_service as get_lifecycle_service,
 )
+from server_py.services.reference_data.storage import ReferenceDataStorage
+from server_py.services.reference_data.service import ReferenceDataService
+from server_py.services.reference_data.router import (
+    router as ref_data_router,
+    set_service as set_ref_service,
+)
 from server_py.saga.router import router as saga_router, init_saga_services
+from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS
 
 app = FastAPI(title="Unilever Network Visibility API", version="1.0.0", redirect_slashes=False)
 
@@ -34,6 +41,7 @@ app.include_router(list_master_router, prefix="/api/list-master", tags=["List Ma
 app.include_router(list_master_router, prefix="/api/network-entries", tags=["Legacy"])
 app.include_router(state_router, prefix="/api/state", tags=["State Management"])
 app.include_router(lifecycle_router, prefix="/api/lifecycle", tags=["Lifecycle"])
+app.include_router(ref_data_router, prefix="/api/reference-data", tags=["Reference Data"])
 app.include_router(saga_router, prefix="/api/saga", tags=["Saga"])
 
 
@@ -56,16 +64,22 @@ async def startup():
         [{"id": e["id"], "status": e.get("networkStatus", "Draft")} for e in entries]
     )
 
+    # Reference-data microservice
+    ref_storage = ReferenceDataStorage()
+    ref_service = ReferenceDataService(ref_storage)
+    set_ref_service(ref_service)
+    ref_service.seed_all(CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS)
+
     state_service = get_state_service()
     lifecycle_service = get_lifecycle_service()
 
     if state_service and lifecycle_service:
-        init_saga_services(state_service, list_service, lifecycle_service)
+        init_saga_services(state_service, list_service, lifecycle_service, ref_service)
 
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "services": ["list-master", "state-management", "lifecycle", "saga"]}
+    return {"status": "ok", "services": ["list-master", "state-management", "lifecycle", "reference-data", "saga"]}
 
 
 if __name__ == "__main__":

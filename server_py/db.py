@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     DateTime,
     Date,
+    Boolean,
     ForeignKey,
 )
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
@@ -110,6 +111,46 @@ class SagaLogModel(Base):
     started_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     error = Column(String, nullable=True)
+
+
+# ── Master Tables ──────────────────────────────────────────────
+
+
+class ChannelsMasterModel(Base):
+    __tablename__ = "channels_master"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=True)
+    type = Column(String, nullable=False)           # Core | Traditional | Modern Trade
+    parent_code = Column(String, nullable=True)     # e.g. "MT" for sub-channels
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class ClustersMasterModel(Base):
+    __tablename__ = "clusters_master"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False, unique=True)
+    region = Column(String, nullable=False)          # South | West | North | East
+    depot_count = Column(Integer, nullable=True)
+    state_ids = Column(ARRAY(Text), nullable=True, default=[])
+    pin_x = Column(Float, nullable=True)
+    pin_y = Column(Float, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class DepotsMasterModel(Base):
+    __tablename__ = "depots_master"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=True)
+    cluster_id = Column(String, nullable=True)       # logical FK to clusters_master
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
 def create_tables():

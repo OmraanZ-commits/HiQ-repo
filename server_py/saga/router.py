@@ -4,26 +4,31 @@ from typing import Optional
 
 from server_py.db import SessionLocal, SagaLogModel
 from server_py.saga.transition_saga import build_transition_saga
+from server_py.saga.reference_data_saga import build_reference_data_saga
 from server_py.services.state_management.service import StateManagementService
 from server_py.services.list_master.service import ListMasterService
 from server_py.services.lifecycle.service import LifecycleService
+from server_py.services.reference_data.service import ReferenceDataService
 
 router = APIRouter()
 
 _state_service: StateManagementService | None = None
 _list_service: ListMasterService | None = None
 _lifecycle_service: LifecycleService | None = None
+_ref_service: ReferenceDataService | None = None
 
 
 def init_saga_services(
     state_service: StateManagementService,
     list_service: ListMasterService,
     lifecycle_service: LifecycleService,
+    ref_service: ReferenceDataService | None = None,
 ):
-    global _state_service, _list_service, _lifecycle_service
+    global _state_service, _list_service, _lifecycle_service, _ref_service
     _state_service = state_service
     _list_service = list_service
     _lifecycle_service = lifecycle_service
+    _ref_service = ref_service
 
 
 class TransitionSagaRequest(BaseModel):
@@ -99,3 +104,46 @@ async def get_sagas_for_entry(entry_id: str):
         ]
     finally:
         db.close()
+
+
+# ── Reference-Data Fetch Saga ───────────────────────────────────
+
+@router.post("/reference-data")
+async def execute_reference_data_saga():
+    """
+    Execute a saga that fetches all reference data (channels, clusters, depots)
+    in coordinated steps with full saga logging.
+    """
+    if not _ref_service:
+        raise HTTPException(status_code=503, detail="Reference-data service not initialized")
+
+    saga = build_reference_data_saga(ref_service=_ref_service)
+    result = saga.execute(context={})
+
+    if result["status"] != "completed":
+        raise HTTPException(status_code=400, detail=result)
+
+    # Extract the fetched data from step results
+    channels = []
+    clusters = []
+    depots = []
+    for step in result.get("steps", []):
+        res = step.get("result") or {}
+        if step["name"] == "fetch_channels":
+            channels = res.get("channels", [])
+        elif step["name"] == "fetch_clusters":
+            clusters = res.get("clusters", [])
+        elif step["name"] == "fetch_depots":
+            depots = res.get("depots", [])
+
+    return {
+        "sagaId": result["sagaId"],
+        "status": result["status"],
+        "data": {
+            "channels": channels,
+            "clusters": clusters,
+            "depots": depots,
+        },
+        "steps": result["steps"],
+    }
+

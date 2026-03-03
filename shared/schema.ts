@@ -78,3 +78,57 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// ── Master Tables ──────────────────────────────────────────────
+
+export const channelsMaster = pgTable("channels_master", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  name: text("name"),
+  type: text("type").notNull(),            // "Core" | "Traditional" | "Modern Trade"
+  parentCode: text("parent_code"),          // e.g. "MT" for sub-channels
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChannelsMasterSchema = createInsertSchema(channelsMaster).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertChannelsMaster = z.infer<typeof insertChannelsMasterSchema>;
+export type ChannelsMaster = typeof channelsMaster.$inferSelect;
+
+export const clustersMaster = pgTable("clusters_master", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  region: text("region").notNull(),         // "South" | "West" | "North" | "East"
+  depotCount: integer("depot_count"),
+  stateIds: text("state_ids").array(),
+  pinX: real("pin_x"),
+  pinY: real("pin_y"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertClustersMasterSchema = createInsertSchema(clustersMaster).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertClustersMaster = z.infer<typeof insertClustersMasterSchema>;
+export type ClustersMaster = typeof clustersMaster.$inferSelect;
+
+export const depotsMaster = pgTable("depots_master", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  name: text("name"),
+  clusterId: varchar("cluster_id"),         // logical FK to clusters_master
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDepotsMasterSchema = createInsertSchema(depotsMaster).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertDepotsMaster = z.infer<typeof insertDepotsMasterSchema>;
+export type DepotsMaster = typeof depotsMaster.$inferSelect;

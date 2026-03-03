@@ -2,9 +2,18 @@ import { Search, Bell, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
 export function UnileverHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [location, navigate] = useLocation();
+
+  const navItems: { label: string; path: string }[] = [
+    { label: "Dashboard", path: "/" },
+    { label: "My Queue", path: "/my-queue" },
+    { label: "Reports", path: "/reports" },
+    { label: "Admin Center", path: "/admin" },
+  ];
 
   return (
     <header className="sticky top-0 z-50" data-testid="header">
@@ -20,10 +29,14 @@ export function UnileverHeader() {
             </h1>
             <nav className="hidden lg:flex items-center">
               <div className="bg-white/15 backdrop-blur-sm rounded-full px-1 py-1 flex items-center gap-1">
-                <NavItem label="Dashboard" active />
-                <NavItem label="Network Entries" />
-                <NavItem label="Reports" />
-                <NavItem label="Settings" />
+                {navItems.map((item) => (
+                  <NavItem
+                    key={item.path}
+                    label={item.label}
+                    active={location === item.path}
+                    onClick={() => navigate(item.path)}
+                  />
+                ))}
               </div>
             </nav>
           </div>
@@ -85,9 +98,10 @@ export function UnileverHeader() {
   );
 }
 
-function NavItem({ label, active = false }: { label: string; active?: boolean }) {
+function NavItem({ label, active = false, onClick }: { label: string; active?: boolean; onClick?: () => void }) {
   return (
     <button
+      onClick={onClick}
       className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
         active
           ? "bg-white text-[#0d8ecf]"

@@ -121,3 +121,83 @@ class TransitionRequest(BaseModel):
     toStatus: str
     triggeredBy: Optional[str] = None
     metadata: Optional[dict] = None
+
+
+# ── Master Table Pydantic Models ───────────────────────────────
+
+
+class ChannelsMasterBase(BaseModel):
+    code: str
+    name: Optional[str] = None
+    type: str                              # "Core" | "Traditional" | "Modern Trade"
+    parentCode: Optional[str] = None
+    isActive: Optional[bool] = True
+
+
+class InsertChannelsMaster(ChannelsMasterBase):
+    pass
+
+
+class ChannelsMasterEntry(ChannelsMasterBase):
+    id: str
+    createdAt: Optional[str] = None
+
+
+class UpdateChannelsMaster(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
+    parentCode: Optional[str] = None
+    isActive: Optional[bool] = None
+
+
+class ClustersMasterBase(BaseModel):
+    name: str
+    region: str                            # "South" | "West" | "North" | "East"
+    depotCount: Optional[int] = None
+    stateIds: Optional[List[str]] = Field(default_factory=list)
+    pinX: Optional[float] = None
+    pinY: Optional[float] = None
+    isActive: Optional[bool] = True
+
+
+class InsertClustersMaster(ClustersMasterBase):
+    pass
+
+
+class ClustersMasterEntry(ClustersMasterBase):
+    id: str
+    createdAt: Optional[str] = None
+
+
+class UpdateClustersMaster(BaseModel):
+    name: Optional[str] = None
+    region: Optional[str] = None
+    depotCount: Optional[int] = None
+    stateIds: Optional[List[str]] = None
+    pinX: Optional[float] = None
+    pinY: Optional[float] = None
+    isActive: Optional[bool] = None
+
+
+class DepotsMasterBase(BaseModel):
+    code: str
+    name: Optional[str] = None
+    clusterId: Optional[str] = None
+    isActive: Optional[bool] = True
+
+
+class InsertDepotsMaster(DepotsMasterBase):
+    pass
+
+
+class DepotsMasterEntry(DepotsMasterBase):
+    id: str
+    createdAt: Optional[str] = None
+
+
+class UpdateDepotsMaster(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    clusterId: Optional[str] = None
+    isActive: Optional[bool] = None

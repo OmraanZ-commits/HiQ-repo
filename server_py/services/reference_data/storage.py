@@ -1,0 +1,308 @@
+import uuid
+from datetime import datetime, timezone
+from typing import Optional, List
+
+from server_py.db import (
+    SessionLocal,
+    ChannelsMasterModel,
+    ClustersMasterModel,
+    DepotsMasterModel,
+)
+
+
+def _channel_row_to_api(row: ChannelsMasterModel) -> dict:
+    return {
+        "id": str(row.id),
+        "code": row.code,
+        "name": row.name,
+        "type": row.type,
+        "parentCode": row.parent_code,
+        "isActive": row.is_active,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def _cluster_row_to_api(row: ClustersMasterModel) -> dict:
+    return {
+        "id": str(row.id),
+        "name": row.name,
+        "region": row.region,
+        "depotCount": row.depot_count,
+        "stateIds": row.state_ids or [],
+        "pinX": row.pin_x,
+        "pinY": row.pin_y,
+        "isActive": row.is_active,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def _depot_row_to_api(row: DepotsMasterModel) -> dict:
+    return {
+        "id": str(row.id),
+        "code": row.code,
+        "name": row.name,
+        "clusterId": row.cluster_id,
+        "isActive": row.is_active,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+class ReferenceDataStorage:
+    """Persistence layer for Channel, Cluster & Depot master tables."""
+
+    # ── Channels ────────────────────────────────────────────────
+
+    def get_all_channels(self) -> List[dict]:
+        db = SessionLocal()
+        try:
+            rows = db.query(ChannelsMasterModel).order_by(ChannelsMasterModel.code).all()
+            return [_channel_row_to_api(r) for r in rows]
+        finally:
+            db.close()
+
+    def get_channel_by_id(self, channel_id: str) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(ChannelsMasterModel).filter(ChannelsMasterModel.id == channel_id).first()
+            return _channel_row_to_api(row) if row else None
+        finally:
+            db.close()
+
+    def create_channel(self, data: dict) -> dict:
+        db = SessionLocal()
+        try:
+            entry = ChannelsMasterModel(
+                id=uuid.uuid4(),
+                code=data["code"],
+                name=data.get("name"),
+                type=data["type"],
+                parent_code=data.get("parentCode"),
+                is_active=data.get("isActive", True),
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(entry)
+            db.commit()
+            db.refresh(entry)
+            return _channel_row_to_api(entry)
+        finally:
+            db.close()
+
+    def update_channel(self, channel_id: str, data: dict) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(ChannelsMasterModel).filter(ChannelsMasterModel.id == channel_id).first()
+            if not row:
+                return None
+            field_map = {"code": "code", "name": "name", "type": "type", "parentCode": "parent_code", "isActive": "is_active"}
+            for api_key, db_col in field_map.items():
+                if api_key in data and data[api_key] is not None:
+                    setattr(row, db_col, data[api_key])
+            db.commit()
+            db.refresh(row)
+            return _channel_row_to_api(row)
+        finally:
+            db.close()
+
+    def delete_channel(self, channel_id: str) -> bool:
+        db = SessionLocal()
+        try:
+            row = db.query(ChannelsMasterModel).filter(ChannelsMasterModel.id == channel_id).first()
+            if not row:
+                return False
+            db.delete(row)
+            db.commit()
+            return True
+        finally:
+            db.close()
+
+    def seed_channels(self, seeds: List[dict]):
+        db = SessionLocal()
+        try:
+            if db.query(ChannelsMasterModel).count() > 0:
+                return
+            for s in seeds:
+                db.add(ChannelsMasterModel(
+                    id=uuid.uuid4(),
+                    code=s["code"],
+                    name=s.get("name"),
+                    type=s["type"],
+                    parent_code=s.get("parentCode"),
+                    is_active=s.get("isActive", True),
+                    created_at=datetime.now(timezone.utc),
+                ))
+            db.commit()
+        finally:
+            db.close()
+
+    # ── Clusters ────────────────────────────────────────────────
+
+    def get_all_clusters(self) -> List[dict]:
+        db = SessionLocal()
+        try:
+            rows = db.query(ClustersMasterModel).order_by(ClustersMasterModel.name).all()
+            return [_cluster_row_to_api(r) for r in rows]
+        finally:
+            db.close()
+
+    def get_cluster_by_id(self, cluster_id: str) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(ClustersMasterModel).filter(ClustersMasterModel.id == cluster_id).first()
+            return _cluster_row_to_api(row) if row else None
+        finally:
+            db.close()
+
+    def create_cluster(self, data: dict) -> dict:
+        db = SessionLocal()
+        try:
+            entry = ClustersMasterModel(
+                id=uuid.uuid4(),
+                name=data["name"],
+                region=data["region"],
+                depot_count=data.get("depotCount"),
+                state_ids=data.get("stateIds", []),
+                pin_x=data.get("pinX"),
+                pin_y=data.get("pinY"),
+                is_active=data.get("isActive", True),
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(entry)
+            db.commit()
+            db.refresh(entry)
+            return _cluster_row_to_api(entry)
+        finally:
+            db.close()
+
+    def update_cluster(self, cluster_id: str, data: dict) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(ClustersMasterModel).filter(ClustersMasterModel.id == cluster_id).first()
+            if not row:
+                return None
+            field_map = {
+                "name": "name", "region": "region", "depotCount": "depot_count",
+                "stateIds": "state_ids", "pinX": "pin_x", "pinY": "pin_y", "isActive": "is_active",
+            }
+            for api_key, db_col in field_map.items():
+                if api_key in data and data[api_key] is not None:
+                    setattr(row, db_col, data[api_key])
+            db.commit()
+            db.refresh(row)
+            return _cluster_row_to_api(row)
+        finally:
+            db.close()
+
+    def delete_cluster(self, cluster_id: str) -> bool:
+        db = SessionLocal()
+        try:
+            row = db.query(ClustersMasterModel).filter(ClustersMasterModel.id == cluster_id).first()
+            if not row:
+                return False
+            db.delete(row)
+            db.commit()
+            return True
+        finally:
+            db.close()
+
+    def seed_clusters(self, seeds: List[dict]):
+        db = SessionLocal()
+        try:
+            if db.query(ClustersMasterModel).count() > 0:
+                return
+            for s in seeds:
+                db.add(ClustersMasterModel(
+                    id=uuid.uuid4(),
+                    name=s["name"],
+                    region=s["region"],
+                    depot_count=s.get("depotCount"),
+                    state_ids=s.get("stateIds", []),
+                    pin_x=s.get("pinX"),
+                    pin_y=s.get("pinY"),
+                    is_active=s.get("isActive", True),
+                    created_at=datetime.now(timezone.utc),
+                ))
+            db.commit()
+        finally:
+            db.close()
+
+    # ── Depots ──────────────────────────────────────────────────
+
+    def get_all_depots(self) -> List[dict]:
+        db = SessionLocal()
+        try:
+            rows = db.query(DepotsMasterModel).order_by(DepotsMasterModel.code).all()
+            return [_depot_row_to_api(r) for r in rows]
+        finally:
+            db.close()
+
+    def get_depot_by_id(self, depot_id: str) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(DepotsMasterModel).filter(DepotsMasterModel.id == depot_id).first()
+            return _depot_row_to_api(row) if row else None
+        finally:
+            db.close()
+
+    def create_depot(self, data: dict) -> dict:
+        db = SessionLocal()
+        try:
+            entry = DepotsMasterModel(
+                id=uuid.uuid4(),
+                code=data["code"],
+                name=data.get("name"),
+                cluster_id=data.get("clusterId"),
+                is_active=data.get("isActive", True),
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(entry)
+            db.commit()
+            db.refresh(entry)
+            return _depot_row_to_api(entry)
+        finally:
+            db.close()
+
+    def update_depot(self, depot_id: str, data: dict) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(DepotsMasterModel).filter(DepotsMasterModel.id == depot_id).first()
+            if not row:
+                return None
+            field_map = {"code": "code", "name": "name", "clusterId": "cluster_id", "isActive": "is_active"}
+            for api_key, db_col in field_map.items():
+                if api_key in data and data[api_key] is not None:
+                    setattr(row, db_col, data[api_key])
+            db.commit()
+            db.refresh(row)
+            return _depot_row_to_api(row)
+        finally:
+            db.close()
+
+    def delete_depot(self, depot_id: str) -> bool:
+        db = SessionLocal()
+        try:
+            row = db.query(DepotsMasterModel).filter(DepotsMasterModel.id == depot_id).first()
+            if not row:
+                return False
+            db.delete(row)
+            db.commit()
+            return True
+        finally:
+            db.close()
+
+    def seed_depots(self, seeds: List[dict]):
+        db = SessionLocal()
+        try:
+            if db.query(DepotsMasterModel).count() > 0:
+                return
+            for s in seeds:
+                db.add(DepotsMasterModel(
+                    id=uuid.uuid4(),
+                    code=s["code"],
+                    name=s.get("name"),
+                    cluster_id=s.get("clusterId"),
+                    is_active=s.get("isActive", True),
+                    created_at=datetime.now(timezone.utc),
+                ))
+            db.commit()
+        finally:
+            db.close()
