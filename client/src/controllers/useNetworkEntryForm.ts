@@ -214,11 +214,33 @@ export function useNetworkEntryForm() {
     }
   };
 
+  const transitionMutation = useMutation({
+    mutationFn: async (data: { form: InsertNetworkEntry; entryId: string }) => {
+      await apiRequest("PATCH", `/api/list-master/${data.entryId}`, data.form);
+      await apiRequest("POST", `/api/state/${data.entryId}/transition`, {
+        toStatus: "Active",
+        triggeredBy: data.form.assignedPerson || "System",
+        metadata: {
+          networkChangeDate: data.form.networkChangeDate,
+          startDate: data.form.startDate,
+          endDate: data.form.endDate,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      toast({ title: "Entry activated successfully" });
+      navigate("/");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Activation Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleConfirmSubmit = () => {
-    if (!form) return;
-    const submissionData = { ...form, networkStatus: "Active" };
+    if (!form || !id) return;
     setShowConfirmDialog(false);
-    updateMutation.mutate(submissionData);
+    transitionMutation.mutate({ form, entryId: id });
   };
 
   const selectedGeo = (form?.geography || []) as string[];
@@ -250,7 +272,7 @@ export function useNetworkEntryForm() {
     toggleMT,
     handleSubmit,
     handleConfirmSubmit,
-    isPending: updateMutation.isPending,
+    isPending: updateMutation.isPending || transitionMutation.isPending,
     navigate,
 
     selectedGeo,

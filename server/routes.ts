@@ -1,12 +1,20 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, listMasterStorage, stateStorage } from "./storage";
+import { createListMasterRouter } from "./services/list-master/routes";
+import { createStateRouter } from "./services/state-management/routes";
 import { insertNetworkEntrySchema } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  const listMasterRouter = createListMasterRouter(listMasterStorage);
+  app.use("/api/list-master", listMasterRouter);
+
+  const stateRouter = createStateRouter(stateStorage, listMasterStorage);
+  app.use("/api/state", stateRouter);
+
   app.get("/api/network-entries", async (_req, res) => {
     try {
       const entries = await storage.getAllNetworkEntries();

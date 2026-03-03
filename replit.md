@@ -59,13 +59,33 @@ A central portal for managing network visibility across all Unilever product cat
 - `client/src/components/status-flow.tsx` - 7-step status progress bar
 - `client/src/components/network-table.tsx` - Data table (view + edit actions, assigned person column)
 - `client/src/components/entry-detail-dialog.tsx` - View details dialog with status flow
-- `server/routes.ts` - REST API endpoints
+- `server/routes.ts` - API gateway mounting microservices + legacy endpoints
+- `server/services/list-master/` - List Master microservice (storage + routes)
+- `server/services/state-management/` - State Management microservice (storage + routes)
+- `server/storage.ts` - Seed data + bridge to microservices for legacy compatibility
 - `client/src/lib/distribution-data.ts` - Master data constants (clusters, depots, channels from Excel)
-- `client/src/components/india-map.tsx` - SVG India map with cluster-to-state highlighting
-- `server/storage.ts` - In-memory storage with CRUD and seed data
+- `client/src/components/people-picker.tsx` - Searchable people picker with avatars
 - `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
-## API Endpoints
+## Microservice Architecture
+
+### List Master Service (`/api/list-master/`)
+Manages CRUD operations for network entries data.
+- `GET /api/list-master` - List all entries
+- `GET /api/list-master/:id` - Get single entry
+- `POST /api/list-master` - Create entry
+- `PATCH /api/list-master/:id` - Update entry
+- `DELETE /api/list-master/:id` - Delete entry
+
+### State Management Service (`/api/state/`)
+Manages status transitions, validation, and transition history.
+- `GET /api/state/flow` - Get status flow definition (7 steps)
+- `GET /api/state/:entryId` - Get current status with step info
+- `GET /api/state/:entryId/history` - Get transition history
+- `POST /api/state/:entryId/transition` - Transition status (validates rules, e.g. Draft→Active requires dates + distribution)
+
+### Legacy Endpoints (`/api/network-entries/`)
+Maintained for backward compatibility, delegates to List Master service.
 - `GET /api/network-entries` - List all entries
 - `GET /api/network-entries/:id` - Get single entry
 - `POST /api/network-entries` - Create entry
