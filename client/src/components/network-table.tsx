@@ -144,10 +144,7 @@ export function NetworkTable({ entries, onView, onEdit, lifecycleMap = {} }: Net
                     </TableCell>
                     <TableCell data-testid={`cell-trigger-${entry.id}`}>
                       {lifecycle?.colorFlag ? (
-                        <div className="flex items-center gap-1.5">
-                          <LifecycleFlag lifecycle={lifecycle} />
-                          <span className="text-xs text-muted-foreground truncate max-w-[140px]">{lifecycle.flagLabel}</span>
-                        </div>
+                        <LifecycleFlag lifecycle={lifecycle} />
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
