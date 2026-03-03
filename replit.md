@@ -23,7 +23,7 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 ## Tech Stack
 - Frontend: React + TypeScript, Vite, TanStack Query, wouter routing, shadcn/ui
 - Backend: Python 3.12 + FastAPI (uvicorn)
-- Database: PostgreSQL via SQLAlchemy (Replit dev / Docker local / Azure PostgreSQL production)
+- Database: PostgreSQL via SQLAlchemy (Docker local / Azure PostgreSQL production)
 - Proxy: Express.js serves Vite frontend and proxies /api/* to FastAPI in development
 - Styling: Tailwind CSS with Unilever-branded color tokens (HSL 199 blue primary)
 - Pattern: Orchestration-based Saga for multi-service transactions
