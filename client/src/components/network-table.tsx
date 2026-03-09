@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getNetworkChangeTypeName } from "@/lib/constants";
 
 interface NetworkTableProps {
   entries: NetworkEntry[];
@@ -72,6 +73,23 @@ function LifecycleFlag({ lifecycle }: { lifecycle?: LifecycleEntry }) {
   );
 }
 
+function NetworkChangeTypeCell({ code }: { code: string | null | undefined }) {
+  if (!code) return <span className="text-muted-foreground">-</span>;
+  
+  const name = getNetworkChangeTypeName(code);
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="text-sm cursor-help">{code}</span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs max-w-[250px]">
+        <p>{name}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function NetworkTable({ entries, onView, onEdit, lifecycleMap = {} }: NetworkTableProps) {
   const [page, setPage] = useState(0);
 
@@ -89,10 +107,11 @@ export function NetworkTable({ entries, onView, onEdit, lifecycleMap = {} }: Net
         <Table>
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-[#1f36c7]/5 via-[#0d8ecf]/5 to-[#00b0d7]/5">
-              <TableHead className="w-[140px] font-semibold text-xs">CBU Code</TableHead>
+              <TableHead className="w-[120px] font-semibold text-xs">CBU Code</TableHead>
               <TableHead className="font-semibold text-xs">Material Description</TableHead>
               <TableHead className="font-semibold text-xs">Brand</TableHead>
               <TableHead className="font-semibold text-xs">BG</TableHead>
+              <TableHead className="font-semibold text-xs">Type of Network</TableHead>
               <TableHead className="font-semibold text-xs">Assigned Person</TableHead>
               <TableHead className="font-semibold text-xs">CBU Created Date</TableHead>
               <TableHead className="font-semibold text-xs">Status</TableHead>
@@ -103,7 +122,7 @@ export function NetworkTable({ entries, onView, onEdit, lifecycleMap = {} }: Net
           <TableBody>
             {paged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                   No network entries found matching your criteria.
                 </TableCell>
               </TableRow>
@@ -124,6 +143,9 @@ export function NetworkTable({ entries, onView, onEdit, lifecycleMap = {} }: Net
                     </TableCell>
                     <TableCell className="text-sm font-medium">{entry.brand || "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{entry.bg || "-"}</TableCell>
+                    <TableCell data-testid={`text-network-type-${entry.id}`}>
+                      <NetworkChangeTypeCell code={entry.typeOfNetwork} />
+                    </TableCell>
                     <TableCell className="text-sm" data-testid={`text-assigned-${entry.id}`}>
                       {entry.assignedPerson ? (
                         <div className="flex items-center gap-1.5">

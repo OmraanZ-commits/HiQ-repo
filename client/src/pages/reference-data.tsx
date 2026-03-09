@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useReferenceData, type ChannelMaster, type ClusterMaster, type DepotMaster } from "@/controllers/useReferenceData";
+import { useReferenceData, type ChannelMaster, type ClusterMaster, type DepotMaster, type NetworkChangeTypeMaster } from "@/controllers/useReferenceData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  GitBranch,
 } from "lucide-react";
 
 export default function ReferenceDataPage() {
@@ -33,6 +34,7 @@ export function ReferenceDataContent() {
     channels,
     clusters,
     depots,
+    networkChangeTypes,
     isLoading,
     fetchViaSaga,
     isSagaPending,
@@ -79,7 +81,7 @@ export function ReferenceDataContent() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <SummaryCard
             icon={<Radio className="h-5 w-5 text-[#1f36c7]" />}
             title="Channels"
@@ -96,6 +98,12 @@ export function ReferenceDataContent() {
             icon={<Warehouse className="h-5 w-5 text-[#00b0d7]" />}
             title="Depots"
             count={depots.length}
+            loading={isLoading}
+          />
+          <SummaryCard
+            icon={<GitBranch className="h-5 w-5 text-[#6366f1]" />}
+            title="Change Types"
+            count={networkChangeTypes.length}
             loading={isLoading}
           />
         </div>
@@ -115,6 +123,9 @@ export function ReferenceDataContent() {
                   <TabsTrigger value="depots">
                     <Warehouse className="h-4 w-4 mr-1.5" /> Depots
                   </TabsTrigger>
+                  <TabsTrigger value="networkChangeTypes">
+                    <GitBranch className="h-4 w-4 mr-1.5" /> Change Types
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -126,6 +137,9 @@ export function ReferenceDataContent() {
               </TabsContent>
               <TabsContent value="depots" className="p-5 mt-0">
                 {isLoading ? <TableSkeleton /> : <DepotsTable data={depots} />}
+              </TabsContent>
+              <TabsContent value="networkChangeTypes" className="p-5 mt-0">
+                {isLoading ? <TableSkeleton /> : <NetworkChangeTypesTable data={networkChangeTypes} />}
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -328,6 +342,46 @@ function DepotsTable({ data }: { data: DepotMaster[] }) {
             <TableCell>{dp.name ?? "—"}</TableCell>
             <TableCell>{dp.clusterId ?? "—"}</TableCell>
             <TableCell><ActiveBadge active={dp.isActive} /></TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+/* ── Network Change Types Table ─────────────────────────────── */
+
+function NetworkChangeTypesTable({ data }: { data: NetworkChangeTypeMaster[] }) {
+  if (!data.length) return <p className="text-muted-foreground text-sm">No network change types found.</p>;
+
+  const categoryColor: Record<string, string> = {
+    Promotion: "bg-pink-100 text-pink-800",
+    Relaunch: "bg-violet-100 text-violet-800",
+    Launch: "bg-emerald-100 text-emerald-800",
+    Other: "bg-gray-100 text-gray-800",
+  };
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Code</TableHead>
+          <TableHead>Name</TableHead>
+          <TableHead>Category</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {data.map((nct) => (
+          <TableRow key={nct.id}>
+            <TableCell className="font-mono font-medium">{nct.code}</TableCell>
+            <TableCell>{nct.name}</TableCell>
+            <TableCell>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${categoryColor[nct.category ?? ""] ?? categoryColor.Other}`}>
+                {nct.category ?? "—"}
+              </span>
+            </TableCell>
+            <TableCell><ActiveBadge active={nct.isActive} /></TableCell>
           </TableRow>
         ))}
       </TableBody>

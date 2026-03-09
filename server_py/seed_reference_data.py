@@ -64,3 +64,22 @@ DEPOT_SEEDS = [
     {"code": "VNSH", "name": "Visakhapatnam"},
     {"code": "RJ2H", "name": "Rajkot"},
 ]
+
+NETWORK_CHANGE_TYPE_SEEDS = [
+    {"code": "CP_VALUE", "name": "Consumer Promotion (Value)", "category": "Promotion"},
+    {"code": "CP_VOLUME", "name": "Consumer Promotion (Volume)", "category": "Promotion"},
+    {"code": "RL_ART_PKG", "name": "Relaunch – Artwork and Packaging Change", "category": "Relaunch"},
+    {"code": "RL_ART", "name": "Relaunch – Artwork Change", "category": "Relaunch"},
+    {"code": "RL_ART_FORM", "name": "Relaunch – Artwork and Formulation Change", "category": "Relaunch"},
+    {"code": "RL_FORM", "name": "Relaunch – Formulation Change", "category": "Relaunch"},
+    {"code": "RL_PKG", "name": "Relaunch – Packaging Change", "category": "Relaunch"},
+    {"code": "RL_PKG_FORM", "name": "Relaunch – Packaging and Formulation Change", "category": "Relaunch"},
+    {"code": "RL_PRICE", "name": "Relaunch – Pricing Change", "category": "Relaunch"},
+    {"code": "NEW_LAUNCH", "name": "New Launch", "category": "Launch"},
+    {"code": "RTD", "name": "RTD", "category": "Other"},
+    {"code": "SAMPLING", "name": "Sampling", "category": "Other"},
+    {"code": "TRANSIT", "name": "Transit", "category": "Other"},
+    {"code": "TRIAL", "name": "Trial", "category": "Other"},
+    {"code": "DELISTING", "name": "Delisting", "category": "Other"},
+    {"code": "OTHERS", "name": "Others", "category": "Other"},
+]

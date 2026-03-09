@@ -2,8 +2,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { StatusFlow } from "@/components/status-flow";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { NetworkEntry } from "@shared/schema";
 import { useLifecycleData, getLifecycleFlagClasses } from "@/controllers/useLifecycleData";
+import { useReferenceData } from "@/controllers/useReferenceData";
 
 interface EntryDetailDialogProps {
   open: boolean;
@@ -33,8 +35,12 @@ function getStatusVariant(status: string | null): "default" | "secondary" | "des
 
 export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDialogProps) {
   const { lifecycleMap } = useLifecycleData();
+  const { networkChangeTypes } = useReferenceData();
 
   if (!entry) return null;
+
+  // Get the full name for the network change type code
+  const networkChangeTypeName = networkChangeTypes.find(nct => nct.code === entry.typeOfNetwork)?.name || entry.typeOfNetwork;
 
   const computedYear = entry.cbuCreatedDate ? new Date(entry.cbuCreatedDate).getFullYear() : "-";
   const lifecycle = lifecycleMap[entry.id];
@@ -70,7 +76,21 @@ export function EntryDetailDialog({ open, onOpenChange, entry }: EntryDetailDial
               <DetailItem label="CBU Code" value={entry.cbuCode} testId="detail-cbu-code" />
               <DetailItem label="Material Description" value={entry.materialDescription} testId="detail-material-desc" />
               <DetailItem label="Annexure Number" value={entry.annexureNumber} testId="detail-annexure" />
-              <DetailItem label="Type of Network" value={entry.typeOfNetwork} testId="detail-network-type" />
+              <div>
+                <p className="text-xs text-muted-foreground">Type of Network</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p className="text-sm font-medium mt-0.5 cursor-help" data-testid="detail-network-type">
+                        {entry.typeOfNetwork || "-"}
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{networkChangeTypeName}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <DetailItem label="CBU Created Date" value={formatDate(entry.cbuCreatedDate)} testId="detail-cbu-date" />
               <DetailItem label="Year (from CBU Date)" value={String(computedYear)} testId="detail-year" />
               <DetailItem label="Network Change Date" value={formatDate(entry.networkChangeDate)} testId="detail-change-date" />

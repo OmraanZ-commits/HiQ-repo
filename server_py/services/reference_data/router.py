@@ -4,6 +4,7 @@ from server_py.models import (
     InsertChannelsMaster, UpdateChannelsMaster,
     InsertClustersMaster, UpdateClustersMaster,
     InsertDepotsMaster, UpdateDepotsMaster,
+    InsertNetworkChangeTypeMaster, UpdateNetworkChangeTypeMaster,
 )
 from server_py.services.reference_data.service import ReferenceDataService
 from server_py.services.reference_data.storage import ReferenceDataStorage
@@ -135,3 +136,37 @@ async def update_depot(depot_id: str, data: UpdateDepotsMaster):
 async def delete_depot(depot_id: str):
     if not _svc().delete_depot(depot_id):
         raise HTTPException(status_code=404, detail="Depot not found")
+
+
+# ── Network Change Types ────────────────────────────────────
+
+@router.get("/network-change-types")
+async def get_network_change_types():
+    return _svc().get_all_network_change_types()
+
+
+@router.get("/network-change-types/{type_id}")
+async def get_network_change_type(type_id: str):
+    entry = _svc().get_network_change_type_by_id(type_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Network change type not found")
+    return entry
+
+
+@router.post("/network-change-types", status_code=201)
+async def create_network_change_type(data: InsertNetworkChangeTypeMaster):
+    return _svc().create_network_change_type(data)
+
+
+@router.patch("/network-change-types/{type_id}")
+async def update_network_change_type(type_id: str, data: UpdateNetworkChangeTypeMaster):
+    entry = _svc().update_network_change_type(type_id, data)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Network change type not found")
+    return entry
+
+
+@router.delete("/network-change-types/{type_id}", status_code=204)
+async def delete_network_change_type(type_id: str):
+    if not _svc().delete_network_change_type(type_id):
+        raise HTTPException(status_code=404, detail="Network change type not found")

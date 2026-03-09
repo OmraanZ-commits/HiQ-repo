@@ -25,7 +25,7 @@ from server_py.services.reference_data.router import (
     set_service as set_ref_service,
 )
 from server_py.saga.router import router as saga_router, init_saga_services
-from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS
+from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS
 
 app = FastAPI(title="Unilever Network Visibility API", version="1.0.0", redirect_slashes=False)
 
@@ -68,7 +68,7 @@ async def startup():
     ref_storage = ReferenceDataStorage()
     ref_service = ReferenceDataService(ref_storage)
     set_ref_service(ref_service)
-    ref_service.seed_all(CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS)
+    ref_service.seed_all(CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS)
 
     state_service = get_state_service()
     lifecycle_service = get_lifecycle_service()

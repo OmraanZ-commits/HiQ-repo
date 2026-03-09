@@ -153,6 +153,17 @@ class DepotsMasterModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+class NetworkChangeTypeMasterModel(Base):
+    __tablename__ = "network_change_types_master"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=True)         # e.g., "Promotion", "Relaunch", "Launch"
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
 def create_tables():
     Base.metadata.create_all(bind=engine)
 

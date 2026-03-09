@@ -4,6 +4,7 @@ from server_py.models import (
     InsertChannelsMaster, UpdateChannelsMaster,
     InsertClustersMaster, UpdateClustersMaster,
     InsertDepotsMaster, UpdateDepotsMaster,
+    InsertNetworkChangeTypeMaster, UpdateNetworkChangeTypeMaster,
 )
 from server_py.services.reference_data.storage import ReferenceDataStorage
 
@@ -65,19 +66,45 @@ class ReferenceDataService:
     def delete_depot(self, depot_id: str) -> bool:
         return self.storage.delete_depot(depot_id)
 
-    # ── Seed ────────────────────────────────────────────────────
+    # ── Network Change Types ────────────────────────────────────
 
-    def seed_all(self, channels: List[dict], clusters: List[dict], depots: List[dict]):
+    def get_all_network_change_types(self) -> List[dict]:
+        return self.storage.get_all_network_change_types()
+
+    def get_network_change_type_by_id(self, type_id: str) -> Optional[dict]:
+        return self.storage.get_network_change_type_by_id(type_id)
+
+    def create_network_change_type(self, data: InsertNetworkChangeTypeMaster) -> dict:
+        return self.storage.create_network_change_type(data.model_dump())
+
+    def update_network_change_type(self, type_id: str, data: UpdateNetworkChangeTypeMaster) -> Optional[dict]:
+        return self.storage.update_network_change_type(type_id, data.model_dump(exclude_unset=True))
+
+    def delete_network_change_type(self, type_id: str) -> bool:
+        return self.storage.delete_network_change_type(type_id)
+
+    # ── Seed ────────────────────────────────────────────────
+
+    def seed_all(
+        self,
+        channels: List[dict],
+        clusters: List[dict],
+        depots: List[dict],
+        network_change_types: List[dict] = None,
+    ):
         self.storage.seed_channels(channels)
         self.storage.seed_clusters(clusters)
         self.storage.seed_depots(depots)
+        if network_change_types:
+            self.storage.seed_network_change_types(network_change_types)
 
-    # ── Aggregate (used by saga) ────────────────────────────────
+    # ── Aggregate (used by saga) ──────────────────────────────
 
     def get_all_reference_data(self) -> dict:
-        """Return channels, clusters and depots in a single call."""
+        """Return channels, clusters, depots and network change types in a single call."""
         return {
             "channels": self.get_all_channels(),
             "clusters": self.get_all_clusters(),
             "depots": self.get_all_depots(),
+            "networkChangeTypes": self.get_all_network_change_types(),
         }

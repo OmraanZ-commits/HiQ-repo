@@ -111,8 +111,8 @@ async def get_sagas_for_entry(entry_id: str):
 @router.post("/reference-data")
 async def execute_reference_data_saga():
     """
-    Execute a saga that fetches all reference data (channels, clusters, depots)
-    in coordinated steps with full saga logging.
+    Execute a saga that fetches all reference data (channels, clusters, depots,
+    network change types) in coordinated steps with full saga logging.
     """
     if not _ref_service:
         raise HTTPException(status_code=503, detail="Reference-data service not initialized")
@@ -127,6 +127,7 @@ async def execute_reference_data_saga():
     channels = []
     clusters = []
     depots = []
+    network_change_types = []
     for step in result.get("steps", []):
         res = step.get("result") or {}
         if step["name"] == "fetch_channels":
@@ -135,6 +136,8 @@ async def execute_reference_data_saga():
             clusters = res.get("clusters", [])
         elif step["name"] == "fetch_depots":
             depots = res.get("depots", [])
+        elif step["name"] == "fetch_network_change_types":
+            network_change_types = res.get("networkChangeTypes", [])
 
     return {
         "sagaId": result["sagaId"],
@@ -143,6 +146,7 @@ async def execute_reference_data_saga():
             "channels": channels,
             "clusters": clusters,
             "depots": depots,
+            "networkChangeTypes": network_change_types,
         },
         "steps": result["steps"],
     }

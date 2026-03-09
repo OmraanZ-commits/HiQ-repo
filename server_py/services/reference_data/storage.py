@@ -7,6 +7,7 @@ from server_py.db import (
     ChannelsMasterModel,
     ClustersMasterModel,
     DepotsMasterModel,
+    NetworkChangeTypeMasterModel,
 )
 
 
@@ -42,6 +43,17 @@ def _depot_row_to_api(row: DepotsMasterModel) -> dict:
         "code": row.code,
         "name": row.name,
         "clusterId": row.cluster_id,
+        "isActive": row.is_active,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def _network_change_type_row_to_api(row: NetworkChangeTypeMasterModel) -> dict:
+    return {
+        "id": str(row.id),
+        "code": row.code,
+        "name": row.name,
+        "category": row.category,
         "isActive": row.is_active,
         "createdAt": row.created_at.isoformat() if row.created_at else None,
     }
@@ -300,6 +312,88 @@ class ReferenceDataStorage:
                     code=s["code"],
                     name=s.get("name"),
                     cluster_id=s.get("clusterId"),
+                    is_active=s.get("isActive", True),
+                    created_at=datetime.now(timezone.utc),
+                ))
+            db.commit()
+        finally:
+            db.close()
+
+    # ── Network Change Types ────────────────────────────────────
+
+    def get_all_network_change_types(self) -> List[dict]:
+        db = SessionLocal()
+        try:
+            rows = db.query(NetworkChangeTypeMasterModel).order_by(NetworkChangeTypeMasterModel.code).all()
+            return [_network_change_type_row_to_api(r) for r in rows]
+        finally:
+            db.close()
+
+    def get_network_change_type_by_id(self, type_id: str) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkChangeTypeMasterModel).filter(NetworkChangeTypeMasterModel.id == type_id).first()
+            return _network_change_type_row_to_api(row) if row else None
+        finally:
+            db.close()
+
+    def create_network_change_type(self, data: dict) -> dict:
+        db = SessionLocal()
+        try:
+            entry = NetworkChangeTypeMasterModel(
+                id=uuid.uuid4(),
+                code=data["code"],
+                name=data["name"],
+                category=data.get("category"),
+                is_active=data.get("isActive", True),
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(entry)
+            db.commit()
+            db.refresh(entry)
+            return _network_change_type_row_to_api(entry)
+        finally:
+            db.close()
+
+    def update_network_change_type(self, type_id: str, data: dict) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkChangeTypeMasterModel).filter(NetworkChangeTypeMasterModel.id == type_id).first()
+            if not row:
+                return None
+            field_map = {"code": "code", "name": "name", "category": "category", "isActive": "is_active"}
+            for api_key, db_col in field_map.items():
+                if api_key in data and data[api_key] is not None:
+                    setattr(row, db_col, data[api_key])
+            db.commit()
+            db.refresh(row)
+            return _network_change_type_row_to_api(row)
+        finally:
+            db.close()
+
+    def delete_network_change_type(self, type_id: str) -> bool:
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkChangeTypeMasterModel).filter(NetworkChangeTypeMasterModel.id == type_id).first()
+            if not row:
+                return False
+            db.delete(row)
+            db.commit()
+            return True
+        finally:
+            db.close()
+
+    def seed_network_change_types(self, seeds: List[dict]):
+        db = SessionLocal()
+        try:
+            if db.query(NetworkChangeTypeMasterModel).count() > 0:
+                return
+            for s in seeds:
+                db.add(NetworkChangeTypeMasterModel(
+                    id=uuid.uuid4(),
+                    code=s["code"],
+                    name=s["name"],
+                    category=s.get("category"),
                     is_active=s.get("isActive", True),
                     created_at=datetime.now(timezone.utc),
                 ))

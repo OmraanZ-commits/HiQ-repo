@@ -201,3 +201,29 @@ class UpdateDepotsMaster(BaseModel):
     name: Optional[str] = None
     clusterId: Optional[str] = None
     isActive: Optional[bool] = None
+
+
+# ── Network Change Type Master Models ───────────────────────────
+
+
+class NetworkChangeTypeMasterBase(BaseModel):
+    code: str
+    name: str
+    category: Optional[str] = None         # e.g., "Promotion", "Relaunch", "Launch"
+    isActive: Optional[bool] = True
+
+
+class InsertNetworkChangeTypeMaster(NetworkChangeTypeMasterBase):
+    pass
+
+
+class NetworkChangeTypeMasterEntry(NetworkChangeTypeMasterBase):
+    id: str
+    createdAt: Optional[str] = None
+
+
+class UpdateNetworkChangeTypeMaster(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    category: Optional[str] = None
+    isActive: Optional[bool] = None

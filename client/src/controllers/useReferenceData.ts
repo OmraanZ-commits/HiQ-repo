@@ -33,10 +33,20 @@ export interface DepotMaster {
   createdAt: string | null;
 }
 
+export interface NetworkChangeTypeMaster {
+  id: string;
+  code: string;
+  name: string;
+  category: string | null;
+  isActive: boolean;
+  createdAt: string | null;
+}
+
 export interface ReferenceData {
   channels: ChannelMaster[];
   clusters: ClusterMaster[];
   depots: DepotMaster[];
+  networkChangeTypes: NetworkChangeTypeMaster[];
 }
 
 interface SagaReferenceDataResponse {
@@ -71,6 +81,7 @@ export function useReferenceData() {
       queryClient.setQueryData(["/api/reference-data/channels"], data.data.channels);
       queryClient.setQueryData(["/api/reference-data/clusters"], data.data.clusters);
       queryClient.setQueryData(["/api/reference-data/depots"], data.data.depots);
+      queryClient.setQueryData(["/api/reference-data/network-change-types"], data.data.networkChangeTypes);
       queryClient.setQueryData(["/api/reference-data"], data.data);
     },
     onError: (err: Error) => {
@@ -94,20 +105,28 @@ export function useReferenceData() {
     staleTime: Infinity,
   });
 
+  const networkChangeTypesQuery = useQuery<NetworkChangeTypeMaster[]>({
+    queryKey: ["/api/reference-data/network-change-types"],
+    staleTime: Infinity,
+  });
+
   const channels = channelsQuery.data ?? [];
   const clusters = clustersQuery.data ?? [];
   const depots = depotsQuery.data ?? [];
+  const networkChangeTypes = networkChangeTypesQuery.data ?? [];
 
   const isLoading =
     sagaMutation.isPending ||
     channelsQuery.isLoading ||
     clustersQuery.isLoading ||
-    depotsQuery.isLoading;
+    depotsQuery.isLoading ||
+    networkChangeTypesQuery.isLoading;
 
   return {
     channels,
     clusters,
     depots,
+    networkChangeTypes,
     isLoading,
     sagaStatus: sagaMutation.data?.status ?? null,
     sagaSteps: sagaMutation.data?.steps ?? [],
