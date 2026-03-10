@@ -24,6 +24,28 @@ export const CHANNELS: ChannelDef[] = [
   ...MT_SUB_CHANNELS,
 ];
 
+// Geography to Depot mapping - defines which depots are valid for each geography
+export const GEOGRAPHY_DEPOT_MAP: Record<string, string[]> = {
+  "TAMIL NADU": ["MMDH", "CB1H"],
+  "KARNATAKA": ["CHKH"],
+  "KERALA": ["TCRH", "TSRH"],
+  "ANDHRA PRADESH": ["VJDH"],
+  "TELANGANA": ["HBDH"],
+  "GUJARAT": ["ABDH", "VABH"],
+  "UTTAR PRADESH": ["SHKH", "VNSH", "GZBH"],
+  "MUMBAI-PUNE": ["VABH", "BNDH"],
+  "GREATER MAHARASHTRA": ["KOPH", "NGRH", "BNDH", "VABH"],
+  "DELHI-GREATER DELHI": ["DLGH"],
+  "PUNJAB-HARYANA-HILLS": ["HARH", "RJ2H", "RJPH"],
+  "WEST BENGAL": ["SHAH", "XULH"],
+  "NESA": ["GAUH"],
+  "ORISSA-JHARKHAND": ["XPTH", "CUTH"],
+  "BIHAR": ["PATH"],
+  "MADHYA PRADESH": ["INDH"],
+  "CHHATISGARH": ["RAIH"],
+  "RAJASTHAN": ["JPRH"],
+};
+
 export interface ClusterDef {
   name: string;
   region: "South" | "West" | "North" | "East";
@@ -33,33 +55,49 @@ export interface ClusterDef {
   pinY: number;
 }
 
-export const CLUSTERS: ClusterDef[] = [
-  { name: "TAMIL NADU", region: "South", depotCount: 2, stateIds: ["TN"], pinX: 52, pinY: 82 },
-  { name: "KARNATAKA", region: "South", depotCount: 2, stateIds: ["KA"], pinX: 42, pinY: 74 },
-  { name: "KERALA", region: "South", depotCount: 1, stateIds: ["KL"], pinX: 40, pinY: 85 },
-  { name: "ANDHRA PRADESH", region: "South", depotCount: 2, stateIds: ["AP"], pinX: 54, pinY: 70 },
-  { name: "TELANGANA", region: "South", depotCount: 1, stateIds: ["TG"], pinX: 50, pinY: 62 },
-  { name: "GUJARAT", region: "West", depotCount: 2, stateIds: ["GJ"], pinX: 24, pinY: 44 },
-  { name: "UTTAR PRADESH", region: "North", depotCount: 3, stateIds: ["UP"], pinX: 54, pinY: 32 },
-  { name: "MUMBAI-PUNE", region: "West", depotCount: 2, stateIds: ["MH"], pinX: 30, pinY: 56 },
-  { name: "GREATER MAHARASHTRA", region: "West", depotCount: 2, stateIds: ["MH"], pinX: 38, pinY: 58 },
-  { name: "DELHI-GREATER DELHI", region: "North", depotCount: 2, stateIds: ["DL", "HR"], pinX: 44, pinY: 24 },
-  { name: "PUNJAB-HARYANA-HILLS", region: "North", depotCount: 2, stateIds: ["PB", "HR", "HP"], pinX: 38, pinY: 18 },
-  { name: "WEST BENGAL", region: "East", depotCount: 2, stateIds: ["WB"], pinX: 76, pinY: 46 },
-  { name: "NESA", region: "East", depotCount: 2, stateIds: ["AS", "ML", "MN", "MZ", "NL", "TR", "AR", "SK"], pinX: 88, pinY: 30 },
-  { name: "ORISSA-JHARKHAND", region: "East", depotCount: 2, stateIds: ["OD", "JH"], pinX: 68, pinY: 52 },
-  { name: "BIHAR", region: "East", depotCount: 2, stateIds: ["BR"], pinX: 68, pinY: 36 },
-  { name: "MADHYA PRADESH", region: "North", depotCount: 2, stateIds: ["MP"], pinX: 48, pinY: 46 },
-  { name: "CHHATISGARH", region: "East", depotCount: 1, stateIds: ["CT"], pinX: 58, pinY: 52 },
-  { name: "RAJASTHAN", region: "North", depotCount: 2, stateIds: ["RJ"], pinX: 32, pinY: 32 },
+// Base cluster data without depotCount (will be derived from GEOGRAPHY_DEPOT_MAP)
+const CLUSTER_BASE_DATA: Omit<ClusterDef, 'depotCount'>[] = [
+  { name: "TAMIL NADU", region: "South", stateIds: ["TN"], pinX: 52, pinY: 82 },
+  { name: "KARNATAKA", region: "South", stateIds: ["KA"], pinX: 42, pinY: 74 },
+  { name: "KERALA", region: "South", stateIds: ["KL"], pinX: 40, pinY: 85 },
+  { name: "ANDHRA PRADESH", region: "South", stateIds: ["AP"], pinX: 54, pinY: 70 },
+  { name: "TELANGANA", region: "South", stateIds: ["TG"], pinX: 50, pinY: 62 },
+  { name: "GUJARAT", region: "West", stateIds: ["GJ"], pinX: 24, pinY: 44 },
+  { name: "UTTAR PRADESH", region: "North", stateIds: ["UP"], pinX: 54, pinY: 32 },
+  { name: "MUMBAI-PUNE", region: "West", stateIds: ["MH"], pinX: 30, pinY: 56 },
+  { name: "GREATER MAHARASHTRA", region: "West", stateIds: ["MH"], pinX: 38, pinY: 58 },
+  { name: "DELHI-GREATER DELHI", region: "North", stateIds: ["DL", "HR"], pinX: 44, pinY: 24 },
+  { name: "PUNJAB-HARYANA-HILLS", region: "North", stateIds: ["PB", "HR", "HP"], pinX: 38, pinY: 18 },
+  { name: "WEST BENGAL", region: "East", stateIds: ["WB"], pinX: 76, pinY: 46 },
+  { name: "NESA", region: "East", stateIds: ["AS", "ML", "MN", "MZ", "NL", "TR", "AR", "SK"], pinX: 88, pinY: 30 },
+  { name: "ORISSA-JHARKHAND", region: "East", stateIds: ["OD", "JH"], pinX: 68, pinY: 52 },
+  { name: "BIHAR", region: "East", stateIds: ["BR"], pinX: 68, pinY: 36 },
+  { name: "MADHYA PRADESH", region: "North", stateIds: ["MP"], pinX: 48, pinY: 46 },
+  { name: "CHHATISGARH", region: "East", stateIds: ["CT"], pinX: 58, pinY: 52 },
+  { name: "RAJASTHAN", region: "North", stateIds: ["RJ"], pinX: 32, pinY: 32 },
 ];
 
-export const DEPOTS = [
-  "DLGH", "CHKH", "HBDH", "MMDH", "JPRH", "BNDH",
-  "RJPH", "NGRH", "VJDH", "VABH", "SHAH", "SHKH",
-  "KOPH", "TCRH", "ABDH", "INDH", "HARH", "PATH",
-  "CUTH", "CB1H", "GZBH", "GAUH", "VNSH", "RJ2H",
-];
+// CLUSTERS with depotCount derived from GEOGRAPHY_DEPOT_MAP
+export const CLUSTERS: ClusterDef[] = CLUSTER_BASE_DATA.map(cluster => ({
+  ...cluster,
+  depotCount: (GEOGRAPHY_DEPOT_MAP[cluster.name] || []).length,
+}));
+
+// All unique depot codes derived from GEOGRAPHY_DEPOT_MAP
+export const DEPOTS = Array.from(
+  new Set(Object.values(GEOGRAPHY_DEPOT_MAP).flat())
+).sort();
+
+// Returns depots available for the selected geographies (union of all valid depots)
+export function getAvailableDepots(selectedGeographies: string[]): string[] {
+  if (selectedGeographies.length === 0) return [];
+  const depotSet = new Set<string>();
+  selectedGeographies.forEach(geo => {
+    const depots = GEOGRAPHY_DEPOT_MAP[geo] || [];
+    depots.forEach(d => depotSet.add(d));
+  });
+  return Array.from(depotSet).sort();
+}
 
 export function getSelectedRegions(selectedClusters: string[]): string[] {
   const stateIds = new Set<string>();

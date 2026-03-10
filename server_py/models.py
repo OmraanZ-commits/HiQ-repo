@@ -9,7 +9,7 @@ STATUS_FLOW = [
     "Production Started",
     "FTR Approved",
     "Stock Movement Initiated",
-    "CBU Ready for Transition",
+    "Network transition complete",
 ]
 
 

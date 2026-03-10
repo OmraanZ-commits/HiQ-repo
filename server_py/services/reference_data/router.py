@@ -170,3 +170,11 @@ async def update_network_change_type(type_id: str, data: UpdateNetworkChangeType
 async def delete_network_change_type(type_id: str):
     if not _svc().delete_network_change_type(type_id):
         raise HTTPException(status_code=404, detail="Network change type not found")
+
+
+# ── Geography-Depot Mapping ────────────────────────────────────
+
+@router.get("/geography-depot-map")
+async def get_geography_depot_map():
+    """Return the geography to depot mapping."""
+    return _svc().get_geography_depot_map()

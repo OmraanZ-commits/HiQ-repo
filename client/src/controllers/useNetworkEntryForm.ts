@@ -3,13 +3,29 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
-import { CLUSTERS, DEPOTS, TOP_CHANNELS, MT_SUB_CHANNELS } from "@/lib/distribution-data";
+import { TOP_CHANNELS as STATIC_TOP_CHANNELS, MT_SUB_CHANNELS as STATIC_MT_SUB_CHANNELS, GEOGRAPHY_DEPOT_MAP as STATIC_GEOGRAPHY_DEPOT_MAP, CLUSTERS as STATIC_CLUSTERS, type ClusterDef } from "@/lib/distribution-data";
 import { addDays, computeYear } from "@/lib/date-utils";
 import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
+import type { GeographyDepotMap, ChannelDef } from "@/controllers/useReferenceData";
 
-export const LEAF_CHANNELS = [...TOP_CHANNELS, ...MT_SUB_CHANNELS];
+interface UseNetworkEntryFormOptions {
+  geographyDepotMap?: GeographyDepotMap;
+  topChannels?: ChannelDef[];
+  mtSubChannels?: ChannelDef[];
+  clusters?: ClusterDef[];
+}
 
-export function useNetworkEntryForm() {
+export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
+  const { 
+    geographyDepotMap = STATIC_GEOGRAPHY_DEPOT_MAP,
+    topChannels = STATIC_TOP_CHANNELS,
+    mtSubChannels = STATIC_MT_SUB_CHANNELS,
+    clusters = STATIC_CLUSTERS,
+  } = options;
+  
+  // Derive leafChannels from the provided channel arrays
+  const leafChannels = [...topChannels, ...mtSubChannels];
+  
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const params = useParams<{ id: string }>();
@@ -95,9 +111,20 @@ export function useNetworkEntryForm() {
   const deriveChannelFromMapping = (mapping: Record<string, string[]>): string[] => {
     const all = new Set<string>();
     Object.values(mapping).forEach(channels => channels.forEach(c => all.add(c)));
-    const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+    const mtSubCodes = mtSubChannels.map(c => c.code);
     if (mtSubCodes.some(c => all.has(c))) all.add("MT");
     return Array.from(all);
+  };
+
+  // Helper to get available depots based on selected geographies using the provided map
+  const getAvailableDepotsFromMap = (selectedGeographies: string[]): string[] => {
+    if (selectedGeographies.length === 0) return [];
+    const depotSet = new Set<string>();
+    selectedGeographies.forEach(geo => {
+      const depots = geographyDepotMap[geo] || [];
+      depots.forEach(d => depotSet.add(d));
+    });
+    return Array.from(depotSet).sort();
   };
 
   const toggleArrayItem = (field: "geography" | "depot", value: string) => {
@@ -107,12 +134,26 @@ export function useNetworkEntryForm() {
       const updated = arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value];
       if (field === "geography") {
         const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
-        if (!arr.includes(value)) {
+        const isAdding = !arr.includes(value);
+        if (isAdding) {
           if (!mapping[value]) mapping[value] = [];
         } else {
           delete mapping[value];
         }
-        return { ...prev, [field]: updated, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
+        // Clean up depots that are no longer valid for the selected geographies
+        const availableDepots = getAvailableDepotsFromMap(updated);
+        const currentDepots = (prev.depot as string[]) || [];
+        let cleanedDepots = currentDepots.filter(d => availableDepots.includes(d));
+        
+        // Auto-select depot if geography has only 1 depot
+        if (isAdding) {
+          const geoDepots = geographyDepotMap[value] || [];
+          if (geoDepots.length === 1 && !cleanedDepots.includes(geoDepots[0])) {
+            cleanedDepots = [...cleanedDepots, geoDepots[0]];
+          }
+        }
+        
+        return { ...prev, [field]: updated, depot: cleanedDepots, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
       }
       return { ...prev, [field]: updated };
     });
@@ -123,7 +164,7 @@ export function useNetworkEntryForm() {
       if (!prev) return prev;
       const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
       const geoChannels = [...(mapping[geo] || [])];
-      const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+      const mtSubCodes = mtSubChannels.map(c => c.code);
 
       if (channelCode === "MT") {
         const hasMT = mtSubCodes.every(c => geoChannels.includes(c));
@@ -154,7 +195,7 @@ export function useNetworkEntryForm() {
     setForm(prev => {
       if (!prev) return prev;
       const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
-      const leafCodes = LEAF_CHANNELS.map(c => c.code);
+      const leafCodes = leafChannels.map(c => c.code);
       const allCodes = ["MT", ...leafCodes];
       const geoChannels = mapping[geo] || [];
       const isAllSelected = leafCodes.every(c => geoChannels.includes(c));
@@ -177,7 +218,7 @@ export function useNetworkEntryForm() {
   const toggleAllClusters = () => {
     setForm(prev => {
       if (!prev) return prev;
-      const allNames = CLUSTERS.map(c => c.name);
+      const allNames = clusters.map(c => c.name);
       const isAllSelected = allNames.every(n => (prev.geography as string[])?.includes(n));
       if (isAllSelected) {
         return { ...prev, geography: [], channelMapping: {}, channel: [] };
@@ -191,8 +232,11 @@ export function useNetworkEntryForm() {
   const toggleAllDepots = () => {
     setForm(prev => {
       if (!prev) return prev;
-      const isAllSelected = DEPOTS.every(d => (prev.depot as string[])?.includes(d));
-      return { ...prev, depot: isAllSelected ? [] : [...DEPOTS] };
+      const selectedGeos = (prev.geography as string[]) || [];
+      const availableDepots = getAvailableDepotsFromMap(selectedGeos);
+      const currentDepots = (prev.depot as string[]) || [];
+      const isAllSelected = availableDepots.length > 0 && availableDepots.every(d => currentDepots.includes(d));
+      return { ...prev, depot: isAllSelected ? [] : [...availableDepots] };
     });
   };
 
@@ -284,9 +328,10 @@ export function useNetworkEntryForm() {
   const selectedDepots = (form?.depot || []) as string[];
   const selectedChannels = (form?.channel || []) as string[];
   const channelMapping = ((form?.channelMapping as Record<string, string[]>) || {});
-  const allClustersSelected = CLUSTERS.every(c => selectedGeo.includes(c.name));
-  const allDepotsSelected = DEPOTS.every(d => selectedDepots.includes(d));
-  const selectedLeafCount = LEAF_CHANNELS.filter(c => selectedChannels.includes(c.code)).length;
+  const allClustersSelected = clusters.every(c => selectedGeo.includes(c.name));
+  const availableDepotsForGeo = getAvailableDepotsFromMap(selectedGeo);
+  const allDepotsSelected = availableDepotsForGeo.length > 0 && availableDepotsForGeo.every(d => selectedDepots.includes(d));
+  const selectedLeafCount = leafChannels.filter(c => selectedChannels.includes(c.code)).length;
   const computedYear = form ? computeYear(form.cbuCreatedDate) : null;
   const isDraft = entry?.networkStatus === "Draft";
 

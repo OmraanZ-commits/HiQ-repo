@@ -42,11 +42,21 @@ export interface NetworkChangeTypeMaster {
   createdAt: string | null;
 }
 
+export type GeographyDepotMap = Record<string, string[]>;
+
+// Channel definition interface matching the static data structure
+export interface ChannelDef {
+  code: string;
+  type: "Core" | "Traditional" | "Modern Trade";
+  parent?: string;
+}
+
 export interface ReferenceData {
   channels: ChannelMaster[];
   clusters: ClusterMaster[];
   depots: DepotMaster[];
   networkChangeTypes: NetworkChangeTypeMaster[];
+  geographyDepotMap: GeographyDepotMap;
 }
 
 interface SagaReferenceDataResponse {
@@ -82,6 +92,7 @@ export function useReferenceData() {
       queryClient.setQueryData(["/api/reference-data/clusters"], data.data.clusters);
       queryClient.setQueryData(["/api/reference-data/depots"], data.data.depots);
       queryClient.setQueryData(["/api/reference-data/network-change-types"], data.data.networkChangeTypes);
+      queryClient.setQueryData(["/api/reference-data/geography-depot-map"], data.data.geographyDepotMap);
       queryClient.setQueryData(["/api/reference-data"], data.data);
     },
     onError: (err: Error) => {
@@ -110,23 +121,56 @@ export function useReferenceData() {
     staleTime: Infinity,
   });
 
+  const geographyDepotMapQuery = useQuery<GeographyDepotMap>({
+    queryKey: ["/api/reference-data/geography-depot-map"],
+    staleTime: Infinity,
+  });
+
   const channels = channelsQuery.data ?? [];
   const clusters = clustersQuery.data ?? [];
   const depots = depotsQuery.data ?? [];
   const networkChangeTypes = networkChangeTypesQuery.data ?? [];
+  const geographyDepotMap = geographyDepotMapQuery.data ?? {};
+
+  // Derive channel structures from API data
+  // TOP_CHANNELS: Core and Traditional channels (not MT parent)
+  const topChannels: ChannelDef[] = channels
+    .filter(c => c.isActive && !c.parentCode && c.code !== "MT")
+    .map(c => ({
+      code: c.code,
+      type: c.type as "Core" | "Traditional" | "Modern Trade",
+    }));
+
+  // MT_SUB_CHANNELS: Channels with MT as parent
+  const mtSubChannels: ChannelDef[] = channels
+    .filter(c => c.isActive && c.parentCode === "MT")
+    .map(c => ({
+      code: c.code,
+      type: c.type as "Core" | "Traditional" | "Modern Trade",
+      parent: c.parentCode || undefined,
+    }));
+
+  // LEAF_CHANNELS: All selectable channels (topChannels + mtSubChannels)
+  const leafChannels: ChannelDef[] = [...topChannels, ...mtSubChannels];
 
   const isLoading =
     sagaMutation.isPending ||
     channelsQuery.isLoading ||
     clustersQuery.isLoading ||
     depotsQuery.isLoading ||
-    networkChangeTypesQuery.isLoading;
+    networkChangeTypesQuery.isLoading ||
+    geographyDepotMapQuery.isLoading;
 
   return {
     channels,
     clusters,
     depots,
     networkChangeTypes,
+    geographyDepotMap,
+    // Derived channel structures for UI components
+    topChannels,
+    mtSubChannels,
+    leafChannels,
     isLoading,
     sagaStatus: sagaMutation.data?.status ?? null,
     sagaSteps: sagaMutation.data?.steps ?? [],

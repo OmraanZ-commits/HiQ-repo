@@ -28,7 +28,7 @@ function getStatusVariant(status: string | null): "default" | "secondary" | "des
     case "Pricing Updated": return "outline";
     case "FTR Approved": return "default";
     case "Stock Movement Initiated": return "default";
-    case "CBU Ready for Transition": return "default";
+    case "Network transition complete": return "default";
     default: return "secondary";
   }
 }

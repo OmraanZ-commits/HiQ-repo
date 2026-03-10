@@ -98,13 +98,21 @@ class ReferenceDataService:
         if network_change_types:
             self.storage.seed_network_change_types(network_change_types)
 
+    # ── Geography-Depot Mapping ────────────────────────────────
+
+    def get_geography_depot_map(self) -> dict:
+        """Return the geography to depot mapping from seed data."""
+        from server_py.seed_reference_data import GEOGRAPHY_DEPOT_MAP
+        return GEOGRAPHY_DEPOT_MAP
+
     # ── Aggregate (used by saga) ──────────────────────────────
 
     def get_all_reference_data(self) -> dict:
-        """Return channels, clusters, depots and network change types in a single call."""
+        """Return channels, clusters, depots, network change types and geography-depot map in a single call."""
         return {
             "channels": self.get_all_channels(),
             "clusters": self.get_all_clusters(),
             "depots": self.get_all_depots(),
             "networkChangeTypes": self.get_all_network_change_types(),
+            "geographyDepotMap": self.get_geography_depot_map(),
         }

@@ -1,14 +1,16 @@
 """
 Reference-Data Fetch Saga
 ─────────────────────────
-Uses the saga orchestrator to fetch channels, clusters, depots and network
-change types in coordinated steps with automatic compensation on failure.
+Uses the saga orchestrator to fetch channels, clusters, depots, network
+change types and geography-depot mapping in coordinated steps with automatic
+compensation on failure.
 
 Steps:
   1. fetch_channels             – load all channel master rows
   2. fetch_clusters             – load all cluster master rows
   3. fetch_depots               – load all depot master rows
   4. fetch_network_change_types – load all network change type master rows
+  5. fetch_geography_depot_map  – load geography to depot mapping
 
 If any step fails the saga will compensate (here compensation is no-op for
 pure reads, but the pattern is preserved for consistency and future writes).
@@ -38,6 +40,10 @@ def build_reference_data_saga(
         network_change_types = ref_service.get_all_network_change_types()
         return {"networkChangeTypes": network_change_types}
 
+    def step_fetch_geography_depot_map(ctx: dict) -> dict:
+        geography_depot_map = ref_service.get_geography_depot_map()
+        return {"geographyDepotMap": geography_depot_map}
+
     steps = [
         SagaStep(
             name="fetch_channels",
@@ -57,6 +63,11 @@ def build_reference_data_saga(
         SagaStep(
             name="fetch_network_change_types",
             execute_fn=step_fetch_network_change_types,
+            compensate_fn=None,
+        ),
+        SagaStep(
+            name="fetch_geography_depot_map",
+            execute_fn=step_fetch_geography_depot_map,
             compensate_fn=None,
         ),
     ]
