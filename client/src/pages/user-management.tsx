@@ -44,6 +44,28 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
+/* ── Department definitions ────────────────────────────────────── */
+
+const DEPARTMENTS: { label: string; allowedRoles: string[] | "all" }[] = [
+  { label: "Supply Chain", allowedRoles: "all" },
+  { label: "Finance",      allowedRoles: ["Viewer"] },
+  { label: "NCSM",         allowedRoles: ["Viewer", "Approver"] },
+];
+
+function deptAllowed(dept: string, role: string): boolean {
+  if (!role) return true;
+  const cfg = DEPARTMENTS.find((d) => d.label === dept);
+  if (!cfg) return false;
+  return cfg.allowedRoles === "all" || cfg.allowedRoles.includes(role);
+}
+
+function availableDepts(role: string): string[] {
+  if (!role) return DEPARTMENTS.map((d) => d.label);
+  return DEPARTMENTS.filter(
+    (d) => d.allowedRoles === "all" || d.allowedRoles.includes(role)
+  ).map((d) => d.label);
+}
+
 /* ── Role definitions ──────────────────────────────────────────── */
 
 const ROLES = [
@@ -187,16 +209,16 @@ type AppUser = {
 };
 
 const INITIAL_USERS: AppUser[] = [
-  { id: "1", name: "Rajesh Sharma", email: "rajesh.sharma@unilever.com", role: "Admin", department: "IT Operations", isActive: true, createdAt: "2025-01-10" },
-  { id: "2", name: "Priya Patel", email: "priya.patel@unilever.com", role: "Network Planner", department: "Supply Chain", isActive: true, createdAt: "2025-02-14" },
-  { id: "3", name: "Ankit Verma", email: "ankit.verma@unilever.com", role: "Network Planner", department: "Distribution", isActive: true, createdAt: "2025-02-20" },
-  { id: "4", name: "Sneha Gupta", email: "sneha.gupta@unilever.com", role: "Paid Bible Owner", department: "Finance", isActive: true, createdAt: "2025-03-01" },
-  { id: "5", name: "Vikram Singh", email: "vikram.singh@unilever.com", role: "Approver", department: "Regional Sales", isActive: true, createdAt: "2025-03-15" },
-  { id: "6", name: "Meera Nair", email: "meera.nair@unilever.com", role: "Approver", department: "South Region", isActive: true, createdAt: "2025-04-02" },
-  { id: "7", name: "Arun Mehta", email: "arun.mehta@unilever.com", role: "Viewer", department: "Marketing", isActive: false, createdAt: "2025-04-10" },
-  { id: "8", name: "Deepa Krishnan", email: "deepa.krishnan@unilever.com", role: "Paid Bible Owner", department: "Pricing", isActive: true, createdAt: "2025-05-05" },
-  { id: "9", name: "Suresh Rao", email: "suresh.rao@unilever.com", role: "Viewer", department: "Analytics", isActive: true, createdAt: "2025-05-20" },
-  { id: "10", name: "Kavitha Reddy", email: "kavitha.reddy@unilever.com", role: "Network Planner", department: "West Region", isActive: false, createdAt: "2025-06-01" },
+  { id: "1",  name: "Rajesh Sharma",   email: "rajesh.sharma@unilever.com",   role: "Admin",            department: "Supply Chain", isActive: true,  createdAt: "2025-01-10" },
+  { id: "2",  name: "Priya Patel",     email: "priya.patel@unilever.com",     role: "Network Planner",  department: "Supply Chain", isActive: true,  createdAt: "2025-02-14" },
+  { id: "3",  name: "Ankit Verma",     email: "ankit.verma@unilever.com",     role: "Network Planner",  department: "Supply Chain", isActive: true,  createdAt: "2025-02-20" },
+  { id: "4",  name: "Sneha Gupta",     email: "sneha.gupta@unilever.com",     role: "Paid Bible Owner", department: "Supply Chain", isActive: true,  createdAt: "2025-03-01" },
+  { id: "5",  name: "Vikram Singh",    email: "vikram.singh@unilever.com",    role: "Approver",         department: "NCSM",         isActive: true,  createdAt: "2025-03-15" },
+  { id: "6",  name: "Meera Nair",      email: "meera.nair@unilever.com",      role: "Approver",         department: "NCSM",         isActive: true,  createdAt: "2025-04-02" },
+  { id: "7",  name: "Arun Mehta",      email: "arun.mehta@unilever.com",      role: "Viewer",           department: "Finance",      isActive: false, createdAt: "2025-04-10" },
+  { id: "8",  name: "Deepa Krishnan",  email: "deepa.krishnan@unilever.com",  role: "Paid Bible Owner", department: "Supply Chain", isActive: true,  createdAt: "2025-05-05" },
+  { id: "9",  name: "Suresh Rao",      email: "suresh.rao@unilever.com",      role: "Viewer",           department: "NCSM",         isActive: true,  createdAt: "2025-05-20" },
+  { id: "10", name: "Kavitha Reddy",   email: "kavitha.reddy@unilever.com",   role: "Network Planner",  department: "Supply Chain", isActive: false, createdAt: "2025-06-01" },
 ];
 
 /* ── Helper components ─────────────────────────────────────────── */
@@ -313,7 +335,14 @@ function UserDialog({
             <Label htmlFor="um-role">Role <span className="text-destructive">*</span></Label>
             <Select
               value={form.role}
-              onValueChange={(v) => setForm((p) => ({ ...p, role: v as Role }))}
+              onValueChange={(v) => {
+                const newRole = v as Role;
+                setForm((p) => ({
+                  ...p,
+                  role: newRole,
+                  department: deptAllowed(p.department, newRole) ? p.department : "",
+                }));
+              }}
             >
               <SelectTrigger id="um-role" data-testid="select-user-role">
                 <SelectValue placeholder="Select a role" />
@@ -321,10 +350,7 @@ function UserDialog({
               <SelectContent>
                 {ROLES.map((r) => (
                   <SelectItem key={r} value={r} data-testid={`option-role-${r}`}>
-                    <div className="flex items-center gap-2">
-                      <span>{r}</span>
-                      <span className="text-xs text-muted-foreground">— {ROLE_CONFIG[r].description}</span>
-                    </div>
+                    {r}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -336,13 +362,26 @@ function UserDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="um-dept">Department</Label>
-            <Input
-              id="um-dept"
-              data-testid="input-user-department"
-              placeholder="e.g. Supply Chain"
+            <Select
               value={form.department}
-              onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))}
-            />
+              onValueChange={(v) => setForm((p) => ({ ...p, department: v }))}
+            >
+              <SelectTrigger id="um-dept" data-testid="select-user-department">
+                <SelectValue placeholder="Select department" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableDepts(form.role).map((d) => (
+                  <SelectItem key={d} value={d} data-testid={`option-dept-${d}`}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.role && availableDepts(form.role).length < DEPARTMENTS.length && (
+              <p className="text-xs text-muted-foreground">
+                Only departments available to the selected role are shown.
+              </p>
+            )}
           </div>
         </div>
 
