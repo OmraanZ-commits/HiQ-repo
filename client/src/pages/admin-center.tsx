@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { UnileverHeader } from "@/components/unilever-header";
 import { ReferenceDataContent } from "@/pages/reference-data";
+import { UserManagementContent } from "@/pages/user-management";
 import { cn } from "@/lib/utils";
 import {
   Database,
@@ -101,7 +102,7 @@ export default function AdminCenterPage() {
           {/* Content area */}
           <div className="flex-1 min-w-0">
             {activeTab === "reference-data" && <ReferenceDataContent />}
-            {activeTab === "user-management" && <PlaceholderPanel title="User Management" description="User roles and permissions management coming soon." />}
+            {activeTab === "user-management" && <UserManagementContent />}
             {activeTab === "system-settings" && <PlaceholderPanel title="System Settings" description="Application configuration options coming soon." />}
             {activeTab === "security" && <PlaceholderPanel title="Security" description="Audit logs and access control coming soon." />}
           </div>

@@ -164,17 +164,6 @@ class NetworkChangeTypeMasterModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
-class AppUserModel(Base):
-    __tablename__ = "app_users"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String, nullable=False)
-    email = Column(String, nullable=False, unique=True)
-    role = Column(String, nullable=False)            # Admin | Network Planner | Paid Bible Owner | Approver | Viewer
-    department = Column(String, nullable=True)
-    is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
-
 
 def create_tables():
     Base.metadata.create_all(bind=engine)
