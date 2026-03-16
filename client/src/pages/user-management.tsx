@@ -225,9 +225,23 @@ function AvatarInitials({ name, isActive }: { name: string; isActive: boolean })
 }
 
 function PermIcon({ level }: { level: Permission }) {
-  if (level === "full") return <Check className="h-4 w-4 text-emerald-600 mx-auto" />;
-  if (level === "partial") return <Minus className="h-4 w-4 text-amber-500 mx-auto" />;
-  return <span className="block text-center text-muted-foreground/40 text-sm">—</span>;
+  if (level === "full")
+    return (
+      <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-100 mx-auto">
+        <Check className="h-3.5 w-3.5 text-emerald-700" />
+      </span>
+    );
+  if (level === "partial")
+    return (
+      <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-amber-100 mx-auto">
+        <Minus className="h-3.5 w-3.5 text-amber-700" />
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-slate-100 mx-auto">
+      <span className="text-xs font-bold text-slate-500 leading-none">✕</span>
+    </span>
+  );
 }
 
 /* ── Add / Edit User Dialog ────────────────────────────────────── */
@@ -353,33 +367,30 @@ function UserDialog({
 function RolesPermissionsTab() {
   return (
     <div className="space-y-5">
-      {/* Role cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {ROLES.map((role) => {
-          const cfg = ROLE_CONFIG[role];
-          return (
-            <div key={role} className="rounded-lg border bg-card p-4 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className={cn("h-7 w-7 rounded-md flex items-center justify-center text-xs font-bold", cfg.bg, cfg.color)}>
-                  {role[0]}
-                </span>
-                <span className={cn("text-sm font-semibold", cfg.color)}>{role}</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{cfg.description}</p>
-            </div>
-          );
-        })}
-      </div>
-
       {/* Permissions matrix */}
       <div className="rounded-lg border bg-card overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold">Permissions Matrix</h3>
-          <span className="ml-auto text-xs text-muted-foreground flex items-center gap-2">
-            <span className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-600" /> Full</span>
-            <span className="flex items-center gap-1"><Minus className="h-3 w-3 text-amber-500" /> Partial</span>
-            <span className="text-muted-foreground/50">— None</span>
+          <span className="ml-auto text-xs text-muted-foreground flex items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-emerald-100">
+                <Check className="h-3 w-3 text-emerald-700" />
+              </span>
+              Full
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-100">
+                <Minus className="h-3 w-3 text-amber-700" />
+              </span>
+              Partial
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 leading-none">✕</span>
+              </span>
+              None
+            </span>
           </span>
         </div>
         <div className="overflow-x-auto">
