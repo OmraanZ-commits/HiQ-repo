@@ -46,7 +46,7 @@ import { useToast } from "@/hooks/use-toast";
 
 /* ── Role definitions ──────────────────────────────────────────── */
 
-export const ROLES = [
+const ROLES = [
   "Admin",
   "Network Planner",
   "Paid Bible Owner",
@@ -63,7 +63,7 @@ type RoleConfig = {
   description: string;
 };
 
-export const ROLE_CONFIG: Record<Role, RoleConfig> = {
+const ROLE_CONFIG: Record<Role, RoleConfig> = {
   Admin: {
     label: "Admin",
     color: "text-[#1f36c7]",
@@ -348,11 +348,79 @@ function UserDialog({
   );
 }
 
+/* ── Roles & Permissions tab ───────────────────────────────────── */
+
+function RolesPermissionsTab() {
+  return (
+    <div className="space-y-5">
+      {/* Role cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        {ROLES.map((role) => {
+          const cfg = ROLE_CONFIG[role];
+          return (
+            <div key={role} className="rounded-lg border bg-card p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className={cn("h-7 w-7 rounded-md flex items-center justify-center text-xs font-bold", cfg.bg, cfg.color)}>
+                  {role[0]}
+                </span>
+                <span className={cn("text-sm font-semibold", cfg.color)}>{role}</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{cfg.description}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Permissions matrix */}
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold">Permissions Matrix</h3>
+          <span className="ml-auto text-xs text-muted-foreground flex items-center gap-2">
+            <span className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-600" /> Full</span>
+            <span className="flex items-center gap-1"><Minus className="h-3 w-3 text-amber-500" /> Partial</span>
+            <span className="text-muted-foreground/50">— None</span>
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/20">
+                <TableHead className="min-w-[200px]">Permission</TableHead>
+                {ROLES.map((r) => (
+                  <TableHead key={r} className="text-center min-w-[130px]">
+                    <span className={cn("text-xs font-semibold", ROLE_CONFIG[r].color)}>{r}</span>
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {PERMISSION_MATRIX.map((row) => (
+                <TableRow key={row.action}>
+                  <TableCell className="text-sm">{row.action}</TableCell>
+                  {ROLES.map((r) => (
+                    <TableCell key={r} className="text-center py-2">
+                      <PermIcon level={row[r]} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main export ───────────────────────────────────────────────── */
+
+type SubTab = "users" | "roles";
 
 export function UserManagementContent() {
   const { toast } = useToast();
 
+  const [subTab, setSubTab] = useState<SubTab>("users");
   const [users, setUsers] = useState<AppUser[]>(INITIAL_USERS);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | "All">("All");
@@ -444,14 +512,16 @@ export function UserManagementContent() {
             <p className="text-sm text-muted-foreground">Manage users and assign roles</p>
           </div>
         </div>
-        <Button
-          onClick={() => setShowDialog("add")}
-          data-testid="button-add-user"
-          className="bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] text-white hover:opacity-90"
-        >
-          <Plus className="h-4 w-4 mr-1.5" />
-          Add User
-        </Button>
+        {subTab === "users" && (
+          <Button
+            onClick={() => setShowDialog("add")}
+            data-testid="button-add-user"
+            className="bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] text-white hover:opacity-90"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add User
+          </Button>
+        )}
       </div>
 
       {/* Stats Row */}
@@ -462,194 +532,182 @@ export function UserManagementContent() {
         <StatCard label="Roles" value={ROLES.length} color="from-purple-500 to-purple-600" testId="stat-roles-count" />
       </div>
 
-      {/* Role summary chips */}
-      <div className="flex flex-wrap gap-2">
-        {ROLES.map((role) => (
+      {/* Sub-tab strip */}
+      <div className="flex items-center gap-1 border-b">
+        {([ 
+          { id: "users" as SubTab, label: "Users", icon: Users },
+          { id: "roles" as SubTab, label: "Roles & Permissions", icon: ShieldCheck },
+        ]).map(({ id, label, icon: Icon }) => (
           <button
-            key={role}
-            data-testid={`chip-role-${role}`}
-            onClick={() => setRoleFilter(roleFilter === role ? "All" : role)}
+            key={id}
+            data-testid={`tab-${id}`}
+            onClick={() => setSubTab(id)}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors",
-              roleFilter === role
-                ? cn(ROLE_CONFIG[role].bg, ROLE_CONFIG[role].color, "border-current")
-                : "bg-background text-muted-foreground border-border hover:bg-muted"
+              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+              subTab === id
+                ? "border-[#1f36c7] text-[#1f36c7]"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
             )}
           >
-            <span>{role}</span>
-            <span className={cn(
-              "rounded-full px-1.5 py-0 text-[10px] font-bold",
-              roleFilter === role ? ROLE_CONFIG[role].bg : "bg-muted"
-            )}>
-              {stats.byRole[role]}
-            </span>
+            <Icon className="h-4 w-4" />
+            {label}
           </button>
         ))}
-        {roleFilter !== "All" && (
-          <button
-            onClick={() => setRoleFilter("All")}
-            className="text-xs text-muted-foreground hover:text-foreground underline"
-            data-testid="link-clear-role-filter"
-          >
-            Clear filter
-          </button>
-        )}
       </div>
 
-      {/* Search + filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search name, email, department…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9"
-            data-testid="input-user-search"
-          />
-        </div>
-
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="w-36 h-9" data-testid="select-status-filter">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All Statuses</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <span className="text-sm text-muted-foreground ml-auto" data-testid="text-user-count">
-          {filtered.length} of {users.length} users
-        </span>
-      </div>
-
-      {/* User Table */}
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40">
-              <TableHead className="w-[260px]">User</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Added</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
-                  No users match your filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((user) => (
-                <TableRow
-                  key={user.id}
-                  className={cn("transition-colors", !user.isActive && "opacity-60")}
-                  data-testid={`row-user-${user.id}`}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <AvatarInitials name={user.name} isActive={user.isActive} />
-                      <div>
-                        <p className="font-medium text-sm leading-tight" data-testid={`text-user-name-${user.id}`}>
-                          {user.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground" data-testid={`text-user-email-${user.id}`}>
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <RoleBadge role={user.role} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{user.department || "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground tabular-nums">
-                    {new Date(user.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleToggleStatus(user.id)}
-                          data-testid={`button-toggle-status-${user.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-medium"
-                        >
-                          {user.isActive ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-slate-400" />
-                          )}
-                          <span className={user.isActive ? "text-emerald-700" : "text-slate-500"}>
-                            {user.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Click to {user.isActive ? "deactivate" : "activate"}</TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => openEdit(user)}
-                      data-testid={`button-edit-user-${user.id}`}
-                      className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                    >
-                      <Pencil className="h-3.5 w-3.5 mr-1" />
-                      Edit
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+      {/* Users tab */}
+      {subTab === "users" && (
+        <div className="space-y-4">
+          {/* Role filter chips */}
+          <div className="flex flex-wrap gap-2">
+            {ROLES.map((role) => (
+              <button
+                key={role}
+                data-testid={`chip-role-${role}`}
+                onClick={() => setRoleFilter(roleFilter === role ? "All" : role)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors",
+                  roleFilter === role
+                    ? cn(ROLE_CONFIG[role].bg, ROLE_CONFIG[role].color, "border-current")
+                    : "bg-background text-muted-foreground border-border hover:bg-muted"
+                )}
+              >
+                <span>{role}</span>
+                <span className={cn(
+                  "rounded-full px-1.5 py-0 text-[10px] font-bold",
+                  roleFilter === role ? ROLE_CONFIG[role].bg : "bg-muted"
+                )}>
+                  {stats.byRole[role]}
+                </span>
+              </button>
+            ))}
+            {roleFilter !== "All" && (
+              <button
+                onClick={() => setRoleFilter("All")}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                data-testid="link-clear-role-filter"
+              >
+                Clear filter
+              </button>
             )}
-          </TableBody>
-        </Table>
-      </div>
+          </div>
 
-      {/* Role Permissions Matrix */}
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
-          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">Role Permissions Matrix</h3>
-          <span className="ml-auto text-xs text-muted-foreground">
-            <Check className="h-3 w-3 inline text-emerald-600" /> Full &nbsp;
-            <Minus className="h-3 w-3 inline text-amber-500" /> Partial &nbsp;
-            <span className="text-muted-foreground/50">—</span> None
-          </span>
-        </div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/20">
-                <TableHead className="min-w-[200px]">Permission</TableHead>
-                {ROLES.map((r) => (
-                  <TableHead key={r} className="text-center min-w-[120px]">
-                    <span className={cn("text-xs font-semibold", ROLE_CONFIG[r].color)}>{r}</span>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {PERMISSION_MATRIX.map((row) => (
-                <TableRow key={row.action}>
-                  <TableCell className="text-sm">{row.action}</TableCell>
-                  {ROLES.map((r) => (
-                    <TableCell key={r} className="text-center py-2">
-                      <PermIcon level={row[r]} />
-                    </TableCell>
-                  ))}
+          {/* Search + status filter */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search name, email, department…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 h-9"
+                data-testid="input-user-search"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+              <SelectTrigger className="w-36 h-9" data-testid="select-status-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Statuses</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground ml-auto" data-testid="text-user-count">
+              {filtered.length} of {users.length} users
+            </span>
+          </div>
+
+          {/* User Table */}
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40">
+                  <TableHead className="w-[260px]">User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Added</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                      No users match your filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filtered.map((user) => (
+                    <TableRow
+                      key={user.id}
+                      className={cn("transition-colors", !user.isActive && "opacity-60")}
+                      data-testid={`row-user-${user.id}`}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <AvatarInitials name={user.name} isActive={user.isActive} />
+                          <div>
+                            <p className="font-medium text-sm leading-tight" data-testid={`text-user-name-${user.id}`}>
+                              {user.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground" data-testid={`text-user-email-${user.id}`}>
+                              {user.email}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell><RoleBadge role={user.role} /></TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{user.department || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground tabular-nums">
+                        {new Date(user.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleToggleStatus(user.id)}
+                              data-testid={`button-toggle-status-${user.id}`}
+                              className="inline-flex items-center gap-1 text-xs font-medium"
+                            >
+                              {user.isActive ? (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-slate-400" />
+                              )}
+                              <span className={user.isActive ? "text-emerald-700" : "text-slate-500"}>
+                                {user.isActive ? "Active" : "Inactive"}
+                              </span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Click to {user.isActive ? "deactivate" : "activate"}</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openEdit(user)}
+                          data-testid={`button-edit-user-${user.id}`}
+                          className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Roles & Permissions tab */}
+      {subTab === "roles" && <RolesPermissionsTab />}
 
       {/* Dialogs */}
       <UserDialog
