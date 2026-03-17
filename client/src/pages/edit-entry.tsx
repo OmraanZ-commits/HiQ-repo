@@ -461,102 +461,96 @@ export default function EditEntry() {
                       )}
                     </CardHeader>
                     {selectedGeo.length > 0 && (
-                      <CardContent className="space-y-2 pt-0" data-testid="checkboxes-channel">
-                        {selectedGeo.map((geo) => {
-                          const geoChannels = channelMapping[geo] || [];
-                          const geoLeafCount = LEAF_CHANNELS.filter(c => geoChannels.includes(c.code)).length;
-                          const allGeoSelected = LEAF_CHANNELS.every(c => geoChannels.includes(c.code));
-                          const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
-                          const geoMtAllSelected = mtSubCodes.every(c => geoChannels.includes(c));
-                          const geoMtSomeSelected = mtSubCodes.some(c => geoChannels.includes(c));
-                          const geoKey = geo.toLowerCase().replace(/[\s-]+/g, "-");
-
-                          const Dot = ({ checked, isMt = false }: { checked: boolean; isMt?: boolean }) => (
-                            checked ? (
-                              <span className={`h-4 w-4 rounded-full flex items-center justify-center shrink-0 ${isMt ? "bg-[#1f36c7]" : "bg-[#0d8ecf]"}`}>
-                                <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                              </span>
-                            ) : (
-                              <span className="h-4 w-4 rounded-full border-2 border-[#0d8ecf]/30 shrink-0" />
-                            )
-                          );
-
-                          return (
-                            <div key={geo} className="flex items-center gap-4" data-testid={`geo-channel-${geoKey}`}>
-                              {/* Cluster name — left label */}
-                              <div className="w-36 shrink-0 flex items-center gap-1.5">
-                                <MapPin className="h-3 w-3 text-[#0d8ecf] shrink-0" />
-                                <span className="text-[13px] font-medium text-[#1f36c7] leading-tight capitalize">
-                                  {geo.toLowerCase()}
-                                </span>
-                              </div>
-
-                              {/* Pill row */}
-                              <div className="flex-1 flex items-center gap-0 rounded-full bg-[#f0f2f5] px-4 py-2 min-h-[40px]">
-                                {/* Top-level channel chips */}
-                                <div className="flex items-center gap-4">
-                                  {TOP_CHANNELS.map(ch => (
-                                    <button
-                                      key={ch.code}
-                                      type="button"
-                                      onClick={() => toggleGeoChannel(geo, ch.code)}
-                                      data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase()}`}
-                                      className="flex items-center gap-1.5 group cursor-pointer"
-                                    >
-                                      <Dot checked={geoChannels.includes(ch.code)} />
-                                      <span className={`text-xs ${geoChannels.includes(ch.code) ? "font-medium text-foreground" : "text-muted-foreground"}`}>{ch.code}</span>
-                                    </button>
-                                  ))}
-                                </div>
-
-                                {/* Divider */}
-                                <div className="mx-4 w-px self-stretch bg-border/60" />
-
-                                {/* MT group — two-row stacked hierarchy */}
-                                <div className="flex flex-col gap-1.5 justify-center py-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleGeoChannel(geo, "MT")}
-                                    data-testid={`checkbox-channel-${geoKey}-mt`}
-                                    className="flex items-center gap-1 self-start cursor-pointer group"
-                                  >
-                                    <span className="text-[10px] tracking-widest text-muted-foreground uppercase font-semibold group-hover:text-foreground transition-colors">MT</span>
-                                    {geoMtAllSelected ? (
-                                      <Check className="h-3 w-3 text-primary" />
-                                    ) : geoMtSomeSelected ? (
-                                      <div className="h-0.5 w-2 bg-primary rounded-full" />
-                                    ) : null}
-                                  </button>
-                                  <div className="flex items-center gap-4">
-                                    {MT_SUB_CHANNELS.map(ch => (
-                                      <button
-                                        key={ch.code}
-                                        type="button"
-                                        onClick={() => toggleGeoChannel(geo, ch.code)}
-                                        data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
-                                        className="flex items-center gap-1.5 cursor-pointer group"
-                                      >
-                                        <Dot checked={geoChannels.includes(ch.code)} />
-                                        <span className={`text-xs transition-colors ${geoChannels.includes(ch.code) ? "font-medium text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{ch.code}</span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* All toggle — far right */}
-                                <button
-                                  type="button"
-                                  onClick={() => toggleAllGeoChannels(geo)}
-                                  data-testid={`toggle-all-channels-${geoKey}`}
-                                  className="ml-auto flex items-center gap-1.5 cursor-pointer shrink-0"
+                      <CardContent className="pt-0 px-0" data-testid="checkboxes-channel">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs border-collapse">
+                            <thead>
+                              {/* Row 1: column group headers */}
+                              <tr className="border-b border-border/60">
+                                <th className="text-left py-2 pl-6 pr-4 text-muted-foreground font-medium w-40">Cluster</th>
+                                {TOP_CHANNELS.map(ch => (
+                                  <th key={ch.code} className="text-center py-2 px-4 text-muted-foreground font-medium">
+                                    {ch.code}
+                                  </th>
+                                ))}
+                                {/* MT group header spanning all sub-channels */}
+                                <th
+                                  colSpan={MT_SUB_CHANNELS.length}
+                                  className="text-center py-2 px-4 font-semibold text-[#1f36c7] border-b-2 border-[#1f36c7]/40"
                                 >
-                                  <Dot checked={allGeoSelected} />
-                                  <span className="text-xs text-muted-foreground">All</span>
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                                  MT
+                                </th>
+                                <th className="text-center py-2 px-4 text-muted-foreground font-medium">All</th>
+                              </tr>
+                              {/* Row 2: MT sub-channel labels */}
+                              <tr className="border-b border-border/40 bg-[#f5f7ff]">
+                                <th className="py-1.5 pl-6" />
+                                {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4" />)}
+                                {MT_SUB_CHANNELS.map(ch => (
+                                  <th key={ch.code} className="text-center py-1.5 px-4 font-normal text-[11px] text-[#1f36c7]/70">
+                                    {ch.code}
+                                  </th>
+                                ))}
+                                <th className="py-1.5 px-4" />
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedGeo.map((geo, idx) => {
+                                const geoChannels = channelMapping[geo] || [];
+                                const allGeoSelected = LEAF_CHANNELS.every(c => geoChannels.includes(c.code));
+                                const geoKey = geo.toLowerCase().replace(/[\s-]+/g, "-");
+                                return (
+                                  <tr
+                                    key={geo}
+                                    className={`border-b border-border/30 transition-colors hover:bg-muted/20 ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
+                                    data-testid={`geo-channel-${geoKey}`}
+                                  >
+                                    {/* Cluster name */}
+                                    <td className="py-3 pl-6 pr-4">
+                                      <div className="flex items-center gap-1.5">
+                                        <MapPin className="h-3 w-3 text-[#0d8ecf] shrink-0" />
+                                        <span className="text-[13px] font-medium text-[#1f36c7] capitalize leading-tight">
+                                          {geo.toLowerCase()}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    {/* Top-level channels */}
+                                    {TOP_CHANNELS.map(ch => (
+                                      <td key={ch.code} className="text-center py-3 px-4">
+                                        <Checkbox
+                                          checked={geoChannels.includes(ch.code)}
+                                          onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
+                                          data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase()}`}
+                                          className="mx-auto"
+                                        />
+                                      </td>
+                                    ))}
+                                    {/* MT sub-channels */}
+                                    {MT_SUB_CHANNELS.map(ch => (
+                                      <td key={ch.code} className="text-center py-3 px-4 bg-[#f5f7ff]/60">
+                                        <Checkbox
+                                          checked={geoChannels.includes(ch.code)}
+                                          onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
+                                          data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                          className="mx-auto"
+                                        />
+                                      </td>
+                                    ))}
+                                    {/* All */}
+                                    <td className="text-center py-3 px-4">
+                                      <Checkbox
+                                        checked={allGeoSelected}
+                                        onCheckedChange={() => toggleAllGeoChannels(geo)}
+                                        data-testid={`toggle-all-channels-${geoKey}`}
+                                        className="mx-auto"
+                                      />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </CardContent>
                     )}
                   </Card>
