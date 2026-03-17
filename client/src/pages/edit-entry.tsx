@@ -483,8 +483,9 @@ export default function EditEntry() {
                           return (
                             <div key={geo} className="flex items-center gap-4" data-testid={`geo-channel-${geoKey}`}>
                               {/* Cluster name — left label */}
-                              <div className="w-32 shrink-0 text-right">
-                                <span className="text-xs font-medium text-[#1f36c7] underline decoration-[#e8392a] underline-offset-2 decoration-1 capitalize">
+                              <div className="w-36 shrink-0 flex items-center gap-1.5">
+                                <MapPin className="h-3 w-3 text-[#0d8ecf] shrink-0" />
+                                <span className="text-[11px] font-semibold text-slate-700 leading-tight capitalize">
                                   {geo.toLowerCase()}
                                 </span>
                               </div>
