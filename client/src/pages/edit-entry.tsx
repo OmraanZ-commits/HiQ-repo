@@ -511,33 +511,42 @@ export default function EditEntry() {
                                 {/* Divider */}
                                 <div className="mx-4 w-px self-stretch bg-border/60" />
 
-                                {/* MT group — fieldset style */}
-                                <div className="relative rounded border border-[#1f36c7]/40 bg-white/60 px-3 pt-4 pb-2 min-w-0">
-                                  {/* MT floating label */}
+                                {/* MT group — integrated segmented design */}
+                                <div className="flex items-stretch rounded-md border border-[#1f36c7]/20 bg-white overflow-hidden shadow-sm">
+                                  {/* MT Parent */}
                                   <button
                                     type="button"
                                     onClick={() => toggleGeoChannel(geo, "MT")}
                                     data-testid={`checkbox-channel-${geoKey}-mt`}
-                                    className="absolute -top-2.5 left-3 flex items-center gap-1 bg-white px-1.5 cursor-pointer"
+                                    className={`flex items-center gap-1.5 px-3 border-r border-[#1f36c7]/20 transition-colors ${
+                                      geoMtAllSelected 
+                                        ? "bg-[#1f36c7]/10" 
+                                        : geoMtSomeSelected 
+                                          ? "bg-[#0d8ecf]/10" 
+                                          : "bg-muted/10 hover:bg-muted/30"
+                                    }`}
                                   >
                                     <Dot checked={geoMtAllSelected} isMt />
-                                    <span className={`text-[11px] font-bold tracking-wide ${geoMtAllSelected ? "text-[#1f36c7]" : "text-muted-foreground"}`}>MT</span>
-                                    {geoMtSomeSelected && !geoMtAllSelected && (
-                                      <span className="text-[9px] text-[#0d8ecf] italic">partial</span>
-                                    )}
+                                    <div className="flex items-baseline gap-1.5">
+                                      <span className={`text-xs font-bold ${geoMtAllSelected || geoMtSomeSelected ? "text-[#1f36c7]" : "text-muted-foreground"}`}>MT</span>
+                                      {geoMtSomeSelected && !geoMtAllSelected && (
+                                        <span className="text-[9px] font-bold text-[#0d8ecf] uppercase tracking-wider">Partial</span>
+                                      )}
+                                    </div>
                                   </button>
+                                  
                                   {/* Sub-channels inside */}
-                                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                  <div className="flex flex-wrap items-center px-3 py-1.5 gap-x-4 gap-y-1">
                                     {MT_SUB_CHANNELS.map(ch => (
                                       <button
                                         key={ch.code}
                                         type="button"
                                         onClick={() => toggleGeoChannel(geo, ch.code)}
                                         data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
-                                        className="flex items-center gap-1.5 cursor-pointer"
+                                        className="flex items-center gap-1.5 cursor-pointer group"
                                       >
                                         <Dot checked={geoChannels.includes(ch.code)} />
-                                        <span className={`text-xs ${geoChannels.includes(ch.code) ? "font-medium text-foreground" : "text-muted-foreground"}`}>{ch.code}</span>
+                                        <span className={`text-xs transition-colors ${geoChannels.includes(ch.code) ? "font-medium text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{ch.code}</span>
                                       </button>
                                     ))}
                                   </div>
