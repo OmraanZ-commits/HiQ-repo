@@ -488,17 +488,6 @@ export default function EditEntry() {
                                         ? "bg-[#00b0d7]/10 border-[#00b0d7]/30 text-[#00b0d7]"
                                         : "bg-white border-border text-muted-foreground hover:border-[#00b0d7]/40"
                                   }`}>
-                                    {state === true ? (
-                                      <span className="h-3.5 w-3.5 rounded-full bg-white/25 flex items-center justify-center shrink-0">
-                                        <Check className="h-2.5 w-2.5 text-white" />
-                                      </span>
-                                    ) : state === "indeterminate" ? (
-                                      <span className="h-3.5 w-3.5 rounded-full border border-[#00b0d7]/50 flex items-center justify-center shrink-0">
-                                        <span className="h-0.5 w-2 bg-[#00b0d7]/70 rounded-full" />
-                                      </span>
-                                    ) : (
-                                      <span className="h-3.5 w-3.5 rounded-full border-2 border-border/60 shrink-0" />
-                                    )}
                                     {label}
                                   </div>
                                 );
