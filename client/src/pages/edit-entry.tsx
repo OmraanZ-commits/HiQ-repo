@@ -511,23 +511,23 @@ export default function EditEntry() {
                                 {/* Divider */}
                                 <div className="mx-4 w-px self-stretch bg-border/60" />
 
-                                {/* MT group box */}
-                                <div className="flex flex-col gap-1.5 rounded border border-[#1f36c7]/30 bg-white/60 px-3 py-2 min-w-0">
-                                  {/* MT parent header */}
+                                {/* MT group — fieldset style */}
+                                <div className="relative rounded border border-[#1f36c7]/40 bg-white/60 px-3 pt-4 pb-2 min-w-0">
+                                  {/* MT floating label */}
                                   <button
                                     type="button"
                                     onClick={() => toggleGeoChannel(geo, "MT")}
                                     data-testid={`checkbox-channel-${geoKey}-mt`}
-                                    className="flex items-center gap-1.5 cursor-pointer"
+                                    className="absolute -top-2.5 left-3 flex items-center gap-1 bg-white px-1.5 cursor-pointer"
                                   >
                                     <Dot checked={geoMtAllSelected} isMt />
-                                    <span className={`text-xs font-semibold ${geoMtAllSelected ? "text-[#1f36c7]" : "text-muted-foreground"}`}>MT</span>
+                                    <span className={`text-[11px] font-bold tracking-wide ${geoMtAllSelected ? "text-[#1f36c7]" : "text-muted-foreground"}`}>MT</span>
                                     {geoMtSomeSelected && !geoMtAllSelected && (
                                       <span className="text-[9px] text-[#0d8ecf] italic">partial</span>
                                     )}
                                   </button>
-                                  {/* Sub-channels indented below MT */}
-                                  <div className="flex flex-wrap gap-x-4 gap-y-1 pl-3 border-l-2 border-[#1f36c7]/20">
+                                  {/* Sub-channels inside */}
+                                  <div className="flex flex-wrap gap-x-4 gap-y-1">
                                     {MT_SUB_CHANNELS.map(ch => (
                                       <button
                                         key={ch.code}
