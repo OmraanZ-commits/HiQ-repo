@@ -444,12 +444,9 @@ export default function EditEntry() {
                             size="sm"
                             className="h-7 text-xs px-3"
                             onClick={() => {
-                              // Apply all channels to all geographies
                               const allLeafCodes = LEAF_CHANNELS.map(c => c.code);
                               const newMapping: Record<string, string[]> = {};
-                              selectedGeo.forEach(geo => {
-                                newMapping[geo] = [...allLeafCodes];
-                              });
+                              selectedGeo.forEach(geo => { newMapping[geo] = [...allLeafCodes]; });
                               setChannelMapping(newMapping);
                             }}
                             data-testid="btn-apply-all-channels-all-geo"
@@ -463,70 +460,72 @@ export default function EditEntry() {
                       )}
                     </CardHeader>
                     {selectedGeo.length > 0 && (
-                      <CardContent className="space-y-3" data-testid="checkboxes-channel">
-                        {selectedGeo.map((geo, geoIdx) => {
+                      <CardContent className="space-y-2 pt-0" data-testid="checkboxes-channel">
+                        {selectedGeo.map((geo) => {
                           const geoChannels = channelMapping[geo] || [];
                           const geoLeafCount = LEAF_CHANNELS.filter(c => geoChannels.includes(c.code)).length;
                           const allGeoSelected = LEAF_CHANNELS.every(c => geoChannels.includes(c.code));
                           const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
                           const geoMtAllSelected = mtSubCodes.every(c => geoChannels.includes(c));
                           const geoMtSomeSelected = mtSubCodes.some(c => geoChannels.includes(c));
+                          const geoKey = geo.toLowerCase().replace(/[\s-]+/g, "-");
                           return (
-                            <div key={geo} className="rounded-lg border p-3" data-testid={`geo-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}>
-                              <div className="flex items-center justify-between mb-2">
+                            <div key={geo} className="rounded-lg border bg-card overflow-hidden" data-testid={`geo-channel-${geoKey}`}>
+                              {/* Cluster header */}
+                              <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b">
                                 <div className="flex items-center gap-2">
-                                  <MapPin className="h-3.5 w-3.5 text-primary" />
-                                  <span className="text-xs font-semibold">{geo}</span>
-                                  <Badge variant="secondary" className="text-[9px]">{geoLeafCount}/{LEAF_CHANNELS.length}</Badge>
+                                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                                  <span className="text-xs font-bold uppercase tracking-wide">{geo}</span>
+                                  <span className="text-[10px] text-muted-foreground font-medium">{geoLeafCount}/{LEAF_CHANNELS.length}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <label className="flex items-center gap-1.5 cursor-pointer" data-testid={`toggle-all-channels-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}>
-                                    <Checkbox
-                                      checked={allGeoSelected}
-                                      onCheckedChange={() => toggleAllGeoChannels(geo)}
-                                    />
-                                    <span className="text-[10px] font-medium">All</span>
-                                  </label>
-                                </div>
+                                <label className="flex items-center gap-1.5 cursor-pointer" data-testid={`toggle-all-channels-${geoKey}`}>
+                                  <Checkbox checked={allGeoSelected} onCheckedChange={() => toggleAllGeoChannels(geo)} />
+                                  <span className="text-xs font-medium">All</span>
+                                </label>
                               </div>
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+
+                              {/* Top-level channels row */}
+                              <div className="px-4 py-2.5 flex flex-wrap gap-x-5 gap-y-1.5">
                                 {TOP_CHANNELS.map(ch => {
                                   const isChecked = geoChannels.includes(ch.code);
                                   return (
-                                    <label key={ch.code} className={`flex items-center gap-1.5 py-1 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                                    <label key={ch.code} className="flex items-center gap-1.5 cursor-pointer select-none">
                                       <Checkbox
                                         checked={isChecked}
                                         onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
-                                        data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-${ch.code.toLowerCase()}`}
+                                        data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase()}`}
                                       />
-                                      <span className="text-[11px]">{ch.code}</span>
+                                      <span className="text-xs">{ch.code}</span>
                                     </label>
                                   );
                                 })}
                               </div>
-                              <div className="rounded border p-2 bg-muted/10">
-                                <label className="flex items-center gap-1.5 cursor-pointer mb-1.5">
+
+                              {/* MT group row */}
+                              <div className="border-t mx-4 mb-0" />
+                              <div className="px-4 py-2.5">
+                                <div className="flex items-center gap-2 mb-2">
                                   <Checkbox
                                     checked={geoMtAllSelected}
                                     onCheckedChange={() => toggleGeoChannel(geo, "MT")}
-                                    data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-mt`}
+                                    data-testid={`checkbox-channel-${geoKey}-mt`}
                                   />
-                                  <span className="text-[11px] font-semibold">MT</span>
+                                  <span className="text-xs font-semibold">MT</span>
                                   {geoMtSomeSelected && !geoMtAllSelected && (
-                                    <Badge variant="outline" className="text-[8px] px-1 py-0">partial</Badge>
+                                    <span className="text-[10px] text-muted-foreground italic">partial</span>
                                   )}
-                                </label>
-                                <div className="ml-5 flex flex-wrap gap-x-3 gap-y-0.5 border-l-2 border-primary/20 pl-2">
+                                </div>
+                                <div className="flex flex-wrap gap-x-5 gap-y-1.5 pl-6">
                                   {MT_SUB_CHANNELS.map(ch => {
                                     const isChecked = geoChannels.includes(ch.code);
                                     return (
-                                      <label key={ch.code} className={`flex items-center gap-1.5 py-0.5 px-1.5 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                                      <label key={ch.code} className="flex items-center gap-1.5 cursor-pointer select-none">
                                         <Checkbox
                                           checked={isChecked}
                                           onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
-                                          data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                          data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
                                         />
-                                        <span className="text-[10px]">{ch.code}</span>
+                                        <span className="text-xs">{ch.code}</span>
                                       </label>
                                     );
                                   })}
