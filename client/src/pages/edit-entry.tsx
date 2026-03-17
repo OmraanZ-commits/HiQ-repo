@@ -463,37 +463,37 @@ export default function EditEntry() {
                     {selectedGeo.length > 0 && (
                       <CardContent className="pt-0 px-0" data-testid="checkboxes-channel">
                         <div className="overflow-auto max-h-72">
-                          <table className="w-full text-xs border-collapse">
+                          <table className="w-full text-xs border-separate border-spacing-0">
                             <thead className="sticky top-0 z-10">
                               {/* Row 1: column group headers */}
-                              <tr className="border-b border-border/60 bg-white">
-                                <th className="text-left py-2 pl-6 pr-4 text-muted-foreground font-medium w-40">Cluster</th>
+                              <tr>
+                                <th className="text-left py-2 pl-6 pr-4 text-muted-foreground font-medium w-40 bg-white border-b border-border/60">Cluster</th>
                                 {TOP_CHANNELS.map(ch => (
-                                  <th key={ch.code} className="text-center py-2 px-4 text-muted-foreground font-medium">
+                                  <th key={ch.code} className="text-center py-2 px-4 text-muted-foreground font-medium bg-white border-b border-border/60">
                                     {ch.code}
                                   </th>
                                 ))}
                                 {/* MT group header — spans All + sub-channels */}
                                 <th
                                   colSpan={MT_SUB_CHANNELS.length + 1}
-                                  className="text-center py-2 px-4 font-semibold text-[#1f36c7] border-b-2 border-[#1f36c7]/40 bg-[#f5f7ff]"
+                                  className="text-center py-2 px-4 font-semibold text-[#1f36c7] bg-[#f0f4ff] border-b-2 border-[#1f36c7]/40"
                                 >
                                   MT
                                 </th>
-                                <th className="text-center py-2 px-4 text-muted-foreground font-medium">All</th>
+                                <th className="text-center py-2 px-4 text-muted-foreground font-medium bg-white border-b border-border/60">All</th>
                               </tr>
                               {/* Row 2: MT sub-column labels — "All" first, then sub-channels */}
-                              <tr className="border-b border-border/40 bg-[#f5f7ff]">
-                                <th className="py-1.5 pl-6 bg-white" />
-                                {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4 bg-white" />)}
+                              <tr>
+                                <th className="py-1.5 pl-6 bg-white border-b border-border/40" />
+                                {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4 bg-white border-b border-border/40" />)}
                                 {/* MT All sub-header */}
-                                <th className="text-center py-1.5 px-4 font-semibold text-[11px] text-[#1f36c7]">All</th>
+                                <th className="text-center py-1.5 px-4 font-semibold text-[11px] text-[#1f36c7] bg-[#f0f4ff] border-b border-border/40">All</th>
                                 {MT_SUB_CHANNELS.map(ch => (
-                                  <th key={ch.code} className="text-center py-1.5 px-4 font-normal text-[11px] text-[#1f36c7]/70">
+                                  <th key={ch.code} className="text-center py-1.5 px-4 font-normal text-[11px] text-[#1f36c7]/70 bg-[#f0f4ff] border-b border-border/40">
                                     {ch.code}
                                   </th>
                                 ))}
-                                <th className="py-1.5 px-4 bg-white" />
+                                <th className="py-1.5 px-4 bg-white border-b border-border/40" />
                               </tr>
                             </thead>
                             <tbody>
