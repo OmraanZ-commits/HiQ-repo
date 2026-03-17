@@ -465,36 +465,6 @@ export default function EditEntry() {
                         <div className="overflow-auto max-h-72">
                           <table className="w-full text-xs border-separate border-spacing-0">
                             <thead className="sticky top-0 z-10">
-                              {/* Row 1: column group headers */}
-                              <tr>
-                                <th className="text-left py-2 pl-6 pr-4 text-muted-foreground font-medium w-40 bg-white border-b border-border/60">Cluster</th>
-                                {TOP_CHANNELS.map(ch => (
-                                  <th key={ch.code} className="text-center py-2 px-4 text-muted-foreground font-medium bg-white border-b border-border/60">
-                                    {ch.code}
-                                  </th>
-                                ))}
-                                {/* MT group header — spans All + sub-channels */}
-                                <th
-                                  colSpan={MT_SUB_CHANNELS.length + 1}
-                                  className="text-center py-2 px-4 font-semibold text-[#1f36c7] bg-[#f0f4ff] border-b-2 border-[#1f36c7]/40"
-                                >
-                                  MT
-                                </th>
-                                <th className="text-center py-2 px-4 text-muted-foreground font-medium bg-white border-b border-border/60">All</th>
-                              </tr>
-                              {/* Row 2: MT sub-column labels — "All" first, then sub-channels */}
-                              <tr>
-                                <th className="py-1.5 pl-6 bg-white border-b border-border/40" />
-                                {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4 bg-white border-b border-border/40" />)}
-                                <th className="text-center py-1.5 px-4 font-semibold text-[11px] text-[#1f36c7] bg-[#f0f4ff] border-b border-border/40">All</th>
-                                {MT_SUB_CHANNELS.map(ch => (
-                                  <th key={ch.code} className="text-center py-1.5 px-4 font-normal text-[11px] text-[#1f36c7]/70 bg-[#f0f4ff] border-b border-border/40">
-                                    {ch.code}
-                                  </th>
-                                ))}
-                                <th className="py-1.5 px-4 bg-white border-b border-border/40" />
-                              </tr>
-                              {/* Row 3: column-level "select all clusters" toggles */}
                               {(() => {
                                 const allMtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
                                 const colState = (code: string) => {
@@ -510,50 +480,76 @@ export default function EditEntry() {
                                   return all ? true : some ? ("indeterminate" as const) : false;
                                 })();
                                 return (
-                                  <tr className="border-b-2 border-border/60">
-                                    <th className="py-1.5 pl-6 pr-4 bg-[#fafafa] text-left">
-                                      <span className="text-[10px] text-muted-foreground font-normal italic">all clusters</span>
-                                    </th>
-                                    {TOP_CHANNELS.map(ch => (
-                                      <th key={ch.code} className="text-center py-1.5 px-4 bg-[#fafafa]">
-                                        <Checkbox
-                                          checked={colState(ch.code)}
-                                          onCheckedChange={() => toggleColumnChannel(ch.code)}
+                                  <>
+                                    {/* Row 1: column group headers — clickable for top-level channels */}
+                                    <tr>
+                                      <th className="text-left py-2 pl-6 pr-4 text-muted-foreground font-medium w-40 bg-white border-b border-border/60">
+                                        Cluster
+                                      </th>
+                                      {TOP_CHANNELS.map(ch => (
+                                        <th
+                                          key={ch.code}
+                                          onClick={() => toggleColumnChannel(ch.code)}
                                           data-testid={`toggle-col-${ch.code.toLowerCase()}`}
-                                          className="mx-auto"
-                                        />
+                                          className="text-center py-2 px-4 bg-white border-b border-border/60 cursor-pointer hover:bg-muted/10 transition-colors select-none"
+                                        >
+                                          <div className="flex flex-col items-center gap-1.5">
+                                            <span className="text-muted-foreground font-medium">{ch.code}</span>
+                                            <Checkbox checked={colState(ch.code)} className="pointer-events-none" />
+                                          </div>
+                                        </th>
+                                      ))}
+                                      {/* MT group header — label only, not clickable */}
+                                      <th
+                                        colSpan={MT_SUB_CHANNELS.length + 1}
+                                        className="text-center py-2 px-4 font-semibold text-[#1f36c7] bg-[#f0f4ff] border-b-2 border-[#1f36c7]/40"
+                                      >
+                                        MT
                                       </th>
-                                    ))}
-                                    {/* MT All column toggle */}
-                                    <th className="text-center py-1.5 px-4 bg-[#f0f4ff]">
-                                      <Checkbox
-                                        checked={colState("MT")}
-                                        onCheckedChange={() => toggleColumnChannel("MT")}
-                                        data-testid="toggle-col-mt"
-                                        className="mx-auto"
-                                      />
-                                    </th>
-                                    {/* MT sub-channel column toggles */}
-                                    {MT_SUB_CHANNELS.map(ch => (
-                                      <th key={ch.code} className="text-center py-1.5 px-4 bg-[#f0f4ff]">
-                                        <Checkbox
-                                          checked={colState(ch.code)}
-                                          onCheckedChange={() => toggleColumnChannel(ch.code)}
-                                          data-testid={`toggle-col-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
-                                          className="mx-auto"
-                                        />
-                                      </th>
-                                    ))}
-                                    {/* All columns toggle */}
-                                    <th className="text-center py-1.5 px-4 bg-[#fafafa]">
-                                      <Checkbox
-                                        checked={allColState}
-                                        onCheckedChange={() => toggleAllColumnsAllGeos()}
+                                      {/* All column — clickable */}
+                                      <th
+                                        onClick={() => toggleAllColumnsAllGeos()}
                                         data-testid="toggle-col-all"
-                                        className="mx-auto"
-                                      />
-                                    </th>
-                                  </tr>
+                                        className="text-center py-2 px-4 bg-white border-b border-border/60 cursor-pointer hover:bg-muted/10 transition-colors select-none"
+                                      >
+                                        <div className="flex flex-col items-center gap-1.5">
+                                          <span className="text-muted-foreground font-medium">All</span>
+                                          <Checkbox checked={allColState} className="pointer-events-none" />
+                                        </div>
+                                      </th>
+                                    </tr>
+                                    {/* Row 2: MT sub-column labels — each clickable */}
+                                    <tr>
+                                      <th className="py-1.5 pl-6 bg-white border-b border-border/50" />
+                                      {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4 bg-white border-b border-border/50" />)}
+                                      {/* MT All sub-header — clickable */}
+                                      <th
+                                        onClick={() => toggleColumnChannel("MT")}
+                                        data-testid="toggle-col-mt"
+                                        className="text-center py-1.5 px-3 bg-[#f0f4ff] border-b border-border/50 cursor-pointer hover:bg-[#e8edff] transition-colors select-none"
+                                      >
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className="font-semibold text-[11px] text-[#1f36c7]">All</span>
+                                          <Checkbox checked={colState("MT")} className="pointer-events-none scale-90" />
+                                        </div>
+                                      </th>
+                                      {/* MT sub-channels — each clickable */}
+                                      {MT_SUB_CHANNELS.map(ch => (
+                                        <th
+                                          key={ch.code}
+                                          onClick={() => toggleColumnChannel(ch.code)}
+                                          data-testid={`toggle-col-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                          className="text-center py-1.5 px-3 bg-[#f0f4ff] border-b border-border/50 cursor-pointer hover:bg-[#e8edff] transition-colors select-none"
+                                        >
+                                          <div className="flex flex-col items-center gap-1">
+                                            <span className="font-normal text-[11px] text-[#1f36c7]/70">{ch.code}</span>
+                                            <Checkbox checked={colState(ch.code)} className="pointer-events-none scale-90" />
+                                          </div>
+                                        </th>
+                                      ))}
+                                      <th className="py-1.5 px-4 bg-white border-b border-border/50" />
+                                    </tr>
+                                  </>
                                 );
                               })()}
                             </thead>
