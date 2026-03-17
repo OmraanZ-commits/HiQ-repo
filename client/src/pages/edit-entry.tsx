@@ -483,10 +483,13 @@ export default function EditEntry() {
                           return (
                             <div key={geo} className="flex items-center gap-4" data-testid={`geo-channel-${geoKey}`}>
                               {/* Cluster name — left label */}
-                              <div className="w-36 shrink-0 flex items-center gap-1.5">
+                              <div className="w-40 shrink-0 flex items-center gap-1.5 flex-wrap">
                                 <MapPin className="h-3 w-3 text-[#0d8ecf] shrink-0" />
                                 <span className="text-[13px] font-medium text-slate-600 leading-tight capitalize">
                                   {geo.toLowerCase()}
+                                </span>
+                                <span className="inline-flex items-center rounded-full bg-[#0d8ecf]/10 px-2 py-0.5 text-[10px] font-semibold text-[#0d8ecf]">
+                                  {geoLeafCount}/{LEAF_CHANNELS.length}
                                 </span>
                               </div>
 
