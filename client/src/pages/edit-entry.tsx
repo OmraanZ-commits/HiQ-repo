@@ -589,7 +589,7 @@ export default function EditEntry() {
                                       </td>
                                     ))}
                                     {/* MT All — selects/deselects all MT sub-channels for this geo */}
-                                    <td className="text-center py-3 px-4 bg-[#f5f7ff]/60">
+                                    <td className="text-center py-3 px-4 bg-[#00b0d7]/[0.06]">
                                       <Checkbox
                                         checked={geoMtAllSelected}
                                         data-state={geoMtSomeSelected && !geoMtAllSelected ? "indeterminate" : undefined}
@@ -600,7 +600,7 @@ export default function EditEntry() {
                                     </td>
                                     {/* MT sub-channels */}
                                     {MT_SUB_CHANNELS.map(ch => (
-                                      <td key={ch.code} className="text-center py-3 px-4 bg-[#f5f7ff]/60">
+                                      <td key={ch.code} className="text-center py-3 px-4 bg-[#00b0d7]/[0.06]">
                                         <Checkbox
                                           checked={geoChannels.includes(ch.code)}
                                           onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
