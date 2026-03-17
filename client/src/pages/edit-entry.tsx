@@ -462,42 +462,47 @@ export default function EditEntry() {
                     </CardHeader>
                     {selectedGeo.length > 0 && (
                       <CardContent className="pt-0 px-0" data-testid="checkboxes-channel">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-auto max-h-72">
                           <table className="w-full text-xs border-collapse">
-                            <thead>
+                            <thead className="sticky top-0 z-10">
                               {/* Row 1: column group headers */}
-                              <tr className="border-b border-border/60">
+                              <tr className="border-b border-border/60 bg-white">
                                 <th className="text-left py-2 pl-6 pr-4 text-muted-foreground font-medium w-40">Cluster</th>
                                 {TOP_CHANNELS.map(ch => (
                                   <th key={ch.code} className="text-center py-2 px-4 text-muted-foreground font-medium">
                                     {ch.code}
                                   </th>
                                 ))}
-                                {/* MT group header spanning all sub-channels */}
+                                {/* MT group header — spans All + sub-channels */}
                                 <th
-                                  colSpan={MT_SUB_CHANNELS.length}
-                                  className="text-center py-2 px-4 font-semibold text-[#1f36c7] border-b-2 border-[#1f36c7]/40"
+                                  colSpan={MT_SUB_CHANNELS.length + 1}
+                                  className="text-center py-2 px-4 font-semibold text-[#1f36c7] border-b-2 border-[#1f36c7]/40 bg-[#f5f7ff]"
                                 >
                                   MT
                                 </th>
                                 <th className="text-center py-2 px-4 text-muted-foreground font-medium">All</th>
                               </tr>
-                              {/* Row 2: MT sub-channel labels */}
+                              {/* Row 2: MT sub-column labels — "All" first, then sub-channels */}
                               <tr className="border-b border-border/40 bg-[#f5f7ff]">
-                                <th className="py-1.5 pl-6" />
-                                {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4" />)}
+                                <th className="py-1.5 pl-6 bg-white" />
+                                {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4 bg-white" />)}
+                                {/* MT All sub-header */}
+                                <th className="text-center py-1.5 px-4 font-semibold text-[11px] text-[#1f36c7]">All</th>
                                 {MT_SUB_CHANNELS.map(ch => (
                                   <th key={ch.code} className="text-center py-1.5 px-4 font-normal text-[11px] text-[#1f36c7]/70">
                                     {ch.code}
                                   </th>
                                 ))}
-                                <th className="py-1.5 px-4" />
+                                <th className="py-1.5 px-4 bg-white" />
                               </tr>
                             </thead>
                             <tbody>
                               {selectedGeo.map((geo, idx) => {
                                 const geoChannels = channelMapping[geo] || [];
                                 const allGeoSelected = LEAF_CHANNELS.every(c => geoChannels.includes(c.code));
+                                const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+                                const geoMtAllSelected = mtSubCodes.every(c => geoChannels.includes(c));
+                                const geoMtSomeSelected = mtSubCodes.some(c => geoChannels.includes(c));
                                 const geoKey = geo.toLowerCase().replace(/[\s-]+/g, "-");
                                 return (
                                   <tr
@@ -525,6 +530,16 @@ export default function EditEntry() {
                                         />
                                       </td>
                                     ))}
+                                    {/* MT All — selects/deselects all MT sub-channels for this geo */}
+                                    <td className="text-center py-3 px-4 bg-[#f5f7ff]/60">
+                                      <Checkbox
+                                        checked={geoMtAllSelected}
+                                        data-state={geoMtSomeSelected && !geoMtAllSelected ? "indeterminate" : undefined}
+                                        onCheckedChange={() => toggleGeoChannel(geo, "MT")}
+                                        data-testid={`checkbox-channel-${geoKey}-mt`}
+                                        className="mx-auto"
+                                      />
+                                    </td>
                                     {/* MT sub-channels */}
                                     {MT_SUB_CHANNELS.map(ch => (
                                       <td key={ch.code} className="text-center py-3 px-4 bg-[#f5f7ff]/60">
@@ -536,7 +551,7 @@ export default function EditEntry() {
                                         />
                                       </td>
                                     ))}
-                                    {/* All */}
+                                    {/* All channels */}
                                     <td className="text-center py-3 px-4">
                                       <Checkbox
                                         checked={allGeoSelected}
