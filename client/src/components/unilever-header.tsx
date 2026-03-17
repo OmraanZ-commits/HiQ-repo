@@ -28,7 +28,7 @@ export function UnileverHeader() {
               Unilever
             </h1>
             <nav className="hidden lg:flex items-center">
-              <div className="bg-white/15 backdrop-blur-sm rounded-full px-1 py-1 flex items-center gap-1">
+              <div className="bg-white/20 backdrop-blur-sm rounded-full px-2 py-1.5 flex items-center gap-0.5 shadow-inner shadow-black/10">
                 {navItems.map((item) => (
                   <NavItem
                     key={item.path}
@@ -102,10 +102,10 @@ function NavItem({ label, active = false, onClick }: { label: string; active?: b
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+      className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${
         active
-          ? "bg-white text-[#0d8ecf]"
-          : "text-white/90 hover:text-white hover:bg-white/10"
+          ? "bg-white text-[#0d8ecf] shadow-sm"
+          : "text-white hover:text-white hover:bg-white/15"
       }`}
       data-testid={`nav-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
