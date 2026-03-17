@@ -485,7 +485,7 @@ export default function EditEntry() {
                               {/* Cluster name — left label */}
                               <div className="w-36 shrink-0 flex items-center gap-1.5">
                                 <MapPin className="h-3 w-3 text-[#0d8ecf] shrink-0" />
-                                <span className="text-[11px] font-semibold text-slate-700 leading-tight capitalize">
+                                <span className="text-sm font-semibold text-slate-700 leading-tight capitalize">
                                   {geo.toLowerCase()}
                                 </span>
                               </div>
