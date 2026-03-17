@@ -512,7 +512,7 @@ export default function EditEntry() {
                                       {/* MT group header — label only, not a toggle */}
                                       <th
                                         colSpan={MT_SUB_CHANNELS.length + 1}
-                                        className="text-center py-3 px-4 font-semibold text-[#00b0d7] bg-[#00b0d7]/10 border-b-2 border-[#00b0d7]/40"
+                                        className="text-center py-3 px-4 font-semibold text-[#00b0d7] bg-[#e6f7fb] border-b-2 border-[#00b0d7]/40"
                                       >
                                         MT
                                       </th>
@@ -533,7 +533,7 @@ export default function EditEntry() {
                                       <th
                                         onClick={() => toggleColumnChannel("MT")}
                                         data-testid="toggle-col-mt"
-                                        className="text-center py-2 px-3 bg-[#00b0d7]/10 border-b border-border/50 cursor-pointer select-none"
+                                        className="text-center py-2 px-3 bg-[#e6f7fb] border-b border-border/50 cursor-pointer select-none"
                                       >
                                         <ColPill label="All" state={colState("MT")} />
                                       </th>
@@ -543,7 +543,7 @@ export default function EditEntry() {
                                           key={ch.code}
                                           onClick={() => toggleColumnChannel(ch.code)}
                                           data-testid={`toggle-col-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
-                                          className="text-center py-2 px-3 bg-[#00b0d7]/10 border-b border-border/50 cursor-pointer select-none"
+                                          className="text-center py-2 px-3 bg-[#e6f7fb] border-b border-border/50 cursor-pointer select-none"
                                         >
                                           <ColPill label={ch.code} state={colState(ch.code)} />
                                         </th>
@@ -589,7 +589,7 @@ export default function EditEntry() {
                                       </td>
                                     ))}
                                     {/* MT All — selects/deselects all MT sub-channels for this geo */}
-                                    <td className="text-center py-3 px-4 bg-[#00b0d7]/[0.06]">
+                                    <td className="text-center py-3 px-4 bg-[#f0fafd]">
                                       <Checkbox
                                         checked={geoMtAllSelected}
                                         data-state={geoMtSomeSelected && !geoMtAllSelected ? "indeterminate" : undefined}
@@ -600,7 +600,7 @@ export default function EditEntry() {
                                     </td>
                                     {/* MT sub-channels */}
                                     {MT_SUB_CHANNELS.map(ch => (
-                                      <td key={ch.code} className="text-center py-3 px-4 bg-[#00b0d7]/[0.06]">
+                                      <td key={ch.code} className="text-center py-3 px-4 bg-[#f0fafd]">
                                         <Checkbox
                                           checked={geoChannels.includes(ch.code)}
                                           onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
