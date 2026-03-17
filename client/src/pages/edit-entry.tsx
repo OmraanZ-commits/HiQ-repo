@@ -444,12 +444,7 @@ export default function EditEntry() {
                             variant="outline"
                             size="sm"
                             className="h-7 text-xs px-3"
-                            onClick={() => {
-                              const allLeafCodes = LEAF_CHANNELS.map(c => c.code);
-                              const newMapping: Record<string, string[]> = {};
-                              selectedGeo.forEach(geo => { newMapping[geo] = [...allLeafCodes]; });
-                              setChannelMapping(newMapping);
-                            }}
+                            onClick={() => toggleAllColumnsAllGeos()}
                             data-testid="btn-apply-all-channels-all-geo"
                           >
                             Select all for all geographies

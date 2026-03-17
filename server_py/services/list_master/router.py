@@ -1,25 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from server_py.models import InsertNetworkEntry, UpdateNetworkEntry
 from server_py.services.list_master.service import ListMasterService
-from server_py.services.list_master.storage import ListMasterStorage
 
 router = APIRouter()
 _service: ListMasterService | None = None
 
 
-def get_storage() -> ListMasterStorage:
-    if _service:
-        return _service.storage
-    return ListMasterStorage()
-
-
 def set_service(service: ListMasterService):
     global _service
     _service = service
-
-
-def get_service() -> ListMasterService | None:
-    return _service
 
 
 @router.get("")
