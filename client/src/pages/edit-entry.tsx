@@ -460,7 +460,7 @@ export default function EditEntry() {
                       )}
                     </CardHeader>
                     {selectedGeo.length > 0 && (
-                      <CardContent className="space-y-3 pt-0" data-testid="checkboxes-channel">
+                      <CardContent className="space-y-2 pt-0" data-testid="checkboxes-channel">
                         {selectedGeo.map((geo) => {
                           const geoChannels = channelMapping[geo] || [];
                           const geoLeafCount = LEAF_CHANNELS.filter(c => geoChannels.includes(c.code)).length;
@@ -470,98 +470,88 @@ export default function EditEntry() {
                           const geoMtSomeSelected = mtSubCodes.some(c => geoChannels.includes(c));
                           const geoKey = geo.toLowerCase().replace(/[\s-]+/g, "-");
 
-                          const ChannelChip = ({ code, checked, onToggle, testId, isMtParent = false }: {
-                            code: string; checked: boolean; onToggle: () => void; testId: string; isMtParent?: boolean;
-                          }) => (
-                            <button
-                              type="button"
-                              onClick={onToggle}
-                              data-testid={testId}
-                              className="flex items-center gap-1.5 select-none cursor-pointer group"
-                            >
-                              {checked ? (
-                                <span className={`h-4 w-4 rounded-full flex items-center justify-center shrink-0 ${isMtParent ? "bg-[#1a4a6b]" : "bg-[#1a6b8a]"}`}>
-                                  <span className="h-2 w-2 rounded-full bg-white" />
-                                </span>
-                              ) : (
-                                <span className="h-4 w-4 rounded-full border-2 border-[#1a6b8a]/40 group-hover:border-[#1a6b8a] shrink-0 transition-colors" />
-                              )}
-                              <span className={`text-xs transition-colors ${checked ? "text-foreground font-medium" : "text-muted-foreground group-hover:text-foreground"}`}>
-                                {code}
+                          const Dot = ({ checked, isMt = false }: { checked: boolean; isMt?: boolean }) => (
+                            checked ? (
+                              <span className={`h-4 w-4 rounded-full flex items-center justify-center shrink-0 ${isMt ? "bg-[#1f36c7]" : "bg-[#0d8ecf]"}`}>
+                                <span className="h-1.5 w-1.5 rounded-full bg-white" />
                               </span>
-                            </button>
+                            ) : (
+                              <span className="h-4 w-4 rounded-full border-2 border-[#0d8ecf]/30 shrink-0" />
+                            )
                           );
 
                           return (
-                            <div key={geo} className="rounded-lg border bg-card overflow-hidden" data-testid={`geo-channel-${geoKey}`}>
-                              {/* Cluster header */}
-                              <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b">
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-                                  <span className="text-xs font-bold uppercase tracking-wide">{geo}</span>
-                                  <span className="text-[10px] text-muted-foreground font-medium">{geoLeafCount}/{LEAF_CHANNELS.length}</span>
+                            <div key={geo} className="flex items-center gap-4" data-testid={`geo-channel-${geoKey}`}>
+                              {/* Cluster name — left label */}
+                              <div className="w-32 shrink-0 text-right">
+                                <span className="text-xs font-medium text-[#1f36c7] underline decoration-[#e8392a] underline-offset-2 decoration-1 capitalize">
+                                  {geo.toLowerCase()}
+                                </span>
+                              </div>
+
+                              {/* Pill row */}
+                              <div className="flex-1 flex items-center gap-0 rounded-full bg-[#f0f2f5] px-4 py-2 min-h-[40px]">
+                                {/* Top-level channel chips */}
+                                <div className="flex items-center gap-4">
+                                  {TOP_CHANNELS.map(ch => (
+                                    <button
+                                      key={ch.code}
+                                      type="button"
+                                      onClick={() => toggleGeoChannel(geo, ch.code)}
+                                      data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase()}`}
+                                      className="flex items-center gap-1.5 group cursor-pointer"
+                                    >
+                                      <Dot checked={geoChannels.includes(ch.code)} />
+                                      <span className={`text-xs ${geoChannels.includes(ch.code) ? "font-medium text-foreground" : "text-muted-foreground"}`}>{ch.code}</span>
+                                    </button>
+                                  ))}
                                 </div>
+
+                                {/* Divider */}
+                                <div className="mx-4 w-px self-stretch bg-border/60" />
+
+                                {/* MT group box */}
+                                <div className="flex items-start gap-3 rounded border border-[#1f36c7]/30 bg-white/60 px-3 py-1.5">
+                                  {/* MT parent toggle */}
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleGeoChannel(geo, "MT")}
+                                    data-testid={`checkbox-channel-${geoKey}-mt`}
+                                    className="flex items-center gap-1.5 cursor-pointer shrink-0"
+                                  >
+                                    <Dot checked={geoMtAllSelected} isMt />
+                                    <span className={`text-xs font-semibold ${geoMtAllSelected ? "text-foreground" : "text-muted-foreground"}`}>MT</span>
+                                    {geoMtSomeSelected && !geoMtAllSelected && (
+                                      <span className="text-[9px] text-[#0d8ecf] italic">partial</span>
+                                    )}
+                                  </button>
+                                  {/* Sub-channels */}
+                                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                    {MT_SUB_CHANNELS.map(ch => (
+                                      <button
+                                        key={ch.code}
+                                        type="button"
+                                        onClick={() => toggleGeoChannel(geo, ch.code)}
+                                        data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                        className="flex items-center gap-1.5 cursor-pointer"
+                                      >
+                                        <Dot checked={geoChannels.includes(ch.code)} />
+                                        <span className={`text-xs ${geoChannels.includes(ch.code) ? "font-medium text-foreground" : "text-muted-foreground"}`}>{ch.code}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* All toggle — far right */}
                                 <button
                                   type="button"
                                   onClick={() => toggleAllGeoChannels(geo)}
                                   data-testid={`toggle-all-channels-${geoKey}`}
-                                  className="flex items-center gap-1.5 cursor-pointer group"
+                                  className="ml-auto flex items-center gap-1.5 cursor-pointer shrink-0"
                                 >
-                                  {allGeoSelected ? (
-                                    <span className="h-4 w-4 rounded-full bg-[#1a6b8a] flex items-center justify-center shrink-0">
-                                      <span className="h-2 w-2 rounded-full bg-white" />
-                                    </span>
-                                  ) : (
-                                    <span className="h-4 w-4 rounded-full border-2 border-[#1a6b8a]/40 group-hover:border-[#1a6b8a] shrink-0 transition-colors" />
-                                  )}
-                                  <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">All</span>
+                                  <Dot checked={allGeoSelected} />
+                                  <span className="text-xs text-muted-foreground">All</span>
                                 </button>
-                              </div>
-
-                              {/* Top-level channel chips row */}
-                              <div className="px-4 py-3">
-                                <div className="rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5 flex flex-wrap gap-x-6 gap-y-2">
-                                  {TOP_CHANNELS.map(ch => (
-                                    <ChannelChip
-                                      key={ch.code}
-                                      code={ch.code}
-                                      checked={geoChannels.includes(ch.code)}
-                                      onToggle={() => toggleGeoChannel(geo, ch.code)}
-                                      testId={`checkbox-channel-${geoKey}-${ch.code.toLowerCase()}`}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* MT group */}
-                              <div className="px-4 pb-3">
-                                <div className="rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5">
-                                  {/* MT parent row */}
-                                  <div className="flex items-center gap-3 mb-2.5">
-                                    <ChannelChip
-                                      code="MT"
-                                      checked={geoMtAllSelected}
-                                      onToggle={() => toggleGeoChannel(geo, "MT")}
-                                      testId={`checkbox-channel-${geoKey}-mt`}
-                                      isMtParent
-                                    />
-                                    {geoMtSomeSelected && !geoMtAllSelected && (
-                                      <span className="text-[10px] text-muted-foreground italic">partial</span>
-                                    )}
-                                  </div>
-                                  {/* MT sub-channel chips */}
-                                  <div className="flex flex-wrap gap-x-6 gap-y-2 pl-2 border-l-2 border-[#1a6b8a]/20">
-                                    {MT_SUB_CHANNELS.map(ch => (
-                                      <ChannelChip
-                                        key={ch.code}
-                                        code={ch.code}
-                                        checked={geoChannels.includes(ch.code)}
-                                        onToggle={() => toggleGeoChannel(geo, ch.code)}
-                                        testId={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
                               </div>
                             </div>
                           );
