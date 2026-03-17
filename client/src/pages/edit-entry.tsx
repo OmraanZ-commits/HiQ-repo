@@ -15,8 +15,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, ChevronDown } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle } from "lucide-react";
+import { useEffect } from "react";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -98,11 +98,6 @@ export default function EditEntry() {
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
 
-  // Per-geo MT expand/collapse state (default: expanded)
-  const [mtExpanded, setMtExpanded] = useState<Record<string, boolean>>({});
-  const isMtExpanded = (geo: string) => mtExpanded[geo] !== false;
-  const toggleMtExpanded = (geo: string) =>
-    setMtExpanded(prev => ({ ...prev, [geo]: !isMtExpanded(geo) }));
 
   if (isLoading) {
     return (
@@ -517,60 +512,35 @@ export default function EditEntry() {
                                 {/* Divider */}
                                 <div className="mx-4 w-px self-stretch bg-border/60" />
 
-                                {/* MT group — expandable segmented design */}
-                                <div className="flex items-stretch rounded-md border border-[#1f36c7]/20 bg-white overflow-hidden shadow-sm">
-                                  {/* MT header: dot toggles all, chevron expands/collapses */}
-                                  <div className={`flex items-center border-r border-[#1f36c7]/20 transition-colors ${
-                                    geoMtAllSelected
-                                      ? "bg-[#1f36c7]/10"
-                                      : geoMtSomeSelected
-                                        ? "bg-[#0d8ecf]/10"
-                                        : "bg-muted/10"
-                                  }`}>
-                                    {/* Dot = select/deselect all MT sub-channels */}
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleGeoChannel(geo, "MT")}
-                                      data-testid={`checkbox-channel-${geoKey}-mt`}
-                                      className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 cursor-pointer"
-                                    >
-                                      <Dot checked={geoMtAllSelected} isMt />
-                                      <span className={`text-xs font-bold ${geoMtAllSelected || geoMtSomeSelected ? "text-[#1f36c7]" : "text-muted-foreground"}`}>MT</span>
-                                    </button>
-                                    {/* Selection count when collapsed */}
-                                    {!isMtExpanded(geo) && geoMtSomeSelected && (
-                                      <span className="text-[10px] font-semibold text-white bg-[#0d8ecf] rounded-full px-1.5 leading-5">
-                                        {mtSubCodes.filter(c => geoChannels.includes(c)).length}/{mtSubCodes.length}
-                                      </span>
-                                    )}
-                                    {/* Chevron = expand/collapse sub-channels */}
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleMtExpanded(geo)}
-                                      data-testid={`toggle-mt-expand-${geoKey}`}
-                                      className="flex items-center px-2 py-1.5 cursor-pointer text-[#1f36c7]/50 hover:text-[#1f36c7] transition-colors"
-                                    >
-                                      <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isMtExpanded(geo) ? "" : "-rotate-90"}`} />
-                                    </button>
+                                {/* MT group — two-row stacked hierarchy */}
+                                <div className="flex flex-col gap-1.5 justify-center py-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleGeoChannel(geo, "MT")}
+                                    data-testid={`checkbox-channel-${geoKey}-mt`}
+                                    className="flex items-center gap-1 self-start cursor-pointer group"
+                                  >
+                                    <span className="text-[10px] tracking-widest text-muted-foreground uppercase font-semibold group-hover:text-foreground transition-colors">MT</span>
+                                    {geoMtAllSelected ? (
+                                      <Check className="h-3 w-3 text-primary" />
+                                    ) : geoMtSomeSelected ? (
+                                      <div className="h-0.5 w-2 bg-primary rounded-full" />
+                                    ) : null}
+                                  </button>
+                                  <div className="flex items-center gap-4">
+                                    {MT_SUB_CHANNELS.map(ch => (
+                                      <button
+                                        key={ch.code}
+                                        type="button"
+                                        onClick={() => toggleGeoChannel(geo, ch.code)}
+                                        data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                        className="flex items-center gap-1.5 cursor-pointer group"
+                                      >
+                                        <Dot checked={geoChannels.includes(ch.code)} />
+                                        <span className={`text-xs transition-colors ${geoChannels.includes(ch.code) ? "font-medium text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{ch.code}</span>
+                                      </button>
+                                    ))}
                                   </div>
-
-                                  {/* Sub-channels — hidden when collapsed */}
-                                  {isMtExpanded(geo) && (
-                                    <div className="flex flex-wrap items-center px-3 py-1.5 gap-x-4 gap-y-1">
-                                      {MT_SUB_CHANNELS.map(ch => (
-                                        <button
-                                          key={ch.code}
-                                          type="button"
-                                          onClick={() => toggleGeoChannel(geo, ch.code)}
-                                          data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
-                                          className="flex items-center gap-1.5 cursor-pointer group"
-                                        >
-                                          <Dot checked={geoChannels.includes(ch.code)} />
-                                          <span className={`text-xs transition-colors ${geoChannels.includes(ch.code) ? "font-medium text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{ch.code}</span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
                                 </div>
 
                                 {/* All toggle — far right */}
