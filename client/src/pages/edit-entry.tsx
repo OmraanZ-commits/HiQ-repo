@@ -81,7 +81,7 @@ export default function EditEntry() {
     entry, form, isLoading, activeTab, setActiveTab,
     showConfirmDialog, setShowConfirmDialog,
     updateField, toggleArrayItem,
-    toggleGeoChannel, toggleAllGeoChannels, applyChannelsToAllGeos,
+    toggleGeoChannel, toggleAllGeoChannels, toggleColumnChannel, toggleAllColumnsAllGeos, applyChannelsToAllGeos,
     toggleAllClusters, toggleAllDepots,
     handleSubmit, handleConfirmSubmit, isPending, navigate,
     selectedGeo, selectedDepots, selectedChannels, channelMapping,
@@ -486,7 +486,6 @@ export default function EditEntry() {
                               <tr>
                                 <th className="py-1.5 pl-6 bg-white border-b border-border/40" />
                                 {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4 bg-white border-b border-border/40" />)}
-                                {/* MT All sub-header */}
                                 <th className="text-center py-1.5 px-4 font-semibold text-[11px] text-[#1f36c7] bg-[#f0f4ff] border-b border-border/40">All</th>
                                 {MT_SUB_CHANNELS.map(ch => (
                                   <th key={ch.code} className="text-center py-1.5 px-4 font-normal text-[11px] text-[#1f36c7]/70 bg-[#f0f4ff] border-b border-border/40">
@@ -495,6 +494,68 @@ export default function EditEntry() {
                                 ))}
                                 <th className="py-1.5 px-4 bg-white border-b border-border/40" />
                               </tr>
+                              {/* Row 3: column-level "select all clusters" toggles */}
+                              {(() => {
+                                const allMtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+                                const colState = (code: string) => {
+                                  const codes = code === "MT" ? allMtSubCodes : [code];
+                                  const all = selectedGeo.every(g => codes.every(c => (channelMapping[g] || []).includes(c)));
+                                  const some = selectedGeo.some(g => codes.some(c => (channelMapping[g] || []).includes(c)));
+                                  return all ? true : some ? ("indeterminate" as const) : false;
+                                };
+                                const allColState = (() => {
+                                  const leafCodes = LEAF_CHANNELS.map(c => c.code);
+                                  const all = selectedGeo.every(g => leafCodes.every(c => (channelMapping[g] || []).includes(c)));
+                                  const some = selectedGeo.some(g => leafCodes.some(c => (channelMapping[g] || []).includes(c)));
+                                  return all ? true : some ? ("indeterminate" as const) : false;
+                                })();
+                                return (
+                                  <tr className="border-b-2 border-border/60">
+                                    <th className="py-1.5 pl-6 pr-4 bg-[#fafafa] text-left">
+                                      <span className="text-[10px] text-muted-foreground font-normal italic">all clusters</span>
+                                    </th>
+                                    {TOP_CHANNELS.map(ch => (
+                                      <th key={ch.code} className="text-center py-1.5 px-4 bg-[#fafafa]">
+                                        <Checkbox
+                                          checked={colState(ch.code)}
+                                          onCheckedChange={() => toggleColumnChannel(ch.code)}
+                                          data-testid={`toggle-col-${ch.code.toLowerCase()}`}
+                                          className="mx-auto"
+                                        />
+                                      </th>
+                                    ))}
+                                    {/* MT All column toggle */}
+                                    <th className="text-center py-1.5 px-4 bg-[#f0f4ff]">
+                                      <Checkbox
+                                        checked={colState("MT")}
+                                        onCheckedChange={() => toggleColumnChannel("MT")}
+                                        data-testid="toggle-col-mt"
+                                        className="mx-auto"
+                                      />
+                                    </th>
+                                    {/* MT sub-channel column toggles */}
+                                    {MT_SUB_CHANNELS.map(ch => (
+                                      <th key={ch.code} className="text-center py-1.5 px-4 bg-[#f0f4ff]">
+                                        <Checkbox
+                                          checked={colState(ch.code)}
+                                          onCheckedChange={() => toggleColumnChannel(ch.code)}
+                                          data-testid={`toggle-col-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                          className="mx-auto"
+                                        />
+                                      </th>
+                                    ))}
+                                    {/* All columns toggle */}
+                                    <th className="text-center py-1.5 px-4 bg-[#fafafa]">
+                                      <Checkbox
+                                        checked={allColState}
+                                        onCheckedChange={() => toggleAllColumnsAllGeos()}
+                                        data-testid="toggle-col-all"
+                                        className="mx-auto"
+                                      />
+                                    </th>
+                                  </tr>
+                                );
+                              })()}
                             </thead>
                             <tbody>
                               {selectedGeo.map((geo, idx) => {
