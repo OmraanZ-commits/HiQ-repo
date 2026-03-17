@@ -36,9 +36,11 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
 - Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Ready for Transition)
 - Distribution tab: Geography/Clusters card, Channels by Geography card (per-geography channel selection), Depots card, Distribution Matrix Preview
-- Per-geography channel selection: each selected geography gets its own channel picker section with GT/RD/CSD + MT sub-channels; "Apply to all" button on first geography to copy channels to all selected geos; "All" toggle per geography
-- MT channel as parent group with 5 sub-channels; "partial" badge when partially selected; leaf count = 8
-- `channelMapping` (JSONB): stores per-geography channel selections as `Record<string, string[]>`; flat `channel` array auto-derived as union for backward compatibility
+- Geo→Channel matrix table: rows = selected clusters, columns = GT | CSD | RD | MT (All + 4 sub-channels) | All; each cell is a checkbox per cluster×channel intersection
+- Column header pills (row 1 for top-level channels, row 2 for MT sub-channels): clicking a header pill toggles that entire column across all selected clusters; pill shows filled (all), dash (partial), or empty ring (none) aggregate state
+- MT column: two-row header — row 1 "MT" spans all sub-columns (label only), row 2 has individual pills for All + each MT sub-channel; clicking "All" in row 2 toggles all MT sub-channels
+- Per-row "MT All" checkbox: each cluster row has a dedicated checkbox in the MT group to toggle all MT sub-channels for that single cluster
+- `channelMapping` (JSONB): stores per-geography channel selections as `Record<string, string[]>`; flat `channel` array auto-derived as union for backward compatibility; leaf channel count = 8 (GT, CSD, RD, Ecom, KA, MT Retail, Qcom + one legacy)
 - View detail dialog with organized sections and status flow
 - Year auto-calculated from CBU Created Date
 - Network Change Date auto-calculated as CBU Created Date + 15 days for Draft entries

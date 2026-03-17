@@ -479,11 +479,35 @@ export default function EditEntry() {
                                   const some = selectedGeo.some(g => leafCodes.some(c => (channelMapping[g] || []).includes(c)));
                                   return all ? true : some ? ("indeterminate" as const) : false;
                                 })();
+                                // Pill component for column header toggles
+                                const ColPill = ({ label, state }: { label: string; state: boolean | "indeterminate" }) => (
+                                  <div className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-all ${
+                                    state === true
+                                      ? "bg-[#1f36c7] border-[#1f36c7] text-white"
+                                      : state === "indeterminate"
+                                        ? "bg-[#1f36c7]/10 border-[#1f36c7]/30 text-[#1f36c7]"
+                                        : "bg-white border-border text-muted-foreground hover:border-[#1f36c7]/40"
+                                  }`}>
+                                    {state === true ? (
+                                      <span className="h-3.5 w-3.5 rounded-full bg-white/25 flex items-center justify-center shrink-0">
+                                        <Check className="h-2.5 w-2.5 text-white" />
+                                      </span>
+                                    ) : state === "indeterminate" ? (
+                                      <span className="h-3.5 w-3.5 rounded-full border border-[#1f36c7]/50 flex items-center justify-center shrink-0">
+                                        <span className="h-0.5 w-2 bg-[#1f36c7]/70 rounded-full" />
+                                      </span>
+                                    ) : (
+                                      <span className="h-3.5 w-3.5 rounded-full border-2 border-border/60 shrink-0" />
+                                    )}
+                                    {label}
+                                  </div>
+                                );
+
                                 return (
                                   <>
-                                    {/* Row 1: column group headers — clickable for top-level channels */}
+                                    {/* Row 1: Cluster label + top-level channel pills + MT group label + All pill */}
                                     <tr>
-                                      <th className="text-left py-2 pl-6 pr-4 text-muted-foreground font-medium w-40 bg-white border-b border-border/60">
+                                      <th className="text-left py-3 pl-6 pr-4 text-muted-foreground font-medium w-40 bg-white border-b border-border/60">
                                         Cluster
                                       </th>
                                       {TOP_CHANNELS.map(ch => (
@@ -491,63 +515,51 @@ export default function EditEntry() {
                                           key={ch.code}
                                           onClick={() => toggleColumnChannel(ch.code)}
                                           data-testid={`toggle-col-${ch.code.toLowerCase()}`}
-                                          className="text-center py-2 px-4 bg-white border-b border-border/60 cursor-pointer hover:bg-muted/10 transition-colors select-none"
+                                          className="text-center py-3 px-3 bg-white border-b border-border/60 cursor-pointer select-none"
                                         >
-                                          <div className="flex flex-col items-center gap-1.5">
-                                            <span className="text-muted-foreground font-medium">{ch.code}</span>
-                                            <Checkbox checked={colState(ch.code)} className="pointer-events-none" />
-                                          </div>
+                                          <ColPill label={ch.code} state={colState(ch.code)} />
                                         </th>
                                       ))}
-                                      {/* MT group header — label only, not clickable */}
+                                      {/* MT group header — label only, not a toggle */}
                                       <th
                                         colSpan={MT_SUB_CHANNELS.length + 1}
-                                        className="text-center py-2 px-4 font-semibold text-[#1f36c7] bg-[#f0f4ff] border-b-2 border-[#1f36c7]/40"
+                                        className="text-center py-3 px-4 font-semibold text-[#1f36c7] bg-[#f0f4ff] border-b-2 border-[#1f36c7]/40"
                                       >
                                         MT
                                       </th>
-                                      {/* All column — clickable */}
+                                      {/* All — toggles every channel for every geo */}
                                       <th
                                         onClick={() => toggleAllColumnsAllGeos()}
                                         data-testid="toggle-col-all"
-                                        className="text-center py-2 px-4 bg-white border-b border-border/60 cursor-pointer hover:bg-muted/10 transition-colors select-none"
+                                        className="text-center py-3 px-3 bg-white border-b border-border/60 cursor-pointer select-none"
                                       >
-                                        <div className="flex flex-col items-center gap-1.5">
-                                          <span className="text-muted-foreground font-medium">All</span>
-                                          <Checkbox checked={allColState} className="pointer-events-none" />
-                                        </div>
+                                        <ColPill label="All" state={allColState} />
                                       </th>
                                     </tr>
-                                    {/* Row 2: MT sub-column labels — each clickable */}
+                                    {/* Row 2: MT sub-channel pills */}
                                     <tr>
-                                      <th className="py-1.5 pl-6 bg-white border-b border-border/50" />
-                                      {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-1.5 px-4 bg-white border-b border-border/50" />)}
-                                      {/* MT All sub-header — clickable */}
+                                      <th className="py-2 pl-6 bg-white border-b border-border/50" />
+                                      {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-2 px-3 bg-white border-b border-border/50" />)}
+                                      {/* MT All pill */}
                                       <th
                                         onClick={() => toggleColumnChannel("MT")}
                                         data-testid="toggle-col-mt"
-                                        className="text-center py-1.5 px-3 bg-[#f0f4ff] border-b border-border/50 cursor-pointer hover:bg-[#e8edff] transition-colors select-none"
+                                        className="text-center py-2 px-3 bg-[#f0f4ff] border-b border-border/50 cursor-pointer select-none"
                                       >
-                                        <div className="flex flex-col items-center gap-1">
-                                          <span className="font-semibold text-[11px] text-[#1f36c7]">All</span>
-                                          <Checkbox checked={colState("MT")} className="pointer-events-none scale-90" />
-                                        </div>
+                                        <ColPill label="All" state={colState("MT")} />
                                       </th>
-                                      {/* MT sub-channels — each clickable */}
+                                      {/* MT sub-channel pills */}
                                       {MT_SUB_CHANNELS.map(ch => (
                                         <th
                                           key={ch.code}
                                           onClick={() => toggleColumnChannel(ch.code)}
                                           data-testid={`toggle-col-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
-                                          className="text-center py-1.5 px-3 bg-[#f0f4ff] border-b border-border/50 cursor-pointer hover:bg-[#e8edff] transition-colors select-none"
+                                          className="text-center py-2 px-3 bg-[#f0f4ff] border-b border-border/50 cursor-pointer select-none"
                                         >
-                                          <div className="flex flex-col items-center gap-1">
-                                            <span className="font-normal text-[11px] text-[#1f36c7]/70">{ch.code}</span>
-                                            <Checkbox checked={colState(ch.code)} className="pointer-events-none scale-90" />
-                                          </div>
+                                          <ColPill label={ch.code} state={colState(ch.code)} />
                                         </th>
                                       ))}
-                                      <th className="py-1.5 px-4 bg-white border-b border-border/50" />
+                                      <th className="py-2 px-3 bg-white border-b border-border/50" />
                                     </tr>
                                   </>
                                 );
