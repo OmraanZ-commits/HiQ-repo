@@ -441,43 +441,67 @@ function OverviewTab() {
 
   return (
     <div className="space-y-5">
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: "Total Active Basepacks", value: total - drafts, color: "border-l-[#1f36c7] bg-[#1f36c7]/5" },
-          { label: "Draft",                  value: drafts,         color: "border-l-slate-400 bg-slate-50/60" },
-          { label: "MSTN Cleared",           value: mstnYes,        color: "border-l-emerald-500 bg-emerald-50/60" },
-        ].map(c => (
-          <Card key={c.label} className={`border-l-4 ${c.color}`}>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">{c.label}</p>
-              <p className="text-2xl font-bold">{c.value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Stats + Triggers — single gradient row */}
+      <div className="grid grid-cols-5 gap-3">
+        {/* Total Active Basepacks */}
+        <div
+          data-testid="stat-total-active"
+          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
+          style={{ background: "linear-gradient(135deg, #1f36c7 0%, #0d8ecf 100%)" }}
+        >
+          <p className="text-xs font-medium text-white/80">Total Active Basepacks</p>
+          <p className="text-3xl font-bold mt-1">{total - drafts}</p>
+          <FileText className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
+        </div>
 
-      {/* Triggers — shown inline after stats */}
-      <div>
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
-          <Zap className="h-4 w-4 text-amber-500" /> Triggers for Improvement
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          {TRIGGERS.map(t => (
-            <Card key={t.id} data-testid={`trigger-card-${t.id}`}
-              className={`border-l-4 ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-1">
-                  <p className="text-sm font-semibold">{t.name}</p>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
-                    {t.count} items
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
-                <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
-              </CardContent>
-            </Card>
-          ))}
+        {/* MSTN Cleared */}
+        <div
+          data-testid="stat-mstn-cleared"
+          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
+          style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)" }}
+        >
+          <p className="text-xs font-medium text-white/80">MSTN Cleared</p>
+          <p className="text-3xl font-bold mt-1">{mstnYes}</p>
+          <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
+        </div>
+
+        {/* Draft */}
+        <div
+          data-testid="stat-draft"
+          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
+          style={{ background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)" }}
+        >
+          <p className="text-xs font-medium text-white/80">Draft</p>
+          <p className="text-3xl font-bold mt-1">{drafts}</p>
+          <Clock className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
+        </div>
+
+        {/* Trigger 1 — Price Inactive */}
+        <div
+          data-testid="trigger-card-1"
+          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px] cursor-pointer"
+          style={{ background: "linear-gradient(135deg, #dc2626 0%, #f97316 100%)" }}
+        >
+          <p className="text-xs font-medium text-white/80">Price Inactive</p>
+          <p className="text-3xl font-bold mt-1">{TRIGGERS[0].count}
+            <span className="text-sm font-normal ml-1 text-white/70">items</span>
+          </p>
+          <p className="text-[10px] text-white/60 leading-tight mt-1 line-clamp-1">{TRIGGERS[0].stakeholder}</p>
+          <AlertTriangle className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
+        </div>
+
+        {/* Trigger 2 — SLOB Risk */}
+        <div
+          data-testid="trigger-card-2"
+          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px] cursor-pointer"
+          style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)" }}
+        >
+          <p className="text-xs font-medium text-white/80">SLOB Risk</p>
+          <p className="text-3xl font-bold mt-1">{TRIGGERS[1].count}
+            <span className="text-sm font-normal ml-1 text-white/70">items</span>
+          </p>
+          <p className="text-[10px] text-white/60 leading-tight mt-1 line-clamp-1">{TRIGGERS[1].stakeholder}</p>
+          <Zap className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
         </div>
       </div>
 
