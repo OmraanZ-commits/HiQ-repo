@@ -44,10 +44,6 @@ export default function HomePage() {
           >
             Unilever
           </h1>
-          <div className="h-6 w-px bg-white/30" />
-          <span className="text-white/80 text-sm font-medium tracking-wide uppercase">
-            Supply Chain Command Centre
-          </span>
         </div>
         <div className="flex items-center gap-2 text-white/70 text-sm">
           <BarChart3 className="h-4 w-4" />
