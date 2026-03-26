@@ -29,16 +29,33 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - Pattern: Orchestration-based Saga for multi-service transactions
 
 ## Key Features
-- **Saga-orchestrated status transitions**: Draft→Active goes through validate → record transition → update entry → recompute lifecycle, with automatic rollback on failure
-- **Lifecycle color flags**: Amber (Production Started, FTR Approved), Red (Stock Movement Initiated), Blinking Red (CBU Ready for Transition) — shown in table Trigger column, edit page, detail dialog, and status flow
-- Dashboard with gradient stat cards (Total, Active, Draft, Production Started)
-- Data table with CBU Created Date, Assigned Person columns, search, status filtering, and Trigger column
-- Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
-- Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Ready for Transition)
+
+### Dashboard
+- **Two-tab dashboard**: Summary tab (default landing, analytics) and Network tab (data table)
+- **Network tab**: Data table with CBU Created Date, Assigned Person columns, search, status filtering, and Trigger column
+- **Summary tab** (analytics overview):
+  - Gradient metric strip: Total / Draft / Active / NW Complete cards (each showing count + % of total)
+  - Segmented pipeline bar with color-coded legend showing count + % per status
+  - **Pending by Status** panel (left): ageing table with columns Status / Items / Avg Age / 7–30d / 1–3mo / >3mo; buckets are mutually exclusive based on `cbuCreatedDate` age; counts shown in amber/orange/red as urgency increases
+  - **Pending by Assignee** panel (right): avatar initials, name, proportional bar, and bold pending count per person; sorted by pending count desc
+  - Both panels displayed side-by-side in a 2-column grid
+- Gradient stat cards (Total, Active, Draft, NW Complete)
+
+### Edit Page
+- Fullscreen edit page with tabbed form: Basic Info, Product Details, Dimensions, Distribution, Sourcing Matrix, Pricing
+- Status flow progress bar (7 steps, color-coded by status)
+- **Pricing tab**: Price lots displayed as `{CBU code}-{priceLot}` (e.g. "CBU123-01"); 4 scope types coexist simultaneously — All India, Region Specific, Channel Specific, Region×Channel matrix; states shown as compact wrapping blue-tinted badge pills; channels shown as amber badge pills; Region×Channel shown as a 2-column mini-table
 - Distribution tab: Geography/Clusters card, Channels by Geography card (per-geography channel selection), Depots card, Distribution Matrix Preview
-- Per-geography channel selection: each selected geography gets its own channel picker section with GT/RD/CSD + MT sub-channels; "Apply to all" button on first geography to copy channels to all selected geos; "All" toggle per geography
-- MT channel as parent group with 5 sub-channels; "partial" badge when partially selected; leaf count = 8
-- `channelMapping` (JSONB): stores per-geography channel selections as `Record<string, string[]>`; flat `channel` array auto-derived as union for backward compatibility
+- Geo→Channel matrix table: rows = selected clusters, columns = GT | CSD | RD | MT (All + 4 sub-channels) | All; each cell is a checkbox per cluster×channel intersection
+- Column header pills (row 1 for top-level channels, row 2 for MT sub-channels): clicking a header pill toggles that entire column across all selected clusters; pill shows filled (all), dash (partial), or empty ring (none) aggregate state
+- MT column: two-row header — row 1 "MT" spans all sub-columns (label only), row 2 has individual pills for All + each MT sub-channel; clicking "All" in row 2 toggles all MT sub-channels
+- Per-row "MT All" checkbox: each cluster row has a dedicated checkbox in the MT group to toggle all MT sub-channels for that single cluster
+- `channelMapping` (JSONB): stores per-geography channel selections as `Record<string, string[]>`; flat `channel` array auto-derived as union for backward compatibility; leaf channel count = 8 (GT, CSD, RD, Ecom, KA, MT Retail, Qcom + one legacy)
+- **Sourcing Matrix tab**: Decentralized / Centralized pill toggle
+  - **Decentralized** (default): shows the distribution-selected clusters and depots pre-checked and read-only
+  - **Centralized**: starts unselected; user manually picks from the same filtered cluster/depot list derived from the Distribution tab; switching back to Decentralized resets centralized selections
+  - Validation: if geo selected in centralized mode with no depot for that geo → blocked with toast naming the offending geo; if zero total depots in centralized mode → blocked with toast; if user selects all available geos+depots → dialog prompts switch to Decentralized
+  - State persisted in: `sourcingMode`, `centralizedGeo`, `centralizedDepots`
 - View detail dialog with organized sections and status flow
 - Year auto-calculated from CBU Created Date
 - Network Change Date auto-calculated as CBU Created Date + 15 days for Draft entries
@@ -48,18 +65,22 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - Assigned Person field with avatar initials in table
 - Read-only fields for data-sourced values; editable fields for manual input
 - No create new / delete entry actions (view + edit only)
+
+### Platform
+- **Saga-orchestrated status transitions**: Draft→Active goes through validate → record transition → update entry → recompute lifecycle, with automatic rollback on failure
+- **Lifecycle color flags**: Amber (Production Started, FTR Approved), Red (Stock Movement Initiated), Blinking Red (Network transition complete) — shown in table Trigger column, edit page, detail dialog, and status flow
 - Draft entries seed with blank start/end dates and empty distribution fields
 - Configurable API base URL (VITE_API_BASE_URL) for separate frontend/backend deployment
 
 ## Status Flow
-7-step progression exported as STATUS_FLOW constant:
+7-step progression exported as STATUS_FLOW constant (shared between frontend `shared/schema.ts` and backend `server_py/models.py`):
 1. Draft
 2. Active
 3. Pricing Updated
 4. Production Started
 5. FTR Approved
 6. Stock Movement Initiated
-7. CBU Ready for Transition
+7. Network transition complete
 
 ## Data Model
 `NetworkEntry` with ~38 fields covering:

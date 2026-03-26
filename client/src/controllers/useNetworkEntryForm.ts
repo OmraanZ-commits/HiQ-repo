@@ -204,6 +204,62 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     });
   };
 
+  // Toggle a single channel (or "MT" = all MT sub-channels) across ALL selected geos at once.
+  // If every geo already has it → remove; otherwise → add to all.
+  const toggleColumnChannel = (channelCode: string) => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const geos = (prev.geography as string[]) || [];
+      const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
+      const mtSubCodes = mtSubChannels.map(c => c.code);
+
+      if (channelCode === "MT") {
+        const allHave = geos.every(geo => mtSubCodes.every(c => (mapping[geo] || []).includes(c)));
+        geos.forEach(geo => {
+          const cur = [...(mapping[geo] || [])];
+          if (allHave) {
+            mapping[geo] = cur.filter(c => c !== "MT" && !mtSubCodes.includes(c));
+          } else {
+            mapping[geo] = Array.from(new Set([...cur, "MT", ...mtSubCodes]));
+          }
+        });
+      } else {
+        const allHave = geos.every(geo => (mapping[geo] || []).includes(channelCode));
+        geos.forEach(geo => {
+          const cur = [...(mapping[geo] || [])];
+          if (allHave) {
+            let next = cur.filter(c => c !== channelCode);
+            if (mtSubCodes.includes(channelCode)) next = next.filter(c => c !== "MT");
+            mapping[geo] = next;
+          } else {
+            if (!cur.includes(channelCode)) {
+              const next = [...cur, channelCode];
+              if (mtSubCodes.includes(channelCode) && mtSubCodes.every(c => c === channelCode || next.includes(c))) {
+                next.push("MT");
+              }
+              mapping[geo] = next;
+            }
+          }
+        });
+      }
+      return { ...prev, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
+    });
+  };
+
+  // Toggle ALL channels across ALL selected geos.
+  const toggleAllColumnsAllGeos = () => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const geos = (prev.geography as string[]) || [];
+      const mapping = { ...((prev.channelMapping as Record<string, string[]>) || {}) };
+      const leafCodes = leafChannels.map(c => c.code);
+      const allCodes = ["MT", ...leafCodes];
+      const allSelected = geos.every(geo => leafCodes.every(c => (mapping[geo] || []).includes(c)));
+      geos.forEach(geo => { mapping[geo] = allSelected ? [] : [...allCodes]; });
+      return { ...prev, channelMapping: mapping, channel: deriveChannelFromMapping(mapping) };
+    });
+  };
+
   const applyChannelsToAllGeos = (sourceGeo: string) => {
     setForm(prev => {
       if (!prev) return prev;
@@ -347,6 +403,8 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     toggleArrayItem,
     toggleGeoChannel,
     toggleAllGeoChannels,
+    toggleColumnChannel,
+    toggleAllColumnsAllGeos,
     applyChannelsToAllGeos,
     toggleAllClusters,
     toggleAllDepots,

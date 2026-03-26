@@ -15,8 +15,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle } from "lucide-react";
-import { useEffect } from "react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -81,7 +82,7 @@ export default function EditEntry() {
     entry, form, isLoading, activeTab, setActiveTab,
     showConfirmDialog, setShowConfirmDialog,
     updateField, toggleArrayItem,
-    toggleGeoChannel, toggleAllGeoChannels, applyChannelsToAllGeos,
+    toggleGeoChannel, toggleAllGeoChannels, toggleColumnChannel, toggleAllColumnsAllGeos, applyChannelsToAllGeos,
     toggleAllClusters, toggleAllDepots,
     handleSubmit, handleConfirmSubmit, isPending, navigate,
     selectedGeo, selectedDepots, selectedChannels, channelMapping,
@@ -95,8 +96,100 @@ export default function EditEntry() {
     clusters: CLUSTERS,
   });
 
+  const { toast } = useToast();
+
+  // Sourcing Matrix local state
+  const [sourcingMode, setSourcingMode] = useState<"decentralized" | "centralized">("decentralized");
+  const [centralizedGeo, setCentralizedGeo] = useState<string[]>([]);
+  const [centralizedDepots, setCentralizedDepots] = useState<string[]>([]);
+  const [showSourcingAllDialog, setShowSourcingAllDialog] = useState(false);
+
+  // Detect when ALL distribution geos + depots are selected in centralized mode
+  useEffect(() => {
+    if (sourcingMode !== "centralized" || selectedGeo.length === 0) return;
+    const allGeosSelected = selectedGeo.every(g => centralizedGeo.includes(g));
+    const allDepotsSelected = selectedDepots.length > 0 && selectedDepots.every(d => centralizedDepots.includes(d));
+    if (allGeosSelected && allDepotsSelected) setShowSourcingAllDialog(true);
+  }, [centralizedGeo, centralizedDepots, sourcingMode, selectedGeo, selectedDepots]);
+
+  const handleSourcingModeChange = (mode: "decentralized" | "centralized") => {
+    setSourcingMode(mode);
+    if (mode === "centralized") {
+      setCentralizedGeo([]);
+      setCentralizedDepots([]);
+    }
+  };
+
+  // Wrapped submit — runs all cross-tab validations before the form's own submit
+  const handleFormSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+    // 1. Distribution: every selected geo must have at least one depot
+    const distGeoMissingDepot = selectedGeo.filter(geo => {
+      const geoDepots = GEOGRAPHY_DEPOT_MAP[geo] || [];
+      return !geoDepots.some(d => selectedDepots.includes(d));
+    });
+    if (distGeoMissingDepot.length > 0) {
+      setActiveTab("distribution");
+      toast({
+        title: "Depot required for selected geography",
+        description: `Please select at least one depot for: ${distGeoMissingDepot.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 2. Sourcing — centralized: must have at least one depot total
+    if (sourcingMode === "centralized" && centralizedDepots.length === 0) {
+      setActiveTab("sourcing");
+      toast({
+        title: "Sourcing depot required",
+        description: "Please select at least one depot in Centralized sourcing mode before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 3. Sourcing — centralized: every selected geo must have at least one depot
+    if (sourcingMode === "centralized") {
+      const sourcingGeoMissingDepot = centralizedGeo.filter(geo => {
+        const availableDepots = (GEOGRAPHY_DEPOT_MAP[geo] || []).filter(d => selectedDepots.includes(d));
+        return !availableDepots.some(d => centralizedDepots.includes(d));
+      });
+      if (sourcingGeoMissingDepot.length > 0) {
+        setActiveTab("sourcing");
+        toast({
+          title: "Depot required for selected geography",
+          description: `Please select at least one depot for: ${sourcingGeoMissingDepot.join(", ")}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (e && "preventDefault" in e) handleSubmit(e as React.FormEvent);
+    else handleSubmit();
+  };
+
+  const toggleCentralizedGeo = (geoName: string) => {
+    setCentralizedGeo(prev => {
+      const next = prev.includes(geoName) ? prev.filter(g => g !== geoName) : [...prev, geoName];
+      // remove depots belonging to this geo if geo was deselected
+      if (prev.includes(geoName)) {
+        const geoDepots = GEOGRAPHY_DEPOT_MAP[geoName] || [];
+        setCentralizedDepots(d => d.filter(dep => !geoDepots.includes(dep)));
+      }
+      return next;
+    });
+  };
+
+  const toggleCentralizedDepot = (depot: string) => {
+    setCentralizedDepots(prev =>
+      prev.includes(depot) ? prev.filter(d => d !== depot) : [...prev, depot]
+    );
+  };
+
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
+
 
   if (isLoading) {
     return (
@@ -159,7 +252,7 @@ export default function EditEntry() {
               </p>
             </div>
           </div>
-          <Button onClick={handleSubmit} disabled={isPending} data-testid="button-save">
+          <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
             {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             {entry.networkStatus === "Draft" ? "Submit & Activate" : "Save Changes"}
           </Button>
@@ -174,7 +267,7 @@ export default function EditEntry() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleFormSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1" data-testid="tabs-edit">
               <TabsTrigger value="basic" className="gap-2" data-testid="tab-basic">
@@ -188,6 +281,12 @@ export default function EditEntry() {
               </TabsTrigger>
               <TabsTrigger value="distribution" className="gap-2" data-testid="tab-distribution">
                 <MapPin className="h-4 w-4" /> Distribution
+              </TabsTrigger>
+              <TabsTrigger value="sourcing" className="gap-2" data-testid="tab-sourcing">
+                <Boxes className="h-4 w-4" /> Sourcing Matrix
+              </TabsTrigger>
+              <TabsTrigger value="pricing" className="gap-2" data-testid="tab-pricing">
+                <Tag className="h-4 w-4" /> Pricing
               </TabsTrigger>
             </TabsList>
 
@@ -443,15 +542,7 @@ export default function EditEntry() {
                             variant="outline"
                             size="sm"
                             className="h-7 text-xs px-3"
-                            onClick={() => {
-                              // Apply all channels to all geographies
-                              const allLeafCodes = LEAF_CHANNELS.map(c => c.code);
-                              const newMapping: Record<string, string[]> = {};
-                              selectedGeo.forEach(geo => {
-                                newMapping[geo] = [...allLeafCodes];
-                              });
-                              setChannelMapping(newMapping);
-                            }}
+                            onClick={() => toggleAllColumnsAllGeos()}
                             data-testid="btn-apply-all-channels-all-geo"
                           >
                             Select all for all geographies
@@ -463,78 +554,169 @@ export default function EditEntry() {
                       )}
                     </CardHeader>
                     {selectedGeo.length > 0 && (
-                      <CardContent className="space-y-3" data-testid="checkboxes-channel">
-                        {selectedGeo.map((geo, geoIdx) => {
-                          const geoChannels = channelMapping[geo] || [];
-                          const geoLeafCount = LEAF_CHANNELS.filter(c => geoChannels.includes(c.code)).length;
-                          const allGeoSelected = LEAF_CHANNELS.every(c => geoChannels.includes(c.code));
-                          const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
-                          const geoMtAllSelected = mtSubCodes.every(c => geoChannels.includes(c));
-                          const geoMtSomeSelected = mtSubCodes.some(c => geoChannels.includes(c));
-                          return (
-                            <div key={geo} className="rounded-lg border p-3" data-testid={`geo-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}>
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="h-3.5 w-3.5 text-primary" />
-                                  <span className="text-xs font-semibold">{geo}</span>
-                                  <Badge variant="secondary" className="text-[9px]">{geoLeafCount}/{LEAF_CHANNELS.length}</Badge>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <label className="flex items-center gap-1.5 cursor-pointer" data-testid={`toggle-all-channels-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}>
-                                    <Checkbox
-                                      checked={allGeoSelected}
-                                      onCheckedChange={() => toggleAllGeoChannels(geo)}
-                                    />
-                                    <span className="text-[10px] font-medium">All</span>
-                                  </label>
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
-                                {TOP_CHANNELS.map(ch => {
-                                  const isChecked = geoChannels.includes(ch.code);
-                                  return (
-                                    <label key={ch.code} className={`flex items-center gap-1.5 py-1 px-2 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
-                                      <Checkbox
-                                        checked={isChecked}
-                                        onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
-                                        data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-${ch.code.toLowerCase()}`}
-                                      />
-                                      <span className="text-[11px]">{ch.code}</span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                              <div className="rounded border p-2 bg-muted/10">
-                                <label className="flex items-center gap-1.5 cursor-pointer mb-1.5">
-                                  <Checkbox
-                                    checked={geoMtAllSelected}
-                                    onCheckedChange={() => toggleGeoChannel(geo, "MT")}
-                                    data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-mt`}
-                                  />
-                                  <span className="text-[11px] font-semibold">MT</span>
-                                  {geoMtSomeSelected && !geoMtAllSelected && (
-                                    <Badge variant="outline" className="text-[8px] px-1 py-0">partial</Badge>
-                                  )}
-                                </label>
-                                <div className="ml-5 flex flex-wrap gap-x-3 gap-y-0.5 border-l-2 border-primary/20 pl-2">
-                                  {MT_SUB_CHANNELS.map(ch => {
-                                    const isChecked = geoChannels.includes(ch.code);
-                                    return (
-                                      <label key={ch.code} className={`flex items-center gap-1.5 py-0.5 px-1.5 rounded cursor-pointer transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                      <CardContent className="pt-0 px-0" data-testid="checkboxes-channel">
+                        <div className="overflow-auto max-h-72">
+                          <table className="w-full text-xs border-separate border-spacing-0">
+                            <thead className="sticky top-0 z-10">
+                              {(() => {
+                                const allMtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+                                const colState = (code: string) => {
+                                  const codes = code === "MT" ? allMtSubCodes : [code];
+                                  const all = selectedGeo.every(g => codes.every(c => (channelMapping[g] || []).includes(c)));
+                                  const some = selectedGeo.some(g => codes.some(c => (channelMapping[g] || []).includes(c)));
+                                  return all ? true : some ? ("indeterminate" as const) : false;
+                                };
+                                const allColState = (() => {
+                                  const leafCodes = LEAF_CHANNELS.map(c => c.code);
+                                  const all = selectedGeo.every(g => leafCodes.every(c => (channelMapping[g] || []).includes(c)));
+                                  const some = selectedGeo.some(g => leafCodes.some(c => (channelMapping[g] || []).includes(c)));
+                                  return all ? true : some ? ("indeterminate" as const) : false;
+                                })();
+                                // Pill component for column header toggles
+                                const ColPill = ({ label, state }: { label: string; state: boolean | "indeterminate" }) => (
+                                  <div className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-all ${
+                                    state === true
+                                      ? "bg-[#00b0d7] border-[#00b0d7] text-white"
+                                      : state === "indeterminate"
+                                        ? "bg-[#00b0d7]/10 border-[#00b0d7]/30 text-[#00b0d7]"
+                                        : "bg-white border-border text-muted-foreground hover:border-[#00b0d7]/40"
+                                  }`}>
+                                    {label}
+                                  </div>
+                                );
+
+                                return (
+                                  <>
+                                    {/* Row 1: Cluster label + top-level channel pills + MT group label + All pill */}
+                                    <tr>
+                                      <th className="text-left py-3 pl-6 pr-4 text-muted-foreground font-medium w-40 bg-white border-b border-border/60">
+                                        Cluster
+                                      </th>
+                                      {TOP_CHANNELS.map(ch => (
+                                        <th
+                                          key={ch.code}
+                                          onClick={() => toggleColumnChannel(ch.code)}
+                                          data-testid={`toggle-col-${ch.code.toLowerCase()}`}
+                                          className="text-center py-3 px-3 bg-white border-b border-border/60 cursor-pointer select-none"
+                                        >
+                                          <ColPill label={ch.code} state={colState(ch.code)} />
+                                        </th>
+                                      ))}
+                                      {/* MT group header — label only, not a toggle */}
+                                      <th
+                                        colSpan={MT_SUB_CHANNELS.length + 1}
+                                        className="text-center py-3 px-4 font-semibold text-[#00b0d7] bg-[#e6f7fb] border-b-2 border-[#00b0d7]/40"
+                                      >
+                                        MT
+                                      </th>
+                                      {/* All — toggles every channel for every geo */}
+                                      <th
+                                        onClick={() => toggleAllColumnsAllGeos()}
+                                        data-testid="toggle-col-all"
+                                        className="text-center py-3 px-3 bg-white border-b border-border/60 cursor-pointer select-none"
+                                      >
+                                        <ColPill label="All" state={allColState} />
+                                      </th>
+                                    </tr>
+                                    {/* Row 2: MT sub-channel pills */}
+                                    <tr>
+                                      <th className="py-2 pl-6 bg-white border-b border-border/50" />
+                                      {TOP_CHANNELS.map(ch => <th key={ch.code} className="py-2 px-3 bg-white border-b border-border/50" />)}
+                                      {/* MT All pill */}
+                                      <th
+                                        onClick={() => toggleColumnChannel("MT")}
+                                        data-testid="toggle-col-mt"
+                                        className="text-center py-2 px-3 bg-[#e6f7fb] border-b border-border/50 cursor-pointer select-none"
+                                      >
+                                        <ColPill label="All" state={colState("MT")} />
+                                      </th>
+                                      {/* MT sub-channel pills */}
+                                      {MT_SUB_CHANNELS.map(ch => (
+                                        <th
+                                          key={ch.code}
+                                          onClick={() => toggleColumnChannel(ch.code)}
+                                          data-testid={`toggle-col-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                          className="text-center py-2 px-3 bg-[#e6f7fb] border-b border-border/50 cursor-pointer select-none"
+                                        >
+                                          <ColPill label={ch.code} state={colState(ch.code)} />
+                                        </th>
+                                      ))}
+                                      <th className="py-2 px-3 bg-white border-b border-border/50" />
+                                    </tr>
+                                  </>
+                                );
+                              })()}
+                            </thead>
+                            <tbody>
+                              {selectedGeo.map((geo, idx) => {
+                                const geoChannels = channelMapping[geo] || [];
+                                const allGeoSelected = LEAF_CHANNELS.every(c => geoChannels.includes(c.code));
+                                const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
+                                const geoMtAllSelected = mtSubCodes.every(c => geoChannels.includes(c));
+                                const geoMtSomeSelected = mtSubCodes.some(c => geoChannels.includes(c));
+                                const geoKey = geo.toLowerCase().replace(/[\s-]+/g, "-");
+                                return (
+                                  <tr
+                                    key={geo}
+                                    className={`border-b border-border/30 transition-colors hover:bg-muted/20 ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
+                                    data-testid={`geo-channel-${geoKey}`}
+                                  >
+                                    {/* Cluster name */}
+                                    <td className="py-3 pl-6 pr-4">
+                                      <div className="flex items-center gap-1.5">
+                                        <MapPin className="h-3 w-3 text-[#0d8ecf] shrink-0" />
+                                        <span className="text-[13px] font-medium text-[#00b0d7] capitalize leading-tight">
+                                          {geo.toLowerCase()}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    {/* Top-level channels */}
+                                    {TOP_CHANNELS.map(ch => (
+                                      <td key={ch.code} className="text-center py-3 px-4">
                                         <Checkbox
-                                          checked={isChecked}
+                                          checked={geoChannels.includes(ch.code)}
                                           onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
-                                          data-testid={`checkbox-channel-${geo.toLowerCase().replace(/[\s-]+/g, "-")}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                          data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase()}`}
+                                          className="mx-auto"
                                         />
-                                        <span className="text-[10px]">{ch.code}</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                                      </td>
+                                    ))}
+                                    {/* MT All — selects/deselects all MT sub-channels for this geo */}
+                                    <td className="text-center py-3 px-4 bg-[#f0fafd]">
+                                      <Checkbox
+                                        checked={geoMtAllSelected}
+                                        data-state={geoMtSomeSelected && !geoMtAllSelected ? "indeterminate" : undefined}
+                                        onCheckedChange={() => toggleGeoChannel(geo, "MT")}
+                                        data-testid={`checkbox-channel-${geoKey}-mt`}
+                                        className="mx-auto"
+                                      />
+                                    </td>
+                                    {/* MT sub-channels */}
+                                    {MT_SUB_CHANNELS.map(ch => (
+                                      <td key={ch.code} className="text-center py-3 px-4 bg-[#f0fafd]">
+                                        <Checkbox
+                                          checked={geoChannels.includes(ch.code)}
+                                          onCheckedChange={() => toggleGeoChannel(geo, ch.code)}
+                                          data-testid={`checkbox-channel-${geoKey}-${ch.code.toLowerCase().replace(/\s/g, "-")}`}
+                                          className="mx-auto"
+                                        />
+                                      </td>
+                                    ))}
+                                    {/* All channels */}
+                                    <td className="text-center py-3 px-4">
+                                      <Checkbox
+                                        checked={allGeoSelected}
+                                        onCheckedChange={() => toggleAllGeoChannels(geo)}
+                                        data-testid={`toggle-all-channels-${geoKey}`}
+                                        className="mx-auto"
+                                      />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </CardContent>
                     )}
                   </Card>
@@ -608,8 +790,463 @@ export default function EditEntry() {
                 </TabsContent>
               </Tabs>
             </TabsContent>
+
+            {/* ── Sourcing Matrix Tab ───────────────────────────────── */}
+            <TabsContent value="sourcing" className="mt-0">
+              {(() => {
+                const isDecentralized = sourcingMode === "decentralized";
+                const activeSourcingGeo = isDecentralized ? selectedGeo : centralizedGeo;
+                const activeSourcingDepots = isDecentralized ? selectedDepots : centralizedDepots;
+                const selectedGeoCount = isDecentralized ? selectedGeo.length : centralizedGeo.length;
+                const selectedDepotCount = isDecentralized ? selectedDepots.length : centralizedDepots.length;
+
+                return (
+                  <div className="space-y-4">
+                    {/* Mode toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center bg-muted rounded-full p-1 gap-1">
+                          <button
+                            type="button"
+                            data-testid="toggle-decentralized"
+                            onClick={() => handleSourcingModeChange("decentralized")}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${isDecentralized ? "bg-white dark:bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                          >
+                            Decentralized
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="toggle-centralized"
+                            onClick={() => handleSourcingModeChange("centralized")}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${!isDecentralized ? "bg-white dark:bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                          >
+                            Centralized
+                          </button>
+                        </div>
+                        {isDecentralized && (
+                          <Badge variant="secondary" className="text-[10px] gap-1">
+                            <Lock className="h-2.5 w-2.5" /> Read-only · from Distribution
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px]">{selectedGeoCount} geo selected</Badge>
+                        <Badge variant="outline" className="text-[10px]">{selectedDepotCount} depots selected</Badge>
+                      </div>
+                    </div>
+
+                    {selectedGeo.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-10 text-center">
+                          <Building2 className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">No geography selected in Distribution tab.</p>
+                          <p className="text-xs text-muted-foreground/60 mt-1">Select clusters in the Distribution tab first.</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card data-testid="sourcing-matrix-table">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-2">
+                            <Boxes className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-semibold">Sourcing by Geography & Depot</h3>
+                          </div>
+                          {!isDecentralized && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Select the geographies and depots for centralized sourcing.
+                            </p>
+                          )}
+                        </CardHeader>
+                        <CardContent>
+                          <div className="border rounded-lg overflow-hidden">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-muted/50 border-b">
+                                  <th className="text-left py-2 px-3 font-medium text-xs w-[200px]">Geography</th>
+                                  <th className="text-left py-2 px-3 font-medium text-xs">Depots</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedGeo.map((geoName, idx) => {
+                                  const geoDepots = (GEOGRAPHY_DEPOT_MAP[geoName] || []).filter(d => selectedDepots.includes(d));
+                                  const isGeoActive = activeSourcingGeo.includes(geoName);
+                                  const allGeoDepotsActive = geoDepots.length > 0 && geoDepots.every(d => activeSourcingDepots.includes(d));
+                                  return (
+                                    <tr key={geoName} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                                      <td className="py-2 px-3 border-r font-medium text-xs whitespace-nowrap align-middle">
+                                        <label className={`flex items-center gap-2 rounded px-1 py-0.5 ${isDecentralized ? "cursor-default" : "cursor-pointer"} ${isGeoActive ? "bg-primary/10" : isDecentralized ? "" : "hover:bg-muted/50"}`}>
+                                          <Checkbox
+                                            checked={isGeoActive}
+                                            disabled={isDecentralized}
+                                            onCheckedChange={isDecentralized ? undefined : () => toggleCentralizedGeo(geoName)}
+                                            data-testid={`sourcing-geo-${geoName.toLowerCase().replace(/[\s-]+/g, "-")}`}
+                                          />
+                                          <span>{geoName}</span>
+                                        </label>
+                                      </td>
+                                      <td className="py-2 px-3">
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                          {geoDepots.length > 1 && (
+                                            <label className={`flex items-center gap-1.5 py-1 px-2 rounded border transition-colors
+                                              ${isDecentralized ? "cursor-default opacity-80" : !isGeoActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                                              ${allGeoDepotsActive ? "bg-primary/10 border-primary/30" : "border-transparent hover:bg-muted/50"}`}>
+                                              <Checkbox
+                                                checked={allGeoDepotsActive}
+                                                disabled={isDecentralized || !isGeoActive}
+                                                onCheckedChange={isDecentralized ? undefined : () => {
+                                                  geoDepots.forEach(depot => {
+                                                    const isActive = centralizedDepots.includes(depot);
+                                                    if (allGeoDepotsActive && isActive) toggleCentralizedDepot(depot);
+                                                    else if (!allGeoDepotsActive && !isActive) toggleCentralizedDepot(depot);
+                                                  });
+                                                }}
+                                                data-testid={`sourcing-all-depots-${geoName.toLowerCase().replace(/[\s-]+/g, "-")}`}
+                                              />
+                                              <span className="text-[10px] font-medium text-muted-foreground">All</span>
+                                            </label>
+                                          )}
+                                          {geoDepots.map(depot => {
+                                            const isActive = activeSourcingDepots.includes(depot);
+                                            return (
+                                              <label key={depot}
+                                                className={`flex items-center gap-1.5 py-1 px-2 rounded transition-colors
+                                                  ${isDecentralized ? "cursor-default opacity-80" : !isGeoActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                                                  ${isActive ? "bg-primary/10" : isDecentralized ? "" : "hover:bg-muted/50"}`}>
+                                                <Checkbox
+                                                  checked={isActive}
+                                                  disabled={isDecentralized || !isGeoActive}
+                                                  onCheckedChange={isDecentralized ? undefined : () => toggleCentralizedDepot(depot)}
+                                                  data-testid={`sourcing-depot-${depot.toLowerCase()}`}
+                                                />
+                                                <span className="text-xs font-mono">{depot}</span>
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+
+            {/* ── Pricing Tab ───────────────────────────────────────── */}
+            <TabsContent value="pricing" className="mt-0">
+              {(() => {
+                type PriceLot = {
+                  id: string;
+                  priceLot: string;
+                  mrp: number;
+                  currency: string;
+                  validFrom: string;
+                  validTo: string;
+                  allIndia: boolean;
+                  regions: string[];
+                  channels: string[];
+                  regionChannelPairs: { region: string; channels: string[] }[];
+                };
+
+                const MOCK_PRICE_LOTS: PriceLot[] = [
+                  {
+                    id: "pl-001",
+                    priceLot: "01",
+                    mrp: 199.00,
+                    currency: "INR",
+                    validFrom: "2024-01-01",
+                    validTo: "2024-06-30",
+                    allIndia: true,
+                    regions: [],
+                    channels: [],
+                    regionChannelPairs: [],
+                  },
+                  {
+                    id: "pl-002",
+                    priceLot: "02",
+                    mrp: 215.00,
+                    currency: "INR",
+                    validFrom: "2024-07-01",
+                    validTo: "2024-12-31",
+                    allIndia: false,
+                    channels: [],
+                    regionChannelPairs: [],
+                    regions: [
+                      "Kerala", "Rajasthan", "Pondicherry C", "Tamil Nadu",
+                      "Punjab", "Gujarat", "Nagaland", "Meghalaya", "Goa",
+                      "Mizoram", "Uttar Pradesh B", "Arunachal Pradesh",
+                      "Daman and Diu", "Sikkim", "Orissa", "Lakshadweep",
+                      "Haryana B", "West Bengal", "Jammu and Kashmir",
+                    ],
+                  },
+                  {
+                    id: "pl-003",
+                    priceLot: "03",
+                    mrp: 229.00,
+                    currency: "INR",
+                    validFrom: "2025-01-01",
+                    validTo: "2025-06-30",
+                    allIndia: false,
+                    regions: [],
+                    regionChannelPairs: [],
+                    channels: ["GT", "CSD", "MT Retail", "KA"],
+                  },
+                  {
+                    id: "pl-004",
+                    priceLot: "04",
+                    mrp: 245.00,
+                    currency: "INR",
+                    validFrom: "2025-07-01",
+                    validTo: "2025-12-31",
+                    allIndia: false,
+                    regions: [
+                      "Maharashtra B", "Delhi", "Tamil Nadu",
+                      "West Bengal", "Gujarat", "Chandigarh",
+                    ],
+                    channels: ["GT", "Ecom"],
+                    regionChannelPairs: [
+                      { region: "Maharashtra B", channels: ["GT", "MT Retail"] },
+                      { region: "Delhi",          channels: ["KA", "Ecom"] },
+                      { region: "Tamil Nadu",     channels: ["GT", "CSD"] },
+                      { region: "West Bengal",    channels: ["MT Retail"] },
+                      { region: "Gujarat",        channels: ["GT", "KA", "Ecom"] },
+                    ],
+                  },
+                ];
+
+                /* derive summary badge(s) from data presence */
+                const getScopePills = (lot: PriceLot) => {
+                  if (lot.allIndia) return [
+                    { label: "All India", icon: <Globe className="h-3 w-3" />, bg: "bg-[#00b0d7]", text: "text-white", border: "" },
+                  ];
+                  const pills = [];
+                  if (lot.regions.length > 0)
+                    pills.push({ label: "Region", icon: <MapPin className="h-3 w-3" />, bg: "bg-[#1f36c7]/10", text: "text-[#1f36c7]", border: "border border-[#1f36c7]/30" });
+                  if (lot.channels.length > 0)
+                    pills.push({ label: "Channel", icon: <Radio className="h-3 w-3" />, bg: "bg-amber-50", text: "text-amber-700", border: "border border-amber-300" });
+                  if (lot.regionChannelPairs.length > 0)
+                    pills.push({ label: "Reg×Ch", icon: <Network className="h-3 w-3" />, bg: "bg-violet-50", text: "text-violet-700", border: "border border-violet-300" });
+                  return pills;
+                };
+
+
+                const PricingTab = () => {
+                  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+                  const toggle = (id: string) =>
+                    setExpanded(prev => {
+                      const next = new Set(prev);
+                      next.has(id) ? next.delete(id) : next.add(id);
+                      return next;
+                    });
+
+                  return (
+                    <div className="space-y-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IndianRupee className="h-4 w-4 text-[#00b0d7]" />
+                              <p className="text-sm font-semibold">Price Lots</p>
+                              <Badge variant="secondary" className="text-[10px] px-2">{MOCK_PRICE_LOTS.length} lots</Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Click a row to see applicability details</p>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0 px-0">
+                          {/* Table header */}
+                          <div className="grid grid-cols-[1fr_180px_100px_80px_120px_120px_36px] gap-0 px-6 py-2 bg-muted/40 border-y border-border/60 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                            <span>Price Lot</span>
+                            <span>Scope</span>
+                            <span className="text-right">MRP</span>
+                            <span className="text-center">Currency</span>
+                            <span className="text-center">Valid From</span>
+                            <span className="text-center">Valid To</span>
+                            <span />
+                          </div>
+
+                          {/* Rows */}
+                          {MOCK_PRICE_LOTS.map((lot, idx) => {
+                            const isOpen = expanded.has(lot.id);
+                            const isLast = idx === MOCK_PRICE_LOTS.length - 1;
+                            const scopePills = getScopePills(lot);
+                            const hasRegions = lot.regions.length > 0;
+                            const hasChannels = lot.channels.length > 0;
+                            const hasRxC = lot.regionChannelPairs.length > 0;
+                            return (
+                              <div key={lot.id} className={!isLast ? "border-b border-border/50" : ""}>
+                                {/* Summary row */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggle(lot.id)}
+                                  data-testid={`price-lot-row-${lot.id}`}
+                                  className="w-full grid grid-cols-[1fr_180px_100px_80px_120px_120px_36px] gap-0 px-6 py-3.5 text-left hover:bg-muted/30 transition-colors select-none"
+                                >
+                                  <span className="font-mono text-xs font-semibold text-[#1f36c7]">
+                                    {form?.cbuCode ? `${form.cbuCode}-${lot.priceLot}` : lot.priceLot}
+                                  </span>
+                                  <span className="flex items-center gap-1 flex-wrap">
+                                    {scopePills.map(p => (
+                                      <span key={p.label} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${p.bg} ${p.text} ${p.border}`}>
+                                        {p.icon}{p.label}
+                                      </span>
+                                    ))}
+                                  </span>
+                                  <span className="text-right font-semibold text-sm tabular-nums">
+                                    {lot.mrp.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                  </span>
+                                  <span className="text-center text-xs text-muted-foreground">{lot.currency}</span>
+                                  <span className="text-center text-xs">{formatDateDisplay(lot.validFrom)}</span>
+                                  <span className="text-center text-xs">{formatDateDisplay(lot.validTo)}</span>
+                                  <span className="flex items-center justify-center text-muted-foreground">
+                                    {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                  </span>
+                                </button>
+
+                                {/* Expanded detail panel — all applicable sections rendered */}
+                                {isOpen && (
+                                  <div className="px-6 pb-5 pt-3 bg-[#00b0d7]/[0.03] border-t border-border/40">
+
+                                    {/* All India */}
+                                    {lot.allIndia && (
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00b0d7] text-white text-xs font-medium">
+                                          <Globe className="h-3.5 w-3.5" />
+                                          All India
+                                        </span>
+                                        <p className="text-xs text-muted-foreground italic">Applicable across all states and all channels in India.</p>
+                                      </div>
+                                    )}
+
+                                    {/* Grid of the three optional sections — shown only when data present */}
+                                    {(hasRegions || hasChannels || hasRxC) && (
+                                      <div className={`grid gap-4 ${[hasRegions, hasChannels, hasRxC].filter(Boolean).length === 1 ? "grid-cols-1 max-w-sm" : [hasRegions, hasChannels, hasRxC].filter(Boolean).length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3"}`}>
+
+                                        {/* Region Specific */}
+                                        {hasRegions && (
+                                          <div>
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                              <MapPin className="h-3 w-3 text-[#1f36c7]" />
+                                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                States <span className="normal-case text-muted-foreground/60">({lot.regions.length})</span>
+                                              </p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {lot.regions.map(r => (
+                                                <Badge key={r} variant="outline" className="text-[10px] px-2 py-0.5 font-normal border-[#1f36c7]/30 text-[#1f36c7] bg-[#1f36c7]/5">
+                                                  <MapPin className="h-2.5 w-2.5 mr-1 shrink-0" />{r}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Channel Specific */}
+                                        {hasChannels && (
+                                          <div>
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                              <Radio className="h-3 w-3 text-amber-600" />
+                                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                Channels <span className="normal-case text-muted-foreground/60">({lot.channels.length})</span>
+                                              </p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {lot.channels.map(ch => (
+                                                <Badge key={ch} variant="outline" className="text-[10px] px-2 py-0.5 font-normal border-amber-300 text-amber-700 bg-amber-50">{ch}</Badge>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Region × Channel */}
+                                        {hasRxC && (
+                                          <div>
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                              <Network className="h-3 w-3 text-violet-600" />
+                                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                Region × Channel <span className="normal-case text-muted-foreground/60">({lot.regionChannelPairs.length})</span>
+                                              </p>
+                                            </div>
+                                            <div className="border border-border/60 rounded-md overflow-hidden max-h-52 overflow-y-auto">
+                                              <div className="grid grid-cols-[1fr_1fr] px-3 py-1.5 bg-muted/50 border-b border-border/60 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                <span>State</span>
+                                                <span>Channels</span>
+                                              </div>
+                                              {lot.regionChannelPairs.map((pair, i) => (
+                                                <div key={pair.region + i} className="grid grid-cols-[1fr_1fr] px-3 py-2 border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+                                                  <div className="flex items-center gap-1.5 text-xs">
+                                                    <MapPin className="h-3 w-3 text-[#00b0d7] shrink-0" />
+                                                    {pair.region}
+                                                  </div>
+                                                  <div className="flex flex-wrap gap-1">
+                                                    {pair.channels.map(ch => (
+                                                      <Badge key={ch} variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal">{ch}</Badge>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                };
+
+                return <PricingTab />;
+              })()}
+            </TabsContent>
+
           </Tabs>
         </form>
+
+        {/* Sourcing Matrix — "all selected" dialog */}
+        <Dialog open={showSourcingAllDialog} onOpenChange={setShowSourcingAllDialog}>
+          <DialogContent className="max-w-md" data-testid="dialog-sourcing-all">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Switch to Decentralized?
+              </DialogTitle>
+              <DialogDescription>
+                You've selected all geographies and depots in Centralized mode — this is equivalent to Decentralized sourcing. Would you like to switch the toggle to Decentralized instead?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                data-testid="sourcing-all-keep-centralized"
+                onClick={() => {
+                  setShowSourcingAllDialog(false);
+                  setActiveTab("sourcing");
+                }}
+              >
+                No, keep selecting
+              </Button>
+              <Button
+                data-testid="sourcing-all-switch-decentralized"
+                onClick={() => {
+                  handleSourcingModeChange("decentralized");
+                  setShowSourcingAllDialog(false);
+                }}
+              >
+                Yes, switch to Decentralized
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
           <DialogContent className="max-w-lg" data-testid="dialog-confirm-submit">
