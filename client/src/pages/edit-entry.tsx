@@ -702,7 +702,7 @@ export default function EditEntry() {
                 const MOCK_PRICE_LOTS = [
                   {
                     id: "pl-001",
-                    priceLot: "PL-2024-001",
+                    priceLot: "01",
                     mrp: 199.00,
                     currency: "INR",
                     validFrom: "2024-01-01",
@@ -713,7 +713,7 @@ export default function EditEntry() {
                   },
                   {
                     id: "pl-002",
-                    priceLot: "PL-2024-002",
+                    priceLot: "02",
                     mrp: 215.00,
                     currency: "INR",
                     validFrom: "2024-07-01",
@@ -730,7 +730,7 @@ export default function EditEntry() {
                   },
                   {
                     id: "pl-003",
-                    priceLot: "PL-2025-001",
+                    priceLot: "03",
                     mrp: 229.00,
                     currency: "INR",
                     validFrom: "2025-01-01",
@@ -792,7 +792,9 @@ export default function EditEntry() {
                                   className="w-full grid grid-cols-[1fr_100px_80px_120px_120px_36px] gap-0 px-6 py-3.5 text-left hover:bg-muted/30 transition-colors select-none"
                                 >
                                   <span className="flex items-center gap-2">
-                                    <span className="font-mono text-xs font-semibold text-[#1f36c7]">{lot.priceLot}</span>
+                                    <span className="font-mono text-xs font-semibold text-[#1f36c7]">
+                                      {form?.cbuCode ? `${form.cbuCode}-${lot.priceLot}` : lot.priceLot}
+                                    </span>
                                     {lot.allIndia && (
                                       <Badge className="text-[9px] px-1.5 py-0 h-4 bg-[#00b0d7]/10 text-[#00b0d7] border border-[#00b0d7]/30 hover:bg-[#00b0d7]/10">
                                         All India
