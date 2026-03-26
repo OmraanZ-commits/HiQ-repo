@@ -4,16 +4,28 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
-export function UnileverHeader() {
+interface UnileverHeaderProps {
+  module?: "network" | "paid-bible";
+}
+
+export function UnileverHeader({ module = "network" }: UnileverHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [location, navigate] = useLocation();
 
-  const navItems: { label: string; path: string }[] = [
-    { label: "Dashboard", path: "/" },
-    { label: "My Queue", path: "/my-queue" },
-    { label: "Reports", path: "/reports" },
-    { label: "Admin Center", path: "/admin" },
-  ];
+  const navItems: { label: string; path: string }[] =
+    module === "paid-bible"
+      ? [
+          { label: "Overview",         path: "/paid-bible" },
+          { label: "Network Updates",  path: "/paid-bible" },
+          { label: "Bible Matrix",     path: "/paid-bible" },
+          { label: "Amendments",       path: "/paid-bible" },
+        ]
+      : [
+          { label: "Dashboard", path: "/network" },
+          { label: "My Queue",  path: "/my-queue" },
+          { label: "Reports",   path: "/reports" },
+          { label: "Admin Center", path: "/admin" },
+        ];
 
   return (
     <header className="sticky top-0 z-50" data-testid="header">
@@ -31,9 +43,9 @@ export function UnileverHeader() {
               <div className="bg-white/20 backdrop-blur-sm rounded-full px-2 py-1.5 flex items-center gap-0.5 shadow-inner shadow-black/10">
                 {navItems.map((item) => (
                   <NavItem
-                    key={item.path}
+                    key={item.label}
                     label={item.label}
-                    active={location === item.path}
+                    active={location === item.path && module !== "paid-bible"}
                     onClick={() => navigate(item.path)}
                   />
                 ))}
@@ -85,12 +97,16 @@ export function UnileverHeader() {
       </div>
       <div className="bg-gradient-to-r from-[#1f36c7]/5 via-[#0d8ecf]/5 to-[#00b0d7]/5 border-b border-border">
         <div className="px-6 py-2 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground" data-testid="text-breadcrumb">
+          <button
+            onClick={() => navigate("/")}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            data-testid="text-breadcrumb"
+          >
             Central Portal
-          </span>
+          </button>
           <span className="text-xs text-muted-foreground">/</span>
           <span className="text-xs font-medium" data-testid="text-breadcrumb-current">
-            Network Visibility
+            {module === "paid-bible" ? "Paid Bible" : "Network Visibility"}
           </span>
         </div>
       </div>

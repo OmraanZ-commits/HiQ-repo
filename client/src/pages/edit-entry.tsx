@@ -210,7 +210,7 @@ export default function EditEntry() {
         <main className="max-w-[1200px] mx-auto px-6 py-8">
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">Entry not found</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate("/")}>
+            <Button variant="outline" className="mt-4" onClick={() => navigate("/network")}>
               Back to Dashboard
             </Button>
           </div>
@@ -226,7 +226,7 @@ export default function EditEntry() {
       <main className="max-w-[1200px] mx-auto px-6 py-6">
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")} data-testid="button-back">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/network")} data-testid="button-back">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>

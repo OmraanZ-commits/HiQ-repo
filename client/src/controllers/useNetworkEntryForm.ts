@@ -94,7 +94,7 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
       toast({ title: "Entry updated successfully" });
-      navigate("/");
+      navigate("/network");
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -367,7 +367,7 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
       queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/lifecycle"] });
       toast({ title: "Entry activated successfully" });
-      navigate("/");
+      navigate("/network");
     },
     onError: (err: Error) => {
       toast({ title: "Activation Failed", description: err.message, variant: "destructive" });
