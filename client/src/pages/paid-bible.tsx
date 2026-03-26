@@ -1,5 +1,6 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, useMemo } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -7,21 +8,75 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
   Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock,
   Search, Filter, ChevronRight, ChevronDown, FileText, ArrowUpRight,
-  Zap, MapPin, Package, User, X, BookOpen, RefreshCw,
+  Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check,
 } from "lucide-react";
+import type { NetworkEntry } from "@shared/schema";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const BP_STATUS_OPTIONS = [
+  "Draft",
+  "Active Pack",
+  "Active Pack (Channel)",
+  "Active Pack (Customer)",
+  "Seasonal Pack",
+  "Stock Base Delisting",
+  "Inactive/Delisted",
+];
+
+const MSTN_ACTIVE_STATUSES = new Set([
+  "Active", "FTR Approved", "Stock Movement Initiated", "Network transition complete",
+]);
+
+const PB_OWNER_MAP: Record<string, string> = {
+  "Ravi Kumar":    "Priya Sharma",
+  "Sneha Patel":   "Ananya Singh",
+  "Arun Mehta":    "Deepak Verma",
+  "Ankit Sharma":  "Priya Sharma",
+  "Priya Menon":   "Ananya Singh",
+  "Vikram Singh":  "Deepak Verma",
+};
+
+// ─── Data Helpers ─────────────────────────────────────────────────────────────
+
+function deriveBpStatus(statuses: (string | null)[]): string {
+  const ss = statuses.map(s => s ?? "Draft");
+  if (ss.every(s => s === "Draft"))                          return "Draft";
+  if (ss.some(s => s === "Network transition complete"))     return "Active Pack";
+  if (ss.some(s => s === "Stock Movement Initiated"))        return "Active Pack";
+  if (ss.some(s => s === "FTR Approved"))                   return "Active Pack (Channel)";
+  if (ss.some(s => s === "Active"))                          return "Active Pack";
+  if (ss.some(s => s === "Production Started"))              return "Active Pack (Channel)";
+  if (ss.some(s => s === "Pricing Updated"))                 return "Stock Base Delisting";
+  return "Draft";
+}
+
+function deriveMatStatus(ns: string | null | undefined): "OK" | "Issue" | "In Progress" | "CP Pack" {
+  switch (ns) {
+    case "Active":
+    case "Stock Movement Initiated":
+    case "Network transition complete": return "OK";
+    case "FTR Approved":
+    case "Production Started":          return "In Progress";
+    default:                            return "Issue";
+  }
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface Material {
+interface PbMaterial {
+  id: string;
   code: string;
   description: string;
-  status: "OK" | "Issue" | "In Progress" | "CP Pack";
+  networkStatus: string;
+  matStatus: "OK" | "Issue" | "In Progress" | "CP Pack";
   priceActive: boolean;
   mrp: string;
   ean: string;
@@ -29,102 +84,27 @@ interface Material {
   caseConfig: string;
   priceStart: string;
   priceEnd: string;
+  copyCbu: string;
+  typeOfNetwork: string;
 }
 
-interface Basepack {
+interface PbBasepack {
   id: string;
   basepakName: string;
   basepackCode: string;
   salesCategory: string;
   brand: string;
-  cluster: string;
-  channel: string;
-  mstnStatus: "Cleared" | "Pending" | "Not Cleared" | "Partial";
-  mstnCoverage: number;
-  bpStatus: "Active Pack" | "Inactive/Delisted" | "Stock Base Delisting" | "Seasonal Pack" | "Active Pack (Channel)" | "Active Pack (Customer)";
+  bg: string;
+  clusters: string;
+  channels: string[];
+  mstnStatus: "Yes" | "No";
+  bpStatus: string;
   networkPlanner: string;
   paidBibleOwner: string;
-  materials: Material[];
+  materials: PbMaterial[];
 }
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-
-const BASEPACK_LIST: Basepack[] = [
-  {
-    id: "bp1", basepakName: "WHEEL GREEN BAR FW", basepackCode: "14151",
-    salesCategory: "HC", brand: "Wheel Bar", cluster: "Delhi NCR", channel: "MT",
-    mstnStatus: "Cleared", mstnCoverage: 88, bpStatus: "Active Pack",
-    networkPlanner: "Ravi Kumar", paidBibleOwner: "Priya Sharma",
-    materials: [
-      { code: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g", status: "OK",          priceActive: true,  mrp: "35", ean: "8901491210421", grammage: "230g", caseConfig: "24", priceStart: "01-Apr-24", priceEnd: "9999" },
-      { code: "WHGI15D", description: "WHEEL GREEN BAR FW 90g",       status: "OK",          priceActive: true,  mrp: "20", ean: "8901491210438", grammage: "90g",  caseConfig: "48", priceStart: "01-Apr-24", priceEnd: "9999" },
-      { code: "WHGI15B", description: "WHEEL GREEN BAR OLD 180g",     status: "Issue",       priceActive: false, mrp: "32", ean: "8901491210414", grammage: "180g", caseConfig: "24", priceStart: "01-Jan-24", priceEnd: "31-Mar-24" },
-    ],
-  },
-  {
-    id: "bp2", basepakName: "WHEEL GREEN BAR FW", basepackCode: "14151",
-    salesCategory: "HC", brand: "Wheel Bar", cluster: "Punjab-Hills-Haryana", channel: "GT",
-    mstnStatus: "Partial", mstnCoverage: 72, bpStatus: "Active Pack",
-    networkPlanner: "Ravi Kumar", paidBibleOwner: "Priya Sharma",
-    materials: [
-      { code: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g", status: "OK",      priceActive: true,  mrp: "35", ean: "8901491210421", grammage: "230g", caseConfig: "24", priceStart: "01-Apr-24", priceEnd: "9999" },
-      { code: "WHGI15B", description: "WHEEL GREEN BAR OLD 180g",    status: "Issue",   priceActive: false, mrp: "32", ean: "8901491210414", grammage: "180g", caseConfig: "24", priceStart: "01-Jan-24", priceEnd: "31-Mar-24" },
-    ],
-  },
-  {
-    id: "bp3", basepakName: "DOVE CREAM BAR", basepackCode: "18920",
-    salesCategory: "PC", brand: "Dove", cluster: "Mumbai Metro", channel: "MT",
-    mstnStatus: "Cleared", mstnCoverage: 92, bpStatus: "Active Pack (Channel)",
-    networkPlanner: "Sneha Patel", paidBibleOwner: "Ananya Singh",
-    materials: [
-      { code: "DVCS100B", description: "DOVE CREAM BAR 100g",   status: "OK",    priceActive: true,  mrp: "99",  ean: "8901491198001", grammage: "100g", caseConfig: "48", priceStart: "01-Oct-24", priceEnd: "9999" },
-      { code: "DVCS100A", description: "DOVE CREAM BAR 100g OLD", status: "Issue",priceActive: false, mrp: "95",  ean: "8901491197997", grammage: "100g", caseConfig: "48", priceStart: "01-Jul-24", priceEnd: "30-Sep-24" },
-      { code: "DVCS75B",  description: "DOVE CREAM BAR 75g",    status: "OK",    priceActive: true,  mrp: "75",  ean: "8901491197980", grammage: "75g",  caseConfig: "72", priceStart: "01-Oct-24", priceEnd: "9999" },
-    ],
-  },
-  {
-    id: "bp4", basepakName: "DOVE CREAM BAR", basepackCode: "18920",
-    salesCategory: "PC", brand: "Dove", cluster: "Tamil Nadu", channel: "GT",
-    mstnStatus: "Not Cleared", mstnCoverage: 48, bpStatus: "Active Pack (Channel)",
-    networkPlanner: "Sneha Patel", paidBibleOwner: "Ananya Singh",
-    materials: [
-      { code: "DVCS100B", description: "DOVE CREAM BAR 100g",   status: "Issue",       priceActive: false, mrp: "99", ean: "8901491198001", grammage: "100g", caseConfig: "48", priceStart: "01-Oct-24", priceEnd: "31-Dec-24" },
-      { code: "DVCS75B",  description: "DOVE CREAM BAR 75g",    status: "In Progress", priceActive: false, mrp: "75", ean: "8901491197980", grammage: "75g",  caseConfig: "72", priceStart: "-",         priceEnd: "-" },
-    ],
-  },
-  {
-    id: "bp5", basepakName: "KISSAN MIXED FRUIT JAM", basepackCode: "22041",
-    salesCategory: "Foods", brand: "Kissan", cluster: "West Bengal", channel: "KA",
-    mstnStatus: "Pending", mstnCoverage: 0, bpStatus: "Seasonal Pack",
-    networkPlanner: "Arun Mehta", paidBibleOwner: "Deepak Verma",
-    materials: [
-      { code: "KSMX5B", description: "KISSAN MIXED FRUIT JAM 500g", status: "In Progress", priceActive: false, mrp: "175", ean: "8901058018021", grammage: "500g", caseConfig: "8", priceStart: "-", priceEnd: "-" },
-    ],
-  },
-  {
-    id: "bp6", basepakName: "TRESEMME SHAMPOO", basepackCode: "30115",
-    salesCategory: "BPC", brand: "TRESemmé", cluster: "All India", channel: "MT",
-    mstnStatus: "Cleared", mstnCoverage: 95, bpStatus: "Active Pack",
-    networkPlanner: "Sneha Patel", paidBibleOwner: "Ananya Singh",
-    materials: [
-      { code: "TRSH400A", description: "TRESEMME SHAMPOO SMOOTH & SHINE 400ml", status: "OK",     priceActive: true,  mrp: "275", ean: "8901491350082", grammage: "400ml", caseConfig: "12", priceStart: "01-Oct-24", priceEnd: "9999" },
-      { code: "TRSH200A", description: "TRESEMME SHAMPOO SMOOTH & SHINE 200ml", status: "OK",     priceActive: true,  mrp: "155", ean: "8901491350075", grammage: "200ml", caseConfig: "24", priceStart: "01-Oct-24", priceEnd: "9999" },
-      { code: "TRSH400B", description: "TRESEMME SHAMPOO S&S 400ml CP",         status: "CP Pack", priceActive: true,  mrp: "249", ean: "8901491350099", grammage: "400ml", caseConfig: "12", priceStart: "01-Nov-24", priceEnd: "31-Dec-24" },
-    ],
-  },
-  {
-    id: "bp7", basepakName: "SURF EXCEL EASY WASH", basepackCode: "13337",
-    salesCategory: "HC", brand: "Surf Excel", cluster: "Rajasthan Cluster", channel: "MT",
-    mstnStatus: "Partial", mstnCoverage: 65, bpStatus: "Active Pack",
-    networkPlanner: "Ravi Kumar", paidBibleOwner: "Priya Sharma",
-    materials: [
-      { code: "SUHD1R4", description: "SURF EXCEL EW 1KG", status: "OK",    priceActive: true,  mrp: "120", ean: "8901491210001", grammage: "1kg",  caseConfig: "12", priceStart: "01-Apr-24", priceEnd: "9999" },
-      { code: "SUHD1R5", description: "SURF EXCEL EW 2KG", status: "OK",    priceActive: true,  mrp: "230", ean: "8901491210018", grammage: "2kg",  caseConfig: "6",  priceStart: "01-Apr-24", priceEnd: "9999" },
-      { code: "SUHD1R2", description: "SURF EXCEL EW 500G", status: "Issue",priceActive: false, mrp: "65",  ean: "8901491209994", grammage: "500g", caseConfig: "24", priceStart: "01-Apr-24", priceEnd: "31-Mar-24" },
-      { code: "SUHD1R3", description: "SURF EXCEL EW 250G", status: "Issue",priceActive: false, mrp: "35",  ean: "8901491209987", grammage: "250g", caseConfig: "48", priceStart: "01-Apr-24", priceEnd: "31-Mar-24" },
-    ],
-  },
-];
+// ─── Static Data (Network Updates / Bible Matrix / Amendments) ────────────────
 
 const RELAUNCH_NETWORKS = [
   {
@@ -241,7 +221,7 @@ const AMENDMENTS = [
   },
 ];
 
-// ─── Status Helpers ──────────────────────────────────────────────────────────
+// ─── Badge Components ─────────────────────────────────────────────────────────
 
 function MatStatusBadge({ status }: { status: string }) {
   const map: Record<string, { cls: string; icon: JSX.Element }> = {
@@ -250,7 +230,7 @@ function MatStatusBadge({ status }: { status: string }) {
     "In Progress": { cls: "bg-amber-50 text-amber-700 border-amber-200",        icon: <Clock className="h-3 w-3" /> },
     "CP Pack":     { cls: "bg-blue-50 text-blue-700 border-blue-200",           icon: <Package className="h-3 w-3" /> },
   };
-  const s = map[status] ?? map["OK"];
+  const s = map[status] ?? map["Issue"];
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${s.cls}`}>
       {s.icon} {status}
@@ -258,27 +238,21 @@ function MatStatusBadge({ status }: { status: string }) {
   );
 }
 
-function MstnBadge({ status, coverage }: { status: string; coverage: number }) {
-  const map: Record<string, string> = {
-    "Cleared":     "bg-emerald-50 text-emerald-700 border-emerald-200",
-    "Partial":     "bg-amber-50 text-amber-700 border-amber-200",
-    "Pending":     "bg-slate-50 text-slate-600 border-slate-200",
-    "Not Cleared": "bg-red-50 text-red-700 border-red-200",
-  };
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${map[status] ?? map["Pending"]}`}>
-        {status}
-      </span>
-      {coverage > 0 && (
-        <span className="text-xs text-muted-foreground">{coverage}%</span>
-      )}
-    </div>
+function MstnBadge({ status }: { status: "Yes" | "No" }) {
+  return status === "Yes" ? (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
+      <CheckCircle2 className="h-3 w-3" /> Yes
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-red-50 text-red-600 border-red-200">
+      <XCircle className="h-3 w-3" /> No
+    </span>
   );
 }
 
 function BpStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
+    "Draft":                 "bg-slate-50 text-slate-600 border-slate-300",
     "Active Pack":           "bg-emerald-50 text-emerald-700 border-emerald-200",
     "Inactive/Delisted":     "bg-red-50 text-red-700 border-red-200",
     "Stock Base Delisting":  "bg-orange-50 text-orange-700 border-orange-200",
@@ -288,6 +262,23 @@ function BpStatusBadge({ status }: { status: string }) {
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${map[status] ?? "bg-slate-50 text-slate-600 border-slate-200"}`}>
+      {status}
+    </span>
+  );
+}
+
+function NwStatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    "Draft":                       "bg-slate-100 text-slate-600",
+    "Active":                      "bg-emerald-100 text-emerald-700",
+    "Pricing Updated":             "bg-blue-100 text-blue-700",
+    "Production Started":          "bg-amber-100 text-amber-700",
+    "FTR Approved":                "bg-cyan-100 text-cyan-700",
+    "Stock Movement Initiated":    "bg-violet-100 text-violet-700",
+    "Network transition complete": "bg-emerald-100 text-emerald-800",
+  };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${map[status] ?? "bg-slate-100 text-slate-600"}`}>
       {status}
     </span>
   );
@@ -304,49 +295,156 @@ function YNBadge({ val }: { val: string }) {
 // ─── Part 1: Overview ────────────────────────────────────────────────────────
 
 function OverviewTab() {
-  const [search, setSearch]           = useState("");
-  const [channelFilter, setChannelFilter] = useState("all");
-  const [mstnFilter, setMstnFilter]   = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
-  const [expandedId, setExpandedId]   = useState<string | null>(null);
-
-  const allChannels = Array.from(new Set(BASEPACK_LIST.map(b => b.channel)));
-
-  const filtered = BASEPACK_LIST.filter(b => {
-    const q = search.toLowerCase();
-    const matchSearch = !q ||
-      b.basepakName.toLowerCase().includes(q) ||
-      b.basepackCode.includes(q) ||
-      b.brand.toLowerCase().includes(q) ||
-      b.networkPlanner.toLowerCase().includes(q) ||
-      b.paidBibleOwner.toLowerCase().includes(q);
-    const matchChannel = channelFilter === "all" || b.channel === channelFilter;
-    const matchMstn    = mstnFilter === "all"    || b.mstnStatus === mstnFilter;
-    return matchSearch && matchChannel && matchMstn;
+  // ── API data ──
+  const { data: networkEntries = [], isLoading } = useQuery<NetworkEntry[]>({
+    queryKey: ["/api/network-entries"],
   });
 
-  // Stats
-  const total      = BASEPACK_LIST.length;
-  const cleared    = BASEPACK_LIST.filter(b => b.mstnStatus === "Cleared").length;
-  const partial    = BASEPACK_LIST.filter(b => b.mstnStatus === "Partial").length;
-  const issues     = BASEPACK_LIST.filter(b => b.mstnStatus === "Not Cleared" || b.mstnStatus === "Pending").length;
-  const totalMats  = BASEPACK_LIST.reduce((acc, b) => acc + b.materials.length, 0);
+  // ── Filter state ──
+  const [searchBp, setSearchBp]             = useState("");
+  const [bpStatusFilter, setBpStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter]   = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [materialSearch, setMaterialSearch] = useState("");
+  const [mstnFilter, setMstnFilter]         = useState("all");
+  const [showFilters, setShowFilters]       = useState(false);
 
-  const statsCards = [
-    { label: "Total Basepacks",  value: total,     color: "border-l-[#1f36c7] bg-[#1f36c7]/5" },
-    { label: "MSTN Cleared",     value: cleared,   color: "border-l-emerald-500 bg-emerald-50/60" },
-    { label: "Partial / WIP",    value: partial,   color: "border-l-amber-500 bg-amber-50/60" },
-    { label: "Issues / Pending", value: issues,    color: "border-l-red-500 bg-red-50/60" },
-    { label: "Total Materials",  value: totalMats, color: "border-l-[#0d8ecf] bg-[#0d8ecf]/5" },
-  ];
+  // ── UI state ──
+  const [expandedId, setExpandedId]         = useState<string | null>(null);
+  const [editingId, setEditingId]           = useState<string | null>(null);
+  const [localBpStatus, setLocalBpStatus]   = useState<Record<string, string>>({});
+  const [pendingStatus, setPendingStatus]   = useState<string>("");
 
-  const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
+  // ── Transform network entries → grouped basepacks ──
+  const allBasepacks = useMemo<PbBasepack[]>(() => {
+    const grouped = new Map<string, NetworkEntry[]>();
+    networkEntries.forEach(entry => {
+      const key = entry.basepack || entry.cbuCode || entry.id;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(entry);
+    });
+
+    return Array.from(grouped.entries()).map(([bpCode, entries]) => {
+      const first    = entries[0];
+      const statuses = entries.map(e => e.networkStatus);
+      const mstnYes  = statuses.some(s => MSTN_ACTIVE_STATUSES.has(s ?? ""));
+      const clusters = [...new Set(entries.flatMap(e => e.geography ?? []))];
+      const channels = [...new Set(entries.flatMap(e => e.channel  ?? []))];
+      const planner  = first.assignedPerson || "Unassigned";
+
+      return {
+        id:             bpCode,
+        basepakName:    first.basepackDescription || first.materialDescription || bpCode,
+        basepackCode:   bpCode,
+        salesCategory:  first.salesCategory  || "-",
+        brand:          first.brand          || "-",
+        bg:             first.bg             || "-",
+        clusters:       clusters.length ? clusters.join(", ") : "All India",
+        channels,
+        mstnStatus:     mstnYes ? "Yes" : "No",
+        bpStatus:       deriveBpStatus(statuses),
+        networkPlanner: planner,
+        paidBibleOwner: PB_OWNER_MAP[planner] || "PB SPOC",
+        materials: entries.map(e => ({
+          id:            e.id,
+          code:          e.cbuCode          || "-",
+          description:   e.materialDescription || e.basepackDescription || "-",
+          networkStatus: e.networkStatus    || "Draft",
+          matStatus:     deriveMatStatus(e.networkStatus),
+          priceActive:   MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? ""),
+          mrp:           "-",
+          ean:           e.ean              || "-",
+          grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
+          caseConfig:    e.caseConfig       || "-",
+          copyCbu:       e.copyCbu          || "-",
+          typeOfNetwork: e.typeOfNetwork    || "-",
+          priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
+          priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
+        })),
+      } as PbBasepack;
+    });
+  }, [networkEntries]);
+
+  // ── Derived filter options ──
+  const locationOptions = useMemo(
+    () => [...new Set(allBasepacks.flatMap(b => b.clusters.split(", ")))].filter(Boolean).sort(),
+    [allBasepacks],
+  );
+  const channelOptions = useMemo(
+    () => [...new Set(allBasepacks.flatMap(b => b.channels))].filter(Boolean).sort(),
+    [allBasepacks],
+  );
+
+  // ── Filtered list (applies all 6 BRD filters) ──
+  const filtered = useMemo(() => allBasepacks.filter(b => {
+    const effStatus = localBpStatus[b.id] ?? b.bpStatus;
+    const q  = searchBp.toLowerCase();
+    return (
+      (!q || b.basepakName.toLowerCase().includes(q) || b.basepackCode.includes(q) || b.brand.toLowerCase().includes(q)) &&
+      (bpStatusFilter === "all" || effStatus === bpStatusFilter) &&
+      (channelFilter  === "all" || b.channels.includes(channelFilter)) &&
+      (locationFilter === "all" || b.clusters.includes(locationFilter)) &&
+      (mstnFilter     === "all" || b.mstnStatus === mstnFilter) &&
+      (!materialSearch || b.materials.some(m =>
+        m.code.toLowerCase().includes(materialSearch.toLowerCase()) ||
+        m.description.toLowerCase().includes(materialSearch.toLowerCase())
+      ))
+    );
+  }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, materialSearch]);
+
+  // ── Stats ──
+  const total      = allBasepacks.length;
+  const mstnYes    = allBasepacks.filter(b => b.mstnStatus === "Yes").length;
+  const drafts     = allBasepacks.filter(b => (localBpStatus[b.id] ?? b.bpStatus) === "Draft").length;
+  const notCleared = allBasepacks.filter(b => b.mstnStatus === "No" && (localBpStatus[b.id] ?? b.bpStatus) !== "Draft").length;
+  const totalMats  = allBasepacks.reduce((s, b) => s + b.materials.length, 0);
+
+  const activeFilterCount = [
+    bpStatusFilter !== "all", channelFilter !== "all",
+    locationFilter !== "all", mstnFilter !== "all", materialSearch !== "",
+  ].filter(Boolean).length;
+
+  const toggleExpand = (id: string) => setExpandedId(p => p === id ? null : id);
+
+  const startEdit = (bp: PbBasepack, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPendingStatus(localBpStatus[bp.id] ?? bp.bpStatus);
+    setEditingId(bp.id);
+  };
+
+  const saveEdit = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLocalBpStatus(p => ({ ...p, [id]: pendingStatus }));
+    setEditingId(null);
+  };
+
+  const cancelEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(null);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-5 gap-4">
+          {[1,2,3,4,5].map(i => <Card key={i}><CardContent className="p-4"><Skeleton className="h-8 w-16" /></CardContent></Card>)}
+        </div>
+        <Card><CardContent className="p-5 space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-10 w-full" />)}</CardContent></Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid grid-cols-5 gap-4">
-        {statsCards.map(c => (
+        {[
+          { label: "Total Basepacks",  value: total,      color: "border-l-[#1f36c7] bg-[#1f36c7]/5" },
+          { label: "MSTN Cleared",     value: mstnYes,    color: "border-l-emerald-500 bg-emerald-50/60" },
+          { label: "Not Cleared",      value: notCleared, color: "border-l-red-500 bg-red-50/60" },
+          { label: "Draft",            value: drafts,     color: "border-l-slate-400 bg-slate-50/60" },
+          { label: "Total Materials",  value: totalMats,  color: "border-l-[#0d8ecf] bg-[#0d8ecf]/5" },
+        ].map(c => (
           <Card key={c.label} className={`border-l-4 ${c.color}`}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">{c.label}</p>
@@ -356,45 +454,45 @@ function OverviewTab() {
         ))}
       </div>
 
-      {/* Search + Filters Bar */}
+      {/* Search + Filter bar */}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Search */}
-            <div className="relative flex-1 min-w-[220px] max-w-md">
+            {/* Basepack search */}
+            <div className="relative flex-1 min-w-[220px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by basepack, brand, planner…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                placeholder="Search basepack, brand, planner…"
+                value={searchBp}
+                onChange={e => setSearchBp(e.target.value)}
                 className="pl-9"
-                data-testid="input-pb-search"
+                data-testid="input-bp-search"
               />
-              {search && (
-                <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setSearch("")}>
+              {searchBp && (
+                <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setSearchBp("")}>
                   <X className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               )}
             </div>
 
-            {/* Filter toggle */}
+            {/* Filters toggle */}
             <Button
               variant={showFilters ? "secondary" : "outline"}
               size="sm"
               onClick={() => setShowFilters(v => !v)}
-              data-testid="button-toggle-filters"
               className="gap-1.5"
+              data-testid="button-toggle-filters"
             >
               <Filter className="h-4 w-4" /> Filters
-              {(channelFilter !== "all" || mstnFilter !== "all") && (
+              {activeFilterCount > 0 && (
                 <span className="ml-1 bg-[#1f36c7] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  {[channelFilter !== "all", mstnFilter !== "all"].filter(Boolean).length}
+                  {activeFilterCount}
                 </span>
               )}
             </Button>
 
             <div className="ml-auto flex items-center gap-2">
-              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-download-annexure">
+              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-export">
                 <Download className="h-3.5 w-3.5" /> Export
               </Button>
               <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-raise-ticket">
@@ -403,39 +501,83 @@ function OverviewTab() {
             </div>
           </div>
 
-          {/* Filter Row */}
+          {/* BRD-specified filter dropdowns */}
           {showFilters && (
-            <div className="flex items-end gap-4 mt-4 pt-4 border-t flex-wrap" data-testid="filters-panel">
+            <div className="flex items-end gap-3 mt-4 pt-4 border-t flex-wrap" data-testid="filters-panel">
+              {/* Status */}
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Channel</label>
+                <label className="text-xs text-muted-foreground font-medium">Basepack Status</label>
+                <Select value={bpStatusFilter} onValueChange={setBpStatusFilter}>
+                  <SelectTrigger className="w-44" data-testid="select-bp-status"><SelectValue placeholder="All Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {BP_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Channel */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Channel</label>
                 <Select value={channelFilter} onValueChange={setChannelFilter}>
-                  <SelectTrigger className="w-36" data-testid="select-channel-filter"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-36" data-testid="select-channel"><SelectValue placeholder="All Channels" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Channels</SelectItem>
-                    {allChannels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {channelOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Material search */}
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">MSTN Status</label>
-                <Select value={mstnFilter} onValueChange={setMstnFilter}>
-                  <SelectTrigger className="w-40" data-testid="select-mstn-filter"><SelectValue /></SelectTrigger>
+                <label className="text-xs text-muted-foreground font-medium">Material</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search material…"
+                    value={materialSearch}
+                    onChange={e => setMaterialSearch(e.target.value)}
+                    className="pl-8 w-40 h-9"
+                    data-testid="input-material-search"
+                  />
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Location (Cluster)</label>
+                <Select value={locationFilter} onValueChange={setLocationFilter}>
+                  <SelectTrigger className="w-48" data-testid="select-location"><SelectValue placeholder="All Locations" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All MSTN Status</SelectItem>
-                    <SelectItem value="Cleared">Cleared</SelectItem>
-                    <SelectItem value="Partial">Partial</SelectItem>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Not Cleared">Not Cleared</SelectItem>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {locationOptions.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              {(channelFilter !== "all" || mstnFilter !== "all") && (
+
+              {/* MSTN */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">MSTN Status</label>
+                <Select value={mstnFilter} onValueChange={setMstnFilter}>
+                  <SelectTrigger className="w-32" data-testid="select-mstn"><SelectValue placeholder="All" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="Yes">Yes</SelectItem>
+                    <SelectItem value="No">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {activeFilterCount > 0 && (
                 <Button
                   variant="ghost" size="sm"
-                  onClick={() => { setChannelFilter("all"); setMstnFilter("all"); }}
+                  onClick={() => {
+                    setBpStatusFilter("all"); setChannelFilter("all");
+                    setLocationFilter("all"); setMstnFilter("all"); setMaterialSearch("");
+                  }}
                   data-testid="button-clear-filters"
                 >
-                  Clear filters
+                  Clear all
                 </Button>
               )}
             </div>
@@ -443,7 +585,7 @@ function OverviewTab() {
         </CardContent>
       </Card>
 
-      {/* Basepack Table */}
+      {/* Basepack table */}
       <Card>
         <CardContent className="p-0">
           <div className="rounded-md overflow-hidden">
@@ -451,134 +593,205 @@ function OverviewTab() {
               <TableHeader>
                 <TableRow className="bg-muted/60">
                   <TableHead className="w-8" />
-                  <TableHead className="text-xs font-semibold">Basepack Name</TableHead>
-                  <TableHead className="text-xs font-semibold">Basepack Code</TableHead>
-                  <TableHead className="text-xs font-semibold">Cluster</TableHead>
-                  <TableHead className="text-xs font-semibold">Channel</TableHead>
-                  <TableHead className="text-xs font-semibold">MSTN Status</TableHead>
-                  <TableHead className="text-xs font-semibold">BP Status</TableHead>
+                  <TableHead className="text-xs font-semibold">Basepack</TableHead>
+                  <TableHead className="text-xs font-semibold">Code</TableHead>
+                  <TableHead className="text-xs font-semibold">Location / Cluster</TableHead>
+                  <TableHead className="text-xs font-semibold">Channels</TableHead>
+                  <TableHead className="text-xs font-semibold">MSTN</TableHead>
+                  <TableHead className="text-xs font-semibold">Basepack Status</TableHead>
                   <TableHead className="text-xs font-semibold">Network Planner</TableHead>
                   <TableHead className="text-xs font-semibold">PB Owner</TableHead>
-                  <TableHead className="text-xs font-semibold w-20">Materials</TableHead>
+                  <TableHead className="text-xs font-semibold w-20">CBUs</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
-                      No basepacks found for the selected filters
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-16">
+                      No basepacks found — try adjusting your filters
                     </TableCell>
                   </TableRow>
-                ) : filtered.map(bp => (
-                  <Fragment key={bp.id}>
-                    {/* Basepack row */}
-                    <TableRow
-                      key={bp.id}
-                      data-testid={`bp-row-${bp.id}`}
-                      className={`cursor-pointer transition-colors ${expandedId === bp.id ? "bg-[#1f36c7]/5 border-l-2 border-l-[#1f36c7]" : "hover:bg-muted/40"}`}
-                      onClick={() => toggleExpand(bp.id)}
-                    >
-                      <TableCell className="py-3 pl-4">
-                        {expandedId === bp.id
-                          ? <ChevronDown className="h-4 w-4 text-[#1f36c7]" />
-                          : <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        }
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <div>
-                          <p className="text-sm font-medium">{bp.basepakName}</p>
-                          <p className="text-xs text-muted-foreground">{bp.salesCategory} · {bp.brand}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm font-mono font-medium py-3">{bp.basepackCode}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground py-3">{bp.cluster}</TableCell>
-                      <TableCell className="py-3">
-                        <Badge variant="outline" className="text-xs">{bp.channel}</Badge>
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <MstnBadge status={bp.mstnStatus} coverage={bp.mstnCoverage} />
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <BpStatusBadge status={bp.bpStatus} />
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-6 h-6 rounded-full bg-[#1f36c7]/10 flex items-center justify-center">
-                            <User className="h-3 w-3 text-[#1f36c7]" />
-                          </div>
-                          <span className="text-xs">{bp.networkPlanner}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-6 h-6 rounded-full bg-[#0d8ecf]/10 flex items-center justify-center">
-                            <BookOpen className="h-3 w-3 text-[#0d8ecf]" />
-                          </div>
-                          <span className="text-xs">{bp.paidBibleOwner}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <span className="text-xs text-muted-foreground">{bp.materials.length} CBU{bp.materials.length !== 1 ? "s" : ""}</span>
-                      </TableCell>
-                    </TableRow>
+                ) : filtered.map(bp => {
+                  const effStatus = localBpStatus[bp.id] ?? bp.bpStatus;
+                  const isExpanded = expandedId === bp.id;
+                  const isEditing  = editingId  === bp.id;
 
-                    {/* Expanded materials sub-table */}
-                    {expandedId === bp.id && (
-                      <TableRow key={`${bp.id}-expanded`} data-testid={`bp-expanded-${bp.id}`}>
-                        <TableCell colSpan={10} className="p-0 bg-muted/20">
-                          <div className="px-8 py-4 border-l-2 border-l-[#1f36c7]/30">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                              Material Details — {bp.basepakName} ({bp.basepackCode}) · {bp.cluster} · {bp.channel}
-                            </p>
-                            <div className="rounded-md border overflow-hidden bg-white">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow className="bg-muted/40">
-                                    <TableHead className="text-xs py-2">Material Code</TableHead>
-                                    <TableHead className="text-xs py-2">Description</TableHead>
-                                    <TableHead className="text-xs py-2">Status</TableHead>
-                                    <TableHead className="text-xs py-2">Grammage</TableHead>
-                                    <TableHead className="text-xs py-2">Case Config</TableHead>
-                                    <TableHead className="text-xs py-2">MRP</TableHead>
-                                    <TableHead className="text-xs py-2">EAN</TableHead>
-                                    <TableHead className="text-xs py-2">Price Active</TableHead>
-                                    <TableHead className="text-xs py-2">Price Start</TableHead>
-                                    <TableHead className="text-xs py-2">Price End</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {bp.materials.map((m, idx) => (
-                                    <TableRow key={idx} data-testid={`material-row-${bp.id}-${idx}`}>
-                                      <TableCell className="text-xs font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
-                                      <TableCell className="text-xs py-2 max-w-52 truncate" title={m.description}>{m.description}</TableCell>
-                                      <TableCell className="py-2"><MatStatusBadge status={m.status} /></TableCell>
-                                      <TableCell className="text-xs py-2">{m.grammage}</TableCell>
-                                      <TableCell className="text-xs py-2">{m.caseConfig}</TableCell>
-                                      <TableCell className="text-xs font-medium py-2">₹{m.mrp}</TableCell>
-                                      <TableCell className="text-xs font-mono text-muted-foreground py-2">{m.ean}</TableCell>
-                                      <TableCell className="py-2">
-                                        <span className={`text-xs font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
-                                          {m.priceActive ? "Yes" : "No"}
-                                        </span>
-                                      </TableCell>
-                                      <TableCell className="text-xs py-2">{m.priceStart}</TableCell>
-                                      <TableCell className={`text-xs font-medium py-2 ${m.priceEnd === "9999" ? "text-emerald-600" : m.priceEnd === "-" ? "text-muted-foreground" : "text-red-500"}`}>
-                                        {m.priceEnd === "9999" ? "9999 (Perpetual)" : m.priceEnd}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
+                  return (
+                    <Fragment key={bp.id}>
+                      {/* Basepack row */}
+                      <TableRow
+                        data-testid={`bp-row-${bp.id}`}
+                        className={`cursor-pointer transition-colors ${isExpanded ? "bg-[#1f36c7]/5 border-l-2 border-l-[#1f36c7]" : "hover:bg-muted/40"}`}
+                        onClick={() => !isEditing && toggleExpand(bp.id)}
+                      >
+                        <TableCell className="py-3 pl-4">
+                          {isExpanded
+                            ? <ChevronDown className="h-4 w-4 text-[#1f36c7]" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                        </TableCell>
+
+                        <TableCell className="py-3">
+                          <div>
+                            <p className="text-sm font-medium">{bp.basepakName}</p>
+                            <p className="text-xs text-muted-foreground">{bp.salesCategory} · {bp.brand}</p>
                           </div>
                         </TableCell>
+
+                        <TableCell className="text-sm font-mono font-medium py-3">{bp.basepackCode}</TableCell>
+
+                        <TableCell className="text-xs text-muted-foreground py-3 max-w-40 truncate" title={bp.clusters}>
+                          {bp.clusters}
+                        </TableCell>
+
+                        <TableCell className="py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {bp.channels.length > 0
+                              ? bp.channels.slice(0, 3).map(ch => (
+                                  <Badge key={ch} variant="outline" className="text-xs px-1.5 py-0">{ch}</Badge>
+                                ))
+                              : <span className="text-xs text-muted-foreground">-</span>
+                            }
+                            {bp.channels.length > 3 && (
+                              <Badge variant="outline" className="text-xs px-1.5 py-0">+{bp.channels.length - 3}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="py-3">
+                          <MstnBadge status={bp.mstnStatus} />
+                        </TableCell>
+
+                        {/* Editable BP Status */}
+                        <TableCell className="py-3" onClick={e => e.stopPropagation()}>
+                          {isEditing ? (
+                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <Select
+                                value={pendingStatus}
+                                onValueChange={setPendingStatus}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-44" data-testid={`select-bp-status-${bp.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BP_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={e => saveEdit(bp.id, e)} data-testid={`button-save-status-${bp.id}`}>
+                                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEdit} data-testid={`button-cancel-status-${bp.id}`}>
+                                <X className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 group">
+                              <BpStatusBadge status={effStatus} />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={e => startEdit(bp, e)}
+                                data-testid={`button-edit-status-${bp.id}`}
+                                title="Edit basepack status (PB Owner)"
+                              >
+                                <Pencil className="h-3 w-3 text-muted-foreground" />
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full bg-[#1f36c7]/10 flex items-center justify-center flex-shrink-0">
+                              <User className="h-3 w-3 text-[#1f36c7]" />
+                            </div>
+                            <span className="text-xs">{bp.networkPlanner}</span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full bg-[#0d8ecf]/10 flex items-center justify-center flex-shrink-0">
+                              <BookOpen className="h-3 w-3 text-[#0d8ecf]" />
+                            </div>
+                            <span className="text-xs">{bp.paidBibleOwner}</span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="py-3">
+                          <span className="text-xs text-muted-foreground">
+                            {bp.materials.length} CBU{bp.materials.length !== 1 ? "s" : ""}
+                          </span>
+                        </TableCell>
                       </TableRow>
-                    )}
-                  </Fragment>
-                ))}
+
+                      {/* Expanded: material details from Network Planning module */}
+                      {isExpanded && (
+                        <TableRow key={`${bp.id}-exp`} data-testid={`bp-expanded-${bp.id}`}>
+                          <TableCell colSpan={10} className="p-0 bg-muted/20">
+                            <div className="px-8 py-4 border-l-2 border-l-[#1f36c7]/30">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                <BookOpen className="h-3 w-3" />
+                                CBU / Material Details — inherited from Network Planning
+                                <span className="font-normal normal-case tracking-normal text-muted-foreground/70">({bp.basepakName} · {bp.basepackCode})</span>
+                              </p>
+                              <div className="rounded-md border overflow-hidden bg-white">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow className="bg-muted/40">
+                                      <TableHead className="text-xs py-2">CBU Code</TableHead>
+                                      <TableHead className="text-xs py-2">Description</TableHead>
+                                      <TableHead className="text-xs py-2">NW Status</TableHead>
+                                      <TableHead className="text-xs py-2">Mat. Status</TableHead>
+                                      <TableHead className="text-xs py-2">Type of Network</TableHead>
+                                      <TableHead className="text-xs py-2">Copy CBU</TableHead>
+                                      <TableHead className="text-xs py-2">Grammage</TableHead>
+                                      <TableHead className="text-xs py-2">Case Config</TableHead>
+                                      <TableHead className="text-xs py-2">EAN</TableHead>
+                                      <TableHead className="text-xs py-2">Price Active</TableHead>
+                                      <TableHead className="text-xs py-2">Price End</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {bp.materials.map((m, idx) => (
+                                      <TableRow key={m.id} data-testid={`mat-row-${bp.id}-${idx}`}>
+                                        <TableCell className="text-xs font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
+                                        <TableCell className="text-xs py-2 max-w-52 truncate" title={m.description}>{m.description}</TableCell>
+                                        <TableCell className="py-2"><NwStatusBadge status={m.networkStatus} /></TableCell>
+                                        <TableCell className="py-2"><MatStatusBadge status={m.matStatus} /></TableCell>
+                                        <TableCell className="text-xs py-2 text-muted-foreground max-w-36 truncate" title={m.typeOfNetwork}>{m.typeOfNetwork}</TableCell>
+                                        <TableCell className="text-xs font-mono py-2 text-muted-foreground">{m.copyCbu}</TableCell>
+                                        <TableCell className="text-xs py-2">{m.grammage}</TableCell>
+                                        <TableCell className="text-xs py-2">{m.caseConfig}</TableCell>
+                                        <TableCell className="text-xs font-mono text-muted-foreground py-2">{m.ean}</TableCell>
+                                        <TableCell className="py-2">
+                                          <span className={`text-xs font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
+                                            {m.priceActive ? "Yes" : "No"}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell className={`text-xs font-medium py-2 ${m.priceEnd === "9999" ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                          {m.priceEnd === "9999" ? "9999 (Perpetual)" : m.priceEnd}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
+          {filtered.length > 0 && (
+            <div className="px-4 py-2 border-t bg-muted/20 text-xs text-muted-foreground">
+              Showing {filtered.length} of {total} basepacks
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -642,9 +855,7 @@ function NetworkUpdatesTab() {
           <CardTitle className="text-sm flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
             Relaunch Network
-            <Badge className="ml-1 text-xs bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
-              {RELAUNCH_NETWORKS.length} packs
-            </Badge>
+            <Badge className="ml-1 text-xs bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">{RELAUNCH_NETWORKS.length} packs</Badge>
             <span className="ml-auto text-xs font-normal text-muted-foreground">Updated in last 2 weeks · Descending order</span>
           </CardTitle>
         </CardHeader>
@@ -653,22 +864,9 @@ function NetworkUpdatesTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="text-xs">Last Update</TableHead>
-                  <TableHead className="text-xs">BG / Category</TableHead>
-                  <TableHead className="text-xs">Brand</TableHead>
-                  <TableHead className="text-xs">Basepack</TableHead>
-                  <TableHead className="text-xs">Old CBU</TableHead>
-                  <TableHead className="text-xs">New CBU</TableHead>
-                  <TableHead className="text-xs">Grammage</TableHead>
-                  <TableHead className="text-xs">MRP</TableHead>
-                  <TableHead className="text-xs">Case Cfg</TableHead>
-                  <TableHead className="text-xs">EAN</TableHead>
-                  <TableHead className="text-xs">Artwork</TableHead>
-                  <TableHead className="text-xs">Geography</TableHead>
-                  <TableHead className="text-xs">Channels</TableHead>
-                  <TableHead className="text-xs">Production</TableHead>
-                  <TableHead className="text-xs">Invoicing</TableHead>
-                  <TableHead className="text-xs">Remarks</TableHead>
+                  {["Last Update","BG / Category","Brand","Basepack","Old CBU","New CBU","Grammage","MRP","Case Cfg","EAN","Artwork","Geography","Channels","Production","Invoicing","Remarks"].map(h => (
+                    <TableHead key={h} className="text-xs">{h}</TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -703,10 +901,8 @@ function NetworkUpdatesTab() {
           <CardTitle className="text-sm flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
             New Launch Network
-            <Badge className="ml-1 text-xs bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">
-              {NEW_LAUNCH_NETWORKS.length} packs
-            </Badge>
-            <span className="ml-auto text-xs font-normal text-muted-foreground">Innovation pipeline · Listing N-45 days · Descending by launch date</span>
+            <Badge className="ml-1 text-xs bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">{NEW_LAUNCH_NETWORKS.length} packs</Badge>
+            <span className="ml-auto text-xs font-normal text-muted-foreground">Innovation pipeline · Listing N-45 days</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4">
@@ -714,22 +910,9 @@ function NetworkUpdatesTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="text-xs">Last Update</TableHead>
-                  <TableHead className="text-xs">BG / Category</TableHead>
-                  <TableHead className="text-xs">Brand</TableHead>
-                  <TableHead className="text-xs">Basepack</TableHead>
-                  <TableHead className="text-xs">Material Code</TableHead>
-                  <TableHead className="text-xs">Description</TableHead>
-                  <TableHead className="text-xs">Grammage</TableHead>
-                  <TableHead className="text-xs">MRP</TableHead>
-                  <TableHead className="text-xs">Case Config</TableHead>
-                  <TableHead className="text-xs">EAN</TableHead>
-                  <TableHead className="text-xs">Artwork / FTR</TableHead>
-                  <TableHead className="text-xs">Geography</TableHead>
-                  <TableHead className="text-xs">Channels</TableHead>
-                  <TableHead className="text-xs">Production</TableHead>
-                  <TableHead className="text-xs">Landing Date</TableHead>
-                  <TableHead className="text-xs">Remarks</TableHead>
+                  {["Last Update","BG / Category","Brand","Basepack","Material Code","Description","Grammage","MRP","Case Config","EAN","Artwork / FTR","Geography","Channels","Production","Landing Date","Remarks"].map(h => (
+                    <TableHead key={h} className="text-xs">{h}</TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -772,11 +955,8 @@ function NetworkUpdatesTab() {
 
 function BibleMatrixTab() {
   const [search, setSearch] = useState("");
-
   const rows = BIBLE_MATRIX.filter(r =>
-    !search ||
-    r.basepack.includes(search) ||
-    r.material.toLowerCase().includes(search.toLowerCase())
+    !search || r.basepack.includes(search) || r.material.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -789,20 +969,13 @@ function BibleMatrixTab() {
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search basepack / material…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="h-8 pl-7 text-xs w-52"
-              data-testid="search-bible-matrix"
-            />
+            <Input placeholder="Search basepack / material…" value={search} onChange={e => setSearch(e.target.value)} className="h-8 pl-7 text-xs w-52" data-testid="search-bible-matrix" />
           </div>
           <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-download-matrix">
             <Download className="h-3.5 w-3.5" /> Export Matrix
           </Button>
         </div>
       </div>
-
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -816,31 +989,9 @@ function BibleMatrixTab() {
                   <TableHead colSpan={3} className="text-xs font-bold text-emerald-700 text-center py-2">Price Activation</TableHead>
                 </TableRow>
                 <TableRow className="bg-muted/60">
-                  <TableHead className="text-xs py-2">Sales Cat.</TableHead>
-                  <TableHead className="text-xs py-2">Basepack</TableHead>
-                  <TableHead className="text-xs py-2">BP Status</TableHead>
-                  <TableHead className="text-xs py-2">Material</TableHead>
-                  <TableHead className="text-xs py-2 border-r">Mat. Status</TableHead>
-                  <TableHead className="text-xs py-2">Region</TableHead>
-                  <TableHead className="text-xs py-2">Cluster</TableHead>
-                  <TableHead className="text-xs py-2">State</TableHead>
-                  <TableHead className="text-xs py-2">Reg. Code</TableHead>
-                  <TableHead className="text-xs py-2 border-r">Depot</TableHead>
-                  <TableHead className="text-xs py-2">MRP</TableHead>
-                  <TableHead className="text-xs py-2">Net Wt</TableHead>
-                  <TableHead className="text-xs py-2">CC</TableHead>
-                  <TableHead className="text-xs py-2 border-r">EAN</TableHead>
-                  <TableHead className="text-xs py-2">CSD</TableHead>
-                  <TableHead className="text-xs py-2">GT</TableHead>
-                  <TableHead className="text-xs py-2">KA</TableHead>
-                  <TableHead className="text-xs py-2">OH</TableHead>
-                  <TableHead className="text-xs py-2">MT</TableHead>
-                  <TableHead className="text-xs py-2">Retail</TableHead>
-                  <TableHead className="text-xs py-2">MT-ECOM</TableHead>
-                  <TableHead className="text-xs py-2 border-r">MT-QCOM</TableHead>
-                  <TableHead className="text-xs py-2">Start Date</TableHead>
-                  <TableHead className="text-xs py-2">End Date</TableHead>
-                  <TableHead className="text-xs py-2">Created On</TableHead>
+                  {["Sales Cat.","Basepack","BP Status","Material","Mat. Status","Region","Cluster","State","Reg. Code","Depot","MRP","Net Wt","CC","EAN","CSD","GT","KA","OH","MT","Retail","MT-ECOM","MT-QCOM","Start Date","End Date","Created On"].map((h, i) => (
+                    <TableHead key={i} className={`text-xs py-2 ${[4,9,13,21].includes(i) ? "border-r" : ""}`}>{h}</TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -860,14 +1011,11 @@ function BibleMatrixTab() {
                     <TableCell className="text-xs">{r.netWt}g</TableCell>
                     <TableCell className="text-xs">{r.cc}</TableCell>
                     <TableCell className="text-xs font-mono border-r text-muted-foreground">{r.ean}</TableCell>
-                    <TableCell><YNBadge val={r.csd} /></TableCell>
-                    <TableCell><YNBadge val={r.gt} /></TableCell>
-                    <TableCell><YNBadge val={r.ka} /></TableCell>
-                    <TableCell><YNBadge val={r.oh} /></TableCell>
-                    <TableCell><YNBadge val={r.mt} /></TableCell>
-                    <TableCell><YNBadge val={r.retail} /></TableCell>
-                    <TableCell><YNBadge val={r.ecom} /></TableCell>
-                    <TableCell className="border-r"><YNBadge val={r.qcom} /></TableCell>
+                    {[r.csd,r.gt,r.ka,r.oh,r.mt,r.retail,r.ecom,r.qcom].map((v, j) => (
+                      <TableCell key={j} className={j === 7 ? "border-r" : ""}>
+                        <YNBadge val={v} />
+                      </TableCell>
+                    ))}
                     <TableCell className="text-xs">{r.priceStart}</TableCell>
                     <TableCell className={`text-xs font-medium ${r.priceEnd === "9999" ? "text-emerald-600" : r.priceEnd === "-" ? "text-muted-foreground" : "text-red-500"}`}>
                       {r.priceEnd === "9999" ? "9999 ∞" : r.priceEnd}
@@ -876,11 +1024,7 @@ function BibleMatrixTab() {
                   </TableRow>
                 ))}
                 {rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={25} className="text-center text-muted-foreground text-sm py-10">
-                      No records match your search
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={25} className="text-center text-muted-foreground text-sm py-10">No records match your search</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -906,9 +1050,7 @@ function AmendmentsTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Amendment Requests</h2>
-          <p className="text-xs text-muted-foreground">
-            All changes to existing packs require NCSM approval before reflecting in the Paid Bible Matrix
-          </p>
+          <p className="text-xs text-muted-foreground">All changes to existing packs require NCSM approval before reflecting in the Paid Bible Matrix</p>
         </div>
         <Button size="sm" className="gap-1.5 bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf]" data-testid="button-new-amendment">
           <ArrowUpRight className="h-3.5 w-3.5" /> Raise New Amendment
@@ -919,8 +1061,7 @@ function AmendmentsTab() {
         {AMENDMENTS.map(a => {
           const colors = AMENDMENT_COLOR[a.color];
           return (
-            <Card key={a.id} data-testid={`amendment-card-${a.id}`}
-              className={`border ${colors.border} ${colors.bg}`}>
+            <Card key={a.id} data-testid={`amendment-card-${a.id}`} className={`border ${colors.border} ${colors.bg}`}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -959,7 +1100,7 @@ function AmendmentsTab() {
           <div>
             <p className="text-sm font-medium mb-0.5">Amendment Workflow</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Any changes / additions to existing packs raised through amendments require NCSM approval before they are reflected in the Paid Bible Matrix. Post-approval, the system automatically updates the Geo Applicability, Channel mapping, and Price status for the affected materials across all applicable depot combinations.
+              Any changes / additions to existing packs raised through amendments require NCSM approval before they are reflected in the Paid Bible Matrix. Post-approval, the system automatically updates Geo Applicability, Channel mapping, and Price status for affected materials across all applicable depot combinations.
             </p>
           </div>
         </CardContent>
@@ -1016,16 +1157,13 @@ export default function PaidBiblePage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1" data-testid="tabs-paid-bible">
             <TabsTrigger value="overview" className="gap-2 text-sm" data-testid="tab-overview">
-              Overview
-              <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 1</span>
+              Overview <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 1</span>
             </TabsTrigger>
             <TabsTrigger value="network-updates" className="gap-2 text-sm" data-testid="tab-network-updates">
-              Network Updates
-              <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 2</span>
+              Network Updates <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 2</span>
             </TabsTrigger>
             <TabsTrigger value="bible-matrix" className="gap-2 text-sm" data-testid="tab-bible-matrix">
-              Bible Matrix
-              <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 3</span>
+              Bible Matrix <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 3</span>
             </TabsTrigger>
             <TabsTrigger value="amendments" className="gap-2 text-sm" data-testid="tab-amendments">
               Amendments
