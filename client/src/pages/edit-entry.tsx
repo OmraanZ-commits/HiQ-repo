@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -95,10 +96,21 @@ export default function EditEntry() {
     clusters: CLUSTERS,
   });
 
+  const { toast } = useToast();
+
   // Sourcing Matrix local state
   const [sourcingMode, setSourcingMode] = useState<"decentralized" | "centralized">("decentralized");
   const [centralizedGeo, setCentralizedGeo] = useState<string[]>([]);
   const [centralizedDepots, setCentralizedDepots] = useState<string[]>([]);
+  const [showSourcingAllDialog, setShowSourcingAllDialog] = useState(false);
+
+  // Detect when ALL distribution geos + depots are selected in centralized mode
+  useEffect(() => {
+    if (sourcingMode !== "centralized" || selectedGeo.length === 0) return;
+    const allGeosSelected = selectedGeo.every(g => centralizedGeo.includes(g));
+    const allDepotsSelected = selectedDepots.length > 0 && selectedDepots.every(d => centralizedDepots.includes(d));
+    if (allGeosSelected && allDepotsSelected) setShowSourcingAllDialog(true);
+  }, [centralizedGeo, centralizedDepots, sourcingMode, selectedGeo, selectedDepots]);
 
   const handleSourcingModeChange = (mode: "decentralized" | "centralized") => {
     setSourcingMode(mode);
@@ -106,6 +118,21 @@ export default function EditEntry() {
       setCentralizedGeo([]);
       setCentralizedDepots([]);
     }
+  };
+
+  // Wrapped submit that validates sourcing matrix before proceeding
+  const handleFormSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+    if (sourcingMode === "centralized" && centralizedDepots.length === 0) {
+      setActiveTab("sourcing");
+      toast({
+        title: "Sourcing selection required",
+        description: "Please select at least one depot in Centralized sourcing mode before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (e && "preventDefault" in e) handleSubmit(e as React.FormEvent);
+    else handleSubmit();
   };
 
   const toggleCentralizedGeo = (geoName: string) => {
@@ -191,7 +218,7 @@ export default function EditEntry() {
               </p>
             </div>
           </div>
-          <Button onClick={handleSubmit} disabled={isPending} data-testid="button-save">
+          <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
             {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             {entry.networkStatus === "Draft" ? "Submit & Activate" : "Save Changes"}
           </Button>
@@ -206,7 +233,7 @@ export default function EditEntry() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleFormSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1" data-testid="tabs-edit">
               <TabsTrigger value="basic" className="gap-2" data-testid="tab-basic">
@@ -1150,6 +1177,42 @@ export default function EditEntry() {
 
           </Tabs>
         </form>
+
+        {/* Sourcing Matrix — "all selected" dialog */}
+        <Dialog open={showSourcingAllDialog} onOpenChange={setShowSourcingAllDialog}>
+          <DialogContent className="max-w-md" data-testid="dialog-sourcing-all">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Switch to Decentralized?
+              </DialogTitle>
+              <DialogDescription>
+                You've selected all geographies and depots in Centralized mode — this is equivalent to Decentralized sourcing. Would you like to switch the toggle to Decentralized instead?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                data-testid="sourcing-all-keep-centralized"
+                onClick={() => {
+                  setShowSourcingAllDialog(false);
+                  setActiveTab("sourcing");
+                }}
+              >
+                No, keep selecting
+              </Button>
+              <Button
+                data-testid="sourcing-all-switch-decentralized"
+                onClick={() => {
+                  handleSourcingModeChange("decentralized");
+                  setShowSourcingAllDialog(false);
+                }}
+              >
+                Yes, switch to Decentralized
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
           <DialogContent className="max-w-lg" data-testid="dialog-confirm-submit">
