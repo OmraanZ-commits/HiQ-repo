@@ -683,18 +683,18 @@ function OverviewTab() {
         <CardContent className="p-0">
           <div className="rounded-md overflow-auto max-h-[calc(100vh-260px)]">
             <Table>
-              <TableHeader className="sticky top-0 z-20">
+              <TableHeader>
                 <TableRow className="bg-muted/60">
-                  <TableHead className="w-8 bg-muted/60" />
-                  <TableHead className="text-xs font-semibold bg-muted/60">Basepack</TableHead>
-                  <TableHead className="text-xs font-semibold bg-muted/60">Code</TableHead>
-                  <TableHead className="text-xs font-semibold bg-muted/60">Location / Cluster</TableHead>
-                  <TableHead className="text-xs font-semibold bg-muted/60">Channels</TableHead>
-                  <TableHead className="text-xs font-semibold bg-muted/60">MSTN</TableHead>
-                  <TableHead className="text-xs font-semibold bg-muted/60">Basepack Status</TableHead>
-                  <TableHead className="text-xs font-semibold bg-muted/60">BG</TableHead>
-                  <TableHead className="text-xs font-semibold bg-muted/60">Network Planner</TableHead>
-                  <TableHead className="text-xs font-semibold bg-muted/60 w-20">CBUs</TableHead>
+                  <TableHead className="w-8 sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]" />
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Basepack</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Code</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Location / Cluster</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Channels</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">MSTN</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Basepack Status</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">BG</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Network Planner</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 w-20 shadow-[0_1px_0_0_hsl(var(--border))]">CBUs</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
