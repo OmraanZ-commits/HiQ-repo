@@ -246,7 +246,6 @@ export default function Dashboard() {
                       <div key={m.label} className={`bg-gradient-to-br ${m.accent} rounded-xl p-4 text-white shadow-sm`} data-testid={m.testId}>
                         <p className="text-xs font-medium opacity-75 mb-1">{m.label}</p>
                         <p className="text-3xl font-bold tabular-nums">{m.value}</p>
-                        {total > 0 && <p className="text-[10px] opacity-60 mt-1">{Math.round((m.value / total) * 100)}% of total</p>}
                       </div>
                     ))}
                   </div>
