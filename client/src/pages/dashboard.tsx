@@ -284,7 +284,10 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  {/* ── Pending by Status (ageing table) ── */}
+                  {/* ── Pending by Status + Assignee (side by side) ── */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+
+                  {/* Pending by Status (ageing table) */}
                   <Card>
                     <CardContent className="p-0">
                       <div className="flex items-center justify-between px-5 pt-4 pb-3">
@@ -345,7 +348,7 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  {/* ── Pending by Assignee ── */}
+                  {/* Pending by Assignee */}
                   <Card>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-3">
@@ -375,6 +378,8 @@ export default function Dashboard() {
                       )}
                     </CardContent>
                   </Card>
+
+                  </div>{/* end side-by-side grid */}
 
                   {/* ── BG summary ── */}
                   <Card>
