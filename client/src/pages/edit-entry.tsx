@@ -720,7 +720,13 @@ export default function EditEntry() {
                     validTo: "2024-12-31",
                     allIndia: false,
                     channels: ["GT", "CSD", "MT Retail"],
-                    regions: ["North", "West"],
+                    regions: [
+                      "Kerala", "Rajasthan", "Pondicherry C", "Tamil Nadu",
+                      "Punjab", "Gujarat", "Nagaland", "Meghalaya", "Goa",
+                      "Mizoram", "Uttar Pradesh B", "Arunachal Pradesh",
+                      "Daman and Diu", "Sikkim", "Orissa", "Lakshadweep",
+                      "Haryana B", "West Bengal", "Jammu and Kashmir",
+                    ],
                   },
                   {
                     id: "pl-003",
@@ -731,7 +737,11 @@ export default function EditEntry() {
                     validTo: "2025-06-30",
                     allIndia: false,
                     channels: ["MT Retail", "KA", "Ecom"],
-                    regions: ["South", "East", "West"],
+                    regions: [
+                      "Chandigarh", "Meghalaya", "Madhya Pradesh", "Delhi",
+                      "Andaman and Nicobar Islands", "Bihar", "Maharashtra B",
+                      "Bhutan", "Himachal Pradesh", "Jharkhand", "Chhattisgarh",
+                    ],
                   },
                 ];
 
@@ -840,19 +850,22 @@ export default function EditEntry() {
                                         )}
                                       </div>
 
-                                      {/* Regions */}
+                                      {/* Regions / States */}
                                       <div>
                                         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                                          Regions {lot.regions.length > 0 && <span className="normal-case text-muted-foreground/60">({lot.regions.length})</span>}
+                                          States{lot.regions.length > 0 && <span className="normal-case text-muted-foreground/60"> ({lot.regions.length})</span>}
                                         </p>
                                         {lot.allIndia ? (
-                                          <p className="text-xs text-muted-foreground italic">All regions</p>
+                                          <p className="text-xs text-muted-foreground italic">All states</p>
                                         ) : lot.regions.length > 0 ? (
-                                          <div className="flex flex-wrap gap-1.5">
-                                            {lot.regions.map(r => (
-                                              <div key={r} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1f36c7]/8 border border-[#1f36c7]/20 text-[10px] font-medium text-[#1f36c7]">
-                                                <MapPin className="h-2.5 w-2.5" />
-                                                {r}
+                                          <div className="border border-border/60 rounded-md overflow-hidden max-h-48 overflow-y-auto">
+                                            {lot.regions.map((r, i) => (
+                                              <div
+                                                key={r + i}
+                                                className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 last:border-0 text-xs hover:bg-muted/30 transition-colors"
+                                              >
+                                                <MapPin className="h-3 w-3 text-[#00b0d7] shrink-0" />
+                                                <span>{r}</span>
                                               </div>
                                             ))}
                                           </div>
