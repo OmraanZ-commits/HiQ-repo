@@ -120,17 +120,51 @@ export default function EditEntry() {
     }
   };
 
-  // Wrapped submit that validates sourcing matrix before proceeding
+  // Wrapped submit — runs all cross-tab validations before the form's own submit
   const handleFormSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+    // 1. Distribution: every selected geo must have at least one depot
+    const distGeoMissingDepot = selectedGeo.filter(geo => {
+      const geoDepots = GEOGRAPHY_DEPOT_MAP[geo] || [];
+      return !geoDepots.some(d => selectedDepots.includes(d));
+    });
+    if (distGeoMissingDepot.length > 0) {
+      setActiveTab("distribution");
+      toast({
+        title: "Depot required for selected geography",
+        description: `Please select at least one depot for: ${distGeoMissingDepot.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 2. Sourcing — centralized: must have at least one depot total
     if (sourcingMode === "centralized" && centralizedDepots.length === 0) {
       setActiveTab("sourcing");
       toast({
-        title: "Sourcing selection required",
+        title: "Sourcing depot required",
         description: "Please select at least one depot in Centralized sourcing mode before submitting.",
         variant: "destructive",
       });
       return;
     }
+
+    // 3. Sourcing — centralized: every selected geo must have at least one depot
+    if (sourcingMode === "centralized") {
+      const sourcingGeoMissingDepot = centralizedGeo.filter(geo => {
+        const availableDepots = (GEOGRAPHY_DEPOT_MAP[geo] || []).filter(d => selectedDepots.includes(d));
+        return !availableDepots.some(d => centralizedDepots.includes(d));
+      });
+      if (sourcingGeoMissingDepot.length > 0) {
+        setActiveTab("sourcing");
+        toast({
+          title: "Depot required for selected geography",
+          description: `Please select at least one depot for: ${sourcingGeoMissingDepot.join(", ")}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     if (e && "preventDefault" in e) handleSubmit(e as React.FormEvent);
     else handleSubmit();
   };
