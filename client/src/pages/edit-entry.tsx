@@ -15,8 +15,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle } from "lucide-react";
-import { useEffect } from "react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee } from "lucide-react";
+import { useEffect, useState } from "react";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -189,6 +189,9 @@ export default function EditEntry() {
               </TabsTrigger>
               <TabsTrigger value="distribution" className="gap-2" data-testid="tab-distribution">
                 <MapPin className="h-4 w-4" /> Distribution
+              </TabsTrigger>
+              <TabsTrigger value="pricing" className="gap-2" data-testid="tab-pricing">
+                <Tag className="h-4 w-4" /> Pricing
               </TabsTrigger>
             </TabsList>
 
@@ -692,6 +695,187 @@ export default function EditEntry() {
                 </TabsContent>
               </Tabs>
             </TabsContent>
+
+            {/* ── Pricing Tab ───────────────────────────────────────── */}
+            <TabsContent value="pricing" className="mt-0">
+              {(() => {
+                const MOCK_PRICE_LOTS = [
+                  {
+                    id: "pl-001",
+                    priceLot: "PL-2024-001",
+                    mrp: 199.00,
+                    currency: "INR",
+                    validFrom: "2024-01-01",
+                    validTo: "2024-06-30",
+                    allIndia: true,
+                    channels: [],
+                    regions: [],
+                  },
+                  {
+                    id: "pl-002",
+                    priceLot: "PL-2024-002",
+                    mrp: 215.00,
+                    currency: "INR",
+                    validFrom: "2024-07-01",
+                    validTo: "2024-12-31",
+                    allIndia: false,
+                    channels: ["GT", "CSD", "MT Retail"],
+                    regions: ["North", "West"],
+                  },
+                  {
+                    id: "pl-003",
+                    priceLot: "PL-2025-001",
+                    mrp: 229.00,
+                    currency: "INR",
+                    validFrom: "2025-01-01",
+                    validTo: "2025-06-30",
+                    allIndia: false,
+                    channels: ["MT Retail", "KA", "Ecom"],
+                    regions: ["South", "East", "West"],
+                  },
+                ];
+
+                const PricingTab = () => {
+                  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+                  const toggle = (id: string) =>
+                    setExpanded(prev => {
+                      const next = new Set(prev);
+                      next.has(id) ? next.delete(id) : next.add(id);
+                      return next;
+                    });
+
+                  return (
+                    <div className="space-y-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IndianRupee className="h-4 w-4 text-[#00b0d7]" />
+                              <p className="text-sm font-semibold">Price Lots</p>
+                              <Badge variant="secondary" className="text-[10px] px-2">{MOCK_PRICE_LOTS.length} lots</Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Click a row to see applicability details</p>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0 px-0">
+                          {/* Table header */}
+                          <div className="grid grid-cols-[1fr_100px_80px_120px_120px_36px] gap-0 px-6 py-2 bg-muted/40 border-y border-border/60 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                            <span>Price Lot</span>
+                            <span className="text-right">MRP</span>
+                            <span className="text-center">Currency</span>
+                            <span className="text-center">Valid From</span>
+                            <span className="text-center">Valid To</span>
+                            <span />
+                          </div>
+
+                          {/* Rows */}
+                          {MOCK_PRICE_LOTS.map((lot, idx) => {
+                            const isOpen = expanded.has(lot.id);
+                            const isLast = idx === MOCK_PRICE_LOTS.length - 1;
+                            return (
+                              <div key={lot.id} className={!isLast ? "border-b border-border/50" : ""}>
+                                {/* Summary row — clickable */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggle(lot.id)}
+                                  data-testid={`price-lot-row-${lot.id}`}
+                                  className="w-full grid grid-cols-[1fr_100px_80px_120px_120px_36px] gap-0 px-6 py-3.5 text-left hover:bg-muted/30 transition-colors select-none"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <span className="font-mono text-xs font-semibold text-[#1f36c7]">{lot.priceLot}</span>
+                                    {lot.allIndia && (
+                                      <Badge className="text-[9px] px-1.5 py-0 h-4 bg-[#00b0d7]/10 text-[#00b0d7] border border-[#00b0d7]/30 hover:bg-[#00b0d7]/10">
+                                        All India
+                                      </Badge>
+                                    )}
+                                  </span>
+                                  <span className="text-right font-semibold text-sm tabular-nums">
+                                    {lot.mrp.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                  </span>
+                                  <span className="text-center text-xs text-muted-foreground">{lot.currency}</span>
+                                  <span className="text-center text-xs">{formatDateDisplay(lot.validFrom)}</span>
+                                  <span className="text-center text-xs">{formatDateDisplay(lot.validTo)}</span>
+                                  <span className="flex items-center justify-center text-muted-foreground">
+                                    {isOpen
+                                      ? <ChevronDown className="h-4 w-4" />
+                                      : <ChevronRight className="h-4 w-4" />}
+                                  </span>
+                                </button>
+
+                                {/* Expanded detail panel */}
+                                {isOpen && (
+                                  <div className="px-6 pb-4 pt-1 bg-[#00b0d7]/[0.03] border-t border-border/40">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                      {/* All India */}
+                                      <div>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Scope</p>
+                                        {lot.allIndia ? (
+                                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00b0d7] text-white text-xs font-medium">
+                                            <Globe className="h-3 w-3" />
+                                            All India
+                                          </div>
+                                        ) : (
+                                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground text-xs">
+                                            <Globe className="h-3 w-3" />
+                                            Region Specific
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Channels */}
+                                      <div>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                                          Channels {lot.channels.length > 0 && <span className="normal-case text-muted-foreground/60">({lot.channels.length})</span>}
+                                        </p>
+                                        {lot.allIndia ? (
+                                          <p className="text-xs text-muted-foreground italic">All channels</p>
+                                        ) : lot.channels.length > 0 ? (
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {lot.channels.map(ch => (
+                                              <Badge key={ch} variant="outline" className="text-[10px] px-2 py-0.5 font-normal">{ch}</Badge>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <p className="text-xs text-muted-foreground italic">—</p>
+                                        )}
+                                      </div>
+
+                                      {/* Regions */}
+                                      <div>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                                          Regions {lot.regions.length > 0 && <span className="normal-case text-muted-foreground/60">({lot.regions.length})</span>}
+                                        </p>
+                                        {lot.allIndia ? (
+                                          <p className="text-xs text-muted-foreground italic">All regions</p>
+                                        ) : lot.regions.length > 0 ? (
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {lot.regions.map(r => (
+                                              <div key={r} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1f36c7]/8 border border-[#1f36c7]/20 text-[10px] font-medium text-[#1f36c7]">
+                                                <MapPin className="h-2.5 w-2.5" />
+                                                {r}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <p className="text-xs text-muted-foreground italic">—</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                };
+
+                return <PricingTab />;
+              })()}
+            </TabsContent>
+
           </Tabs>
         </form>
 
