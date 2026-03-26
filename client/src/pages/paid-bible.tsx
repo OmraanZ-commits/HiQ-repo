@@ -681,20 +681,20 @@ function OverviewTab() {
       {/* Basepack table */}
       <Card>
         <CardContent className="p-0">
-          <div className="rounded-md overflow-hidden">
+          <div className="rounded-md overflow-auto max-h-[calc(100vh-260px)]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20">
                 <TableRow className="bg-muted/60">
-                  <TableHead className="w-8" />
-                  <TableHead className="text-xs font-semibold">Basepack</TableHead>
-                  <TableHead className="text-xs font-semibold">Code</TableHead>
-                  <TableHead className="text-xs font-semibold">Location / Cluster</TableHead>
-                  <TableHead className="text-xs font-semibold">Channels</TableHead>
-                  <TableHead className="text-xs font-semibold">MSTN</TableHead>
-                  <TableHead className="text-xs font-semibold">Basepack Status</TableHead>
-                  <TableHead className="text-xs font-semibold">BG</TableHead>
-                  <TableHead className="text-xs font-semibold">Network Planner</TableHead>
-                  <TableHead className="text-xs font-semibold w-20">CBUs</TableHead>
+                  <TableHead className="w-8 bg-muted/60" />
+                  <TableHead className="text-xs font-semibold bg-muted/60">Basepack</TableHead>
+                  <TableHead className="text-xs font-semibold bg-muted/60">Code</TableHead>
+                  <TableHead className="text-xs font-semibold bg-muted/60">Location / Cluster</TableHead>
+                  <TableHead className="text-xs font-semibold bg-muted/60">Channels</TableHead>
+                  <TableHead className="text-xs font-semibold bg-muted/60">MSTN</TableHead>
+                  <TableHead className="text-xs font-semibold bg-muted/60">Basepack Status</TableHead>
+                  <TableHead className="text-xs font-semibold bg-muted/60">BG</TableHead>
+                  <TableHead className="text-xs font-semibold bg-muted/60">Network Planner</TableHead>
+                  <TableHead className="text-xs font-semibold bg-muted/60 w-20">CBUs</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
