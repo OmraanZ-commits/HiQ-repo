@@ -212,8 +212,8 @@ export default function Dashboard() {
                   meta: STATUS_META[s] ?? DEFAULT_META,
                   count: rows.length,
                   avgAge,
-                  gt7:  ages.filter(a => a > 7).length,
-                  gt30: ages.filter(a => a > 30).length,
+                  gt7:  ages.filter(a => a > 7  && a <= 30).length,
+                  gt30: ages.filter(a => a > 30 && a <= 90).length,
                   gt90: ages.filter(a => a > 90).length,
                 };
               }).filter(r => r.count > 0);
@@ -246,6 +246,7 @@ export default function Dashboard() {
                       <div key={m.label} className={`bg-gradient-to-br ${m.accent} rounded-xl p-4 text-white shadow-sm`} data-testid={m.testId}>
                         <p className="text-xs font-medium opacity-75 mb-1">{m.label}</p>
                         <p className="text-3xl font-bold tabular-nums">{m.value}</p>
+                        {total > 0 && <p className="text-[10px] opacity-60 mt-1">{Math.round((m.value / total) * 100)}% of total</p>}
                       </div>
                     ))}
                   </div>
@@ -303,8 +304,8 @@ export default function Dashboard() {
                                 <th className="text-left font-semibold text-muted-foreground px-5 py-2 w-40">Status</th>
                                 <th className="text-right font-semibold text-muted-foreground px-3 py-2">Items</th>
                                 <th className="text-right font-semibold text-muted-foreground px-3 py-2">Avg Age</th>
-                                <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-amber-600">&gt; 7 days</th>
-                                <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-orange-600">&gt; 1 month</th>
+                                <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-amber-600">7–30 days</th>
+                                <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-orange-600">1–3 months</th>
                                 <th className="text-right font-semibold text-muted-foreground px-5 py-2 text-red-600">&gt; 3 months</th>
                               </tr>
                             </thead>
