@@ -831,35 +831,33 @@ function OverviewTab() {
                                     <TableRow className="bg-muted/50">
                                       <TableHead className="text-xs font-semibold py-3 px-4">CBU Code</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Description</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">NW Status</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">Mat. Status</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 min-w-[160px]">NW Status</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Copy CBU</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">Grammage</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Case Config</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">EAN</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">Price Active</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
                                     {bp.materials.map((m, idx) => (
                                       <TableRow key={m.id} data-testid={`mat-row-${bp.id}-${idx}`} className="hover:bg-muted/30">
-                                        <TableCell className="text-sm font-mono font-semibold text-blue-600 py-3 px-4">{m.code}</TableCell>
+                                        <TableCell className="text-sm font-mono font-semibold text-blue-600 py-3 px-4 whitespace-nowrap">{m.code}</TableCell>
                                         <TableCell className="text-sm py-3 px-4 max-w-56 truncate" title={m.description}>{m.description}</TableCell>
                                         <TableCell className="py-3 px-4"><NwStatusBadge status={m.networkStatus} /></TableCell>
                                         <TableCell className="py-3 px-4"><MatStatusBadge status={m.matStatus} /></TableCell>
-                                        <TableCell className="text-sm py-3 px-4 text-muted-foreground max-w-40 truncate" title={m.typeOfNetwork}>{m.typeOfNetwork}</TableCell>
-                                        <TableCell className="text-sm font-mono py-3 px-4 text-muted-foreground">{m.copyCbu}</TableCell>
-                                        <TableCell className="text-sm py-3 px-4">{m.grammage}</TableCell>
-                                        <TableCell className="text-sm py-3 px-4">{m.caseConfig}</TableCell>
-                                        <TableCell className="text-sm font-mono text-muted-foreground py-3 px-4">{m.ean}</TableCell>
+                                        <TableCell className="text-sm py-3 px-4 text-muted-foreground whitespace-nowrap">{m.typeOfNetwork}</TableCell>
+                                        <TableCell className="text-sm font-mono py-3 px-4 text-muted-foreground whitespace-nowrap">
+                                          {m.typeOfNetwork === "NEW_LAUNCH" ? <span className="text-muted-foreground/40">—</span> : m.copyCbu}
+                                        </TableCell>
+                                        <TableCell className="text-sm py-3 px-4 whitespace-nowrap">{m.caseConfig}</TableCell>
                                         <TableCell className="py-3 px-4">
                                           <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
                                             {m.priceActive ? "Yes" : "No"}
                                           </span>
                                         </TableCell>
-                                        <TableCell className={`text-sm font-medium py-3 px-4 ${m.priceEnd === "9999" ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                        <TableCell className={`text-sm font-medium py-3 px-4 whitespace-nowrap ${m.priceEnd === "9999" ? "text-emerald-600" : "text-muted-foreground"}`}>
                                           {m.priceEnd === "9999" ? "9999 (Perpetual)" : m.priceEnd}
                                         </TableCell>
                                       </TableRow>
