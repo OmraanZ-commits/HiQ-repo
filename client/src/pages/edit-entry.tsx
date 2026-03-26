@@ -894,7 +894,7 @@ export default function EditEntry() {
                                                 States <span className="normal-case text-muted-foreground/60">({lot.regions.length})</span>
                                               </p>
                                             </div>
-                                            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                                            <div className="flex flex-wrap gap-1.5">
                                               {lot.regions.map(r => (
                                                 <Badge key={r} variant="outline" className="text-[10px] px-2 py-0.5 font-normal border-[#1f36c7]/30 text-[#1f36c7] bg-[#1f36c7]/5">
                                                   <MapPin className="h-2.5 w-2.5 mr-1 shrink-0" />{r}
