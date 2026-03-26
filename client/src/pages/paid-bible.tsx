@@ -103,6 +103,37 @@ interface PbBasepack {
   materials: PbMaterial[];
 }
 
+// ─── MOC Calculator ──────────────────────────────────────────────────────────
+// MOC 1 = 21 Dec – 20 Jan, MOC 2 = 21 Jan – 20 Feb, …, MOC 12 = 21 Nov – 20 Dec
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function getCurrentMoc(): { number: number; label: string } {
+  const today = new Date();
+  const day   = today.getDate();
+  const month = today.getMonth() + 1; // 1-12
+  const year  = today.getFullYear();
+
+  // The end month of the current MOC:
+  //  • day < 21  → end month = this month  (e.g. 15 Mar → MOC 3, ends 20 Mar)
+  //  • day >= 21 → end month = next month  (e.g. 26 Mar → MOC 4, ends 20 Apr)
+  let endMonth: number;
+  let endYear: number;
+
+  if (day >= 21) {
+    endMonth = (month % 12) + 1;           // next month (1-indexed)
+    endYear  = month === 12 ? year + 1 : year;
+  } else {
+    endMonth = month;
+    endYear  = year;
+  }
+
+  // MOC number === end month (MOC 1 ends Jan, MOC 2 ends Feb, …)
+  const mocNumber = endMonth;
+  const label     = `${MONTH_NAMES[endMonth - 1]} ${endYear}`;
+  return { number: mocNumber, label };
+}
+
 // ─── Static Data (Network Updates / Bible Matrix / Amendments) ────────────────
 
 const RELAUNCH_NETWORKS = [
@@ -441,12 +472,11 @@ function OverviewTab() {
 
   return (
     <div className="space-y-5">
-      {/* Stats + Triggers — single gradient row */}
-      <div className="grid grid-cols-5 gap-3">
-        {/* Total Active Basepacks */}
+      {/* Stats — 3 gradient cards */}
+      <div className="grid grid-cols-3 gap-3">
         <div
           data-testid="stat-total-active"
-          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
+          className="relative rounded-xl p-5 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
           style={{ background: "linear-gradient(135deg, #1f36c7 0%, #0d8ecf 100%)" }}
         >
           <p className="text-xs font-medium text-white/80">Total Active Basepacks</p>
@@ -454,10 +484,9 @@ function OverviewTab() {
           <FileText className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
         </div>
 
-        {/* MSTN Cleared */}
         <div
           data-testid="stat-mstn-cleared"
-          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
+          className="relative rounded-xl p-5 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
           style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)" }}
         >
           <p className="text-xs font-medium text-white/80">MSTN Cleared</p>
@@ -465,43 +494,41 @@ function OverviewTab() {
           <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
         </div>
 
-        {/* Draft */}
         <div
           data-testid="stat-draft"
-          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
+          className="relative rounded-xl p-5 overflow-hidden text-white flex flex-col justify-between min-h-[100px]"
           style={{ background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)" }}
         >
           <p className="text-xs font-medium text-white/80">Draft</p>
           <p className="text-3xl font-bold mt-1">{drafts}</p>
           <Clock className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
         </div>
+      </div>
 
-        {/* Trigger 1 — Price Inactive */}
-        <div
-          data-testid="trigger-card-1"
-          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px] cursor-pointer"
-          style={{ background: "linear-gradient(135deg, #dc2626 0%, #f97316 100%)" }}
-        >
-          <p className="text-xs font-medium text-white/80">Price Inactive</p>
-          <p className="text-3xl font-bold mt-1">{TRIGGERS[0].count}
-            <span className="text-sm font-normal ml-1 text-white/70">items</span>
-          </p>
-          <p className="text-[10px] text-white/60 leading-tight mt-1 line-clamp-1">{TRIGGERS[0].stakeholder}</p>
-          <AlertTriangle className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
-        </div>
-
-        {/* Trigger 2 — SLOB Risk */}
-        <div
-          data-testid="trigger-card-2"
-          className="relative rounded-xl p-4 overflow-hidden text-white flex flex-col justify-between min-h-[100px] cursor-pointer"
-          style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)" }}
-        >
-          <p className="text-xs font-medium text-white/80">SLOB Risk</p>
-          <p className="text-3xl font-bold mt-1">{TRIGGERS[1].count}
-            <span className="text-sm font-normal ml-1 text-white/70">items</span>
-          </p>
-          <p className="text-[10px] text-white/60 leading-tight mt-1 line-clamp-1">{TRIGGERS[1].stakeholder}</p>
-          <Zap className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
+      {/* Triggers */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+          <Zap className="h-4 w-4 text-amber-500" /> Triggers for Improvement
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          {TRIGGERS.map(t => (
+            <Card
+              key={t.id}
+              data-testid={`trigger-card-${t.id}`}
+              className={`border-l-4 ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"}`}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-1">
+                  <p className="text-sm font-semibold">{t.name}</p>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                    {t.count} items
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
+                <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
 
@@ -1151,6 +1178,7 @@ function AmendmentsTab() {
 export default function PaidBiblePage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [, navigate] = useLocation();
+  const moc = getCurrentMoc();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -1175,7 +1203,7 @@ export default function PaidBiblePage() {
                 <MapPin className="h-3 w-3" /> All India
               </Badge>
               <Badge variant="outline" className="gap-1.5 text-xs">
-                <Clock className="h-3 w-3" /> MOC: Oct 2024
+                <Clock className="h-3 w-3" /> MOC {moc.number} · {moc.label}
               </Badge>
               <Button size="sm" variant="outline" className="gap-1.5">
                 <RefreshCw className="h-3.5 w-3.5" /> Sync Listing Master
