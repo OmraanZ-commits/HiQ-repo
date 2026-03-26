@@ -155,106 +155,159 @@ export default function Dashboard() {
             {(() => {
               const total = entries.length;
 
-              /* counts by status */
+              /* status metadata */
+              type StatusMeta = { bar: string; dot: string; card: string; label: string; text: string };
+              const STATUS_META: Record<string, StatusMeta> = {
+                "Draft":                       { bar: "bg-slate-400",   dot: "bg-slate-400",   card: "border-l-slate-400   bg-slate-50/60",   label: "Draft",          text: "text-slate-700" },
+                "Active":                      { bar: "bg-green-500",   dot: "bg-green-500",   card: "border-l-green-500   bg-green-50/60",   label: "Active",         text: "text-green-700" },
+                "Pricing Updated":             { bar: "bg-blue-500",    dot: "bg-blue-500",    card: "border-l-blue-500    bg-blue-50/60",    label: "Pricing Updated",text: "text-blue-700" },
+                "Production Started":          { bar: "bg-amber-500",   dot: "bg-amber-500",   card: "border-l-amber-500   bg-amber-50/60",   label: "Prod. Started",  text: "text-amber-700" },
+                "FTR Approved":                { bar: "bg-cyan-500",    dot: "bg-cyan-500",    card: "border-l-cyan-500    bg-cyan-50/60",    label: "FTR Approved",   text: "text-cyan-700" },
+                "Stock Movement Initiated":    { bar: "bg-violet-500",  dot: "bg-violet-500",  card: "border-l-violet-500  bg-violet-50/60",  label: "Stock Mvmt.",    text: "text-violet-700" },
+                "Network transition complete": { bar: "bg-emerald-500", dot: "bg-emerald-500", card: "border-l-emerald-500 bg-emerald-50/60", label: "NW Complete",    text: "text-emerald-700" },
+              };
+              const DEFAULT_META: StatusMeta = { bar: "bg-muted", dot: "bg-muted", card: "border-l-border bg-muted/20", label: "—", text: "text-muted-foreground" };
+
               const byStatus = STATUS_FLOW.map(s => ({
                 status: s,
                 count: entries.filter(e => e.networkStatus === s).length,
+                meta: STATUS_META[s] ?? DEFAULT_META,
               }));
 
-              /* counts by BG */
+              const active    = entries.filter(e => e.networkStatus === "Active").length;
+              const complete  = entries.filter(e => e.networkStatus === "Network transition complete").length;
+              const inPipeline = total - (byStatus[0].count) - complete; /* everything between Draft and Complete */
+
               const bgKeys = Array.from(new Set(entries.map(e => e.bg ?? "—"))).sort();
               const byBG = bgKeys.map(bg => {
                 const rows = entries.filter(e => (e.bg ?? "—") === bg);
                 return {
                   bg,
                   total: rows.length,
-                  statusCounts: STATUS_FLOW.map(s => ({ status: s, count: rows.filter(e => e.networkStatus === s).length })),
+                  statusCounts: STATUS_FLOW.map(s => ({
+                    status: s,
+                    count: rows.filter(e => e.networkStatus === s).length,
+                    meta: STATUS_META[s] ?? DEFAULT_META,
+                  })),
                 };
               });
 
-              const statusColor: Record<string, string> = {
-                "Draft":                      "bg-slate-100 text-slate-700 border-slate-300",
-                "Active":                     "bg-green-50 text-green-700 border-green-300",
-                "Pricing Updated":            "bg-blue-50 text-blue-700 border-blue-300",
-                "Production Started":         "bg-amber-50 text-amber-700 border-amber-300",
-                "FTR Approved":               "bg-cyan-50 text-cyan-700 border-cyan-300",
-                "Stock Movement Initiated":   "bg-violet-50 text-violet-700 border-violet-300",
-                "Network transition complete":"bg-emerald-50 text-emerald-700 border-emerald-300",
-              };
-
               return (
-                <div className="space-y-6">
-                  {/* ── Total ── */}
-                  <div className="flex items-center gap-4">
-                    <div className="bg-gradient-to-br from-[#1f36c7] to-[#00b0d7] rounded-xl p-5 text-white flex items-center gap-4 shadow-sm">
-                      <div>
-                        <p className="text-sm font-medium opacity-80">Total Entries</p>
-                        <p className="text-4xl font-bold tabular-nums" data-testid="summary-total">{total}</p>
+                <div className="space-y-5">
+
+                  {/* ── Metric strip ── */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: "Total Entries",  value: total,       accent: "from-[#1f36c7] to-[#0d8ecf]", testId: "summary-total" },
+                      { label: "Draft",          value: byStatus[0].count, accent: "from-slate-500 to-slate-400",  testId: "summary-draft" },
+                      { label: "Active",         value: active,      accent: "from-green-600 to-green-400",  testId: "summary-active" },
+                      { label: "NW Complete",    value: complete,    accent: "from-emerald-600 to-emerald-400", testId: "summary-complete" },
+                    ].map(m => (
+                      <div key={m.label} className={`bg-gradient-to-br ${m.accent} rounded-xl p-4 text-white shadow-sm`} data-testid={m.testId}>
+                        <p className="text-xs font-medium opacity-75 mb-1">{m.label}</p>
+                        <p className="text-3xl font-bold tabular-nums">{m.value}</p>
+                        {total > 0 && <p className="text-[10px] opacity-60 mt-1">{Math.round((m.value / total) * 100)}% of total</p>}
                       </div>
-                    </div>
+                    ))}
                   </div>
 
-                  {/* ── By Status ── */}
+                  {/* ── Pipeline bar ── */}
                   <Card>
-                    <CardHeader className="pb-3">
-                      <p className="text-sm font-semibold">By Status</p>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {byStatus.map(({ status, count }) => (
-                          <div key={status} data-testid={`summary-status-${status}`}
-                            className="flex flex-col gap-1.5 rounded-lg border border-border/60 p-4 bg-muted/20">
-                            <p className="text-[11px] text-muted-foreground leading-tight">{status}</p>
-                            <p className="text-2xl font-bold tabular-nums text-foreground">{count}</p>
-                            <div className="h-1.5 rounded-full bg-border/40 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-[#1f36c7]/70 transition-all"
-                                style={{ width: total > 0 ? `${Math.round((count / total) * 100)}%` : "0%" }}
-                              />
-                            </div>
-                            <p className="text-[10px] text-muted-foreground">
-                              {total > 0 ? `${Math.round((count / total) * 100)}%` : "0%"}
-                            </p>
+                    <CardContent className="p-5">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Status Pipeline</p>
+                      {/* segmented bar */}
+                      <div className="flex h-3 rounded-full overflow-hidden gap-px mb-4">
+                        {byStatus.map(({ status, count, meta }) =>
+                          count > 0 ? (
+                            <div
+                              key={status}
+                              title={`${status}: ${count}`}
+                              className={`${meta.bar} transition-all`}
+                              style={{ width: `${(count / total) * 100}%` }}
+                            />
+                          ) : null
+                        )}
+                      </div>
+                      {/* legend */}
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        {byStatus.map(({ status, count, meta }) => (
+                          <div key={status} className="flex items-center gap-1.5" data-testid={`summary-status-${status}`}>
+                            <span className={`h-2 w-2 rounded-full shrink-0 ${meta.dot}`} />
+                            <span className="text-xs text-muted-foreground">{status}</span>
+                            <span className={`text-xs font-semibold tabular-nums ${meta.text}`}>{count}</span>
+                            <span className="text-[10px] text-muted-foreground/50">
+                              {total > 0 ? `(${Math.round((count / total) * 100)}%)` : ""}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* ── By BG ── */}
+                  {/* ── Status cards row ── */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                    {byStatus.map(({ status, count, meta }) => (
+                      <div key={status}
+                        className={`rounded-lg border-l-4 border border-border/50 p-3 ${meta.card}`}
+                        data-testid={`summary-status-card-${status}`}>
+                        <p className={`text-[10px] font-medium leading-tight mb-2 ${meta.text}`}>{meta.label}</p>
+                        <p className="text-2xl font-bold tabular-nums text-foreground">{count}</p>
+                        <div className="mt-2 h-1 rounded-full bg-white/60 overflow-hidden">
+                          <div className={`h-full rounded-full ${meta.bar}`}
+                            style={{ width: total > 0 ? `${(count / total) * 100}%` : "0%" }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ── BG summary ── */}
                   <Card>
-                    <CardHeader className="pb-3">
-                      <p className="text-sm font-semibold">By Business Group (BG)</p>
+                    <CardHeader className="pb-0 px-5 pt-4">
+                      <p className="text-sm font-semibold">By Business Group</p>
                     </CardHeader>
-                    <CardContent className="pt-0 px-0">
-                      {/* header */}
-                      <div className="grid grid-cols-[160px_60px_repeat(7,1fr)] gap-0 px-6 py-2 bg-muted/40 border-y border-border/60 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                        <span>BG</span>
+                    <CardContent className="p-0 mt-3">
+                      {/* sticky header */}
+                      <div className="grid grid-cols-[180px_56px_repeat(7,minmax(0,1fr))] gap-0 px-5 py-2 bg-muted/50 border-y border-border/60 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide sticky top-0">
+                        <span>Business Group</span>
                         <span className="text-center">Total</span>
-                        {STATUS_FLOW.map(s => (
-                          <span key={s} className="text-center leading-tight px-1">{s}</span>
+                        {byStatus.map(({ status, meta }) => (
+                          <span key={status} className={`text-center ${meta.text}`} title={status}>{meta.label}</span>
                         ))}
                       </div>
-                      {byBG.length === 0 ? (
-                        <p className="text-sm text-muted-foreground italic px-6 py-4">No data</p>
-                      ) : byBG.map((row, i) => (
-                        <div key={row.bg} data-testid={`summary-bg-${i}`}
-                          className="grid grid-cols-[160px_60px_repeat(7,1fr)] gap-0 px-6 py-3 border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors text-xs">
-                          <span className="font-medium text-[#1f36c7] truncate pr-2" title={row.bg}>{row.bg}</span>
-                          <span className="text-center font-semibold">{row.total}</span>
-                          {row.statusCounts.map(({ status, count }) => (
-                            <span key={status} className="text-center">
-                              {count > 0 ? (
-                                <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 font-medium ${statusColor[status] ?? ""}`}>
-                                  {count}
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground/40">—</span>
-                              )}
-                            </span>
-                          ))}
-                        </div>
-                      ))}
+                      <div className="max-h-80 overflow-y-auto">
+                        {byBG.length === 0 ? (
+                          <p className="text-sm text-muted-foreground italic px-5 py-4">No data</p>
+                        ) : byBG.map((row, i) => (
+                          <div key={row.bg} data-testid={`summary-bg-${i}`}
+                            className="grid grid-cols-[180px_56px_repeat(7,minmax(0,1fr))] gap-0 px-5 border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+                            {/* BG name + mini bar */}
+                            <div className="py-3 pr-3">
+                              <p className="text-xs font-semibold text-[#1f36c7] truncate" title={row.bg}>{row.bg}</p>
+                              <div className="mt-1 h-1 rounded-full bg-border/40 overflow-hidden">
+                                <div className="h-full rounded-full bg-[#1f36c7]/50"
+                                  style={{ width: total > 0 ? `${(row.total / total) * 100}%` : "0%" }} />
+                              </div>
+                            </div>
+                            {/* total */}
+                            <div className="flex items-center justify-center">
+                              <span className="text-sm font-bold tabular-nums">{row.total}</span>
+                            </div>
+                            {/* per-status */}
+                            {row.statusCounts.map(({ status, count, meta }) => (
+                              <div key={status} className="flex items-center justify-center py-3">
+                                {count > 0 ? (
+                                  <span className={`inline-flex items-center gap-1 text-xs font-semibold tabular-nums ${meta.text}`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                                    {count}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground/30 text-xs">—</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
