@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, LayoutGrid, Network } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
@@ -708,7 +708,7 @@ export default function EditEntry() {
                   validTo: string;
                   allIndia: boolean;
                   regions: string[];
-                  clusters: string[];
+                  channels: string[];
                   regionChannelPairs: { region: string; channels: string[] }[];
                 };
 
@@ -722,7 +722,7 @@ export default function EditEntry() {
                     validTo: "2024-06-30",
                     allIndia: true,
                     regions: [],
-                    clusters: [],
+                    channels: [],
                     regionChannelPairs: [],
                   },
                   {
@@ -733,7 +733,7 @@ export default function EditEntry() {
                     validFrom: "2024-07-01",
                     validTo: "2024-12-31",
                     allIndia: false,
-                    clusters: [],
+                    channels: [],
                     regionChannelPairs: [],
                     regions: [
                       "Kerala", "Rajasthan", "Pondicherry C", "Tamil Nadu",
@@ -753,7 +753,7 @@ export default function EditEntry() {
                     allIndia: false,
                     regions: [],
                     regionChannelPairs: [],
-                    clusters: ["Cluster A", "Cluster B", "Cluster C", "Cluster D"],
+                    channels: ["GT", "CSD", "MT Retail", "KA"],
                   },
                   {
                     id: "pl-004",
@@ -767,7 +767,7 @@ export default function EditEntry() {
                       "Maharashtra B", "Delhi", "Tamil Nadu",
                       "West Bengal", "Gujarat", "Chandigarh",
                     ],
-                    clusters: ["Cluster B", "Cluster D"],
+                    channels: ["GT", "Ecom"],
                     regionChannelPairs: [
                       { region: "Maharashtra B", channels: ["GT", "MT Retail"] },
                       { region: "Delhi",          channels: ["KA", "Ecom"] },
@@ -786,8 +786,8 @@ export default function EditEntry() {
                   const pills = [];
                   if (lot.regions.length > 0)
                     pills.push({ label: "Region", icon: <MapPin className="h-3 w-3" />, bg: "bg-[#1f36c7]/10", text: "text-[#1f36c7]", border: "border border-[#1f36c7]/30" });
-                  if (lot.clusters.length > 0)
-                    pills.push({ label: "Cluster", icon: <LayoutGrid className="h-3 w-3" />, bg: "bg-amber-50", text: "text-amber-700", border: "border border-amber-300" });
+                  if (lot.channels.length > 0)
+                    pills.push({ label: "Channel", icon: <Radio className="h-3 w-3" />, bg: "bg-amber-50", text: "text-amber-700", border: "border border-amber-300" });
                   if (lot.regionChannelPairs.length > 0)
                     pills.push({ label: "Reg×Ch", icon: <Network className="h-3 w-3" />, bg: "bg-violet-50", text: "text-violet-700", border: "border border-violet-300" });
                   return pills;
@@ -844,7 +844,7 @@ export default function EditEntry() {
                             const isLast = idx === MOCK_PRICE_LOTS.length - 1;
                             const scopePills = getScopePills(lot);
                             const hasRegions = lot.regions.length > 0;
-                            const hasClusters = lot.clusters.length > 0;
+                            const hasChannels = lot.channels.length > 0;
                             const hasRxC = lot.regionChannelPairs.length > 0;
                             return (
                               <div key={lot.id} className={!isLast ? "border-b border-border/50" : ""}>
@@ -892,8 +892,8 @@ export default function EditEntry() {
                                     )}
 
                                     {/* Grid of the three optional sections — shown only when data present */}
-                                    {(hasRegions || hasClusters || hasRxC) && (
-                                      <div className={`grid gap-4 ${[hasRegions, hasClusters, hasRxC].filter(Boolean).length === 1 ? "grid-cols-1 max-w-sm" : [hasRegions, hasClusters, hasRxC].filter(Boolean).length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3"}`}>
+                                    {(hasRegions || hasChannels || hasRxC) && (
+                                      <div className={`grid gap-4 ${[hasRegions, hasChannels, hasRxC].filter(Boolean).length === 1 ? "grid-cols-1 max-w-sm" : [hasRegions, hasChannels, hasRxC].filter(Boolean).length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3"}`}>
 
                                         {/* Region Specific */}
                                         {hasRegions && (
@@ -908,16 +908,20 @@ export default function EditEntry() {
                                           </div>
                                         )}
 
-                                        {/* Cluster Specific */}
-                                        {hasClusters && (
+                                        {/* Channel Specific */}
+                                        {hasChannels && (
                                           <div>
                                             <div className="flex items-center gap-1.5 mb-1.5">
-                                              <LayoutGrid className="h-3 w-3 text-amber-600" />
+                                              <Radio className="h-3 w-3 text-amber-600" />
                                               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                                                Clusters <span className="normal-case text-muted-foreground/60">({lot.clusters.length})</span>
+                                                Channels <span className="normal-case text-muted-foreground/60">({lot.channels.length})</span>
                                               </p>
                                             </div>
-                                            <ScrollList items={lot.clusters} icon={<LayoutGrid className="h-3 w-3" />} />
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {lot.channels.map(ch => (
+                                                <Badge key={ch} variant="outline" className="text-[10px] px-2 py-0.5 font-normal border-amber-300 text-amber-700 bg-amber-50">{ch}</Badge>
+                                              ))}
+                                            </div>
                                           </div>
                                         )}
 
