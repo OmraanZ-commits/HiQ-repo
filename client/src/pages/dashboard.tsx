@@ -69,13 +69,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <Tabs defaultValue="entries" data-testid="dashboard-tabs">
+        <Tabs defaultValue="summary" data-testid="dashboard-tabs">
           <TabsList className="mb-4">
-            <TabsTrigger value="entries" data-testid="tab-entries" className="gap-1.5">
-              <LayoutList className="h-3.5 w-3.5" />Entries
-            </TabsTrigger>
             <TabsTrigger value="summary" data-testid="tab-summary" className="gap-1.5">
               <PieChart className="h-3.5 w-3.5" />Summary
+            </TabsTrigger>
+            <TabsTrigger value="entries" data-testid="tab-entries" className="gap-1.5">
+              <LayoutList className="h-3.5 w-3.5" />Network
             </TabsTrigger>
           </TabsList>
 
