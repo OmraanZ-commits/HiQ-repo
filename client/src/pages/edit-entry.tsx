@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, LayoutGrid, Network } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
@@ -699,7 +699,22 @@ export default function EditEntry() {
             {/* ── Pricing Tab ───────────────────────────────────────── */}
             <TabsContent value="pricing" className="mt-0">
               {(() => {
-                const MOCK_PRICE_LOTS = [
+                type ScopeType = "all_india" | "region_specific" | "cluster_specific" | "region_x_channel";
+                type PriceLot = {
+                  id: string;
+                  priceLot: string;
+                  mrp: number;
+                  currency: string;
+                  validFrom: string;
+                  validTo: string;
+                  scope: ScopeType;
+                  regions: string[];
+                  clusters: string[];
+                  channels: string[];
+                  regionChannelPairs: { region: string; channels: string[] }[];
+                };
+
+                const MOCK_PRICE_LOTS: PriceLot[] = [
                   {
                     id: "pl-001",
                     priceLot: "01",
@@ -707,9 +722,11 @@ export default function EditEntry() {
                     currency: "INR",
                     validFrom: "2024-01-01",
                     validTo: "2024-06-30",
-                    allIndia: true,
-                    channels: [],
+                    scope: "all_india",
                     regions: [],
+                    clusters: [],
+                    channels: [],
+                    regionChannelPairs: [],
                   },
                   {
                     id: "pl-002",
@@ -718,8 +735,10 @@ export default function EditEntry() {
                     currency: "INR",
                     validFrom: "2024-07-01",
                     validTo: "2024-12-31",
-                    allIndia: false,
-                    channels: ["GT", "CSD", "MT Retail"],
+                    scope: "region_specific",
+                    channels: [],
+                    clusters: [],
+                    regionChannelPairs: [],
                     regions: [
                       "Kerala", "Rajasthan", "Pondicherry C", "Tamil Nadu",
                       "Punjab", "Gujarat", "Nagaland", "Meghalaya", "Goa",
@@ -735,15 +754,50 @@ export default function EditEntry() {
                     currency: "INR",
                     validFrom: "2025-01-01",
                     validTo: "2025-06-30",
-                    allIndia: false,
-                    channels: ["MT Retail", "KA", "Ecom"],
-                    regions: [
-                      "Chandigarh", "Meghalaya", "Madhya Pradesh", "Delhi",
-                      "Andaman and Nicobar Islands", "Bihar", "Maharashtra B",
-                      "Bhutan", "Himachal Pradesh", "Jharkhand", "Chhattisgarh",
+                    scope: "cluster_specific",
+                    regions: [],
+                    channels: [],
+                    regionChannelPairs: [],
+                    clusters: ["Cluster A", "Cluster B", "Cluster C", "Cluster D"],
+                  },
+                  {
+                    id: "pl-004",
+                    priceLot: "04",
+                    mrp: 245.00,
+                    currency: "INR",
+                    validFrom: "2025-07-01",
+                    validTo: "2025-12-31",
+                    scope: "region_x_channel",
+                    regions: [],
+                    clusters: [],
+                    channels: [],
+                    regionChannelPairs: [
+                      { region: "Maharashtra B", channels: ["GT", "MT Retail"] },
+                      { region: "Delhi",          channels: ["KA", "Ecom"] },
+                      { region: "Tamil Nadu",     channels: ["GT", "CSD"] },
+                      { region: "West Bengal",    channels: ["MT Retail"] },
+                      { region: "Gujarat",        channels: ["GT", "KA", "Ecom"] },
                     ],
                   },
                 ];
+
+                const SCOPE_META: Record<ScopeType, { label: string; icon: React.ReactNode; bg: string; text: string; border: string }> = {
+                  all_india:        { label: "All India",              icon: <Globe className="h-3 w-3" />,    bg: "bg-[#00b0d7]",         text: "text-white",            border: "" },
+                  region_specific:  { label: "Region Specific",        icon: <MapPin className="h-3 w-3" />,   bg: "bg-[#1f36c7]/10",      text: "text-[#1f36c7]",       border: "border border-[#1f36c7]/30" },
+                  cluster_specific: { label: "Cluster Specific",       icon: <LayoutGrid className="h-3 w-3" />, bg: "bg-amber-50",        text: "text-amber-700",        border: "border border-amber-300" },
+                  region_x_channel: { label: "Region × Channel",       icon: <Network className="h-3 w-3" />,  bg: "bg-violet-50",         text: "text-violet-700",       border: "border border-violet-300" },
+                };
+
+                const ScrollList = ({ items, icon }: { items: string[]; icon: React.ReactNode }) => (
+                  <div className="border border-border/60 rounded-md overflow-hidden max-h-52 overflow-y-auto">
+                    {items.map((item, i) => (
+                      <div key={item + i} className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 last:border-0 text-xs hover:bg-muted/30 transition-colors">
+                        <span className="shrink-0 text-[#00b0d7]">{icon}</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
 
                 const PricingTab = () => {
                   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -769,8 +823,9 @@ export default function EditEntry() {
                         </CardHeader>
                         <CardContent className="pt-0 px-0">
                           {/* Table header */}
-                          <div className="grid grid-cols-[1fr_100px_80px_120px_120px_36px] gap-0 px-6 py-2 bg-muted/40 border-y border-border/60 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                          <div className="grid grid-cols-[1fr_140px_100px_80px_120px_120px_36px] gap-0 px-6 py-2 bg-muted/40 border-y border-border/60 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                             <span>Price Lot</span>
+                            <span>Scope</span>
                             <span className="text-right">MRP</span>
                             <span className="text-center">Currency</span>
                             <span className="text-center">Valid From</span>
@@ -782,24 +837,24 @@ export default function EditEntry() {
                           {MOCK_PRICE_LOTS.map((lot, idx) => {
                             const isOpen = expanded.has(lot.id);
                             const isLast = idx === MOCK_PRICE_LOTS.length - 1;
+                            const meta = SCOPE_META[lot.scope];
                             return (
                               <div key={lot.id} className={!isLast ? "border-b border-border/50" : ""}>
-                                {/* Summary row — clickable */}
+                                {/* Summary row */}
                                 <button
                                   type="button"
                                   onClick={() => toggle(lot.id)}
                                   data-testid={`price-lot-row-${lot.id}`}
-                                  className="w-full grid grid-cols-[1fr_100px_80px_120px_120px_36px] gap-0 px-6 py-3.5 text-left hover:bg-muted/30 transition-colors select-none"
+                                  className="w-full grid grid-cols-[1fr_140px_100px_80px_120px_120px_36px] gap-0 px-6 py-3.5 text-left hover:bg-muted/30 transition-colors select-none"
                                 >
-                                  <span className="flex items-center gap-2">
-                                    <span className="font-mono text-xs font-semibold text-[#1f36c7]">
-                                      {form?.cbuCode ? `${form.cbuCode}-${lot.priceLot}` : lot.priceLot}
+                                  <span className="font-mono text-xs font-semibold text-[#1f36c7]">
+                                    {form?.cbuCode ? `${form.cbuCode}-${lot.priceLot}` : lot.priceLot}
+                                  </span>
+                                  <span>
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.bg} ${meta.text} ${meta.border}`}>
+                                      {meta.icon}
+                                      {meta.label}
                                     </span>
-                                    {lot.allIndia && (
-                                      <Badge className="text-[9px] px-1.5 py-0 h-4 bg-[#00b0d7]/10 text-[#00b0d7] border border-[#00b0d7]/30 hover:bg-[#00b0d7]/10">
-                                        All India
-                                      </Badge>
-                                    )}
                                   </span>
                                   <span className="text-right font-semibold text-sm tabular-nums">
                                     {lot.mrp.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -808,74 +863,74 @@ export default function EditEntry() {
                                   <span className="text-center text-xs">{formatDateDisplay(lot.validFrom)}</span>
                                   <span className="text-center text-xs">{formatDateDisplay(lot.validTo)}</span>
                                   <span className="flex items-center justify-center text-muted-foreground">
-                                    {isOpen
-                                      ? <ChevronDown className="h-4 w-4" />
-                                      : <ChevronRight className="h-4 w-4" />}
+                                    {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                   </span>
                                 </button>
 
-                                {/* Expanded detail panel */}
+                                {/* Expanded detail panel — content varies by scope */}
                                 {isOpen && (
-                                  <div className="px-6 pb-4 pt-1 bg-[#00b0d7]/[0.03] border-t border-border/40">
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                      {/* All India */}
-                                      <div>
-                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Scope</p>
-                                        {lot.allIndia ? (
-                                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00b0d7] text-white text-xs font-medium">
-                                            <Globe className="h-3 w-3" />
-                                            All India
-                                          </div>
-                                        ) : (
-                                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground text-xs">
-                                            <Globe className="h-3 w-3" />
-                                            Region Specific
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {/* Channels */}
-                                      <div>
-                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                                          Channels {lot.channels.length > 0 && <span className="normal-case text-muted-foreground/60">({lot.channels.length})</span>}
-                                        </p>
-                                        {lot.allIndia ? (
-                                          <p className="text-xs text-muted-foreground italic">All channels</p>
-                                        ) : lot.channels.length > 0 ? (
-                                          <div className="flex flex-wrap gap-1.5">
-                                            {lot.channels.map(ch => (
-                                              <Badge key={ch} variant="outline" className="text-[10px] px-2 py-0.5 font-normal">{ch}</Badge>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <p className="text-xs text-muted-foreground italic">—</p>
-                                        )}
-                                      </div>
-
-                                      {/* Regions / States */}
-                                      <div>
-                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                                          States{lot.regions.length > 0 && <span className="normal-case text-muted-foreground/60"> ({lot.regions.length})</span>}
-                                        </p>
-                                        {lot.allIndia ? (
-                                          <p className="text-xs text-muted-foreground italic">All states</p>
-                                        ) : lot.regions.length > 0 ? (
-                                          <div className="border border-border/60 rounded-md overflow-hidden max-h-48 overflow-y-auto">
-                                            {lot.regions.map((r, i) => (
-                                              <div
-                                                key={r + i}
-                                                className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 last:border-0 text-xs hover:bg-muted/30 transition-colors"
-                                              >
-                                                <MapPin className="h-3 w-3 text-[#00b0d7] shrink-0" />
-                                                <span>{r}</span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <p className="text-xs text-muted-foreground italic">—</p>
-                                        )}
-                                      </div>
+                                  <div className="px-6 pb-5 pt-3 bg-[#00b0d7]/[0.03] border-t border-border/40 space-y-3">
+                                    {/* Scope pill */}
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Scope</p>
+                                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text} ${meta.border}`}>
+                                        {meta.icon}{meta.label}
+                                      </span>
                                     </div>
+
+                                    {/* ── All India ── */}
+                                    {lot.scope === "all_india" && (
+                                      <p className="text-xs text-muted-foreground italic">Applicable across all states and all channels in India.</p>
+                                    )}
+
+                                    {/* ── Region Specific ── */}
+                                    {lot.scope === "region_specific" && (
+                                      <div>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                                          States <span className="normal-case text-muted-foreground/60">({lot.regions.length})</span>
+                                        </p>
+                                        <ScrollList items={lot.regions} icon={<MapPin className="h-3 w-3" />} />
+                                      </div>
+                                    )}
+
+                                    {/* ── Cluster Specific ── */}
+                                    {lot.scope === "cluster_specific" && (
+                                      <div>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                                          Clusters <span className="normal-case text-muted-foreground/60">({lot.clusters.length})</span>
+                                        </p>
+                                        <ScrollList items={lot.clusters} icon={<LayoutGrid className="h-3 w-3" />} />
+                                      </div>
+                                    )}
+
+                                    {/* ── Region × Channel Specific ── */}
+                                    {lot.scope === "region_x_channel" && (
+                                      <div>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                                          Region × Channel Pairs <span className="normal-case text-muted-foreground/60">({lot.regionChannelPairs.length} regions)</span>
+                                        </p>
+                                        <div className="border border-border/60 rounded-md overflow-hidden max-h-52 overflow-y-auto">
+                                          {/* mini header */}
+                                          <div className="grid grid-cols-[1fr_1fr] px-3 py-1.5 bg-muted/50 border-b border-border/60 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                            <span>Region / State</span>
+                                            <span>Channels</span>
+                                          </div>
+                                          {lot.regionChannelPairs.map((pair, i) => (
+                                            <div key={pair.region + i} className="grid grid-cols-[1fr_1fr] px-3 py-2 border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+                                              <div className="flex items-center gap-1.5 text-xs">
+                                                <MapPin className="h-3 w-3 text-[#00b0d7] shrink-0" />
+                                                {pair.region}
+                                              </div>
+                                              <div className="flex flex-wrap gap-1">
+                                                {pair.channels.map(ch => (
+                                                  <Badge key={ch} variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal">{ch}</Badge>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
