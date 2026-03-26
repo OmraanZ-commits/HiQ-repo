@@ -197,24 +197,13 @@ export default function Dashboard() {
                 .sort((a, b) => b.pending - a.pending);
               const maxPending = byAssignee[0]?.pending ?? 1;
 
-              /* aging buckets — days since cbuCreatedDate for pending entries */
-              const today = new Date();
-              const daysSince = (d: string | null | undefined) => {
-                if (!d) return 0;
-                return Math.floor((today.getTime() - new Date(d).getTime()) / 86_400_000);
-              };
-              const AGING_BUCKETS = [
-                { label: "< 7 days",   min: 0,  max: 6,   color: "bg-green-500",  text: "text-green-700" },
-                { label: "7–14 days",  min: 7,  max: 14,  color: "bg-amber-400",  text: "text-amber-700" },
-                { label: "15–30 days", min: 15, max: 30,  color: "bg-orange-500", text: "text-orange-700" },
-                { label: "31–60 days", min: 31, max: 60,  color: "bg-red-400",    text: "text-red-700" },
-                { label: "> 60 days",  min: 61, max: Infinity, color: "bg-red-700", text: "text-red-800" },
-              ];
-              const agingData = AGING_BUCKETS.map(b => ({
-                ...b,
-                count: pendingEntries.filter(e => { const d = daysSince(e.cbuCreatedDate); return d >= b.min && d <= b.max; }).length,
-              }));
-              const maxAging = Math.max(...agingData.map(a => a.count), 1);
+              /* pending entries broken down by their current status */
+              const pendingByStatus = STATUS_FLOW.filter(s => s !== "Network transition complete").map(s => ({
+                status: s,
+                count: pendingEntries.filter(e => e.networkStatus === s).length,
+                meta: STATUS_META[s] ?? DEFAULT_META,
+              })).filter(r => r.count > 0);
+              const maxPendingStatus = Math.max(...pendingByStatus.map(r => r.count), 1);
 
               const bgKeys = Array.from(new Set(entries.map(e => e.bg ?? "—"))).sort();
               const byBG = bgKeys.map(bg => {
@@ -285,25 +274,30 @@ export default function Dashboard() {
                   {/* ── Pending Aging + By Assignee (side by side) ── */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    {/* Aging */}
+                    {/* Pending by Status */}
                     <Card>
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending Since</p>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending by Status</p>
                           <Badge variant="secondary" className="text-[10px]">{pendingEntries.length} total</Badge>
                         </div>
-                        <div className="space-y-2">
-                          {agingData.map(b => (
-                            <div key={b.label} className="flex items-center gap-2" data-testid={`summary-aging-${b.label}`}>
-                              <span className="text-[11px] text-muted-foreground w-20 shrink-0">{b.label}</span>
-                              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                                <div className={`h-full rounded-full ${b.color} transition-all`}
-                                  style={{ width: `${(b.count / maxAging) * 100}%` }} />
+                        {pendingByStatus.length === 0 ? (
+                          <p className="text-xs text-muted-foreground italic">No pending entries</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {pendingByStatus.map(r => (
+                              <div key={r.status} className="flex items-center gap-2" data-testid={`summary-pending-status-${r.status}`}>
+                                <span className={`h-2 w-2 rounded-full shrink-0 ${r.meta.dot}`} />
+                                <span className="text-[11px] text-muted-foreground flex-1 truncate" title={r.status}>{r.meta.label}</span>
+                                <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                                  <div className={`h-full rounded-full ${r.meta.bar} transition-all`}
+                                    style={{ width: `${(r.count / maxPendingStatus) * 100}%` }} />
+                                </div>
+                                <span className={`text-xs font-bold tabular-nums w-4 text-right ${r.meta.text}`}>{r.count}</span>
                               </div>
-                              <span className={`text-xs font-bold tabular-nums w-5 text-right ${b.text}`}>{b.count}</span>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
 
