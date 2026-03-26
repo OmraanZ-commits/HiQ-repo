@@ -681,7 +681,7 @@ function OverviewTab() {
       {/* Basepack table */}
       <Card>
         <CardContent className="p-0">
-          <div className="rounded-md overflow-auto max-h-[calc(100vh-260px)]">
+          <div className="rounded-md overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/60">
@@ -1182,10 +1182,11 @@ export default function PaidBiblePage() {
   const moc = getCurrentMoc();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen overflow-hidden bg-background flex flex-col">
       <UnileverHeader module="paid-bible" activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <main className="flex-1 px-6 py-6 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 overflow-y-auto">
+      <div className="px-6 py-6 max-w-[1600px] mx-auto w-full">
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1217,6 +1218,7 @@ export default function PaidBiblePage() {
         {activeTab === "network-updates" && <NetworkUpdatesTab />}
         {activeTab === "bible-matrix"    && <BibleMatrixTab />}
         {activeTab === "amendments"      && <AmendmentsTab />}
+      </div>
       </main>
     </div>
   );
