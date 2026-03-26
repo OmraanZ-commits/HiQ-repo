@@ -2,7 +2,6 @@ import { useState, Fragment, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { UnileverHeader } from "@/components/unilever-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -307,6 +306,7 @@ function OverviewTab() {
   const [locationFilter, setLocationFilter] = useState("all");
   const [materialSearch, setMaterialSearch] = useState("");
   const [mstnFilter, setMstnFilter]         = useState("all");
+  const [bgFilter, setBgFilter]             = useState("all");
   const [showFilters, setShowFilters]       = useState(false);
 
   // ── UI state ──
@@ -374,8 +374,12 @@ function OverviewTab() {
     () => [...new Set(allBasepacks.flatMap(b => b.channels))].filter(Boolean).sort(),
     [allBasepacks],
   );
+  const bgOptions = useMemo(
+    () => [...new Set(allBasepacks.map(b => b.bg))].filter(s => s && s !== "-").sort(),
+    [allBasepacks],
+  );
 
-  // ── Filtered list (applies all 6 BRD filters) ──
+  // ── Filtered list (applies all 7 BRD filters) ──
   const filtered = useMemo(() => allBasepacks.filter(b => {
     const effStatus = localBpStatus[b.id] ?? b.bpStatus;
     const q  = searchBp.toLowerCase();
@@ -385,12 +389,13 @@ function OverviewTab() {
       (channelFilter  === "all" || b.channels.includes(channelFilter)) &&
       (locationFilter === "all" || b.clusters.includes(locationFilter)) &&
       (mstnFilter     === "all" || b.mstnStatus === mstnFilter) &&
+      (bgFilter       === "all" || b.bg === bgFilter) &&
       (!materialSearch || b.materials.some(m =>
         m.code.toLowerCase().includes(materialSearch.toLowerCase()) ||
         m.description.toLowerCase().includes(materialSearch.toLowerCase())
       ))
     );
-  }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, materialSearch]);
+  }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, bgFilter, materialSearch]);
 
   // ── Stats ──
   const total      = allBasepacks.length;
@@ -401,7 +406,7 @@ function OverviewTab() {
 
   const activeFilterCount = [
     bpStatusFilter !== "all", channelFilter !== "all",
-    locationFilter !== "all", mstnFilter !== "all", materialSearch !== "",
+    locationFilter !== "all", mstnFilter !== "all", bgFilter !== "all", materialSearch !== "",
   ].filter(Boolean).length;
 
   const toggleExpand = (id: string) => setExpandedId(p => p === id ? null : id);
@@ -568,12 +573,24 @@ function OverviewTab() {
                 </Select>
               </div>
 
+              {/* Business Group */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Business Group</label>
+                <Select value={bgFilter} onValueChange={setBgFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-bg"><SelectValue placeholder="All BGs" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All BGs</SelectItem>
+                    {bgOptions.map(bg => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {activeFilterCount > 0 && (
                 <Button
                   variant="ghost" size="sm"
                   onClick={() => {
                     setBpStatusFilter("all"); setChannelFilter("all");
-                    setLocationFilter("all"); setMstnFilter("all"); setMaterialSearch("");
+                    setLocationFilter("all"); setMstnFilter("all"); setBgFilter("all"); setMaterialSearch("");
                   }}
                   data-testid="button-clear-filters"
                 >
@@ -599,8 +616,8 @@ function OverviewTab() {
                   <TableHead className="text-xs font-semibold">Channels</TableHead>
                   <TableHead className="text-xs font-semibold">MSTN</TableHead>
                   <TableHead className="text-xs font-semibold">Basepack Status</TableHead>
+                  <TableHead className="text-xs font-semibold">BG</TableHead>
                   <TableHead className="text-xs font-semibold">Network Planner</TableHead>
-                  <TableHead className="text-xs font-semibold">PB Owner</TableHead>
                   <TableHead className="text-xs font-semibold w-20">CBUs</TableHead>
                 </TableRow>
               </TableHeader>
@@ -701,20 +718,17 @@ function OverviewTab() {
                         </TableCell>
 
                         <TableCell className="py-3">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {bp.bg}
+                          </span>
+                        </TableCell>
+
+                        <TableCell className="py-3">
                           <div className="flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full bg-[#1f36c7]/10 flex items-center justify-center flex-shrink-0">
                               <User className="h-3 w-3 text-[#1f36c7]" />
                             </div>
                             <span className="text-xs">{bp.networkPlanner}</span>
-                          </div>
-                        </TableCell>
-
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-[#0d8ecf]/10 flex items-center justify-center flex-shrink-0">
-                              <BookOpen className="h-3 w-3 text-[#0d8ecf]" />
-                            </div>
-                            <span className="text-xs">{bp.paidBibleOwner}</span>
                           </div>
                         </TableCell>
 
@@ -1117,17 +1131,10 @@ export default function PaidBiblePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <UnileverHeader module="paid-bible" />
+      <UnileverHeader module="paid-bible" activeTab={activeTab} onTabChange={setActiveTab} />
 
       <main className="flex-1 px-6 py-6 max-w-[1600px] mx-auto w-full">
         <div className="mb-6">
-          <button
-            onClick={() => navigate("/")}
-            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
-            data-testid="button-back-home"
-          >
-            ← All Modules
-          </button>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-gradient-to-br from-[#0d8ecf] to-[#00b0d7] p-2.5 rounded-md">
@@ -1154,28 +1161,10 @@ export default function PaidBiblePage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1" data-testid="tabs-paid-bible">
-            <TabsTrigger value="overview" className="gap-2 text-sm" data-testid="tab-overview">
-              Overview <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 1</span>
-            </TabsTrigger>
-            <TabsTrigger value="network-updates" className="gap-2 text-sm" data-testid="tab-network-updates">
-              Network Updates <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 2</span>
-            </TabsTrigger>
-            <TabsTrigger value="bible-matrix" className="gap-2 text-sm" data-testid="tab-bible-matrix">
-              Bible Matrix <span className="text-xs bg-muted rounded-full px-1.5 py-0.5">Part 3</span>
-            </TabsTrigger>
-            <TabsTrigger value="amendments" className="gap-2 text-sm" data-testid="tab-amendments">
-              Amendments
-              <Badge className="ml-1 text-xs bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">11</Badge>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview"><OverviewTab /></TabsContent>
-          <TabsContent value="network-updates"><NetworkUpdatesTab /></TabsContent>
-          <TabsContent value="bible-matrix"><BibleMatrixTab /></TabsContent>
-          <TabsContent value="amendments"><AmendmentsTab /></TabsContent>
-        </Tabs>
+        {activeTab === "overview"        && <OverviewTab />}
+        {activeTab === "network-updates" && <NetworkUpdatesTab />}
+        {activeTab === "bible-matrix"    && <BibleMatrixTab />}
+        {activeTab === "amendments"      && <AmendmentsTab />}
       </main>
     </div>
   );
