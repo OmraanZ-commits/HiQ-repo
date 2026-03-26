@@ -29,12 +29,22 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - Pattern: Orchestration-based Saga for multi-service transactions
 
 ## Key Features
-- **Saga-orchestrated status transitions**: Draft→Active goes through validate → record transition → update entry → recompute lifecycle, with automatic rollback on failure
-- **Lifecycle color flags**: Amber (Production Started, FTR Approved), Red (Stock Movement Initiated), Blinking Red (CBU Ready for Transition) — shown in table Trigger column, edit page, detail dialog, and status flow
-- Dashboard with gradient stat cards (Total, Active, Draft, Production Started)
-- Data table with CBU Created Date, Assigned Person columns, search, status filtering, and Trigger column
-- Fullscreen edit page with tabbed form (Basic Info, Product Details, Dimensions, Distribution)
-- Status flow progress bar (7 steps: Draft → Active → Pricing Updated → Production Started → FTR Approved → Stock Movement Initiated → CBU Ready for Transition)
+
+### Dashboard
+- **Two-tab dashboard**: Entries tab (data table) and Summary tab (analytics)
+- **Entries tab**: Data table with CBU Created Date, Assigned Person columns, search, status filtering, and Trigger column
+- **Summary tab** (analytics overview):
+  - Gradient metric strip: Total Entries / Draft / Active / NW Complete cards
+  - Segmented pipeline bar with color-coded legend showing count + % per status
+  - **Pending Since** panel (left): aging buckets (<7 / 7–14 / 15–30 / 31–60 / >60 days since `cbuCreatedDate`) with proportional bars; green→red color gradient by urgency
+  - **Pending by Assignee** panel (right): avatar initials, name, proportional bar, and bold pending count per person; sorted by pending count desc
+  - BG (Business Group) breakdown table: rows = business groups, columns = total + per-status counts with mini bars
+- Gradient stat cards (Total, Active, Draft, NW Complete)
+
+### Edit Page
+- Fullscreen edit page with tabbed form: Basic Info, Product Details, Dimensions, Distribution, Pricing
+- Status flow progress bar (7 steps, color-coded by status)
+- **Pricing tab**: Price lots displayed as `{CBU code}-{priceLot}` (e.g. "CBU123-01"); 4 scope types coexist simultaneously — All India, Region Specific, Channel Specific, Region×Channel matrix; states shown as compact wrapping blue-tinted badge pills; channels shown as amber badge pills; Region×Channel shown as a 2-column mini-table
 - Distribution tab: Geography/Clusters card, Channels by Geography card (per-geography channel selection), Depots card, Distribution Matrix Preview
 - Geo→Channel matrix table: rows = selected clusters, columns = GT | CSD | RD | MT (All + 4 sub-channels) | All; each cell is a checkbox per cluster×channel intersection
 - Column header pills (row 1 for top-level channels, row 2 for MT sub-channels): clicking a header pill toggles that entire column across all selected clusters; pill shows filled (all), dash (partial), or empty ring (none) aggregate state
@@ -50,18 +60,22 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - Assigned Person field with avatar initials in table
 - Read-only fields for data-sourced values; editable fields for manual input
 - No create new / delete entry actions (view + edit only)
+
+### Platform
+- **Saga-orchestrated status transitions**: Draft→Active goes through validate → record transition → update entry → recompute lifecycle, with automatic rollback on failure
+- **Lifecycle color flags**: Amber (Production Started, FTR Approved), Red (Stock Movement Initiated), Blinking Red (Network transition complete) — shown in table Trigger column, edit page, detail dialog, and status flow
 - Draft entries seed with blank start/end dates and empty distribution fields
 - Configurable API base URL (VITE_API_BASE_URL) for separate frontend/backend deployment
 
 ## Status Flow
-7-step progression exported as STATUS_FLOW constant:
+7-step progression exported as STATUS_FLOW constant (shared between frontend `shared/schema.ts` and backend `server_py/models.py`):
 1. Draft
 2. Active
 3. Pricing Updated
 4. Production Started
 5. FTR Approved
 6. Stock Movement Initiated
-7. CBU Ready for Transition
+7. Network transition complete
 
 ## Data Model
 `NetworkEntry` with ~38 fields covering:
