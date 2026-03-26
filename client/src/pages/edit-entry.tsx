@@ -699,7 +699,6 @@ export default function EditEntry() {
             {/* ── Pricing Tab ───────────────────────────────────────── */}
             <TabsContent value="pricing" className="mt-0">
               {(() => {
-                type ScopeType = "all_india" | "region_specific" | "cluster_specific" | "region_x_channel";
                 type PriceLot = {
                   id: string;
                   priceLot: string;
@@ -707,10 +706,9 @@ export default function EditEntry() {
                   currency: string;
                   validFrom: string;
                   validTo: string;
-                  scope: ScopeType;
+                  allIndia: boolean;
                   regions: string[];
                   clusters: string[];
-                  channels: string[];
                   regionChannelPairs: { region: string; channels: string[] }[];
                 };
 
@@ -722,10 +720,9 @@ export default function EditEntry() {
                     currency: "INR",
                     validFrom: "2024-01-01",
                     validTo: "2024-06-30",
-                    scope: "all_india",
+                    allIndia: true,
                     regions: [],
                     clusters: [],
-                    channels: [],
                     regionChannelPairs: [],
                   },
                   {
@@ -735,8 +732,7 @@ export default function EditEntry() {
                     currency: "INR",
                     validFrom: "2024-07-01",
                     validTo: "2024-12-31",
-                    scope: "region_specific",
-                    channels: [],
+                    allIndia: false,
                     clusters: [],
                     regionChannelPairs: [],
                     regions: [
@@ -754,9 +750,8 @@ export default function EditEntry() {
                     currency: "INR",
                     validFrom: "2025-01-01",
                     validTo: "2025-06-30",
-                    scope: "cluster_specific",
+                    allIndia: false,
                     regions: [],
-                    channels: [],
                     regionChannelPairs: [],
                     clusters: ["Cluster A", "Cluster B", "Cluster C", "Cluster D"],
                   },
@@ -767,10 +762,12 @@ export default function EditEntry() {
                     currency: "INR",
                     validFrom: "2025-07-01",
                     validTo: "2025-12-31",
-                    scope: "region_x_channel",
-                    regions: [],
-                    clusters: [],
-                    channels: [],
+                    allIndia: false,
+                    regions: [
+                      "Maharashtra B", "Delhi", "Tamil Nadu",
+                      "West Bengal", "Gujarat", "Chandigarh",
+                    ],
+                    clusters: ["Cluster B", "Cluster D"],
                     regionChannelPairs: [
                       { region: "Maharashtra B", channels: ["GT", "MT Retail"] },
                       { region: "Delhi",          channels: ["KA", "Ecom"] },
@@ -781,11 +778,19 @@ export default function EditEntry() {
                   },
                 ];
 
-                const SCOPE_META: Record<ScopeType, { label: string; icon: React.ReactNode; bg: string; text: string; border: string }> = {
-                  all_india:        { label: "All India",              icon: <Globe className="h-3 w-3" />,    bg: "bg-[#00b0d7]",         text: "text-white",            border: "" },
-                  region_specific:  { label: "Region Specific",        icon: <MapPin className="h-3 w-3" />,   bg: "bg-[#1f36c7]/10",      text: "text-[#1f36c7]",       border: "border border-[#1f36c7]/30" },
-                  cluster_specific: { label: "Cluster Specific",       icon: <LayoutGrid className="h-3 w-3" />, bg: "bg-amber-50",        text: "text-amber-700",        border: "border border-amber-300" },
-                  region_x_channel: { label: "Region × Channel",       icon: <Network className="h-3 w-3" />,  bg: "bg-violet-50",         text: "text-violet-700",       border: "border border-violet-300" },
+                /* derive summary badge(s) from data presence */
+                const getScopePills = (lot: PriceLot) => {
+                  if (lot.allIndia) return [
+                    { label: "All India", icon: <Globe className="h-3 w-3" />, bg: "bg-[#00b0d7]", text: "text-white", border: "" },
+                  ];
+                  const pills = [];
+                  if (lot.regions.length > 0)
+                    pills.push({ label: "Region", icon: <MapPin className="h-3 w-3" />, bg: "bg-[#1f36c7]/10", text: "text-[#1f36c7]", border: "border border-[#1f36c7]/30" });
+                  if (lot.clusters.length > 0)
+                    pills.push({ label: "Cluster", icon: <LayoutGrid className="h-3 w-3" />, bg: "bg-amber-50", text: "text-amber-700", border: "border border-amber-300" });
+                  if (lot.regionChannelPairs.length > 0)
+                    pills.push({ label: "Reg×Ch", icon: <Network className="h-3 w-3" />, bg: "bg-violet-50", text: "text-violet-700", border: "border border-violet-300" });
+                  return pills;
                 };
 
                 const ScrollList = ({ items, icon }: { items: string[]; icon: React.ReactNode }) => (
@@ -823,7 +828,7 @@ export default function EditEntry() {
                         </CardHeader>
                         <CardContent className="pt-0 px-0">
                           {/* Table header */}
-                          <div className="grid grid-cols-[1fr_140px_100px_80px_120px_120px_36px] gap-0 px-6 py-2 bg-muted/40 border-y border-border/60 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                          <div className="grid grid-cols-[1fr_180px_100px_80px_120px_120px_36px] gap-0 px-6 py-2 bg-muted/40 border-y border-border/60 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                             <span>Price Lot</span>
                             <span>Scope</span>
                             <span className="text-right">MRP</span>
@@ -837,7 +842,10 @@ export default function EditEntry() {
                           {MOCK_PRICE_LOTS.map((lot, idx) => {
                             const isOpen = expanded.has(lot.id);
                             const isLast = idx === MOCK_PRICE_LOTS.length - 1;
-                            const meta = SCOPE_META[lot.scope];
+                            const scopePills = getScopePills(lot);
+                            const hasRegions = lot.regions.length > 0;
+                            const hasClusters = lot.clusters.length > 0;
+                            const hasRxC = lot.regionChannelPairs.length > 0;
                             return (
                               <div key={lot.id} className={!isLast ? "border-b border-border/50" : ""}>
                                 {/* Summary row */}
@@ -845,16 +853,17 @@ export default function EditEntry() {
                                   type="button"
                                   onClick={() => toggle(lot.id)}
                                   data-testid={`price-lot-row-${lot.id}`}
-                                  className="w-full grid grid-cols-[1fr_140px_100px_80px_120px_120px_36px] gap-0 px-6 py-3.5 text-left hover:bg-muted/30 transition-colors select-none"
+                                  className="w-full grid grid-cols-[1fr_180px_100px_80px_120px_120px_36px] gap-0 px-6 py-3.5 text-left hover:bg-muted/30 transition-colors select-none"
                                 >
                                   <span className="font-mono text-xs font-semibold text-[#1f36c7]">
                                     {form?.cbuCode ? `${form.cbuCode}-${lot.priceLot}` : lot.priceLot}
                                   </span>
-                                  <span>
-                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.bg} ${meta.text} ${meta.border}`}>
-                                      {meta.icon}
-                                      {meta.label}
-                                    </span>
+                                  <span className="flex items-center gap-1 flex-wrap">
+                                    {scopePills.map(p => (
+                                      <span key={p.label} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${p.bg} ${p.text} ${p.border}`}>
+                                        {p.icon}{p.label}
+                                      </span>
+                                    ))}
                                   </span>
                                   <span className="text-right font-semibold text-sm tabular-nums">
                                     {lot.mrp.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -867,68 +876,81 @@ export default function EditEntry() {
                                   </span>
                                 </button>
 
-                                {/* Expanded detail panel — content varies by scope */}
+                                {/* Expanded detail panel — all applicable sections rendered */}
                                 {isOpen && (
-                                  <div className="px-6 pb-5 pt-3 bg-[#00b0d7]/[0.03] border-t border-border/40 space-y-3">
-                                    {/* Scope pill */}
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Scope</p>
-                                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text} ${meta.border}`}>
-                                        {meta.icon}{meta.label}
-                                      </span>
-                                    </div>
+                                  <div className="px-6 pb-5 pt-3 bg-[#00b0d7]/[0.03] border-t border-border/40">
 
-                                    {/* ── All India ── */}
-                                    {lot.scope === "all_india" && (
-                                      <p className="text-xs text-muted-foreground italic">Applicable across all states and all channels in India.</p>
-                                    )}
-
-                                    {/* ── Region Specific ── */}
-                                    {lot.scope === "region_specific" && (
-                                      <div>
-                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-                                          States <span className="normal-case text-muted-foreground/60">({lot.regions.length})</span>
-                                        </p>
-                                        <ScrollList items={lot.regions} icon={<MapPin className="h-3 w-3" />} />
+                                    {/* All India */}
+                                    {lot.allIndia && (
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00b0d7] text-white text-xs font-medium">
+                                          <Globe className="h-3.5 w-3.5" />
+                                          All India
+                                        </span>
+                                        <p className="text-xs text-muted-foreground italic">Applicable across all states and all channels in India.</p>
                                       </div>
                                     )}
 
-                                    {/* ── Cluster Specific ── */}
-                                    {lot.scope === "cluster_specific" && (
-                                      <div>
-                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-                                          Clusters <span className="normal-case text-muted-foreground/60">({lot.clusters.length})</span>
-                                        </p>
-                                        <ScrollList items={lot.clusters} icon={<LayoutGrid className="h-3 w-3" />} />
-                                      </div>
-                                    )}
+                                    {/* Grid of the three optional sections — shown only when data present */}
+                                    {(hasRegions || hasClusters || hasRxC) && (
+                                      <div className={`grid gap-4 ${[hasRegions, hasClusters, hasRxC].filter(Boolean).length === 1 ? "grid-cols-1 max-w-sm" : [hasRegions, hasClusters, hasRxC].filter(Boolean).length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3"}`}>
 
-                                    {/* ── Region × Channel Specific ── */}
-                                    {lot.scope === "region_x_channel" && (
-                                      <div>
-                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-                                          Region × Channel Pairs <span className="normal-case text-muted-foreground/60">({lot.regionChannelPairs.length} regions)</span>
-                                        </p>
-                                        <div className="border border-border/60 rounded-md overflow-hidden max-h-52 overflow-y-auto">
-                                          {/* mini header */}
-                                          <div className="grid grid-cols-[1fr_1fr] px-3 py-1.5 bg-muted/50 border-b border-border/60 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                                            <span>Region / State</span>
-                                            <span>Channels</span>
-                                          </div>
-                                          {lot.regionChannelPairs.map((pair, i) => (
-                                            <div key={pair.region + i} className="grid grid-cols-[1fr_1fr] px-3 py-2 border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
-                                              <div className="flex items-center gap-1.5 text-xs">
-                                                <MapPin className="h-3 w-3 text-[#00b0d7] shrink-0" />
-                                                {pair.region}
-                                              </div>
-                                              <div className="flex flex-wrap gap-1">
-                                                {pair.channels.map(ch => (
-                                                  <Badge key={ch} variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal">{ch}</Badge>
-                                                ))}
-                                              </div>
+                                        {/* Region Specific */}
+                                        {hasRegions && (
+                                          <div>
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                              <MapPin className="h-3 w-3 text-[#1f36c7]" />
+                                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                States <span className="normal-case text-muted-foreground/60">({lot.regions.length})</span>
+                                              </p>
                                             </div>
-                                          ))}
-                                        </div>
+                                            <ScrollList items={lot.regions} icon={<MapPin className="h-3 w-3" />} />
+                                          </div>
+                                        )}
+
+                                        {/* Cluster Specific */}
+                                        {hasClusters && (
+                                          <div>
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                              <LayoutGrid className="h-3 w-3 text-amber-600" />
+                                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                Clusters <span className="normal-case text-muted-foreground/60">({lot.clusters.length})</span>
+                                              </p>
+                                            </div>
+                                            <ScrollList items={lot.clusters} icon={<LayoutGrid className="h-3 w-3" />} />
+                                          </div>
+                                        )}
+
+                                        {/* Region × Channel */}
+                                        {hasRxC && (
+                                          <div>
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                              <Network className="h-3 w-3 text-violet-600" />
+                                              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                Region × Channel <span className="normal-case text-muted-foreground/60">({lot.regionChannelPairs.length})</span>
+                                              </p>
+                                            </div>
+                                            <div className="border border-border/60 rounded-md overflow-hidden max-h-52 overflow-y-auto">
+                                              <div className="grid grid-cols-[1fr_1fr] px-3 py-1.5 bg-muted/50 border-b border-border/60 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                <span>State</span>
+                                                <span>Channels</span>
+                                              </div>
+                                              {lot.regionChannelPairs.map((pair, i) => (
+                                                <div key={pair.region + i} className="grid grid-cols-[1fr_1fr] px-3 py-2 border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+                                                  <div className="flex items-center gap-1.5 text-xs">
+                                                    <MapPin className="h-3 w-3 text-[#00b0d7] shrink-0" />
+                                                    {pair.region}
+                                                  </div>
+                                                  <div className="flex flex-wrap gap-1">
+                                                    {pair.channels.map(ch => (
+                                                      <Badge key={ch} variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal">{ch}</Badge>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
