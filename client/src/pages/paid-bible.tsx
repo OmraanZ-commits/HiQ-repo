@@ -429,11 +429,14 @@ function OverviewTab() {
   }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, bgFilter, materialSearch]);
 
   // ── Stats ──
-  const total      = allBasepacks.length;
-  const mstnYes    = allBasepacks.filter(b => b.mstnStatus === "Yes").length;
-  const drafts     = allBasepacks.filter(b => (localBpStatus[b.id] ?? b.bpStatus) === "Draft").length;
-  const notCleared = allBasepacks.filter(b => b.mstnStatus === "No" && (localBpStatus[b.id] ?? b.bpStatus) !== "Draft").length;
-  const totalMats  = allBasepacks.reduce((s, b) => s + b.materials.length, 0);
+  const ACTIVE_BP_STATUSES = new Set(["Active Pack", "Active Pack (Channel)", "Active Pack (Customer)", "Seasonal Pack"]);
+
+  const total         = allBasepacks.length;
+  const mstnYes       = allBasepacks.filter(b => b.mstnStatus === "Yes").length;
+  const drafts        = allBasepacks.filter(b => (localBpStatus[b.id] ?? b.bpStatus) === "Draft").length;
+  const activeCount   = allBasepacks.filter(b => ACTIVE_BP_STATUSES.has(localBpStatus[b.id] ?? b.bpStatus)).length;
+  const notCleared    = allBasepacks.filter(b => b.mstnStatus === "No" && (localBpStatus[b.id] ?? b.bpStatus) !== "Draft").length;
+  const totalMats     = allBasepacks.reduce((s, b) => s + b.materials.length, 0);
 
   const activeFilterCount = [
     bpStatusFilter !== "all", channelFilter !== "all",
@@ -480,7 +483,7 @@ function OverviewTab() {
           style={{ background: "linear-gradient(135deg, #1f36c7 0%, #0d8ecf 100%)" }}
         >
           <p className="text-xs font-medium text-white/80">Total Active Basepacks</p>
-          <p className="text-3xl font-bold mt-1">{total - drafts}</p>
+          <p className="text-3xl font-bold mt-1">{activeCount}</p>
           <FileText className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 text-white/20" />
         </div>
 
