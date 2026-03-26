@@ -15,10 +15,12 @@ class ListMasterStorage:
     def seed_entries(self, seeds: list[InsertNetworkEntry]):
         db = SessionLocal()
         try:
-            count = db.query(NetworkEntryModel).count()
-            if count > 0:
-                return
-            for seed in seeds:
+            existing_cbus = {
+                row.cbu_code
+                for row in db.query(NetworkEntryModel.cbu_code).all()
+            }
+            new_entries = [s for s in seeds if s.cbuCode not in existing_cbus]
+            for seed in new_entries:
                 data = api_data_to_db(seed.model_dump())
                 entry = NetworkEntryModel(
                     id=uuid.uuid4(),
@@ -26,7 +28,8 @@ class ListMasterStorage:
                     **data,
                 )
                 db.add(entry)
-            db.commit()
+            if new_entries:
+                db.commit()
         finally:
             db.close()
 
