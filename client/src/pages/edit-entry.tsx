@@ -793,16 +793,6 @@ export default function EditEntry() {
                   return pills;
                 };
 
-                const ScrollList = ({ items, icon }: { items: string[]; icon: React.ReactNode }) => (
-                  <div className="border border-border/60 rounded-md overflow-hidden max-h-52 overflow-y-auto">
-                    {items.map((item, i) => (
-                      <div key={item + i} className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 last:border-0 text-xs hover:bg-muted/30 transition-colors">
-                        <span className="shrink-0 text-[#00b0d7]">{icon}</span>
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
 
                 const PricingTab = () => {
                   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -904,7 +894,13 @@ export default function EditEntry() {
                                                 States <span className="normal-case text-muted-foreground/60">({lot.regions.length})</span>
                                               </p>
                                             </div>
-                                            <ScrollList items={lot.regions} icon={<MapPin className="h-3 w-3" />} />
+                                            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                                              {lot.regions.map(r => (
+                                                <Badge key={r} variant="outline" className="text-[10px] px-2 py-0.5 font-normal border-[#1f36c7]/30 text-[#1f36c7] bg-[#1f36c7]/5">
+                                                  <MapPin className="h-2.5 w-2.5 mr-1 shrink-0" />{r}
+                                                </Badge>
+                                              ))}
+                                            </div>
                                           </div>
                                         )}
 
