@@ -197,13 +197,26 @@ export default function Dashboard() {
                 .sort((a, b) => b.pending - a.pending);
               const maxPending = byAssignee[0]?.pending ?? 1;
 
-              /* pending entries broken down by their current status */
-              const pendingByStatus = STATUS_FLOW.filter(s => s !== "Network transition complete").map(s => ({
-                status: s,
-                count: pendingEntries.filter(e => e.networkStatus === s).length,
-                meta: STATUS_META[s] ?? DEFAULT_META,
-              })).filter(r => r.count > 0);
-              const maxPendingStatus = Math.max(...pendingByStatus.map(r => r.count), 1);
+              /* ageing helpers */
+              const todayMs = Date.now();
+              const ageInDays = (d: string | null | undefined) =>
+                d ? Math.floor((todayMs - new Date(d + "T00:00:00").getTime()) / 86_400_000) : 0;
+
+              /* pending entries broken down by their current status, with ageing stats */
+              const pendingByStatus = STATUS_FLOW.filter(s => s !== "Network transition complete").map(s => {
+                const rows = pendingEntries.filter(e => e.networkStatus === s);
+                const ages = rows.map(e => ageInDays(e.cbuCreatedDate));
+                const avgAge = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
+                return {
+                  status: s,
+                  meta: STATUS_META[s] ?? DEFAULT_META,
+                  count: rows.length,
+                  avgAge,
+                  gt7:  ages.filter(a => a > 7).length,
+                  gt30: ages.filter(a => a > 30).length,
+                  gt90: ages.filter(a => a > 90).length,
+                };
+              }).filter(r => r.count > 0);
 
               const bgKeys = Array.from(new Set(entries.map(e => e.bg ?? "—"))).sort();
               const byBG = bgKeys.map(bg => {
@@ -271,67 +284,97 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  {/* ── Pending Aging + By Assignee (side by side) ── */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                    {/* Pending by Status */}
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending by Status</p>
-                          <Badge variant="secondary" className="text-[10px]">{pendingEntries.length} total</Badge>
+                  {/* ── Pending by Status (ageing table) ── */}
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending by Status</p>
+                        <Badge variant="secondary" className="text-[10px]">{pendingEntries.length} pending</Badge>
+                      </div>
+                      {pendingByStatus.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic px-5 pb-4">No pending entries</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-y border-border/60 bg-muted/40">
+                                <th className="text-left font-semibold text-muted-foreground px-5 py-2 w-40">Status</th>
+                                <th className="text-right font-semibold text-muted-foreground px-3 py-2">Items</th>
+                                <th className="text-right font-semibold text-muted-foreground px-3 py-2">Avg Age</th>
+                                <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-amber-600">&gt; 7 days</th>
+                                <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-orange-600">&gt; 1 month</th>
+                                <th className="text-right font-semibold text-muted-foreground px-5 py-2 text-red-600">&gt; 3 months</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pendingByStatus.map((r, i) => (
+                                <tr key={r.status}
+                                  data-testid={`summary-pending-status-${r.status}`}
+                                  className={`border-b border-border/40 last:border-0 ${i % 2 === 1 ? "bg-muted/20" : ""}`}>
+                                  <td className="px-5 py-2.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`h-2 w-2 rounded-full shrink-0 ${r.meta.dot}`} />
+                                      <span className={`font-medium ${r.meta.text}`} title={r.status}>{r.meta.label}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right font-bold tabular-nums">{r.count}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+                                    {r.avgAge}d
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">
+                                    {r.gt7 > 0
+                                      ? <span className="font-semibold text-amber-600">{r.gt7}</span>
+                                      : <span className="text-muted-foreground/40">—</span>}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">
+                                    {r.gt30 > 0
+                                      ? <span className="font-semibold text-orange-600">{r.gt30}</span>
+                                      : <span className="text-muted-foreground/40">—</span>}
+                                  </td>
+                                  <td className="px-5 py-2.5 text-right tabular-nums">
+                                    {r.gt90 > 0
+                                      ? <span className="font-bold text-red-600">{r.gt90}</span>
+                                      : <span className="text-muted-foreground/40">—</span>}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
-                        {pendingByStatus.length === 0 ? (
-                          <p className="text-xs text-muted-foreground italic">No pending entries</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {pendingByStatus.map(r => (
-                              <div key={r.status} className="flex items-center gap-2" data-testid={`summary-pending-status-${r.status}`}>
-                                <span className={`h-2 w-2 rounded-full shrink-0 ${r.meta.dot}`} />
-                                <span className="text-[11px] text-muted-foreground flex-1 truncate" title={r.status}>{r.meta.label}</span>
-                                <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
-                                  <div className={`h-full rounded-full ${r.meta.bar} transition-all`}
-                                    style={{ width: `${(r.count / maxPendingStatus) * 100}%` }} />
-                                </div>
-                                <span className={`text-xs font-bold tabular-nums w-4 text-right ${r.meta.text}`}>{r.count}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                    {/* Assignee */}
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending by Assignee</p>
-                          <Badge variant="secondary" className="text-[10px]">{byAssignee.length} people</Badge>
-                        </div>
-                        {byAssignee.length === 0 ? (
-                          <p className="text-xs text-muted-foreground italic">No pending entries</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {byAssignee.map((row, i) => (
-                              <div key={row.person} data-testid={`summary-assignee-${i}`} className="flex items-center gap-2">
-                                <div className="h-6 w-6 rounded-full bg-[#1f36c7]/10 border border-[#1f36c7]/20 flex items-center justify-center shrink-0">
-                                  <span className="text-[9px] font-bold text-[#1f36c7]">
-                                    {row.person === "Unassigned" ? "?" : row.person.split(" ").map((p: string) => p[0]).join("").slice(0,2).toUpperCase()}
-                                  </span>
-                                </div>
-                                <span className="text-xs flex-1 truncate">{row.person}</span>
-                                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                                  <div className="h-full rounded-full bg-[#1f36c7]/60 transition-all"
-                                    style={{ width: `${(row.pending / maxPending) * 100}%` }} />
-                                </div>
-                                <span className="text-xs font-bold tabular-nums text-[#1f36c7] w-5 text-right">{row.pending}</span>
+                  {/* ── Pending by Assignee ── */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending by Assignee</p>
+                        <Badge variant="secondary" className="text-[10px]">{byAssignee.length} people</Badge>
+                      </div>
+                      {byAssignee.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">No pending entries</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {byAssignee.map((row, i) => (
+                            <div key={row.person} data-testid={`summary-assignee-${i}`} className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded-full bg-[#1f36c7]/10 border border-[#1f36c7]/20 flex items-center justify-center shrink-0">
+                                <span className="text-[9px] font-bold text-[#1f36c7]">
+                                  {row.person === "Unassigned" ? "?" : row.person.split(" ").map((p: string) => p[0]).join("").slice(0,2).toUpperCase()}
+                                </span>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
+                              <span className="text-xs flex-1 truncate">{row.person}</span>
+                              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full bg-[#1f36c7]/60 transition-all"
+                                  style={{ width: `${(row.pending / maxPending) * 100}%` }} />
+                              </div>
+                              <span className="text-xs font-bold tabular-nums text-[#1f36c7] w-5 text-right">{row.pending}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   {/* ── BG summary ── */}
                   <Card>
