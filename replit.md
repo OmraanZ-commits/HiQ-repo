@@ -31,18 +31,18 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 ## Key Features
 
 ### Dashboard
-- **Two-tab dashboard**: Entries tab (data table) and Summary tab (analytics)
-- **Entries tab**: Data table with CBU Created Date, Assigned Person columns, search, status filtering, and Trigger column
+- **Two-tab dashboard**: Summary tab (default landing, analytics) and Network tab (data table)
+- **Network tab**: Data table with CBU Created Date, Assigned Person columns, search, status filtering, and Trigger column
 - **Summary tab** (analytics overview):
-  - Gradient metric strip: Total Entries / Draft / Active / NW Complete cards
+  - Gradient metric strip: Total / Draft / Active / NW Complete cards (each showing count + % of total)
   - Segmented pipeline bar with color-coded legend showing count + % per status
-  - **Pending Since** panel (left): aging buckets (<7 / 7–14 / 15–30 / 31–60 / >60 days since `cbuCreatedDate`) with proportional bars; green→red color gradient by urgency
+  - **Pending by Status** panel (left): ageing table with columns Status / Items / Avg Age / 7–30d / 1–3mo / >3mo; buckets are mutually exclusive based on `cbuCreatedDate` age; counts shown in amber/orange/red as urgency increases
   - **Pending by Assignee** panel (right): avatar initials, name, proportional bar, and bold pending count per person; sorted by pending count desc
-  - BG (Business Group) breakdown table: rows = business groups, columns = total + per-status counts with mini bars
+  - Both panels displayed side-by-side in a 2-column grid
 - Gradient stat cards (Total, Active, Draft, NW Complete)
 
 ### Edit Page
-- Fullscreen edit page with tabbed form: Basic Info, Product Details, Dimensions, Distribution, Pricing
+- Fullscreen edit page with tabbed form: Basic Info, Product Details, Dimensions, Distribution, Sourcing Matrix, Pricing
 - Status flow progress bar (7 steps, color-coded by status)
 - **Pricing tab**: Price lots displayed as `{CBU code}-{priceLot}` (e.g. "CBU123-01"); 4 scope types coexist simultaneously — All India, Region Specific, Channel Specific, Region×Channel matrix; states shown as compact wrapping blue-tinted badge pills; channels shown as amber badge pills; Region×Channel shown as a 2-column mini-table
 - Distribution tab: Geography/Clusters card, Channels by Geography card (per-geography channel selection), Depots card, Distribution Matrix Preview
@@ -51,6 +51,11 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - MT column: two-row header — row 1 "MT" spans all sub-columns (label only), row 2 has individual pills for All + each MT sub-channel; clicking "All" in row 2 toggles all MT sub-channels
 - Per-row "MT All" checkbox: each cluster row has a dedicated checkbox in the MT group to toggle all MT sub-channels for that single cluster
 - `channelMapping` (JSONB): stores per-geography channel selections as `Record<string, string[]>`; flat `channel` array auto-derived as union for backward compatibility; leaf channel count = 8 (GT, CSD, RD, Ecom, KA, MT Retail, Qcom + one legacy)
+- **Sourcing Matrix tab**: Decentralized / Centralized pill toggle
+  - **Decentralized** (default): shows the distribution-selected clusters and depots pre-checked and read-only
+  - **Centralized**: starts unselected; user manually picks from the same filtered cluster/depot list derived from the Distribution tab; switching back to Decentralized resets centralized selections
+  - Validation: if geo selected in centralized mode with no depot for that geo → blocked with toast naming the offending geo; if zero total depots in centralized mode → blocked with toast; if user selects all available geos+depots → dialog prompts switch to Decentralized
+  - State persisted in: `sourcingMode`, `centralizedGeo`, `centralizedDepots`
 - View detail dialog with organized sections and status flow
 - Year auto-calculated from CBU Created Date
 - Network Change Date auto-calculated as CBU Created Date + 15 days for Draft entries
