@@ -178,6 +178,25 @@ export default function Dashboard() {
               const complete  = entries.filter(e => e.networkStatus === "Network transition complete").length;
               const inPipeline = total - (byStatus[0].count) - complete; /* everything between Draft and Complete */
 
+              /* pending by assignee — all statuses except "Network transition complete" */
+              const pendingEntries = entries.filter(e => e.networkStatus !== "Network transition complete");
+              const assigneeKeys = Array.from(new Set(pendingEntries.map(e => e.assignedPerson ?? "Unassigned"))).sort();
+              const byAssignee = assigneeKeys
+                .map(person => {
+                  const rows = pendingEntries.filter(e => (e.assignedPerson ?? "Unassigned") === person);
+                  return {
+                    person,
+                    pending: rows.length,
+                    statusCounts: STATUS_FLOW.filter(s => s !== "Network transition complete").map(s => ({
+                      status: s,
+                      count: rows.filter(e => e.networkStatus === s).length,
+                      meta: STATUS_META[s] ?? DEFAULT_META,
+                    })),
+                  };
+                })
+                .sort((a, b) => b.pending - a.pending);
+              const maxPending = byAssignee[0]?.pending ?? 1;
+
               const bgKeys = Array.from(new Set(entries.map(e => e.bg ?? "—"))).sort();
               const byBG = bgKeys.map(bg => {
                 const rows = entries.filter(e => (e.bg ?? "—") === bg);
@@ -259,6 +278,65 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
+
+                  {/* ── Pending by Assignee ── */}
+                  <Card>
+                    <CardHeader className="pb-0 px-5 pt-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold">Pending by Assignee</p>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {pendingEntries.length} pending
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-5 pt-4">
+                      {byAssignee.length === 0 ? (
+                        <p className="text-sm text-muted-foreground italic">No pending entries</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {byAssignee.map((row, i) => (
+                            <div key={row.person} data-testid={`summary-assignee-${i}`} className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {/* avatar circle */}
+                                  <div className="h-7 w-7 rounded-full bg-[#1f36c7]/10 border border-[#1f36c7]/20 flex items-center justify-center shrink-0">
+                                    <span className="text-[10px] font-bold text-[#1f36c7]">
+                                      {row.person === "Unassigned" ? "?" : row.person.split(" ").map(p => p[0]).join("").slice(0,2).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <span className="text-sm font-medium truncate">{row.person}</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {/* status breakdown dots */}
+                                  <div className="flex items-center gap-1 flex-wrap justify-end">
+                                    {row.statusCounts.filter(sc => sc.count > 0).map(sc => (
+                                      <span key={sc.status} title={`${sc.status}: ${sc.count}`}
+                                        className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${sc.meta.card} ${sc.meta.text}`}>
+                                        <span className={`h-1.5 w-1.5 rounded-full ${sc.meta.dot}`} />
+                                        {sc.count}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <span className="text-sm font-bold tabular-nums text-foreground w-6 text-right">{row.pending}</span>
+                                </div>
+                              </div>
+                              {/* proportional bar */}
+                              <div className="h-1.5 rounded-full bg-muted overflow-hidden ml-9">
+                                <div className="h-full flex gap-px">
+                                  {row.statusCounts.filter(sc => sc.count > 0).map(sc => (
+                                    <div key={sc.status}
+                                      title={`${sc.status}: ${sc.count}`}
+                                      className={`h-full ${sc.meta.bar} transition-all`}
+                                      style={{ width: `${(sc.count / maxPending) * 100}%` }} />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   {/* ── BG summary ── */}
                   <Card>
