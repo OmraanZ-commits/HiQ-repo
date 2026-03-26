@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useLocation } from "wouter";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,31 +11,119 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Download, Ticket, RefreshCw, AlertTriangle, CheckCircle2,
-  XCircle, Clock, Search, Filter, ChevronRight, FileText,
-  ArrowUpRight, Zap, MapPin, Package,
+  Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock,
+  Search, Filter, ChevronRight, ChevronDown, FileText, ArrowUpRight,
+  Zap, MapPin, Package, User, X, BookOpen, RefreshCw,
 } from "lucide-react";
 
-// ─── Mock Data ──────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-const BASEPACKS = ["13337", "14151", "18920", "22041", "30115"];
-const CHANNELS  = ["MT", "GT", "KA", "CSD", "OH", "RD", "MT-ECOM", "MT-QCOM"];
-const STATUSES  = ["Active Pack", "Inactive/Delisted", "Stock Base Delisting", "Seasonal Pack", "Active Pack (Channel)", "Active Pack (Customer)"];
-const CLUSTERS  = ["Delhi NCR", "Punjab-Hills-Haryana", "Rajasthan Cluster", "Mumbai Metro", "Maharashtra", "Tamil Nadu", "Karnataka", "West Bengal"];
+interface Material {
+  code: string;
+  description: string;
+  status: "OK" | "Issue" | "In Progress" | "CP Pack";
+  priceActive: boolean;
+  mrp: string;
+  ean: string;
+  grammage: string;
+  caseConfig: string;
+  priceStart: string;
+  priceEnd: string;
+}
 
-const MATERIAL_MATRIX = [
-  { material: "SUHD1R4", status: "OK",      cluster: "Delhi NCR",              priceActive: true,  priceStart: "01-Apr-24", priceEnd: "9999", createdOn: "28-Mar-24" },
-  { material: "SUHD1R5", status: "OK",      cluster: "Delhi NCR",              priceActive: true,  priceStart: "01-Apr-24", priceEnd: "9999", createdOn: "28-Mar-24" },
-  { material: "SUHD1R2", status: "Issue",   cluster: "Delhi NCR",              priceActive: false, priceStart: "01-Apr-24", priceEnd: "31-Mar-24", createdOn: "28-Mar-24" },
-  { material: "SUHD1R3", status: "Issue",   cluster: "Delhi NCR",              priceActive: false, priceStart: "01-Apr-24", priceEnd: "31-Mar-24", createdOn: "28-Mar-24" },
-  { material: "SUHD1R4", status: "OK",      cluster: "Punjab-Hills-Haryana",   priceActive: true,  priceStart: "01-Apr-24", priceEnd: "9999", createdOn: "28-Mar-24" },
-  { material: "SUHD1R5", status: "OK",      cluster: "Punjab-Hills-Haryana",   priceActive: true,  priceStart: "01-Apr-24", priceEnd: "9999", createdOn: "28-Mar-24" },
-  { material: "SUHD1R2", status: "Issue",   cluster: "Punjab-Hills-Haryana",   priceActive: false, priceStart: "01-Apr-24", priceEnd: "31-Mar-24", createdOn: "28-Mar-24" },
-  { material: "SUHD1R4", status: "Issue",   cluster: "Rajasthan Cluster",      priceActive: false, priceStart: "01-Apr-24", priceEnd: "31-Mar-24", createdOn: "28-Mar-24" },
-  { material: "SUHD1R2", status: "OK",      cluster: "Rajasthan Cluster",      priceActive: true,  priceStart: "01-Apr-24", priceEnd: "9999", createdOn: "28-Mar-24" },
-  { material: "SUHD1R3", status: "OK",      cluster: "Rajasthan Cluster",      priceActive: true,  priceStart: "01-Apr-24", priceEnd: "9999", createdOn: "28-Mar-24" },
-  { material: "WHLB22A", status: "In Progress", cluster: "Mumbai Metro",       priceActive: false, priceStart: "-",         priceEnd: "-",    createdOn: "12-Mar-24" },
-  { material: "WHLB22B", status: "CP Pack", cluster: "Mumbai Metro",           priceActive: true,  priceStart: "01-May-24", priceEnd: "9999", createdOn: "30-Apr-24" },
+interface Basepack {
+  id: string;
+  basepakName: string;
+  basepackCode: string;
+  salesCategory: string;
+  brand: string;
+  cluster: string;
+  channel: string;
+  mstnStatus: "Cleared" | "Pending" | "Not Cleared" | "Partial";
+  mstnCoverage: number;
+  bpStatus: "Active Pack" | "Inactive/Delisted" | "Stock Base Delisting" | "Seasonal Pack" | "Active Pack (Channel)" | "Active Pack (Customer)";
+  networkPlanner: string;
+  paidBibleOwner: string;
+  materials: Material[];
+}
+
+// ─── Mock Data ───────────────────────────────────────────────────────────────
+
+const BASEPACK_LIST: Basepack[] = [
+  {
+    id: "bp1", basepakName: "WHEEL GREEN BAR FW", basepackCode: "14151",
+    salesCategory: "HC", brand: "Wheel Bar", cluster: "Delhi NCR", channel: "MT",
+    mstnStatus: "Cleared", mstnCoverage: 88, bpStatus: "Active Pack",
+    networkPlanner: "Ravi Kumar", paidBibleOwner: "Priya Sharma",
+    materials: [
+      { code: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g", status: "OK",          priceActive: true,  mrp: "35", ean: "8901491210421", grammage: "230g", caseConfig: "24", priceStart: "01-Apr-24", priceEnd: "9999" },
+      { code: "WHGI15D", description: "WHEEL GREEN BAR FW 90g",       status: "OK",          priceActive: true,  mrp: "20", ean: "8901491210438", grammage: "90g",  caseConfig: "48", priceStart: "01-Apr-24", priceEnd: "9999" },
+      { code: "WHGI15B", description: "WHEEL GREEN BAR OLD 180g",     status: "Issue",       priceActive: false, mrp: "32", ean: "8901491210414", grammage: "180g", caseConfig: "24", priceStart: "01-Jan-24", priceEnd: "31-Mar-24" },
+    ],
+  },
+  {
+    id: "bp2", basepakName: "WHEEL GREEN BAR FW", basepackCode: "14151",
+    salesCategory: "HC", brand: "Wheel Bar", cluster: "Punjab-Hills-Haryana", channel: "GT",
+    mstnStatus: "Partial", mstnCoverage: 72, bpStatus: "Active Pack",
+    networkPlanner: "Ravi Kumar", paidBibleOwner: "Priya Sharma",
+    materials: [
+      { code: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g", status: "OK",      priceActive: true,  mrp: "35", ean: "8901491210421", grammage: "230g", caseConfig: "24", priceStart: "01-Apr-24", priceEnd: "9999" },
+      { code: "WHGI15B", description: "WHEEL GREEN BAR OLD 180g",    status: "Issue",   priceActive: false, mrp: "32", ean: "8901491210414", grammage: "180g", caseConfig: "24", priceStart: "01-Jan-24", priceEnd: "31-Mar-24" },
+    ],
+  },
+  {
+    id: "bp3", basepakName: "DOVE CREAM BAR", basepackCode: "18920",
+    salesCategory: "PC", brand: "Dove", cluster: "Mumbai Metro", channel: "MT",
+    mstnStatus: "Cleared", mstnCoverage: 92, bpStatus: "Active Pack (Channel)",
+    networkPlanner: "Sneha Patel", paidBibleOwner: "Ananya Singh",
+    materials: [
+      { code: "DVCS100B", description: "DOVE CREAM BAR 100g",   status: "OK",    priceActive: true,  mrp: "99",  ean: "8901491198001", grammage: "100g", caseConfig: "48", priceStart: "01-Oct-24", priceEnd: "9999" },
+      { code: "DVCS100A", description: "DOVE CREAM BAR 100g OLD", status: "Issue",priceActive: false, mrp: "95",  ean: "8901491197997", grammage: "100g", caseConfig: "48", priceStart: "01-Jul-24", priceEnd: "30-Sep-24" },
+      { code: "DVCS75B",  description: "DOVE CREAM BAR 75g",    status: "OK",    priceActive: true,  mrp: "75",  ean: "8901491197980", grammage: "75g",  caseConfig: "72", priceStart: "01-Oct-24", priceEnd: "9999" },
+    ],
+  },
+  {
+    id: "bp4", basepakName: "DOVE CREAM BAR", basepackCode: "18920",
+    salesCategory: "PC", brand: "Dove", cluster: "Tamil Nadu", channel: "GT",
+    mstnStatus: "Not Cleared", mstnCoverage: 48, bpStatus: "Active Pack (Channel)",
+    networkPlanner: "Sneha Patel", paidBibleOwner: "Ananya Singh",
+    materials: [
+      { code: "DVCS100B", description: "DOVE CREAM BAR 100g",   status: "Issue",       priceActive: false, mrp: "99", ean: "8901491198001", grammage: "100g", caseConfig: "48", priceStart: "01-Oct-24", priceEnd: "31-Dec-24" },
+      { code: "DVCS75B",  description: "DOVE CREAM BAR 75g",    status: "In Progress", priceActive: false, mrp: "75", ean: "8901491197980", grammage: "75g",  caseConfig: "72", priceStart: "-",         priceEnd: "-" },
+    ],
+  },
+  {
+    id: "bp5", basepakName: "KISSAN MIXED FRUIT JAM", basepackCode: "22041",
+    salesCategory: "Foods", brand: "Kissan", cluster: "West Bengal", channel: "KA",
+    mstnStatus: "Pending", mstnCoverage: 0, bpStatus: "Seasonal Pack",
+    networkPlanner: "Arun Mehta", paidBibleOwner: "Deepak Verma",
+    materials: [
+      { code: "KSMX5B", description: "KISSAN MIXED FRUIT JAM 500g", status: "In Progress", priceActive: false, mrp: "175", ean: "8901058018021", grammage: "500g", caseConfig: "8", priceStart: "-", priceEnd: "-" },
+    ],
+  },
+  {
+    id: "bp6", basepakName: "TRESEMME SHAMPOO", basepackCode: "30115",
+    salesCategory: "BPC", brand: "TRESemmé", cluster: "All India", channel: "MT",
+    mstnStatus: "Cleared", mstnCoverage: 95, bpStatus: "Active Pack",
+    networkPlanner: "Sneha Patel", paidBibleOwner: "Ananya Singh",
+    materials: [
+      { code: "TRSH400A", description: "TRESEMME SHAMPOO SMOOTH & SHINE 400ml", status: "OK",     priceActive: true,  mrp: "275", ean: "8901491350082", grammage: "400ml", caseConfig: "12", priceStart: "01-Oct-24", priceEnd: "9999" },
+      { code: "TRSH200A", description: "TRESEMME SHAMPOO SMOOTH & SHINE 200ml", status: "OK",     priceActive: true,  mrp: "155", ean: "8901491350075", grammage: "200ml", caseConfig: "24", priceStart: "01-Oct-24", priceEnd: "9999" },
+      { code: "TRSH400B", description: "TRESEMME SHAMPOO S&S 400ml CP",         status: "CP Pack", priceActive: true,  mrp: "249", ean: "8901491350099", grammage: "400ml", caseConfig: "12", priceStart: "01-Nov-24", priceEnd: "31-Dec-24" },
+    ],
+  },
+  {
+    id: "bp7", basepakName: "SURF EXCEL EASY WASH", basepackCode: "13337",
+    salesCategory: "HC", brand: "Surf Excel", cluster: "Rajasthan Cluster", channel: "MT",
+    mstnStatus: "Partial", mstnCoverage: 65, bpStatus: "Active Pack",
+    networkPlanner: "Ravi Kumar", paidBibleOwner: "Priya Sharma",
+    materials: [
+      { code: "SUHD1R4", description: "SURF EXCEL EW 1KG", status: "OK",    priceActive: true,  mrp: "120", ean: "8901491210001", grammage: "1kg",  caseConfig: "12", priceStart: "01-Apr-24", priceEnd: "9999" },
+      { code: "SUHD1R5", description: "SURF EXCEL EW 2KG", status: "OK",    priceActive: true,  mrp: "230", ean: "8901491210018", grammage: "2kg",  caseConfig: "6",  priceStart: "01-Apr-24", priceEnd: "9999" },
+      { code: "SUHD1R2", description: "SURF EXCEL EW 500G", status: "Issue",priceActive: false, mrp: "65",  ean: "8901491209994", grammage: "500g", caseConfig: "24", priceStart: "01-Apr-24", priceEnd: "31-Mar-24" },
+      { code: "SUHD1R3", description: "SURF EXCEL EW 250G", status: "Issue",priceActive: false, mrp: "35",  ean: "8901491209987", grammage: "250g", caseConfig: "48", priceStart: "01-Apr-24", priceEnd: "31-Mar-24" },
+    ],
+  },
 ];
 
 const RELAUNCH_NETWORKS = [
@@ -55,7 +143,7 @@ const RELAUNCH_NETWORKS = [
   },
   {
     lastUpdate: "08-Oct", bg: "F&R / Foods", brand: "Kissan", basepack: "22041",
-    oldCbu: "KSMX5A",  newCbu: "KSMX5B",  description: "KISSAN MIXED FRUIT JAM 500g",
+    oldCbu: "KSMX5A", newCbu: "KSMX5B", description: "KISSAN MIXED FRUIT JAM 500g",
     grammage: "No", mrp: "No", caseConfig: "Yes", ean: "Yes", artwork: "No", promo: "No",
     geography: "All India", channels: "GT, KA",
     production: "28-Sep", invoicing: "10-Oct", remarks: "Case config from 12s to 8s",
@@ -67,19 +155,15 @@ const NEW_LAUNCH_NETWORKS = [
     lastUpdate: "14-Oct", bg: "HC / HHC", brand: "Wheel Bar", basepack: "14151",
     material: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g",
     grammage: "230g", mrp: "₹35", caseConfig: "24", ean: "8901491210421",
-    artwork: true, promo: "No",
-    geography: "All India minus MPCG", channels: "All channels",
-    production: "05-Oct", landingDate: "15-Oct",
-    remarks: "Dhule 30 Sep / Remaining sites from 12 Oct",
+    artwork: true, promo: "No", geography: "All India minus MPCG", channels: "All channels",
+    production: "05-Oct", landingDate: "15-Oct", remarks: "Dhule 30 Sep / Remaining sites from 12 Oct",
   },
   {
     lastUpdate: "12-Oct", bg: "BPC / PC", brand: "TRESemmé", basepack: "30115",
     material: "TRSH400A", description: "TRESEMME SHAMPOO SMOOTH & SHINE 400ml",
     grammage: "400ml", mrp: "₹275", caseConfig: "12", ean: "8901491350082",
-    artwork: true, promo: "No",
-    geography: "MT All India", channels: "MT, MT-ECOM",
-    production: "30-Sep", landingDate: "12-Oct",
-    remarks: "N-45 listing with MT SPOC initiated",
+    artwork: true, promo: "No", geography: "MT All India", channels: "MT, MT-ECOM",
+    production: "30-Sep", landingDate: "12-Oct", remarks: "N-45 listing with MT SPOC initiated",
   },
 ];
 
@@ -174,11 +258,22 @@ function MatStatusBadge({ status }: { status: string }) {
   );
 }
 
-function YNBadge({ val }: { val: string }) {
+function MstnBadge({ status, coverage }: { status: string; coverage: number }) {
+  const map: Record<string, string> = {
+    "Cleared":     "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "Partial":     "bg-amber-50 text-amber-700 border-amber-200",
+    "Pending":     "bg-slate-50 text-slate-600 border-slate-200",
+    "Not Cleared": "bg-red-50 text-red-700 border-red-200",
+  };
   return (
-    <span className={`inline-block w-7 text-center text-xs font-semibold rounded px-1 py-0.5 ${val === "Y" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
-      {val}
-    </span>
+    <div className="flex items-center gap-1.5">
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${map[status] ?? map["Pending"]}`}>
+        {status}
+      </span>
+      {coverage > 0 && (
+        <span className="text-xs text-muted-foreground">{coverage}%</span>
+      )}
+    </div>
   );
 }
 
@@ -198,204 +293,316 @@ function BpStatusBadge({ status }: { status: string }) {
   );
 }
 
+function YNBadge({ val }: { val: string }) {
+  return (
+    <span className={`inline-block w-7 text-center text-xs font-semibold rounded px-1 py-0.5 ${val === "Y" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
+      {val}
+    </span>
+  );
+}
+
 // ─── Part 1: Overview ────────────────────────────────────────────────────────
 
 function OverviewTab() {
-  const [basepack, setBasepack] = useState<string>("13337");
-  const [channel, setChannel]   = useState<string>("MT");
-  const [location, setLocation] = useState<string>("Delhi NCR");
-  const [search, setSearch]     = useState("");
+  const [search, setSearch]           = useState("");
+  const [channelFilter, setChannelFilter] = useState("all");
+  const [mstnFilter, setMstnFilter]   = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [expandedId, setExpandedId]   = useState<string | null>(null);
 
-  const filtered = MATERIAL_MATRIX.filter(
-    (r) =>
-      r.cluster === location &&
-      (search === "" || r.material.toLowerCase().includes(search.toLowerCase()))
-  );
+  const allChannels = Array.from(new Set(BASEPACK_LIST.map(b => b.channel)));
+
+  const filtered = BASEPACK_LIST.filter(b => {
+    const q = search.toLowerCase();
+    const matchSearch = !q ||
+      b.basepakName.toLowerCase().includes(q) ||
+      b.basepackCode.includes(q) ||
+      b.brand.toLowerCase().includes(q) ||
+      b.networkPlanner.toLowerCase().includes(q) ||
+      b.paidBibleOwner.toLowerCase().includes(q);
+    const matchChannel = channelFilter === "all" || b.channel === channelFilter;
+    const matchMstn    = mstnFilter === "all"    || b.mstnStatus === mstnFilter;
+    return matchSearch && matchChannel && matchMstn;
+  });
+
+  // Stats
+  const total      = BASEPACK_LIST.length;
+  const cleared    = BASEPACK_LIST.filter(b => b.mstnStatus === "Cleared").length;
+  const partial    = BASEPACK_LIST.filter(b => b.mstnStatus === "Partial").length;
+  const issues     = BASEPACK_LIST.filter(b => b.mstnStatus === "Not Cleared" || b.mstnStatus === "Pending").length;
+  const totalMats  = BASEPACK_LIST.reduce((acc, b) => acc + b.materials.length, 0);
+
+  const statsCards = [
+    { label: "Total Basepacks",  value: total,     color: "border-l-[#1f36c7] bg-[#1f36c7]/5" },
+    { label: "MSTN Cleared",     value: cleared,   color: "border-l-emerald-500 bg-emerald-50/60" },
+    { label: "Partial / WIP",    value: partial,   color: "border-l-amber-500 bg-amber-50/60" },
+    { label: "Issues / Pending", value: issues,    color: "border-l-red-500 bg-red-50/60" },
+    { label: "Total Materials",  value: totalMats, color: "border-l-[#0d8ecf] bg-[#0d8ecf]/5" },
+  ];
+
+  const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
 
   return (
-    <div className="space-y-4">
-      {/* Top Action Bar */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold" data-testid="pb-overview-title">Paid Bible Dashboard</h2>
-          <p className="text-xs text-muted-foreground">Material-level assortment visibility · Source: Listing Master + SAP</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-download-annexure">
-            <Download className="h-3.5 w-3.5" /> Download Annexure
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-raise-ticket">
-            <Ticket className="h-3.5 w-3.5" /> Raise Ticket
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-refresh">
-            <RefreshCw className="h-3.5 w-3.5" /> Update
-          </Button>
-        </div>
+    <div className="space-y-5">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-5 gap-4">
+        {statsCards.map(c => (
+          <Card key={c.label} className={`border-l-4 ${c.color}`}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">{c.label}</p>
+              <p className="text-2xl font-bold">{c.value}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        {/* Left Filter Panel */}
-        <div className="col-span-1 space-y-3">
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <Filter className="h-3.5 w-3.5 text-muted-foreground" /> Filters
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Basepack</label>
-                <Select value={basepack} onValueChange={setBasepack}>
-                  <SelectTrigger className="h-8 text-xs" data-testid="filter-basepack">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BASEPACKS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-                <Select defaultValue="Active Pack">
-                  <SelectTrigger className="h-8 text-xs" data-testid="filter-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Channel</label>
-                <Select value={channel} onValueChange={setChannel}>
-                  <SelectTrigger className="h-8 text-xs" data-testid="filter-channel">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CHANNELS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Material</label>
-                <Input placeholder="Search material…" className="h-8 text-xs" data-testid="filter-material" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Location (Cluster)</label>
-                <Select value={location} onValueChange={setLocation}>
-                  <SelectTrigger className="h-8 text-xs" data-testid="filter-location">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CLUSTERS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* Search + Filters Bar */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[220px] max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by basepack, brand, planner…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9"
+                data-testid="input-pb-search"
+              />
+              {search && (
+                <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setSearch("")}>
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
+            </div>
 
-              {/* Summary pills */}
-              <div className="pt-2 border-t space-y-1.5">
-                <p className="text-xs text-muted-foreground font-medium">Result summary</p>
-                <div className="flex gap-1.5 flex-wrap">
-                  <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5">
-                    {filtered.filter(r => r.status === "OK").length} OK
-                  </span>
-                  <span className="text-xs bg-red-50 text-red-700 border border-red-200 rounded-full px-2 py-0.5">
-                    {filtered.filter(r => r.status === "Issue").length} Issues
-                  </span>
-                  <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
-                    {filtered.filter(r => r.status === "In Progress").length} WIP
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Filter toggle */}
+            <Button
+              variant={showFilters ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowFilters(v => !v)}
+              data-testid="button-toggle-filters"
+              className="gap-1.5"
+            >
+              <Filter className="h-4 w-4" /> Filters
+              {(channelFilter !== "all" || mstnFilter !== "all") && (
+                <span className="ml-1 bg-[#1f36c7] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                  {[channelFilter !== "all", mstnFilter !== "all"].filter(Boolean).length}
+                </span>
+              )}
+            </Button>
 
-        {/* Middle — Material Matrix */}
-        <div className="col-span-3 space-y-4">
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">
-                  Material Matrix · Basepack {basepack} · {channel} · {location}
-                </CardTitle>
-                <div className="relative">
-                  <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search material…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="h-7 pl-7 text-xs w-40"
-                    data-testid="search-material-matrix"
-                  />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="text-xs font-semibold">Material</TableHead>
-                      <TableHead className="text-xs font-semibold">Status</TableHead>
-                      <TableHead className="text-xs font-semibold">Cluster</TableHead>
-                      <TableHead className="text-xs font-semibold">Price Active</TableHead>
-                      <TableHead className="text-xs font-semibold">Price Start</TableHead>
-                      <TableHead className="text-xs font-semibold">Price End</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground text-xs py-8">
-                          No materials found for selected filters
-                        </TableCell>
-                      </TableRow>
-                    ) : filtered.map((r, i) => (
-                      <TableRow key={i} data-testid={`matrix-row-${i}`}>
-                        <TableCell className="text-xs font-mono font-medium">{r.material}</TableCell>
-                        <TableCell><MatStatusBadge status={r.status} /></TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{r.cluster}</TableCell>
-                        <TableCell>
-                          <span className={`text-xs font-semibold ${r.priceActive ? "text-emerald-600" : "text-red-500"}`}>
-                            {r.priceActive ? "Yes" : "No"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs">{r.priceStart}</TableCell>
-                        <TableCell className={`text-xs font-medium ${r.priceEnd === "9999" ? "text-emerald-600" : "text-red-500"}`}>
-                          {r.priceEnd === "9999" ? "9999 (Perpetual)" : r.priceEnd}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Bottom — Triggers */}
-          <div>
-            <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-              <Zap className="h-4 w-4 text-amber-500" /> Triggers for Improvement
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {TRIGGERS.map((t) => (
-                <Card key={t.id} data-testid={`trigger-card-${t.id}`}
-                  className={`border-l-4 ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-1">
-                      <p className="text-sm font-semibold">{t.name}</p>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
-                        {t.count} items
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
-                    <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="ml-auto flex items-center gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-download-annexure">
+                <Download className="h-3.5 w-3.5" /> Export
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-raise-ticket">
+                <Ticket className="h-3.5 w-3.5" /> Raise Ticket
+              </Button>
             </div>
           </div>
+
+          {/* Filter Row */}
+          {showFilters && (
+            <div className="flex items-end gap-4 mt-4 pt-4 border-t flex-wrap" data-testid="filters-panel">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Channel</label>
+                <Select value={channelFilter} onValueChange={setChannelFilter}>
+                  <SelectTrigger className="w-36" data-testid="select-channel-filter"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Channels</SelectItem>
+                    {allChannels.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">MSTN Status</label>
+                <Select value={mstnFilter} onValueChange={setMstnFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-mstn-filter"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All MSTN Status</SelectItem>
+                    <SelectItem value="Cleared">Cleared</SelectItem>
+                    <SelectItem value="Partial">Partial</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Not Cleared">Not Cleared</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {(channelFilter !== "all" || mstnFilter !== "all") && (
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => { setChannelFilter("all"); setMstnFilter("all"); }}
+                  data-testid="button-clear-filters"
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Basepack Table */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="rounded-md overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/60">
+                  <TableHead className="w-8" />
+                  <TableHead className="text-xs font-semibold">Basepack Name</TableHead>
+                  <TableHead className="text-xs font-semibold">Basepack Code</TableHead>
+                  <TableHead className="text-xs font-semibold">Cluster</TableHead>
+                  <TableHead className="text-xs font-semibold">Channel</TableHead>
+                  <TableHead className="text-xs font-semibold">MSTN Status</TableHead>
+                  <TableHead className="text-xs font-semibold">BP Status</TableHead>
+                  <TableHead className="text-xs font-semibold">Network Planner</TableHead>
+                  <TableHead className="text-xs font-semibold">PB Owner</TableHead>
+                  <TableHead className="text-xs font-semibold w-20">Materials</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
+                      No basepacks found for the selected filters
+                    </TableCell>
+                  </TableRow>
+                ) : filtered.map(bp => (
+                  <Fragment key={bp.id}>
+                    {/* Basepack row */}
+                    <TableRow
+                      key={bp.id}
+                      data-testid={`bp-row-${bp.id}`}
+                      className={`cursor-pointer transition-colors ${expandedId === bp.id ? "bg-[#1f36c7]/5 border-l-2 border-l-[#1f36c7]" : "hover:bg-muted/40"}`}
+                      onClick={() => toggleExpand(bp.id)}
+                    >
+                      <TableCell className="py-3 pl-4">
+                        {expandedId === bp.id
+                          ? <ChevronDown className="h-4 w-4 text-[#1f36c7]" />
+                          : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        }
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div>
+                          <p className="text-sm font-medium">{bp.basepakName}</p>
+                          <p className="text-xs text-muted-foreground">{bp.salesCategory} · {bp.brand}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm font-mono font-medium py-3">{bp.basepackCode}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground py-3">{bp.cluster}</TableCell>
+                      <TableCell className="py-3">
+                        <Badge variant="outline" className="text-xs">{bp.channel}</Badge>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <MstnBadge status={bp.mstnStatus} coverage={bp.mstnCoverage} />
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <BpStatusBadge status={bp.bpStatus} />
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-[#1f36c7]/10 flex items-center justify-center">
+                            <User className="h-3 w-3 text-[#1f36c7]" />
+                          </div>
+                          <span className="text-xs">{bp.networkPlanner}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-[#0d8ecf]/10 flex items-center justify-center">
+                            <BookOpen className="h-3 w-3 text-[#0d8ecf]" />
+                          </div>
+                          <span className="text-xs">{bp.paidBibleOwner}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <span className="text-xs text-muted-foreground">{bp.materials.length} CBU{bp.materials.length !== 1 ? "s" : ""}</span>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Expanded materials sub-table */}
+                    {expandedId === bp.id && (
+                      <TableRow key={`${bp.id}-expanded`} data-testid={`bp-expanded-${bp.id}`}>
+                        <TableCell colSpan={10} className="p-0 bg-muted/20">
+                          <div className="px-8 py-4 border-l-2 border-l-[#1f36c7]/30">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                              Material Details — {bp.basepakName} ({bp.basepackCode}) · {bp.cluster} · {bp.channel}
+                            </p>
+                            <div className="rounded-md border overflow-hidden bg-white">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="bg-muted/40">
+                                    <TableHead className="text-xs py-2">Material Code</TableHead>
+                                    <TableHead className="text-xs py-2">Description</TableHead>
+                                    <TableHead className="text-xs py-2">Status</TableHead>
+                                    <TableHead className="text-xs py-2">Grammage</TableHead>
+                                    <TableHead className="text-xs py-2">Case Config</TableHead>
+                                    <TableHead className="text-xs py-2">MRP</TableHead>
+                                    <TableHead className="text-xs py-2">EAN</TableHead>
+                                    <TableHead className="text-xs py-2">Price Active</TableHead>
+                                    <TableHead className="text-xs py-2">Price Start</TableHead>
+                                    <TableHead className="text-xs py-2">Price End</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {bp.materials.map((m, idx) => (
+                                    <TableRow key={idx} data-testid={`material-row-${bp.id}-${idx}`}>
+                                      <TableCell className="text-xs font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
+                                      <TableCell className="text-xs py-2 max-w-52 truncate" title={m.description}>{m.description}</TableCell>
+                                      <TableCell className="py-2"><MatStatusBadge status={m.status} /></TableCell>
+                                      <TableCell className="text-xs py-2">{m.grammage}</TableCell>
+                                      <TableCell className="text-xs py-2">{m.caseConfig}</TableCell>
+                                      <TableCell className="text-xs font-medium py-2">₹{m.mrp}</TableCell>
+                                      <TableCell className="text-xs font-mono text-muted-foreground py-2">{m.ean}</TableCell>
+                                      <TableCell className="py-2">
+                                        <span className={`text-xs font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
+                                          {m.priceActive ? "Yes" : "No"}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-xs py-2">{m.priceStart}</TableCell>
+                                      <TableCell className={`text-xs font-medium py-2 ${m.priceEnd === "9999" ? "text-emerald-600" : m.priceEnd === "-" ? "text-muted-foreground" : "text-red-500"}`}>
+                                        {m.priceEnd === "9999" ? "9999 (Perpetual)" : m.priceEnd}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Triggers */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+          <Zap className="h-4 w-4 text-amber-500" /> Triggers for Improvement
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          {TRIGGERS.map(t => (
+            <Card key={t.id} data-testid={`trigger-card-${t.id}`}
+              className={`border-l-4 ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-1">
+                  <p className="text-sm font-semibold">{t.name}</p>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                    {t.count} items
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
+                <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </div>
@@ -430,7 +637,6 @@ function NetworkUpdatesTab() {
         </div>
       </div>
 
-      {/* Relaunch Network */}
       <Card>
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -492,7 +698,6 @@ function NetworkUpdatesTab() {
         </CardContent>
       </Card>
 
-      {/* New Launch Network */}
       <Card>
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -568,12 +773,10 @@ function NetworkUpdatesTab() {
 function BibleMatrixTab() {
   const [search, setSearch] = useState("");
 
-  const rows = BIBLE_MATRIX.filter(
-    (r) =>
-      search === "" ||
-      r.basepack.includes(search) ||
-      r.material.toLowerCase().includes(search.toLowerCase()) ||
-      r.brand?.toLowerCase().includes(search.toLowerCase())
+  const rows = BIBLE_MATRIX.filter(r =>
+    !search ||
+    r.basepack.includes(search) ||
+    r.material.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -589,7 +792,7 @@ function BibleMatrixTab() {
             <Input
               placeholder="Search basepack / material…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
               className="h-8 pl-7 text-xs w-52"
               data-testid="search-bible-matrix"
             />
@@ -605,7 +808,6 @@ function BibleMatrixTab() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                {/* Section headers */}
                 <TableRow className="bg-[#1f36c7]/5 border-b-0">
                   <TableHead colSpan={5} className="text-xs font-bold text-[#1f36c7] text-center border-r py-2">Pack Details</TableHead>
                   <TableHead colSpan={5} className="text-xs font-bold text-[#0d8ecf] text-center border-r py-2">Geo Master</TableHead>
@@ -613,7 +815,6 @@ function BibleMatrixTab() {
                   <TableHead colSpan={8} className="text-xs font-bold text-amber-700 text-center border-r py-2">Distribution Channels</TableHead>
                   <TableHead colSpan={3} className="text-xs font-bold text-emerald-700 text-center py-2">Price Activation</TableHead>
                 </TableRow>
-                {/* Column headers */}
                 <TableRow className="bg-muted/60">
                   <TableHead className="text-xs py-2">Sales Cat.</TableHead>
                   <TableHead className="text-xs py-2">Basepack</TableHead>
@@ -715,7 +916,7 @@ function AmendmentsTab() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {AMENDMENTS.map((a) => {
+        {AMENDMENTS.map(a => {
           const colors = AMENDMENT_COLOR[a.color];
           return (
             <Card key={a.id} data-testid={`amendment-card-${a.id}`}
@@ -723,40 +924,26 @@ function AmendmentsTab() {
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                      Amendment {a.id}
-                    </p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Amendment {a.id}</p>
                     <h3 className="text-base font-bold">{a.name}</h3>
                   </div>
                   <span className={`text-sm font-bold px-2.5 py-1 rounded-full bg-white border ${colors.border} ${colors.icon}`}>
                     {a.count} pending
                   </span>
                 </div>
-
                 <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
                   <span className="font-medium text-foreground">Rule: </span>{a.rule}
                 </p>
-
                 <div className="space-y-1.5 mb-4">
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">Raised by: </span>{a.amendedBy}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">Actions from: </span>
-                    {a.actions.join(", ")}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">Approved by: </span>{a.approvedBy}
-                  </p>
+                  <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Raised by: </span>{a.amendedBy}</p>
+                  <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Actions from: </span>{a.actions.join(", ")}</p>
+                  <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Approved by: </span>{a.approvedBy}</p>
                 </div>
-
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-white"
-                    data-testid={`button-view-amendment-${a.id}`}>
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-white" data-testid={`button-view-amendment-${a.id}`}>
                     View Requests <ChevronRight className="h-3 w-3" />
                   </Button>
-                  <Button size="sm" className="h-7 text-xs gap-1 bg-white border text-foreground hover:bg-muted"
-                    variant="outline" data-testid={`button-raise-amendment-${a.id}`}>
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 bg-white text-foreground hover:bg-muted" data-testid={`button-raise-amendment-${a.id}`}>
                     <Ticket className="h-3 w-3" /> Raise
                   </Button>
                 </div>
@@ -766,7 +953,6 @@ function AmendmentsTab() {
         })}
       </div>
 
-      {/* Workflow note */}
       <Card className="border-dashed bg-muted/30">
         <CardContent className="p-4 flex items-start gap-3">
           <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -793,23 +979,25 @@ export default function PaidBiblePage() {
       <UnileverHeader module="paid-bible" />
 
       <main className="flex-1 px-6 py-6 max-w-[1600px] mx-auto w-full">
-        {/* Page title */}
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-1">
-            <button
-              onClick={() => navigate("/")}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-              data-testid="button-back-home"
-            >
-              ← All Modules
-            </button>
-          </div>
+          <button
+            onClick={() => navigate("/")}
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
+            data-testid="button-back-home"
+          >
+            ← All Modules
+          </button>
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Paid Bible</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Assortment & Listing Automation · What to sell · Where · To Whom · How · When
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-[#0d8ecf] to-[#00b0d7] p-2.5 rounded-md">
+                <BookOpen className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Paid Bible</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Assortment &amp; Listing Automation · What to sell · Where · To Whom · How · When
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="gap-1.5 text-xs">
@@ -818,6 +1006,9 @@ export default function PaidBiblePage() {
               <Badge variant="outline" className="gap-1.5 text-xs">
                 <Clock className="h-3 w-3" /> MOC: Oct 2024
               </Badge>
+              <Button size="sm" variant="outline" className="gap-1.5">
+                <RefreshCw className="h-3.5 w-3.5" /> Sync Listing Master
+              </Button>
             </div>
           </div>
         </div>
