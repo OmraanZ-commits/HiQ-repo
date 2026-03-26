@@ -442,13 +442,11 @@ function OverviewTab() {
   return (
     <div className="space-y-5">
       {/* Stats */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total Basepacks",  value: total,      color: "border-l-[#1f36c7] bg-[#1f36c7]/5" },
-          { label: "MSTN Cleared",     value: mstnYes,    color: "border-l-emerald-500 bg-emerald-50/60" },
-          { label: "Not Cleared",      value: notCleared, color: "border-l-red-500 bg-red-50/60" },
-          { label: "Draft",            value: drafts,     color: "border-l-slate-400 bg-slate-50/60" },
-          { label: "Total Materials",  value: totalMats,  color: "border-l-[#0d8ecf] bg-[#0d8ecf]/5" },
+          { label: "Total Active Basepacks", value: total - drafts, color: "border-l-[#1f36c7] bg-[#1f36c7]/5" },
+          { label: "Draft",                  value: drafts,         color: "border-l-slate-400 bg-slate-50/60" },
+          { label: "MSTN Cleared",           value: mstnYes,        color: "border-l-emerald-500 bg-emerald-50/60" },
         ].map(c => (
           <Card key={c.label} className={`border-l-4 ${c.color}`}>
             <CardContent className="p-4">
@@ -457,6 +455,30 @@ function OverviewTab() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Triggers — shown inline after stats */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+          <Zap className="h-4 w-4 text-amber-500" /> Triggers for Improvement
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          {TRIGGERS.map(t => (
+            <Card key={t.id} data-testid={`trigger-card-${t.id}`}
+              className={`border-l-4 ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-1">
+                  <p className="text-sm font-semibold">{t.name}</p>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                    {t.count} items
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
+                <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       {/* Search + Filter bar */}
@@ -809,29 +831,6 @@ function OverviewTab() {
         </CardContent>
       </Card>
 
-      {/* Triggers */}
-      <div>
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
-          <Zap className="h-4 w-4 text-amber-500" /> Triggers for Improvement
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          {TRIGGERS.map(t => (
-            <Card key={t.id} data-testid={`trigger-card-${t.id}`}
-              className={`border-l-4 ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-1">
-                  <p className="text-sm font-semibold">{t.name}</p>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
-                    {t.count} items
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
-                <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
