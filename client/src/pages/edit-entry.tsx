@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
@@ -94,6 +94,37 @@ export default function EditEntry() {
     mtSubChannels: MT_SUB_CHANNELS,
     clusters: CLUSTERS,
   });
+
+  // Sourcing Matrix local state
+  const [sourcingMode, setSourcingMode] = useState<"decentralized" | "centralized">("decentralized");
+  const [centralizedGeo, setCentralizedGeo] = useState<string[]>([]);
+  const [centralizedDepots, setCentralizedDepots] = useState<string[]>([]);
+
+  const handleSourcingModeChange = (mode: "decentralized" | "centralized") => {
+    setSourcingMode(mode);
+    if (mode === "centralized") {
+      setCentralizedGeo([]);
+      setCentralizedDepots([]);
+    }
+  };
+
+  const toggleCentralizedGeo = (geoName: string) => {
+    setCentralizedGeo(prev => {
+      const next = prev.includes(geoName) ? prev.filter(g => g !== geoName) : [...prev, geoName];
+      // remove depots belonging to this geo if geo was deselected
+      if (prev.includes(geoName)) {
+        const geoDepots = GEOGRAPHY_DEPOT_MAP[geoName] || [];
+        setCentralizedDepots(d => d.filter(dep => !geoDepots.includes(dep)));
+      }
+      return next;
+    });
+  };
+
+  const toggleCentralizedDepot = (depot: string) => {
+    setCentralizedDepots(prev =>
+      prev.includes(depot) ? prev.filter(d => d !== depot) : [...prev, depot]
+    );
+  };
 
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
@@ -189,6 +220,9 @@ export default function EditEntry() {
               </TabsTrigger>
               <TabsTrigger value="distribution" className="gap-2" data-testid="tab-distribution">
                 <MapPin className="h-4 w-4" /> Distribution
+              </TabsTrigger>
+              <TabsTrigger value="sourcing" className="gap-2" data-testid="tab-sourcing">
+                <Boxes className="h-4 w-4" /> Sourcing Matrix
               </TabsTrigger>
               <TabsTrigger value="pricing" className="gap-2" data-testid="tab-pricing">
                 <Tag className="h-4 w-4" /> Pricing
@@ -694,6 +728,152 @@ export default function EditEntry() {
                   </Card>
                 </TabsContent>
               </Tabs>
+            </TabsContent>
+
+            {/* ── Sourcing Matrix Tab ───────────────────────────────── */}
+            <TabsContent value="sourcing" className="mt-0">
+              {(() => {
+                const isDecentralized = sourcingMode === "decentralized";
+                const activeSourcingGeo = isDecentralized ? selectedGeo : centralizedGeo;
+                const activeSourcingDepots = isDecentralized ? selectedDepots : centralizedDepots;
+                const selectedGeoCount = isDecentralized ? selectedGeo.length : centralizedGeo.length;
+                const selectedDepotCount = isDecentralized ? selectedDepots.length : centralizedDepots.length;
+
+                return (
+                  <div className="space-y-4">
+                    {/* Mode toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center bg-muted rounded-full p-1 gap-1">
+                          <button
+                            type="button"
+                            data-testid="toggle-decentralized"
+                            onClick={() => handleSourcingModeChange("decentralized")}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${isDecentralized ? "bg-white dark:bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                          >
+                            Decentralized
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="toggle-centralized"
+                            onClick={() => handleSourcingModeChange("centralized")}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${!isDecentralized ? "bg-white dark:bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                          >
+                            Centralized
+                          </button>
+                        </div>
+                        {isDecentralized && (
+                          <Badge variant="secondary" className="text-[10px] gap-1">
+                            <Lock className="h-2.5 w-2.5" /> Read-only · from Distribution
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px]">{selectedGeoCount} geo selected</Badge>
+                        <Badge variant="outline" className="text-[10px]">{selectedDepotCount} depots selected</Badge>
+                      </div>
+                    </div>
+
+                    {selectedGeo.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-10 text-center">
+                          <Building2 className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">No geography selected in Distribution tab.</p>
+                          <p className="text-xs text-muted-foreground/60 mt-1">Select clusters in the Distribution tab first.</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card data-testid="sourcing-matrix-table">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-2">
+                            <Boxes className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-semibold">Sourcing by Geography & Depot</h3>
+                          </div>
+                          {!isDecentralized && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Select the geographies and depots for centralized sourcing.
+                            </p>
+                          )}
+                        </CardHeader>
+                        <CardContent>
+                          <div className="border rounded-lg overflow-hidden">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-muted/50 border-b">
+                                  <th className="text-left py-2 px-3 font-medium text-xs w-[200px]">Geography</th>
+                                  <th className="text-left py-2 px-3 font-medium text-xs">Depots</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedGeo.map((geoName, idx) => {
+                                  const geoDepots = (GEOGRAPHY_DEPOT_MAP[geoName] || []).filter(d => selectedDepots.includes(d));
+                                  const isGeoActive = activeSourcingGeo.includes(geoName);
+                                  const allGeoDepotsActive = geoDepots.length > 0 && geoDepots.every(d => activeSourcingDepots.includes(d));
+                                  return (
+                                    <tr key={geoName} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                                      <td className="py-2 px-3 border-r font-medium text-xs whitespace-nowrap align-middle">
+                                        <label className={`flex items-center gap-2 rounded px-1 py-0.5 ${isDecentralized ? "cursor-default" : "cursor-pointer"} ${isGeoActive ? "bg-primary/10" : isDecentralized ? "" : "hover:bg-muted/50"}`}>
+                                          <Checkbox
+                                            checked={isGeoActive}
+                                            disabled={isDecentralized}
+                                            onCheckedChange={isDecentralized ? undefined : () => toggleCentralizedGeo(geoName)}
+                                            data-testid={`sourcing-geo-${geoName.toLowerCase().replace(/[\s-]+/g, "-")}`}
+                                          />
+                                          <span>{geoName}</span>
+                                        </label>
+                                      </td>
+                                      <td className="py-2 px-3">
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                          {geoDepots.length > 1 && (
+                                            <label className={`flex items-center gap-1.5 py-1 px-2 rounded border transition-colors
+                                              ${isDecentralized ? "cursor-default opacity-80" : !isGeoActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                                              ${allGeoDepotsActive ? "bg-primary/10 border-primary/30" : "border-transparent hover:bg-muted/50"}`}>
+                                              <Checkbox
+                                                checked={allGeoDepotsActive}
+                                                disabled={isDecentralized || !isGeoActive}
+                                                onCheckedChange={isDecentralized ? undefined : () => {
+                                                  geoDepots.forEach(depot => {
+                                                    const isActive = centralizedDepots.includes(depot);
+                                                    if (allGeoDepotsActive && isActive) toggleCentralizedDepot(depot);
+                                                    else if (!allGeoDepotsActive && !isActive) toggleCentralizedDepot(depot);
+                                                  });
+                                                }}
+                                                data-testid={`sourcing-all-depots-${geoName.toLowerCase().replace(/[\s-]+/g, "-")}`}
+                                              />
+                                              <span className="text-[10px] font-medium text-muted-foreground">All</span>
+                                            </label>
+                                          )}
+                                          {geoDepots.map(depot => {
+                                            const isActive = activeSourcingDepots.includes(depot);
+                                            return (
+                                              <label key={depot}
+                                                className={`flex items-center gap-1.5 py-1 px-2 rounded transition-colors
+                                                  ${isDecentralized ? "cursor-default opacity-80" : !isGeoActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                                                  ${isActive ? "bg-primary/10" : isDecentralized ? "" : "hover:bg-muted/50"}`}>
+                                                <Checkbox
+                                                  checked={isActive}
+                                                  disabled={isDecentralized || !isGeoActive}
+                                                  onCheckedChange={isDecentralized ? undefined : () => toggleCentralizedDepot(depot)}
+                                                  data-testid={`sourcing-depot-${depot.toLowerCase()}`}
+                                                />
+                                                <span className="text-xs font-mono">{depot}</span>
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                );
+              })()}
             </TabsContent>
 
             {/* ── Pricing Tab ───────────────────────────────────────── */}
