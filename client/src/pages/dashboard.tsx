@@ -263,22 +263,6 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  {/* ── Status cards row ── */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                    {byStatus.map(({ status, count, meta }) => (
-                      <div key={status}
-                        className={`rounded-lg border-l-4 border border-border/50 p-3 ${meta.card}`}
-                        data-testid={`summary-status-card-${status}`}>
-                        <p className={`text-[10px] font-medium leading-tight mb-2 ${meta.text}`}>{meta.label}</p>
-                        <p className="text-2xl font-bold tabular-nums text-foreground">{count}</p>
-                        <div className="mt-2 h-1 rounded-full bg-white/60 overflow-hidden">
-                          <div className={`h-full rounded-full ${meta.bar}`}
-                            style={{ width: total > 0 ? `${(count / total) * 100}%` : "0%" }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
                   {/* ── Pending by Assignee ── */}
                   <Card>
                     <CardHeader className="pb-0 px-5 pt-4">
