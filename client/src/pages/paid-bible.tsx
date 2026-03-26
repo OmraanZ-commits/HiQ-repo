@@ -819,47 +819,47 @@ function OverviewTab() {
                       {isExpanded && (
                         <TableRow key={`${bp.id}-exp`} data-testid={`bp-expanded-${bp.id}`}>
                           <TableCell colSpan={10} className="p-0 bg-muted/20">
-                            <div className="px-8 py-4 border-l-2 border-l-[#1f36c7]/30">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                                <BookOpen className="h-3 w-3" />
-                                CBU / Material Details — inherited from Network Planning
-                                <span className="font-normal normal-case tracking-normal text-muted-foreground/70">({bp.basepakName} · {bp.basepackCode})</span>
+                            <div className="px-10 py-6 border-l-4 border-l-[#1f36c7]/40">
+                              <p className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                                <BookOpen className="h-4 w-4 text-[#1f36c7]" />
+                                CBU / Material Details
+                                <span className="font-normal text-muted-foreground text-xs">— {bp.basepakName} · {bp.basepackCode}</span>
                               </p>
-                              <div className="rounded-md border overflow-hidden bg-white">
+                              <div className="rounded-lg border overflow-hidden bg-white shadow-sm">
                                 <Table>
                                   <TableHeader>
-                                    <TableRow className="bg-muted/40">
-                                      <TableHead className="text-xs py-2">CBU Code</TableHead>
-                                      <TableHead className="text-xs py-2">Description</TableHead>
-                                      <TableHead className="text-xs py-2">NW Status</TableHead>
-                                      <TableHead className="text-xs py-2">Mat. Status</TableHead>
-                                      <TableHead className="text-xs py-2">Type of Network</TableHead>
-                                      <TableHead className="text-xs py-2">Copy CBU</TableHead>
-                                      <TableHead className="text-xs py-2">Grammage</TableHead>
-                                      <TableHead className="text-xs py-2">Case Config</TableHead>
-                                      <TableHead className="text-xs py-2">EAN</TableHead>
-                                      <TableHead className="text-xs py-2">Price Active</TableHead>
-                                      <TableHead className="text-xs py-2">Price End</TableHead>
+                                    <TableRow className="bg-muted/50">
+                                      <TableHead className="text-xs font-semibold py-3 px-4">CBU Code</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">Description</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">NW Status</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">Mat. Status</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">Copy CBU</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">Grammage</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">Case Config</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">EAN</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">Price Active</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
                                     {bp.materials.map((m, idx) => (
-                                      <TableRow key={m.id} data-testid={`mat-row-${bp.id}-${idx}`}>
-                                        <TableCell className="text-xs font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
-                                        <TableCell className="text-xs py-2 max-w-52 truncate" title={m.description}>{m.description}</TableCell>
-                                        <TableCell className="py-2"><NwStatusBadge status={m.networkStatus} /></TableCell>
-                                        <TableCell className="py-2"><MatStatusBadge status={m.matStatus} /></TableCell>
-                                        <TableCell className="text-xs py-2 text-muted-foreground max-w-36 truncate" title={m.typeOfNetwork}>{m.typeOfNetwork}</TableCell>
-                                        <TableCell className="text-xs font-mono py-2 text-muted-foreground">{m.copyCbu}</TableCell>
-                                        <TableCell className="text-xs py-2">{m.grammage}</TableCell>
-                                        <TableCell className="text-xs py-2">{m.caseConfig}</TableCell>
-                                        <TableCell className="text-xs font-mono text-muted-foreground py-2">{m.ean}</TableCell>
-                                        <TableCell className="py-2">
-                                          <span className={`text-xs font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
+                                      <TableRow key={m.id} data-testid={`mat-row-${bp.id}-${idx}`} className="hover:bg-muted/30">
+                                        <TableCell className="text-sm font-mono font-semibold text-blue-600 py-3 px-4">{m.code}</TableCell>
+                                        <TableCell className="text-sm py-3 px-4 max-w-56 truncate" title={m.description}>{m.description}</TableCell>
+                                        <TableCell className="py-3 px-4"><NwStatusBadge status={m.networkStatus} /></TableCell>
+                                        <TableCell className="py-3 px-4"><MatStatusBadge status={m.matStatus} /></TableCell>
+                                        <TableCell className="text-sm py-3 px-4 text-muted-foreground max-w-40 truncate" title={m.typeOfNetwork}>{m.typeOfNetwork}</TableCell>
+                                        <TableCell className="text-sm font-mono py-3 px-4 text-muted-foreground">{m.copyCbu}</TableCell>
+                                        <TableCell className="text-sm py-3 px-4">{m.grammage}</TableCell>
+                                        <TableCell className="text-sm py-3 px-4">{m.caseConfig}</TableCell>
+                                        <TableCell className="text-sm font-mono text-muted-foreground py-3 px-4">{m.ean}</TableCell>
+                                        <TableCell className="py-3 px-4">
+                                          <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
                                             {m.priceActive ? "Yes" : "No"}
                                           </span>
                                         </TableCell>
-                                        <TableCell className={`text-xs font-medium py-2 ${m.priceEnd === "9999" ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                        <TableCell className={`text-sm font-medium py-3 px-4 ${m.priceEnd === "9999" ? "text-emerald-600" : "text-muted-foreground"}`}>
                                           {m.priceEnd === "9999" ? "9999 (Perpetual)" : m.priceEnd}
                                         </TableCell>
                                       </TableRow>
