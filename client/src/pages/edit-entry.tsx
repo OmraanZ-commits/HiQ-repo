@@ -102,7 +102,6 @@ export default function EditEntry() {
   const _pbParams = new URLSearchParams(window.location.search);
   const isPaidBibleView = _pbParams.get("source") === "paid-bible";
   const cbuStatusFromPaidBible = isPaidBibleView ? (_pbParams.get("cbuStatus") || "") : "";
-  const matStatusFromPaidBible = isPaidBibleView ? (_pbParams.get("matStatus") || "") : "";
 
   const handleRaiseAmendment = () => {
     toast({
@@ -270,17 +269,6 @@ export default function EditEntry() {
                       CBU Status:{" "}
                       <Badge variant="outline" className="ml-1 text-xs font-medium" data-testid="badge-cbu-status">
                         {cbuStatusFromPaidBible}
-                      </Badge>
-                    </span>
-                  </>
-                )}
-                {isPaidBibleView && matStatusFromPaidBible && (
-                  <>
-                    <span className="text-muted-foreground/40">·</span>
-                    <span>
-                      Material Status:{" "}
-                      <Badge variant="outline" className="ml-1 text-xs font-medium" data-testid="badge-mat-status">
-                        {matStatusFromPaidBible}
                       </Badge>
                     </span>
                   </>
