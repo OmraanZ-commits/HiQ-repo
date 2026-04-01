@@ -286,7 +286,7 @@ export default function EditEntry() {
                 {entry.assignedPerson && (
                   <>
                     <span className="text-muted-foreground/40">·</span>
-                    <span>Assigned to: <span className="font-medium text-foreground">{entry.assignedPerson}</span></span>
+                    <span>Network Planner: <span className="font-medium text-foreground">{entry.assignedPerson}</span></span>
                   </>
                 )}
               </div>
