@@ -14,7 +14,7 @@ import {
 import {
   Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock,
   Search, Filter, ChevronRight, ChevronDown, FileText, ArrowUpRight,
-  Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, ExternalLink,
+  Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, Eye,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 
@@ -871,7 +871,7 @@ function OverviewTab() {
                                             onClick={() => navigate(`/edit/${m.id}?source=paid-bible&cbuStatus=${encodeURIComponent(m.matStatus || "")}`)}
                                             data-testid={`btn-view-cbu-${m.id}`}
                                           >
-                                            <ExternalLink className="h-3.5 w-3.5" />
+                                            <Eye className="h-3.5 w-3.5" />
                                             View
                                           </Button>
                                         </TableCell>
