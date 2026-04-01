@@ -14,7 +14,7 @@ import {
 import {
   Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock,
   Search, Filter, ChevronRight, ChevronDown, FileText, ArrowUpRight,
-  Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check,
+  Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, ExternalLink,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 
@@ -325,6 +325,8 @@ function YNBadge({ val }: { val: string }) {
 // ─── Part 1: Overview ────────────────────────────────────────────────────────
 
 function OverviewTab() {
+  const [, navigate] = useLocation();
+
   // ── API data ──
   const { data: networkEntries = [], isLoading } = useQuery<NetworkEntry[]>({
     queryKey: ["/api/network-entries"],
@@ -838,6 +840,7 @@ function OverviewTab() {
                                       <TableHead className="text-xs font-semibold py-3 px-4">Case Config</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 w-16"></TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -859,6 +862,18 @@ function OverviewTab() {
                                         </TableCell>
                                         <TableCell className={`text-sm font-medium py-3 px-4 whitespace-nowrap ${m.priceEnd === "9999" ? "text-emerald-600" : "text-muted-foreground"}`}>
                                           {m.priceEnd === "9999" ? "9999 (Perpetual)" : m.priceEnd}
+                                        </TableCell>
+                                        <TableCell className="py-3 px-4">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 gap-1.5 text-xs text-[#1f36c7] hover:text-[#1f36c7] hover:bg-[#1f36c7]/10 px-2"
+                                            onClick={() => navigate(`/edit/${m.id}`)}
+                                            data-testid={`btn-view-cbu-${m.id}`}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                            View
+                                          </Button>
                                         </TableCell>
                                       </TableRow>
                                     ))}
