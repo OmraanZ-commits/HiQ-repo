@@ -230,13 +230,10 @@ export default function EditEntry() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-bold" data-testid="text-edit-title">
                   {entry.materialDescription || entry.cbuCode || "Edit Entry"}
                 </h1>
-                <Badge variant={getStatusVariant(entry.networkStatus)} data-testid="badge-edit-status">
-                  {entry.networkStatus || "Draft"}
-                </Badge>
                 {lifecycle?.colorFlag && (
                   <div className="flex items-center gap-1.5">
                     <span className={`inline-block w-2.5 h-2.5 rounded-full ${getLifecycleFlagClasses(lifecycle.colorFlag)}`} data-testid="flag-edit" />
@@ -244,12 +241,22 @@ export default function EditEntry() {
                   </div>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                CBU Code: <span className="font-mono">{entry.cbuCode}</span>
+              <div className="flex items-center gap-4 mt-1 flex-wrap text-sm text-muted-foreground">
+                <span>CBU Code: <span className="font-mono text-foreground">{entry.cbuCode}</span></span>
+                <span className="text-muted-foreground/40">·</span>
+                <span>
+                  Status:{" "}
+                  <Badge variant={getStatusVariant(entry.networkStatus)} className="ml-1 text-xs" data-testid="badge-edit-status">
+                    {entry.networkStatus || "Draft"}
+                  </Badge>
+                </span>
                 {entry.assignedPerson && (
-                  <span className="ml-3">Assigned to: <span className="font-medium text-foreground">{entry.assignedPerson}</span></span>
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span>Assigned to: <span className="font-medium text-foreground">{entry.assignedPerson}</span></span>
+                  </>
                 )}
-              </p>
+              </div>
             </div>
           </div>
           <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
