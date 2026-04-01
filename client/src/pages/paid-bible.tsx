@@ -868,7 +868,7 @@ function OverviewTab() {
                                             size="sm"
                                             variant="ghost"
                                             className="h-7 gap-1.5 text-xs text-[#1f36c7] hover:text-[#1f36c7] hover:bg-[#1f36c7]/10 px-2"
-                                            onClick={() => navigate(`/edit/${m.id}?source=paid-bible&cbuStatus=${encodeURIComponent(bp.bpStatus || "")}`)}
+                                            onClick={() => navigate(`/edit/${m.id}?source=paid-bible&cbuStatus=${encodeURIComponent(bp.bpStatus || "")}&matStatus=${encodeURIComponent(m.matStatus || "")}`)}
                                             data-testid={`btn-view-cbu-${m.id}`}
                                           >
                                             <ExternalLink className="h-3.5 w-3.5" />
