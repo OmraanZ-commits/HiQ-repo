@@ -98,6 +98,16 @@ export default function EditEntry() {
 
   const { toast } = useToast();
 
+  // Detect if opened from Paid Bible (view-only mode)
+  const isPaidBibleView = new URLSearchParams(window.location.search).get("source") === "paid-bible";
+
+  const handleRaiseAmendment = () => {
+    toast({
+      title: "Amendment request raised",
+      description: `A request to amend ${entry.cbuCode || "this entry"} has been sent to the Network Planner.`,
+    });
+  };
+
   // Sourcing Matrix local state
   const [sourcingMode, setSourcingMode] = useState<"decentralized" | "centralized">("decentralized");
   const [centralizedGeo, setCentralizedGeo] = useState<string[]>([]);
@@ -226,7 +236,7 @@ export default function EditEntry() {
       <main className="max-w-[1200px] mx-auto px-6 py-6">
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/network")} data-testid="button-back">
+            <Button variant="ghost" size="icon" onClick={() => navigate(isPaidBibleView ? "/paid-bible" : "/network")} data-testid="button-back">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -259,20 +269,42 @@ export default function EditEntry() {
               </div>
             </div>
           </div>
-          <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
-            {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            {entry.networkStatus === "Draft" ? "Submit & Activate" : "Save Changes"}
-          </Button>
+          {isPaidBibleView ? (
+            <Button
+              onClick={handleRaiseAmendment}
+              variant="outline"
+              className="gap-2 border-amber-400 text-amber-700 hover:bg-amber-50"
+              data-testid="button-raise-amendment"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Raise Amendment Request
+            </Button>
+          ) : (
+            <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
+              {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              {entry.networkStatus === "Draft" ? "Submit & Activate" : "Save Changes"}
+            </Button>
+          )}
         </div>
 
         <StatusFlow currentStatus={entry.networkStatus} colorFlag={lifecycle?.colorFlag} />
 
-        <div className="flex items-center gap-2 mb-5 px-1">
-          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground">
-            Fields sourced directly from data are read-only. Only manually entered fields can be edited.
-          </p>
-        </div>
+        {isPaidBibleView ? (
+          <div className="flex items-center gap-2 mb-5 px-1 py-2.5 rounded-md bg-amber-50 border border-amber-200">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-700">
+              <span className="font-semibold">View only</span> — You are viewing this entry from the Paid Bible.
+              To request a change, use <span className="font-semibold">Raise Amendment Request</span> above.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 mb-5 px-1">
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Fields sourced directly from data are read-only. Only manually entered fields can be edited.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleFormSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
