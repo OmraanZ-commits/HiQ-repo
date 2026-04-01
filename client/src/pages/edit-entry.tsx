@@ -266,8 +266,18 @@ export default function EditEntry() {
                   <>
                     <span className="text-muted-foreground/40">·</span>
                     <span>
-                      CBU Status:{" "}
-                      <Badge variant="outline" className="ml-1 text-xs font-medium" data-testid="badge-cbu-status">
+                      Material Status:{" "}
+                      <Badge
+                        variant="outline"
+                        className={`ml-1 text-xs font-medium ${
+                          cbuStatusFromPaidBible.toLowerCase() === "issue"
+                            ? "border-red-300 text-red-600 bg-red-50"
+                            : cbuStatusFromPaidBible.toLowerCase() === "ok"
+                            ? "border-emerald-300 text-emerald-600 bg-emerald-50"
+                            : ""
+                        }`}
+                        data-testid="badge-cbu-status"
+                      >
                         {cbuStatusFromPaidBible}
                       </Badge>
                     </span>
