@@ -201,6 +201,29 @@ On failure at any step, compensating actions run in reverse order. All steps are
 - Set DATABASE_URL env var for PostgreSQL connection
 - Set VITE_API_BASE_URL env var to point frontend to backend URL
 
+## Modules
+
+### Network Planning (`/network`)
+Full CRUD management of CBU entries — create, view, edit, and activate entries through the saga-orchestrated status flow. Accessible via the sidebar.
+
+### Paid Bible (`/paid-bible`)
+Read-only analytics view of basepacks and their CBUs, grouped by category. Key features:
+- MOC badge (Month of Change): Day ≥ 21 → next month; Day < 21 → current month
+- Active basepack count: calculated from `ACTIVE_BP_STATUSES = { "Active Pack", "Active Pack (Channel)", "Active Pack (Customer)", "Seasonal Pack" }`
+- Sticky table header: `h-screen overflow-hidden` layout with `overflow-y-auto` on main
+- View button in each expanded CBU row navigates to `/edit/:id?source=paid-bible&cbuStatus=<bpStatus>` (view-only mode)
+
+### View-Only Mode (Edit Entry from Paid Bible)
+When `?source=paid-bible` is present in the URL:
+- Status progress bar is hidden
+- Save button replaced with "Raise Amendment Request" (amber, outlined button)
+- Amber banner shown: "View only — You are viewing this entry from the Paid Bible"
+- Back button returns to `/paid-bible` instead of `/network`
+- Info strip shows both Network Status and CBU Status (passed via `?cbuStatus=` query param)
+- Toast fired on amendment request: "Amendment request raised. Network Planner will be notified."
+
 ## Routes
-- `/` - Dashboard with table and stats
-- `/edit/:id` - Fullscreen edit page for an entry
+- `/` - Home landing page
+- `/network` - Network Planning dashboard with data table and stats
+- `/paid-bible` - Paid Bible analytics view
+- `/edit/:id` - Fullscreen edit/view page for an entry; adds view-only behaviour when `?source=paid-bible`

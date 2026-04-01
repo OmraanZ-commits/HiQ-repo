@@ -99,7 +99,9 @@ export default function EditEntry() {
   const { toast } = useToast();
 
   // Detect if opened from Paid Bible (view-only mode)
-  const isPaidBibleView = new URLSearchParams(window.location.search).get("source") === "paid-bible";
+  const _pbParams = new URLSearchParams(window.location.search);
+  const isPaidBibleView = _pbParams.get("source") === "paid-bible";
+  const cbuStatusFromPaidBible = isPaidBibleView ? (_pbParams.get("cbuStatus") || "") : "";
 
   const handleRaiseAmendment = () => {
     toast({
@@ -255,11 +257,22 @@ export default function EditEntry() {
                 <span>CBU Code: <span className="font-mono text-foreground">{entry.cbuCode}</span></span>
                 <span className="text-muted-foreground/40">·</span>
                 <span>
-                  Status:{" "}
+                  Network Status:{" "}
                   <Badge variant={getStatusVariant(entry.networkStatus)} className="ml-1 text-xs" data-testid="badge-edit-status">
                     {entry.networkStatus || "Draft"}
                   </Badge>
                 </span>
+                {isPaidBibleView && cbuStatusFromPaidBible && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span>
+                      CBU Status:{" "}
+                      <Badge variant="outline" className="ml-1 text-xs font-medium" data-testid="badge-cbu-status">
+                        {cbuStatusFromPaidBible}
+                      </Badge>
+                    </span>
+                  </>
+                )}
                 {entry.assignedPerson && (
                   <>
                     <span className="text-muted-foreground/40">·</span>
@@ -287,7 +300,9 @@ export default function EditEntry() {
           )}
         </div>
 
-        <StatusFlow currentStatus={entry.networkStatus} colorFlag={lifecycle?.colorFlag} />
+        {!isPaidBibleView && (
+          <StatusFlow currentStatus={entry.networkStatus} colorFlag={lifecycle?.colorFlag} />
+        )}
 
         {isPaidBibleView ? (
           <div className="flex items-center gap-2 mb-5 px-1 py-2.5 rounded-md bg-amber-50 border border-amber-200">
