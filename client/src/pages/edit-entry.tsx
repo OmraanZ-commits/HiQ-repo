@@ -1111,6 +1111,14 @@ export default function EditEntry() {
                       return next;
                     });
 
+                  // Identify the newest price lot (latest validFrom) to tag when priceUpdatedAt is set
+                  const isPriceNew = isWithinOneMonth(entry.priceUpdatedAt as string | null | undefined);
+                  const newestLotId = isPriceNew
+                    ? MOCK_PRICE_LOTS.reduce((best, lot) =>
+                        lot.validFrom > best.validFrom ? lot : best
+                      ).id
+                    : null;
+
                   return (
                     <div className="space-y-4">
                       <Card>
@@ -1154,8 +1162,15 @@ export default function EditEntry() {
                                   data-testid={`price-lot-row-${lot.id}`}
                                   className="w-full grid grid-cols-[1fr_180px_100px_80px_120px_120px_36px] gap-0 px-6 py-3.5 text-left hover:bg-muted/30 transition-colors select-none"
                                 >
-                                  <span className="font-mono text-xs font-semibold text-[#1f36c7]">
-                                    {form?.cbuCode ? `${form.cbuCode}-${lot.priceLot}` : lot.priceLot}
+                                  <span className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-mono text-xs font-semibold text-[#1f36c7]">
+                                      {form?.cbuCode ? `${form.cbuCode}-${lot.priceLot}` : lot.priceLot}
+                                    </span>
+                                    {lot.id === newestLotId && (
+                                      <span className="inline-flex items-center rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white tracking-wide" data-testid={`badge-new-price-${lot.id}`}>
+                                        NEW
+                                      </span>
+                                    )}
                                   </span>
                                   <span className="flex items-center gap-1 flex-wrap">
                                     {scopePills.map(p => (
