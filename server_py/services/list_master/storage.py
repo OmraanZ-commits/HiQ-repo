@@ -79,6 +79,17 @@ class ListMasterStorage:
                 return None
             update_fields = data.model_dump(exclude_unset=True)
             db_fields = api_data_to_db(update_fields)
+
+            now = datetime.now(timezone.utc)
+
+            # Auto-stamp case_config_updated_at when case_config changes
+            if "case_config" in db_fields and db_fields["case_config"] != row.case_config:
+                db_fields["case_config_updated_at"] = now
+
+            # Auto-stamp price_updated_at when status transitions to "Pricing Updated"
+            if db_fields.get("network_status") == "Pricing Updated" and row.network_status != "Pricing Updated":
+                db_fields["price_updated_at"] = now
+
             for key, value in db_fields.items():
                 setattr(row, key, value)
             db.commit()

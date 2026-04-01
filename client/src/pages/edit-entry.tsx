@@ -457,7 +457,10 @@ export default function EditEntry() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <ReadOnlyField label="Case Config" value={form.caseConfig} testId="input-case-config" />
+                    <div>
+                      <ReadOnlyField label="Case Config" value={form.caseConfig} testId="input-case-config" />
+                      <NewBadge updatedAt={entry.caseConfigUpdatedAt as string | null | undefined} />
+                    </div>
                     <ReadOnlyField label="EAN" value={form.ean} testId="input-ean" />
                     <ReadOnlyField label="ITF" value={form.itf} testId="input-itf" />
                     <ReadOnlyField label="Net Weight (g)" value={form.netWeight != null ? String(form.netWeight) : null} testId="input-net-weight" />
@@ -1113,10 +1116,11 @@ export default function EditEntry() {
                       <Card>
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <IndianRupee className="h-4 w-4 text-[#00b0d7]" />
                               <p className="text-sm font-semibold">Price Lots</p>
                               <Badge variant="secondary" className="text-[10px] px-2">{MOCK_PRICE_LOTS.length} lots</Badge>
+                              <NewBadge updatedAt={entry.priceUpdatedAt as string | null | undefined} />
                             </div>
                             <p className="text-[10px] text-muted-foreground">Click a row to see applicability details</p>
                           </div>
@@ -1434,6 +1438,28 @@ function ReadOnlyField({ label, value, testId }: { label: string; value: string 
         {label}
       </Label>
       <Input value={value || "-"} disabled className="bg-muted/40 cursor-not-allowed" data-testid={testId} />
+    </div>
+  );
+}
+
+function isWithinOneMonth(ts: string | null | undefined): boolean {
+  if (!ts) return false;
+  const updated = new Date(ts);
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  return updated >= oneMonthAgo;
+}
+
+function NewBadge({ updatedAt }: { updatedAt: string | null | undefined }) {
+  if (!isWithinOneMonth(updatedAt)) return null;
+  const d = new Date(updatedAt!);
+  const label = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return (
+    <div className="flex items-center gap-1.5 mt-1" data-testid="badge-new-change">
+      <span className="inline-flex items-center rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white tracking-wide">
+        NEW
+      </span>
+      <span className="text-[11px] text-muted-foreground">Updated {label}</span>
     </div>
   );
 }

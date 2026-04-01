@@ -77,6 +77,8 @@ class NetworkEntryModel(Base):
     channel = Column(ARRAY(Text), nullable=True, default=[])
     channel_mapping = Column(JSONB, nullable=True, default={})
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    case_config_updated_at = Column(DateTime, nullable=True)
+    price_updated_at = Column(DateTime, nullable=True)
 
 
 class EntryStatusModel(Base):
@@ -197,6 +199,8 @@ FIELD_MAP_TO_DB = {
     "assignedPerson": "assigned_person",
     "channelMapping": "channel_mapping",
     "createdAt": "created_at",
+    "caseConfigUpdatedAt": "case_config_updated_at",
+    "priceUpdatedAt": "price_updated_at",
 }
 
 FIELD_MAP_TO_API = {v: k for k, v in FIELD_MAP_TO_DB.items()}
@@ -211,11 +215,14 @@ for f in SIMPLE_FIELDS:
     FIELD_MAP_TO_API[f] = f
 
 
+_DATETIME_COLS = {"created_at", "case_config_updated_at", "price_updated_at"}
+
+
 def db_row_to_api(row: NetworkEntryModel) -> dict:
     result = {"id": str(row.id)}
     for db_col, api_field in FIELD_MAP_TO_API.items():
         val = getattr(row, db_col, None)
-        if db_col == "created_at" and val:
+        if db_col in _DATETIME_COLS and val:
             val = val.isoformat()
         result[api_field] = val
     return result

@@ -53,6 +53,8 @@ class NetworkEntryBase(BaseModel):
     depot: Optional[List[str]] = Field(default_factory=list)
     channel: Optional[List[str]] = Field(default_factory=list)
     channelMapping: Optional[dict] = Field(default_factory=dict)
+    caseConfigUpdatedAt: Optional[str] = None
+    priceUpdatedAt: Optional[str] = None
 
 
 class InsertNetworkEntry(NetworkEntryBase):
@@ -104,6 +106,8 @@ class UpdateNetworkEntry(BaseModel):
     depot: Optional[List[str]] = None
     channel: Optional[List[str]] = None
     channelMapping: Optional[dict] = None
+    caseConfigUpdatedAt: Optional[str] = None
+    priceUpdatedAt: Optional[str] = None
 
 
 class StateTransition(BaseModel):
