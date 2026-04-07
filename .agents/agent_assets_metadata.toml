@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "wKpkPreNQUCLucTuZmFjW"
+uri = "file://SCOPE_OF_WORK.md"
+type = "text"
+title = "SoW Scope — Network Planning & Admin Center"
