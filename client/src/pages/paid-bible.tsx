@@ -445,7 +445,7 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
             <p className={`text-2xl font-bold ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
               {mstnCoverage}%
             </p>
-            <p className="text-xs mt-0.5 text-muted-foreground">Threshold: ≥ 80%</p>
+            <p className="text-xs mt-0.5 text-muted-foreground">CBU level MSTN should ≥80%</p>
           </div>
         </div>
 
