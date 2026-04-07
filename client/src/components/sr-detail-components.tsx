@@ -5,8 +5,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { ApproverStep } from "@/lib/sr-store";
 import { REJECTION_REASONS } from "@/lib/sr-store";
+
+const OTHER_REASON = "Other — refer to comments";
 
 // ─── SrStatusBadge ────────────────────────────────────────────────────────────
 
@@ -38,12 +41,24 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
 }) {
   const [rejectingIdx, setRejectingIdx] = useState<number | null>(null);
   const [selectedReason, setSelectedReason] = useState("");
+  const [otherComment, setOtherComment] = useState("");
+
+  const isOther = selectedReason === OTHER_REASON;
+  const canSubmit = !!selectedReason && (!isOther || otherComment.trim().length > 0);
 
   const submitReject = (idx: number) => {
-    if (!selectedReason) return;
-    onReject(requestId, idx, selectedReason);
+    if (!canSubmit) return;
+    const finalReason = isOther ? otherComment.trim() : selectedReason;
+    onReject(requestId, idx, finalReason);
     setRejectingIdx(null);
     setSelectedReason("");
+    setOtherComment("");
+  };
+
+  const cancelReject = () => {
+    setRejectingIdx(null);
+    setSelectedReason("");
+    setOtherComment("");
   };
 
   const statusColors = {
@@ -121,7 +136,7 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
               {step.status === "pending" && rejectingIdx === idx && (
                 <div className="mt-3 p-4 rounded-lg border border-red-200 bg-red-50 space-y-3">
                   <p className="text-sm font-medium text-red-800">Select a reason for rejection:</p>
-                  <RadioGroup value={selectedReason} onValueChange={setSelectedReason} className="space-y-2">
+                  <RadioGroup value={selectedReason} onValueChange={(v) => { setSelectedReason(v); setOtherComment(""); }} className="space-y-2">
                     {REJECTION_REASONS.map(r => (
                       <div key={r} className="flex items-center gap-2.5">
                         <RadioGroupItem value={r} id={`${requestId}-${idx}-${r}`} />
@@ -129,16 +144,34 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
                       </div>
                     ))}
                   </RadioGroup>
+
+                  {/* Comment box — only shown when "Other" is selected */}
+                  {isOther && (
+                    <div className="pt-1">
+                      <Label className="text-xs font-medium text-red-800 mb-1.5 block">
+                        Add a comment <span className="text-red-500">*</span>
+                      </Label>
+                      <Textarea
+                        value={otherComment}
+                        onChange={e => setOtherComment(e.target.value)}
+                        placeholder="Describe the reason for rejection…"
+                        className="resize-none bg-white border-red-200 text-sm focus-visible:ring-red-300"
+                        rows={3}
+                        data-testid={`textarea-reject-comment-${requestId}-${idx}`}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 pt-1">
                     <Button
                       className="gap-1.5 bg-red-600 hover:bg-red-700 text-white"
-                      disabled={!selectedReason}
+                      disabled={!canSubmit}
                       onClick={() => submitReject(idx)}
                       data-testid={`button-confirm-reject-${requestId}-${idx}`}
                     >
                       <XCircle className="h-4 w-4" /> Confirm Rejection
                     </Button>
-                    <Button variant="ghost" onClick={() => setRejectingIdx(null)}>Cancel</Button>
+                    <Button variant="ghost" onClick={cancelReject}>Cancel</Button>
                   </div>
                 </div>
               )}
