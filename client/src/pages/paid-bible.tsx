@@ -554,21 +554,6 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
           </div>
         </div>
 
-        {/* Approver chain note */}
-        {!criteriaMet && (
-          <div className="rounded-md bg-slate-50 border p-3">
-            <p className="text-xs font-medium mb-2 text-muted-foreground">Approval chain for this request:</p>
-            <div className="flex items-center gap-1 flex-wrap">
-              {APPROVER_CHAIN.map((a, i) => (
-                <Fragment key={a.role}>
-                  <span className="text-xs bg-white border rounded px-2 py-0.5 text-slate-600">{a.label}</span>
-                  {i < APPROVER_CHAIN.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
-                </Fragment>
-              ))}
-            </div>
-          </div>
-        )}
-
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} data-testid="button-cancel-activation">
             Cancel
