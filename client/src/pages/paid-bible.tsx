@@ -611,11 +611,13 @@ function OverviewTab({ localBpStatus, setLocalBpStatus, onRequestActivation }: O
 
   const allBasepacks = useMemo<PbBasepack[]>(() => {
     const grouped = new Map<string, NetworkEntry[]>();
-    networkEntries.forEach(entry => {
-      const key = entry.basepack || entry.cbuCode || entry.id;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(entry);
-    });
+    networkEntries
+      .filter(entry => entry.networkStatus && entry.networkStatus !== "Draft")
+      .forEach(entry => {
+        const key = entry.basepack || entry.cbuCode || entry.id;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(entry);
+      });
 
     return Array.from(grouped.entries()).map(([bpCode, entries]) => {
       const first    = entries[0];
