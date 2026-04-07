@@ -105,7 +105,7 @@ interface MaterialCriteria {
   code: string;
   description: string;
   mstnCleared: boolean;
-  tdpCoverage: number;
+  lastUpdated: string;
 }
 
 interface ApproverStep {
@@ -205,7 +205,7 @@ function checkCriteria(bp: PbBasepack): {
     code:        m.code,
     description: m.description,
     mstnCleared: MSTN_ACTIVE_STATUSES.has(m.networkStatus),
-    tdpCoverage: simulateTdpCoverage(m.code),
+    lastUpdated: m.priceStart && m.priceStart !== "-" ? m.priceStart : "—",
   }));
   return { mstnCoverage, tdpCoverage, criteriaMet, materials };
 }
@@ -542,37 +542,23 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest }: Act
                   <TableHead className="text-xs py-2">CBU Code</TableHead>
                   <TableHead className="text-xs py-2">Description</TableHead>
                   <TableHead className="text-xs py-2 text-center">MSTN Cleared</TableHead>
-                  <TableHead className="text-xs py-2 text-center">TDP Coverage</TableHead>
-                  <TableHead className="text-xs py-2 text-center">Result</TableHead>
+                  <TableHead className="text-xs py-2 text-center">Last Updated</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {materials.map(m => {
-                  const mPassed = m.mstnCleared && m.tdpCoverage >= 75;
-                  return (
-                    <TableRow key={m.code} className="text-xs">
-                      <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
-                      <TableCell className="py-2 max-w-40 truncate text-muted-foreground" title={m.description}>{m.description}</TableCell>
-                      <TableCell className="py-2 text-center">
-                        {m.mstnCleared
-                          ? <span className="text-emerald-600 font-semibold">Yes</span>
-                          : <span className="text-red-500 font-semibold">No</span>
-                        }
-                      </TableCell>
-                      <TableCell className="py-2 text-center">
-                        <span className={m.tdpCoverage >= 75 ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold"}>
-                          {m.tdpCoverage}%
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-2 text-center">
-                        {mPassed
-                          ? <span className="text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-200">Pass</span>
-                          : <span className="text-xs bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full border border-red-200">Fail</span>
-                        }
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {materials.map(m => (
+                  <TableRow key={m.code} className="text-xs">
+                    <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
+                    <TableCell className="py-2 max-w-40 truncate text-muted-foreground" title={m.description}>{m.description}</TableCell>
+                    <TableCell className="py-2 text-center">
+                      {m.mstnCleared
+                        ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
+                        : <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><XCircle className="h-3 w-3" />No</span>
+                      }
+                    </TableCell>
+                    <TableCell className="py-2 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
@@ -1590,32 +1576,23 @@ function ServiceRequestCard({ request, onApprove, onReject }: {
                       <TableHead className="text-xs py-2">CBU Code</TableHead>
                       <TableHead className="text-xs py-2">Description</TableHead>
                       <TableHead className="text-xs py-2 text-center">MSTN Cleared</TableHead>
-                      <TableHead className="text-xs py-2 text-center">TDP Coverage</TableHead>
-                      <TableHead className="text-xs py-2 text-center">Result</TableHead>
+                      <TableHead className="text-xs py-2 text-center">Last Updated</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {request.materials.map(m => {
-                      const passed = m.mstnCleared && m.tdpCoverage >= 75;
-                      return (
-                        <TableRow key={m.code} className="text-xs">
-                          <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
-                          <TableCell className="py-2 text-muted-foreground max-w-xs truncate">{m.description}</TableCell>
-                          <TableCell className="py-2 text-center">
-                            {m.mstnCleared ? <span className="text-emerald-600 font-semibold">Yes</span> : <span className="text-red-500 font-semibold">No</span>}
-                          </TableCell>
-                          <TableCell className="py-2 text-center">
-                            <span className={m.tdpCoverage >= 75 ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold"}>{m.tdpCoverage}%</span>
-                          </TableCell>
-                          <TableCell className="py-2 text-center">
-                            {passed
-                              ? <span className="text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-200">Pass</span>
-                              : <span className="text-xs bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full border border-red-200">Fail</span>
-                            }
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {request.materials.map(m => (
+                      <TableRow key={m.code} className="text-xs">
+                        <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
+                        <TableCell className="py-2 text-muted-foreground max-w-xs truncate">{m.description}</TableCell>
+                        <TableCell className="py-2 text-center">
+                          {m.mstnCleared
+                            ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
+                            : <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><XCircle className="h-3 w-3" />No</span>
+                          }
+                        </TableCell>
+                        <TableCell className="py-2 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
