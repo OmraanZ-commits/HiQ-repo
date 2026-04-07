@@ -1,4 +1,8 @@
 import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { type NetworkEntry } from "@shared/schema";
+import { ReassignmentDialog, type ReassignTrigger } from "@/components/reassignment-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -539,16 +543,158 @@ export function UserManagementContent() {
     return { total: users.length, active, inactive: users.length - active, byRole };
   }, [users]);
 
+  /* ── Reassignment dialog state ─────────────────────────────── */
+
+  type PendingChange =
+    | { type: "deactivate"; userId: string }
+    | { type: "edit"; form: UserFormState };
+
+  const [reassignState, setReassignState] = useState<{
+    open: boolean;
+    pending: PendingChange | null;
+    affectedEntries: NetworkEntry[];
+    availablePlanners: AppUser[];
+    trigger: ReassignTrigger;
+    userName: string;
+  }>({ open: false, pending: null, affectedEntries: [], availablePlanners: [], trigger: "deactivation", userName: "" });
+
+  /* Fetch all network entries (background — used for affected-entry detection) */
+  const { data: allEntries = [] } = useQuery<NetworkEntry[]>({
+    queryKey: ["/api/network-entries"],
+  });
+
+  /* Reassign mutation — PATCHes each affected entry */
+  const reassignMutation = useMutation({
+    mutationFn: async (assignments: Record<string, string>) => {
+      await Promise.all(
+        Object.entries(assignments).map(([entryId, assignedPerson]) =>
+          apiRequest("PATCH", `/api/network-entries/${entryId}`, { assignedPerson })
+        )
+      );
+    },
+    onSuccess: (_, assignments) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      const count = Object.keys(assignments).length;
+      toast({
+        title: "Entries reassigned",
+        description: `${count} network ${count === 1 ? "entry has" : "entries have"} been reassigned successfully.`,
+      });
+    },
+  });
+
+  /** Entries assigned to a user that are NOT yet "Network transition complete" */
+  const getAffectedEntries = (userName: string): NetworkEntry[] =>
+    allEntries.filter(
+      (e) =>
+        e.assignedPerson === userName &&
+        e.networkStatus !== "Network transition complete"
+    );
+
+  /** Available planners for reassignment — same BG, active NPs, not the user themselves */
+  const getAvailablePlanners = (bg: string, excludeName: string): AppUser[] =>
+    users.filter(
+      (p) =>
+        p.role === "Network Planner" &&
+        p.isActive &&
+        p.businessGroup === bg &&
+        p.name !== excludeName
+    );
+
+  /* Apply a pending change (deactivation or edit) to users state */
+  const applyPendingChange = (pending: PendingChange) => {
+    if (pending.type === "deactivate") {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== pending.userId) return u;
+          const next = { ...u, isActive: false };
+          toast({
+            title: "User deactivated",
+            description: `${next.name} is now inactive.`,
+          });
+          return next;
+        })
+      );
+    } else {
+      handleEditApply(pending.form);
+    }
+  };
+
+  /* Low-level apply for edit (no trigger checks) */
+  const handleEditApply = (form: UserFormState) => {
+    if (!editTarget) return;
+    const id = editTarget.id;
+    setUsers((prev) => {
+      const demoted = applyBgLeadChange(prev, id, form.businessGroup as BusinessGroup, form.isBgLead);
+      return demoted.map((u) =>
+        u.id === id
+          ? { ...u, name: form.name, email: form.email, role: form.role as Role, businessGroup: form.businessGroup as BusinessGroup, isBgLead: form.isBgLead }
+          : u
+      );
+    });
+    toast({
+      title: "User updated",
+      description: form.isBgLead
+        ? `${form.name} is now the BG Lead for ${form.businessGroup}.`
+        : `${form.name}'s details have been updated.`,
+    });
+    setEditTarget(null);
+    setShowDialog(null);
+  };
+
+  /* Reassignment dialog handlers */
+  const handleReassignSkip = () => {
+    const pending = reassignState.pending;
+    setReassignState((s) => ({ ...s, open: false, pending: null }));
+    if (pending) applyPendingChange(pending);
+  };
+
+  const handleReassignConfirm = async (assignments: Record<string, string>) => {
+    await reassignMutation.mutateAsync(assignments);
+    const pending = reassignState.pending;
+    setReassignState((s) => ({ ...s, open: false, pending: null }));
+    if (pending) applyPendingChange(pending);
+  };
+
+  /* ── Toggle active/inactive ──────────────────────────────────── */
+
   const handleToggleStatus = (id: string) => {
+    const user = users.find((u) => u.id === id);
+    if (!user) return;
+
+    /* Activating: no affected-entry check needed */
+    if (!user.isActive) {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== id) return u;
+          toast({ title: "User activated", description: `${u.name} is now active.` });
+          return { ...u, isActive: true };
+        })
+      );
+      return;
+    }
+
+    /* Deactivating a Network Planner — check for affected entries */
+    if (user.role === "Network Planner") {
+      const affected = getAffectedEntries(user.name);
+      if (affected.length > 0) {
+        setReassignState({
+          open: true,
+          pending: { type: "deactivate", userId: id },
+          affectedEntries: affected,
+          availablePlanners: getAvailablePlanners(user.businessGroup, user.name),
+          trigger: "deactivation",
+          userName: user.name,
+        });
+        return;
+      }
+    }
+
+    /* No affected entries — deactivate directly */
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id !== id) return u;
-        const next = { ...u, isActive: !u.isActive };
-        toast({
-          title: next.isActive ? "User activated" : "User deactivated",
-          description: `${next.name} is now ${next.isActive ? "active" : "inactive"}.`,
-        });
-        return next;
+        toast({ title: "User deactivated", description: `${u.name} is now inactive.` });
+        return { ...u, isActive: false };
       })
     );
   };
@@ -579,22 +725,31 @@ export function UserManagementContent() {
 
   const handleEdit = (form: UserFormState) => {
     if (!editTarget) return;
-    const id = editTarget.id;
-    setUsers((prev) => {
-      const demoted = applyBgLeadChange(prev, id, form.businessGroup as BusinessGroup, form.isBgLead);
-      return demoted.map((u) =>
-        u.id === id
-          ? { ...u, name: form.name, email: form.email, role: form.role as Role, businessGroup: form.businessGroup as BusinessGroup, isBgLead: form.isBgLead }
-          : u
-      );
-    });
-    toast({
-      title: "User updated",
-      description: form.isBgLead
-        ? `${form.name} is now the BG Lead for ${form.businessGroup}.`
-        : `${form.name}'s details have been updated.`,
-    });
-    setEditTarget(null);
+
+    const wasNP = editTarget.role === "Network Planner";
+    const roleChanged = wasNP && form.role !== "Network Planner";
+    const bgChanged = wasNP && form.businessGroup !== editTarget.businessGroup;
+
+    if (wasNP && (roleChanged || bgChanged)) {
+      /* Check for incomplete entries in the OLD BG under the user's current name */
+      const affected = getAffectedEntries(editTarget.name);
+      if (affected.length > 0) {
+        const trigger: ReassignTrigger = roleChanged ? "role-change" : "bg-change";
+        /* Offer planners from the OLD BG (entries belong there) */
+        const planners = getAvailablePlanners(editTarget.businessGroup, editTarget.name);
+        setReassignState({
+          open: true,
+          pending: { type: "edit", form },
+          affectedEntries: affected,
+          availablePlanners: planners,
+          trigger,
+          userName: editTarget.name,
+        });
+        return;
+      }
+    }
+
+    handleEditApply(form);
   };
 
   const openEdit = (user: AppUser) => {
@@ -843,6 +998,18 @@ export function UserManagementContent() {
           }}
         />
       )}
+
+      {/* Reassignment dialog — shown when a NP's role/BG changes or they are deactivated */}
+      <ReassignmentDialog
+        open={reassignState.open}
+        onSkip={handleReassignSkip}
+        onConfirm={handleReassignConfirm}
+        affectedEntries={reassignState.affectedEntries}
+        availablePlanners={reassignState.availablePlanners}
+        trigger={reassignState.trigger}
+        userName={reassignState.userName}
+        isPending={reassignMutation.isPending}
+      />
     </div>
   );
 }

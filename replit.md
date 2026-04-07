@@ -105,7 +105,9 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - `client/src/components/status-flow.tsx` - 7-step status progress bar with lifecycle flag overlay
 - `client/src/components/network-table.tsx` - Data table with Trigger column for lifecycle flags
 - `client/src/components/entry-detail-dialog.tsx` - View details dialog with status flow and lifecycle info
-- `client/src/components/people-picker.tsx` - Searchable people picker with avatars
+- `client/src/components/people-picker.tsx` - Searchable people picker with avatars (accepts `bg` prop to filter to NPs in a BG)
+- `client/src/components/reassignment-dialog.tsx` - Bulk/individual reassignment dialog shown on NP role-change, BG-change, or deactivation
+- `client/src/lib/users-data.ts` - Portal user registry (PORTAL_USERS, BUSINESS_GROUPS, ROLES constants + networkPlannersForBg helper)
 - `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
 ### Python Backend — Microservices (Router → Service → Storage)
@@ -206,6 +208,14 @@ On failure at any step, compensating actions run in reverse order. All steps are
 ### Network Planning (`/network`)
 Full CRUD management of CBU entries — create, view, edit, and activate entries through the saga-orchestrated status flow. Accessible via the sidebar.
 
+#### Save Draft vs Submit & Activate
+Draft-status entries show two separate action buttons:
+- **Save Draft** (outline) — calls `PATCH /api/network-entries/:id` directly, bypasses activation validation; allows partial saves (e.g. assigning a Network Planner)
+- **Submit & Activate** (filled) — runs full validation (dates, geo, depot, channels) then triggers the saga transition from Draft → Active
+
+#### Edit Entry — Update Assignee field
+In the Dates & Timeline section the field formerly labeled "Network Planner" is labeled **"Update Assignee"**. It filters available planners to the entry's Business Group.
+
 ### Paid Bible (`/paid-bible`)
 Read-only analytics view of basepacks and their CBUs, grouped by category. Key features:
 - MOC badge (Month of Change): Day ≥ 21 → next month; Day < 21 → current month
@@ -222,8 +232,43 @@ When `?source=paid-bible` is present in the URL:
 - Info strip shows both Network Status and CBU Status (passed via `?cbuStatus=` query param)
 - Toast fired on amendment request: "Amendment request raised. Network Planner will be notified."
 
+### Admin Center (`/admin`)
+Admin portal with two sub-tabs:
+
+#### User Management
+- Manage portal users with roles: Network Planner, Category Manager, Supply Chain Manager, Finance Manager
+- **Business Groups**: Homecare, Personal Care, Foods, Beauty and Wellness, Others
+- **BG Lead**: A Network Planner can be designated BG Lead for their Business Group (one per BG). Changing this auto-demotes the previous lead (after an AlertDialog confirmation).
+- Stats row: Total Users, Active, Inactive, Roles count
+
+**User edit triggers that check for reassignment:**
+Three events prompt the Reassignment Required dialog if the user is a Network Planner with incomplete assigned entries:
+1. **Role changed away from Network Planner** (`trigger: "role-change"`)
+2. **Business Group changed** (`trigger: "bg-change"`) — entries in the OLD BG are surfaced
+3. **User deactivated** (`trigger: "deactivation"`)
+
+The **ReassignmentDialog** (`components/reassignment-dialog.tsx`) presents:
+- Count of affected incomplete entries (all except "Network transition complete")
+- **Bulk mode**: pick one Network Planner → reassign all
+- **Individual mode**: pick a different planner per entry; quick-fill "Apply to all" shortcut
+- **Confirm & Reassign**: PATCHes each entry's `assignedPerson` via API, then applies the user change
+- **Skip for now**: applies the user change without reassigning (entries stay orphaned)
+- Available planners: active NPs in the same BG as the affected entries, excluding the user themselves
+
+#### Roles & Permissions
+Read-only matrix showing what each role can do.
+
+## User Registry
+`client/src/lib/users-data.ts` is the single source of truth for portal users:
+- `PORTAL_USERS`: array of `PortalUser` — id, name, email, role, businessGroup, isBgLead, isActive, createdAt
+- `BUSINESS_GROUPS`: 5 values constant
+- `ROLES`: 4 role values constant
+- `networkPlannersForBg(bg)`: returns active NPs for a given BG (exported but user management now uses a live-state filter for dynamic adds)
+- User Management local state is seeded from `PORTAL_USERS` on mount; changes are in-session only (no backend persistence)
+
 ## Routes
 - `/` - Home landing page
 - `/network` - Network Planning dashboard with data table and stats
 - `/paid-bible` - Paid Bible analytics view
+- `/admin` - Admin Center (User Management + Roles & Permissions)
 - `/edit/:id` - Fullscreen edit/view page for an entry; adds view-only behaviour when `?source=paid-bible`
