@@ -488,8 +488,6 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest }: Act
           </DialogTitle>
           <DialogDescription className="text-xs">
             Basepack Status Change · {bp.basepakName} · {bp.basepackCode}
-            <br />
-            Source: National level MSTN clearance ≥ 80% · Cover of 4 TDP (3rd TDP current MOC + 3 TDPs next MOC) · Estimates by 11th of every month
           </DialogDescription>
         </DialogHeader>
 
