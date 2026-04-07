@@ -21,7 +21,6 @@ import {
   CheckCircle2,
   Crown,
   CircleDot,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type NetworkEntry } from "@shared/schema";
@@ -188,7 +187,7 @@ export function ReassignmentDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onCancel(); }}>
       <DialogContent
-        className="flex flex-col p-0 gap-0 overflow-hidden rounded-xl"
+        className="flex flex-col p-0 gap-0 overflow-hidden rounded-xl [&>button]:text-white [&>button]:bg-white/20 [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-90 [&>button:hover]:bg-white/35 [&>button:hover]:opacity-100"
         style={{ maxWidth: "780px", width: "95vw", maxHeight: "88vh" }}
       >
         {/* ── Header banner ─────────────────────────────────── */}
@@ -205,13 +204,6 @@ export function ReassignmentDialog({
                 {triggerBody(trigger, userName)}
               </DialogDescription>
             </div>
-            <button
-              onClick={onCancel}
-              data-testid="button-reassign-cancel-x"
-              className="h-7 w-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors shrink-0 mt-0.5"
-            >
-              <X className="h-4 w-4 text-white" />
-            </button>
           </div>
 
           {/* Progress pill */}
