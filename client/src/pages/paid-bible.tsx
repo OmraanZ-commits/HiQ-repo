@@ -518,8 +518,8 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
         {/* Verdict Banner */}
         <div className={`rounded-lg p-3 flex items-center gap-2.5 ${criteriaMet ? "bg-emerald-50 border border-emerald-200" : "bg-amber-50 border border-amber-200"}`}>
           {criteriaMet
-            ? <><ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" /><p className="text-sm font-medium text-emerald-800">All criteria met — this basepack is ready to activate.</p></>
-            : <><AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" /><p className="text-sm font-medium text-amber-800">Criteria not fully met. You can still proceed — a service request will be raised for approval from all stakeholders.</p></>
+            ? <><ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" /><p className="text-sm font-medium text-emerald-800">All criteria met — a service request will be raised for stakeholder approval before activation.</p></>
+            : <><AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" /><p className="text-sm font-medium text-amber-800">Criteria not fully met — a service request will be raised for approval from all stakeholders.</p></>
           }
         </div>
 
@@ -559,23 +559,13 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
           <Button variant="outline" onClick={onClose} data-testid="button-cancel-activation">
             Cancel
           </Button>
-          {criteriaMet ? (
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-              onClick={handleActivate}
-              data-testid="button-confirm-activate"
-            >
-              <ShieldCheck className="h-4 w-4" /> Activate Basepack
-            </Button>
-          ) : (
-            <Button
-              className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
-              onClick={handleCreateRequest}
-              data-testid="button-continue-anyway"
-            >
-              <Send className="h-4 w-4" /> Continue Anyway — Raise Service Request
-            </Button>
-          )}
+          <Button
+            className={`${criteriaMet ? "bg-emerald-600 hover:bg-emerald-700" : "bg-amber-600 hover:bg-amber-700"} text-white gap-1.5`}
+            onClick={handleCreateRequest}
+            data-testid="button-raise-service-request"
+          >
+            <Send className="h-4 w-4" /> Raise Service Request
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -252,7 +252,7 @@ Analytics and status management for basepacks and their CBUs, grouped by categor
 - Computes MSTN coverage only (≥ 80% threshold); TDP is not shown or evaluated in the dialog
 - Single MSTN Coverage card with pass/fail colour coding
 - Shows per-material table: Code, Description, MSTN Cleared (icon), Last Updated
-- Criteria met → activates directly; Criteria not met → "Continue Anyway" creates a Service Request ticket and navigates to Service Requests tab
+- Always raises a Service Request regardless of whether criteria are met; criteria-met requests show emerald button, criteria-not-met show amber button
 - `localBpStatus` state lifted to `PaidBiblePage` so status changes persist across tab switches
 
 #### Service Requests Tab
