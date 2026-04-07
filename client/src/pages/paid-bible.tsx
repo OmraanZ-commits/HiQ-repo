@@ -259,10 +259,10 @@ const BIBLE_MATRIX = [
   },
 ];
 
-const TRIGGERS = [
-  { id: 1, name: "Price Inactive", count: 4, rule: "MSTN coverage > 80% but price inactive for respective channel", stakeholder: "Network Planner", severity: "high" },
-  { id: 2, name: "SLOB Risk",      count: 2, rule: "DOH in Copy CBU > 5 days compared to DOH of new CBU",           stakeholder: "Availability Planner", severity: "medium" },
-];
+const TRIGGER_DEFS = [
+  { id: "price-inactive", name: "Price Inactive", rule: "MSTN coverage > 80% but price inactive for respective channel", stakeholder: "Network Planner",       severity: "high"   },
+  { id: "slob-risk",      name: "SLOB Risk",      rule: "DOH in Copy CBU > 5 days compared to DOH of new CBU",          stakeholder: "Availability Planner", severity: "medium" },
+] as const;
 
 const AMENDMENTS = [
   {
@@ -638,6 +638,18 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
     locationFilter !== "all", mstnFilter !== "all", bgFilter !== "all", materialSearch !== "",
   ].filter(Boolean).length;
 
+  const triggerCbus = useMemo(() => {
+    const flat = allBasepacks.flatMap(bp =>
+      bp.materials.map(m => ({ ...m, basepakName: bp.basepakName }))
+    );
+    return {
+      "price-inactive": flat.filter(m => m.mstnPct >= 80 && !m.priceActive),
+      "slob-risk":      flat.filter(m => m.slobRisk),
+    };
+  }, [allBasepacks]);
+
+  const [triggerDialog, setTriggerDialog] = useState<string | null>(null);
+
   const toggleExpand = (id: string) => setExpandedId(p => p === id ? null : id);
 
   const startEdit = (bp: PbBasepack, e: React.MouseEvent) => {
@@ -701,20 +713,75 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
           <Zap className="h-4 w-4 text-amber-500" /> Triggers for Improvement
         </h3>
         <div className="grid grid-cols-2 gap-3">
-          {TRIGGERS.map(t => (
-            <Card key={t.id} data-testid={`trigger-card-${t.id}`} className={`border-l-4 ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-1">
-                  <p className="text-sm font-semibold">{t.name}</p>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{t.count} items</span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
-                <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
-              </CardContent>
-            </Card>
-          ))}
+          {TRIGGER_DEFS.map(t => {
+            const cbus = triggerCbus[t.id];
+            const count = cbus.length;
+            return (
+              <Card key={t.id} data-testid={`trigger-card-${t.id}`} onClick={() => count > 0 && setTriggerDialog(t.id)} className={`border-l-4 transition-colors ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"} ${count > 0 ? "cursor-pointer hover:bg-muted/40" : "opacity-60"}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-1">
+                    <p className="text-sm font-semibold">{t.name}</p>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{count} {count === 1 ? "item" : "items"}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
+                  <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
+
+      {/* Trigger detail dialog */}
+      {TRIGGER_DEFS.map(t => {
+        const cbus = triggerCbus[t.id];
+        return (
+          <Dialog key={t.id} open={triggerDialog === t.id} onOpenChange={o => !o && setTriggerDialog(null)}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{t.name}</DialogTitle>
+                <DialogDescription>{t.rule}</DialogDescription>
+              </DialogHeader>
+              <div className="overflow-auto max-h-[60vh]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-xs font-semibold">CBU Code</TableHead>
+                      <TableHead className="text-xs font-semibold">Description</TableHead>
+                      <TableHead className="text-xs font-semibold">Mat. Status</TableHead>
+                      {t.id === "price-inactive" && <>
+                        <TableHead className="text-xs font-semibold">Price Active</TableHead>
+                        <TableHead className="text-xs font-semibold">Price End</TableHead>
+                      </>}
+                      {t.id === "slob-risk" && <>
+                        <TableHead className="text-xs font-semibold">Predecessor Code</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">Predecessor DOH</TableHead>
+                      </>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cbus.map(m => (
+                      <TableRow key={m.id}>
+                        <TableCell className="text-xs font-mono font-semibold text-blue-600">{m.code}</TableCell>
+                        <TableCell className="text-xs max-w-48 truncate" title={m.description}>{m.description}</TableCell>
+                        <TableCell className="text-xs"><MatStatusBadge status={m.matStatus} /></TableCell>
+                        {t.id === "price-inactive" && <>
+                          <TableCell className="text-xs font-semibold text-red-500">No</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{m.priceEnd}</TableCell>
+                        </>}
+                        {t.id === "slob-risk" && <>
+                          <TableCell className="text-xs font-mono text-muted-foreground">{m.copyCbu || "—"}</TableCell>
+                          <TableCell className="text-xs text-center text-muted-foreground">{m.predecessorDoh ?? "—"}</TableCell>
+                        </>}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })}
 
       {/* Search + Filter bar */}
       <Card>
