@@ -232,6 +232,7 @@ SEEDS = [
         copyCbu="CBU-50006700",
         year=2025,
         networkStatus="Pricing Updated",
+        mstnPercentage=86,
         startDate="2025-11-01",
         endDate="2026-04-30",
         caseConfig="12x1",
