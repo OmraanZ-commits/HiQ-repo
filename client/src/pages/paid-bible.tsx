@@ -945,7 +945,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Predecessor CBU DOH</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap text-center">Predecessor CBU DOH</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 w-16"></TableHead>
@@ -964,13 +964,13 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                             {m.mstnPct}%
                                           </span>
                                         </TableCell>
-                                        <TableCell className="py-3 px-4 whitespace-nowrap">
+                                        <TableCell className="py-3 px-4 whitespace-nowrap text-center">
                                           {m.predecessorDoh != null ? (
-                                            <span className="flex items-center gap-1.5">
+                                            <span className="inline-flex items-center justify-center gap-1.5">
                                               <span className="text-sm text-muted-foreground">{m.predecessorDoh}</span>
                                               {m.slobRisk && (
-                                                <span title="SLOB Risk" data-testid={`icon-slob-risk-${m.id}`}>
-                                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                                <span title="SLOB Risk" aria-label="SLOB Risk" data-testid={`icon-slob-risk-${m.id}`}>
+                                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 cursor-help" />
                                                 </span>
                                               )}
                                             </span>
