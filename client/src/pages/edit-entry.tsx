@@ -84,7 +84,7 @@ export default function EditEntry() {
     updateField, toggleArrayItem,
     toggleGeoChannel, toggleAllGeoChannels, toggleColumnChannel, toggleAllColumnsAllGeos, applyChannelsToAllGeos,
     toggleAllClusters, toggleAllDepots,
-    handleSubmit, handleConfirmSubmit, isPending, navigate,
+    handleSubmit, handleSaveDraft, handleConfirmSubmit, isPending, navigate,
     selectedGeo, selectedDepots, selectedChannels, channelMapping,
     allClustersSelected, allDepotsSelected,
     selectedLeafCount,
@@ -302,10 +302,26 @@ export default function EditEntry() {
               <AlertTriangle className="h-4 w-4" />
               Raise Amendment Request
             </Button>
+          ) : isDraft ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleSaveDraft}
+                disabled={isPending}
+                data-testid="button-save-draft"
+              >
+                {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Draft
+              </Button>
+              <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-activate">
+                {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                Submit & Activate
+              </Button>
+            </div>
           ) : (
             <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
               {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {entry.networkStatus === "Draft" ? "Submit & Activate" : "Save Changes"}
+              Save Changes
             </Button>
           )}
         </div>

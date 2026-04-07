@@ -380,6 +380,13 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     transitionMutation.mutate({ form, entryId: id });
   };
 
+  /* Plain save — never triggers activation; always available regardless of status */
+  const handleSaveDraft = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    updateMutation.mutate(form);
+  };
+
   const selectedGeo = (form?.geography || []) as string[];
   const selectedDepots = (form?.depot || []) as string[];
   const selectedChannels = (form?.channel || []) as string[];
@@ -409,6 +416,7 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     toggleAllClusters,
     toggleAllDepots,
     handleSubmit,
+    handleSaveDraft,
     handleConfirmSubmit,
     isPending: updateMutation.isPending || transitionMutation.isPending,
     navigate,
