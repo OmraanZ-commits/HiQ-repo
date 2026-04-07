@@ -1490,229 +1490,285 @@ function ApproverChain({ approvers, requestId, onApprove, onReject }: {
   );
 }
 
-function ServiceRequestCard({ request, onApprove, onReject }: {
-  request: ServiceRequest;
+function ServiceRequestDetailDialog({ request, open, onClose, onApprove, onReject }: {
+  request: ServiceRequest | null;
+  open: boolean;
+  onClose: () => void;
   onApprove: (id: string, idx: number) => void;
   onReject: (id: string, idx: number, reason: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  if (!request) return null;
   const mstnPassed = request.mstnCoverage >= 80;
-  const activeStep = request.approvers.findIndex(a => a.status === "pending");
   const doneSteps  = request.approvers.filter(a => a.status === "approved").length;
 
   return (
-    <Card data-testid={`sr-card-${request.id}`} className="border">
-      <CardContent className="p-5">
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-[#1f36c7]/10 flex items-center justify-center">
-              <ListChecks className="h-4.5 w-4.5 text-[#1f36c7]" />
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+        {/* Dialog header */}
+        <div className="px-6 pt-6 pb-4 border-b">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[#1f36c7]/10 flex items-center justify-center flex-shrink-0">
+              <ListChecks className="h-4 w-4 text-[#1f36c7]" />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-xs font-mono font-semibold text-slate-500">{request.id}</p>
-                <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">
-                  {request.requestType}
-                </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-xs font-mono font-semibold text-slate-500">{request.id}</span>
+                <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">{request.requestType}</span>
                 <SrStatusBadge status={request.overallStatus} />
               </div>
-              <p className="text-sm font-semibold mt-0.5 truncate">
+              <p className="text-base font-semibold leading-tight">
                 {request.basepackName}
-                <span className="ml-2 text-xs font-mono text-muted-foreground">{request.basepackCode}</span>
+                <span className="ml-2 text-xs font-mono text-muted-foreground font-normal">{request.basepackCode}</span>
               </p>
-              <p className="text-xs text-muted-foreground">{request.brand} · {request.bg} · Raised by <span className="font-medium text-foreground">{request.raisedBy}</span> · {request.raisedAt}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{request.brand} · {request.bg} · Raised by <span className="font-medium text-foreground">{request.raisedBy}</span> · {request.raisedAt}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-xs text-muted-foreground">
-              {doneSteps}/{request.approvers.length} approved
-            </span>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setExpanded(v => !v)} data-testid={`button-expand-sr-${request.id}`}>
-              {expanded ? <><ChevronDown className="h-3.5 w-3.5" /> Hide</> : <><ChevronRight className="h-3.5 w-3.5" /> View</>}
-            </Button>
-          </div>
-        </div>
 
-        {/* Criteria pills */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
-            {mstnPassed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-            MSTN {request.mstnCoverage}%
-          </div>
-          <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${request.criteriaMetAtRaise ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-            {request.criteriaMetAtRaise ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
-            {request.criteriaMetAtRaise ? "Criteria Met" : "Criteria Not Met at Raise"}
-          </div>
-          <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium bg-slate-50 text-slate-600 border-slate-200 ml-auto">
-            <TrendingUp className="h-3 w-3" />
-            Target: {request.targetStatus}
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        {request.overallStatus === "pending" && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span>Approval progress</span>
-              <span>{doneSteps} of {request.approvers.length} steps complete</span>
+          {/* Meta pills */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+              {mstnPassed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+              MSTN {request.mstnCoverage}%
             </div>
-            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] rounded-full transition-all"
-                style={{ width: `${(doneSteps / request.approvers.length) * 100}%` }}
-              />
+            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${request.criteriaMetAtRaise ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+              {request.criteriaMetAtRaise ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
+              {request.criteriaMetAtRaise ? "Criteria Met" : "Criteria Not Met at Raise"}
             </div>
+            <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium bg-slate-50 text-slate-600 border-slate-200">
+              <TrendingUp className="h-3 w-3" /> Target: {request.targetStatus}
+            </div>
+            <div className="ml-auto text-xs text-muted-foreground">{doneSteps}/{request.approvers.length} steps approved</div>
           </div>
-        )}
 
-        {expanded && (
-          <>
-            <Separator className="mb-4" />
-
-            {/* Material Criteria Table */}
-            <div className="mb-5">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Material Criteria at Time of Raise</p>
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="text-xs py-2">CBU Code</TableHead>
-                      <TableHead className="text-xs py-2">Description</TableHead>
-                      <TableHead className="text-xs py-2 text-center">MSTN Cleared</TableHead>
-                      <TableHead className="text-xs py-2 text-center">Last Updated</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {request.materials.map(m => (
-                      <TableRow key={m.code} className="text-xs">
-                        <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
-                        <TableCell className="py-2 text-muted-foreground max-w-xs truncate">{m.description}</TableCell>
-                        <TableCell className="py-2 text-center">
-                          {m.mstnCleared
-                            ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
-                            : <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><XCircle className="h-3 w-3" />No</span>
-                          }
-                        </TableCell>
-                        <TableCell className="py-2 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+          {/* Progress bar */}
+          {request.overallStatus === "pending" && (
+            <div className="mt-3">
+              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] rounded-full transition-all"
+                  style={{ width: `${(doneSteps / request.approvers.length) * 100}%` }}
+                />
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Approver Chain */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Approval Chain</p>
-              <ApproverChain
-                approvers={request.approvers}
-                requestId={request.id}
-                onApprove={onApprove}
-                onReject={onReject}
-              />
+        <div className="px-6 py-5 space-y-6">
+          {/* Material Criteria Table */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Material Criteria at Time of Raise</p>
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="text-xs py-2">CBU Code</TableHead>
+                    <TableHead className="text-xs py-2">Description</TableHead>
+                    <TableHead className="text-xs py-2 text-center">MSTN Cleared</TableHead>
+                    <TableHead className="text-xs py-2 text-center">Last Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {request.materials.map(m => (
+                    <TableRow key={m.code} className="text-xs">
+                      <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
+                      <TableCell className="py-2 text-muted-foreground max-w-xs truncate">{m.description}</TableCell>
+                      <TableCell className="py-2 text-center">
+                        {m.mstnCleared
+                          ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
+                          : <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><XCircle className="h-3 w-3" />No</span>
+                        }
+                      </TableCell>
+                      <TableCell className="py-2 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </div>
+
+          {/* Approver Chain */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Approval Chain</p>
+            <ApproverChain
+              approvers={request.approvers}
+              requestId={request.id}
+              onApprove={onApprove}
+              onReject={onReject}
+            />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ServiceRequestRow({ request, onView }: {
+  request: ServiceRequest;
+  onView: (r: ServiceRequest) => void;
+}) {
+  const mstnPassed = request.mstnCoverage >= 80;
+  const doneSteps  = request.approvers.filter(a => a.status === "approved").length;
+  const total      = request.approvers.length;
+  const pct        = total > 0 ? (doneSteps / total) * 100 : 0;
+
+  return (
+    <div
+      data-testid={`sr-row-${request.id}`}
+      className="flex items-center gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors group"
+    >
+      {/* Icon */}
+      <div className="w-7 h-7 rounded-md bg-[#1f36c7]/10 flex items-center justify-center flex-shrink-0">
+        <ListChecks className="h-3.5 w-3.5 text-[#1f36c7]" />
+      </div>
+
+      {/* SR ID + type */}
+      <div className="w-28 flex-shrink-0">
+        <p className="text-xs font-mono font-semibold text-slate-500 leading-tight">{request.id}</p>
+        <p className="text-[10px] text-muted-foreground truncate">Status Change</p>
+      </div>
+
+      {/* Status badge */}
+      <div className="w-24 flex-shrink-0">
+        <SrStatusBadge status={request.overallStatus} />
+      </div>
+
+      {/* Basepack */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate leading-tight">{request.basepackName}</p>
+        <p className="text-xs text-muted-foreground truncate">{request.brand} · {request.bg} · <span className="font-mono">{request.basepackCode}</span></p>
+      </div>
+
+      {/* Raised by + date */}
+      <div className="w-40 flex-shrink-0 hidden xl:block">
+        <p className="text-xs text-foreground truncate">{request.raisedBy}</p>
+        <p className="text-[10px] text-muted-foreground">{request.raisedAt}</p>
+      </div>
+
+      {/* MSTN pill */}
+      <div className="flex-shrink-0 hidden lg:flex">
+        <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+          {mstnPassed ? <CheckCircle2 className="h-2.5 w-2.5" /> : <XCircle className="h-2.5 w-2.5" />}
+          MSTN {request.mstnCoverage}%
+        </span>
+      </div>
+
+      {/* Progress */}
+      <div className="w-32 flex-shrink-0 hidden md:block">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] rounded-full transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">{doneSteps}/{total}</span>
+        </div>
+      </div>
+
+      {/* Action */}
+      <div className="flex-shrink-0">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => onView(request)}
+          data-testid={`button-view-sr-${request.id}`}
+        >
+          <Eye className="h-3 w-3" /> View
+        </Button>
+      </div>
+    </div>
   );
 }
 
 function ServiceRequestsTab({ requests, onApprove, onReject }: ServiceRequestsTabProps) {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const pending  = requests.filter(r => r.overallStatus === "pending").length;
   const approved = requests.filter(r => r.overallStatus === "approved").length;
   const rejected = requests.filter(r => r.overallStatus === "rejected").length;
 
-  const filtered = statusFilter === "all" ? requests : requests.filter(r => r.overallStatus === statusFilter);
+  const filtered     = statusFilter === "all" ? requests : requests.filter(r => r.overallStatus === statusFilter);
+  const selectedReq  = selectedId ? requests.find(r => r.id === selectedId) ?? null : null;
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      {/* Header + stat pills in one row */}
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Service Requests</h2>
-          <p className="text-xs text-muted-foreground">
-            Track all basepack status change requests and approval workflows
-          </p>
+          <p className="text-xs text-muted-foreground">Basepack status change requests and approval workflows</p>
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <button
-          className={`rounded-xl p-4 border text-left transition-all ${statusFilter === "pending" ? "ring-2 ring-amber-400" : ""} bg-amber-50 border-amber-200`}
-          onClick={() => setStatusFilter(f => f === "pending" ? "all" : "pending")}
-          data-testid="stat-pending-requests"
-        >
-          <p className="text-xs font-medium text-amber-700 mb-1">Pending Approval</p>
-          <p className="text-2xl font-bold text-amber-700">{pending}</p>
-          <p className="text-xs text-amber-600 mt-1">Awaiting action</p>
-        </button>
-        <button
-          className={`rounded-xl p-4 border text-left transition-all ${statusFilter === "approved" ? "ring-2 ring-emerald-400" : ""} bg-emerald-50 border-emerald-200`}
-          onClick={() => setStatusFilter(f => f === "approved" ? "all" : "approved")}
-          data-testid="stat-approved-requests"
-        >
-          <p className="text-xs font-medium text-emerald-700 mb-1">Approved</p>
-          <p className="text-2xl font-bold text-emerald-700">{approved}</p>
-          <p className="text-xs text-emerald-600 mt-1">Status updated</p>
-        </button>
-        <button
-          className={`rounded-xl p-4 border text-left transition-all ${statusFilter === "rejected" ? "ring-2 ring-red-400" : ""} bg-red-50 border-red-200`}
-          onClick={() => setStatusFilter(f => f === "rejected" ? "all" : "rejected")}
-          data-testid="stat-rejected-requests"
-        >
-          <p className="text-xs font-medium text-red-700 mb-1">Rejected</p>
-          <p className="text-2xl font-bold text-red-700">{rejected}</p>
-          <p className="text-xs text-red-600 mt-1">Requires re-evaluation</p>
-        </button>
-      </div>
-
-      {/* Filter bar */}
-      {statusFilter !== "all" && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Filtering by:</span>
-          <span className="text-xs font-medium capitalize">{statusFilter}</span>
-          <Button size="sm" variant="ghost" className="h-6 text-xs px-2 gap-1" onClick={() => setStatusFilter("all")}>
-            <X className="h-3 w-3" /> Clear
-          </Button>
+          {[
+            { key: "pending",  label: "Pending",  count: pending,  ring: "ring-amber-400",   color: "bg-amber-50 border-amber-200 text-amber-700" },
+            { key: "approved", label: "Approved", count: approved, ring: "ring-emerald-400", color: "bg-emerald-50 border-emerald-200 text-emerald-700" },
+            { key: "rejected", label: "Rejected", count: rejected, ring: "ring-red-400",     color: "bg-red-50 border-red-200 text-red-700" },
+          ].map(({ key, label, count, ring, color }) => (
+            <button
+              key={key}
+              data-testid={`stat-${key}-requests`}
+              onClick={() => setStatusFilter(f => (f === key ? "all" : key) as typeof f)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${color} ${statusFilter === key ? `ring-2 ${ring}` : ""}`}
+            >
+              <span className="font-bold text-sm">{count}</span> {label}
+            </button>
+          ))}
+          {statusFilter !== "all" && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs px-2 gap-1" onClick={() => setStatusFilter("all")}>
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Request cards */}
+      {/* List */}
       {filtered.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-16 flex flex-col items-center gap-3">
             <ListChecks className="h-10 w-10 text-muted-foreground/40" />
             <p className="text-sm font-medium text-muted-foreground">
-              {requests.length === 0
-                ? "No service requests yet"
-                : `No ${statusFilter} requests`
-              }
+              {requests.length === 0 ? "No service requests yet" : `No ${statusFilter} requests`}
             </p>
             {requests.length === 0 && (
               <p className="text-xs text-muted-foreground text-center max-w-sm">
-                When you change a basepack status from Draft to Active in the Overview tab, a service request will be created here for approval.
+                When a basepack status is changed from Draft to Active in the Overview tab, a service request will be created here for approval.
               </p>
             )}
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <Card className="border overflow-hidden p-0">
+          {/* Table header */}
+          <div className="flex items-center gap-4 px-4 py-2 bg-muted/40 border-b text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="w-7 flex-shrink-0" />
+            <div className="w-28 flex-shrink-0">Request ID</div>
+            <div className="w-24 flex-shrink-0">Status</div>
+            <div className="flex-1">Basepack</div>
+            <div className="w-40 flex-shrink-0 hidden xl:block">Raised by</div>
+            <div className="flex-shrink-0 hidden lg:block w-28">MSTN</div>
+            <div className="w-32 flex-shrink-0 hidden md:block">Progress</div>
+            <div className="w-16 flex-shrink-0" />
+          </div>
           {filtered.map(request => (
-            <ServiceRequestCard
+            <ServiceRequestRow
               key={request.id}
               request={request}
-              onApprove={onApprove}
-              onReject={onReject}
+              onView={r => setSelectedId(r.id)}
             />
           ))}
-        </div>
+        </Card>
       )}
 
+      {/* Detail dialog */}
+      <ServiceRequestDetailDialog
+        request={selectedReq}
+        open={!!selectedId}
+        onClose={() => setSelectedId(null)}
+        onApprove={onApprove}
+        onReject={onReject}
+      />
     </div>
   );
 }
