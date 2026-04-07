@@ -967,7 +967,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                           <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>{m.priceActive ? "Yes" : "No"}</span>
                                         </TableCell>
                                         <TableCell className={`text-sm font-medium py-3 px-4 whitespace-nowrap ${m.priceEnd === "9999" ? "text-emerald-600" : "text-muted-foreground"}`}>
-                                          {m.priceEnd === "9999" ? "9999 (Perpetual)" : m.priceEnd}
+                                          {m.priceEnd}
                                         </TableCell>
                                         <TableCell className="py-3 px-4">
                                           <Button size="sm" variant="ghost" className="h-7 text-xs text-[#1f36c7] hover:text-[#1f36c7] hover:bg-[#1f36c7]/10 px-2" onClick={() => navigate(`/edit/${m.id}?source=paid-bible&cbuStatus=${encodeURIComponent(m.matStatus || "")}`)} data-testid={`btn-view-cbu-${m.id}`}>
