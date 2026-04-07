@@ -14,9 +14,9 @@ import { useSrStore, approveStep, rejectStep } from "@/lib/sr-store";
 
 function FieldCell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="py-3.5">
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      <div className="text-sm font-medium text-foreground">{children}</div>
+    <div className="flex items-center gap-3 py-3 min-w-0">
+      <span className="w-36 flex-shrink-0 text-sm text-muted-foreground">{label}</span>
+      <span className="flex-1 text-sm font-medium text-foreground">{children}</span>
     </div>
   );
 }
@@ -53,7 +53,7 @@ export default function ServiceRequestDetailPage() {
     <div className="min-h-screen bg-background">
       <UnileverHeader module="paid-bible" activeTab="service-requests" />
 
-      <main className="max-w-[900px] mx-auto px-6 py-6">
+      <main className="max-w-[1100px] mx-auto px-6 py-6">
 
         {/* ── Slim page header ─────────────────────────────────────────────── */}
         <div className="flex items-start gap-4 mb-6">
