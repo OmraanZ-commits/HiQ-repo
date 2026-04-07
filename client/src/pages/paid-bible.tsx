@@ -1371,31 +1371,33 @@ function ApproverChain({ approvers, requestId, onApprove, onReject }: {
         };
 
         return (
-          <div key={step.role} className="flex gap-3">
+          <div key={step.role} className="flex gap-2.5">
             {/* Timeline connector */}
-            <div className="flex flex-col items-center w-8 flex-shrink-0">
-              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${statusColors[step.status]}`}>
+            <div className="flex flex-col items-center w-6 flex-shrink-0">
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${statusColors[step.status]}`}>
                 {statusIcons[step.status]}
               </div>
-              {!isLast && <div className="w-px flex-1 bg-border mt-1 mb-1 min-h-[8px]" />}
+              {!isLast && <div className="w-px flex-1 bg-border mt-1 mb-1 min-h-[6px]" />}
             </div>
 
             {/* Step content */}
-            <div className={`pb-4 flex-1 min-w-0 ${isLast ? "" : ""}`}>
-              <div className="flex items-start justify-between gap-2">
+            <div className="pb-3 flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">{step.label}</p>
-                  <p className="text-xs text-muted-foreground">{step.subLabel}</p>
-                  {step.assignedTo && (
-                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                      <User className="h-3 w-3" /> {step.assignedTo}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold leading-tight">{step.label}</p>
+                    <span className="text-xs text-muted-foreground">· {step.subLabel}</span>
+                    {step.assignedTo && (
+                      <span className="text-xs text-slate-500 flex items-center gap-1">
+                        <User className="h-3 w-3" /> {step.assignedTo}
+                      </span>
+                    )}
+                  </div>
                   {step.actedAt && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{step.status === "approved" ? "Approved" : "Rejected"} · {step.actedAt}</p>
+                    <p className="text-xs text-muted-foreground">{step.status === "approved" ? "Approved" : "Rejected"} · {step.actedAt}</p>
                   )}
                   {step.rejectionReason && (
-                    <p className="text-xs text-red-600 mt-0.5 italic">Reason: {step.rejectionReason}</p>
+                    <p className="text-xs text-red-600 italic">Reason: {step.rejectionReason}</p>
                   )}
                 </div>
                 <div className="flex-shrink-0">
@@ -1473,81 +1475,73 @@ function ServiceRequestDetailDialog({ request, open, onClose, onApprove, onRejec
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
-        {/* Dialog header */}
-        <div className="px-6 pt-6 pb-4 border-b">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[#1f36c7]/10 flex items-center justify-center flex-shrink-0">
-              <ListChecks className="h-4 w-4 text-[#1f36c7]" />
+        {/* Compact header */}
+        <div className="px-5 pt-4 pb-3 border-b">
+          {/* Row 1: ID + badges */}
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="w-6 h-6 rounded-md bg-[#1f36c7]/10 flex items-center justify-center flex-shrink-0">
+              <ListChecks className="h-3.5 w-3.5 text-[#1f36c7]" />
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="text-xs font-mono font-semibold text-slate-500">{request.id}</span>
-                <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">{request.requestType}</span>
-                <SrStatusBadge status={request.overallStatus} />
-              </div>
-              <p className="text-base font-semibold leading-tight">
-                {request.basepackName}
-                <span className="ml-2 text-xs font-mono text-muted-foreground font-normal">{request.basepackCode}</span>
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{request.brand} · {request.bg} · Raised by <span className="font-medium text-foreground">{request.raisedBy}</span> · {request.raisedAt}</p>
-            </div>
+            <span className="text-xs font-mono font-semibold text-slate-400">{request.id}</span>
+            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">{request.requestType}</span>
+            <SrStatusBadge status={request.overallStatus} />
           </div>
+          {/* Row 2: name */}
+          <p className="text-sm font-semibold leading-tight">
+            {request.basepackName}
+            <span className="ml-2 text-xs font-mono text-muted-foreground font-normal">{request.basepackCode}</span>
+          </p>
+          {/* Row 3: meta */}
+          <p className="text-xs text-muted-foreground mt-0.5">{request.brand} · {request.bg} · Raised by <span className="font-medium text-foreground">{request.raisedBy}</span> · {request.raisedAt}</p>
 
-          {/* Meta pills */}
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+          {/* Row 4: pills + inline progress */}
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
               {mstnPassed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
               MSTN {request.mstnCoverage}%
             </div>
-            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${request.criteriaMetAtRaise ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+            <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${request.criteriaMetAtRaise ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
               {request.criteriaMetAtRaise ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
-              {request.criteriaMetAtRaise ? "Criteria Met" : "Criteria Not Met at Raise"}
+              {request.criteriaMetAtRaise ? "Criteria Met" : "Not Met"}
             </div>
-            <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium bg-slate-50 text-slate-600 border-slate-200">
-              <TrendingUp className="h-3 w-3" /> Target: {request.targetStatus}
+            <div className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium bg-slate-50 text-slate-600 border-slate-200">
+              <TrendingUp className="h-3 w-3" /> {request.targetStatus}
             </div>
-            <div className="ml-auto text-xs text-muted-foreground">{doneSteps}/{request.approvers.length} steps approved</div>
-          </div>
-
-          {/* Progress bar */}
-          {request.overallStatus === "pending" && (
-            <div className="mt-3">
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] rounded-full transition-all"
-                  style={{ width: `${(doneSteps / request.approvers.length) * 100}%` }}
-                />
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{doneSteps}/{request.approvers.length} approved</span>
+              <div className="w-20 h-1 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] rounded-full transition-all" style={{ width: `${(doneSteps / request.approvers.length) * 100}%` }} />
               </div>
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="px-6 py-5 space-y-6">
+        <div className="px-5 py-4 space-y-4">
           {/* Material Criteria Table */}
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Material Criteria at Time of Raise</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Material Criteria at Time of Raise</p>
             <div className="rounded-md border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="text-xs py-2">CBU Code</TableHead>
-                    <TableHead className="text-xs py-2">Description</TableHead>
-                    <TableHead className="text-xs py-2 text-center">MSTN Cleared</TableHead>
-                    <TableHead className="text-xs py-2 text-center">Last Updated</TableHead>
+                    <TableHead className="text-xs py-1.5">CBU Code</TableHead>
+                    <TableHead className="text-xs py-1.5">Description</TableHead>
+                    <TableHead className="text-xs py-1.5 text-center">MSTN Cleared</TableHead>
+                    <TableHead className="text-xs py-1.5 text-center">Last Updated</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {request.materials.map(m => (
                     <TableRow key={m.code} className="text-xs">
-                      <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
-                      <TableCell className="py-2 text-muted-foreground max-w-xs truncate">{m.description}</TableCell>
-                      <TableCell className="py-2 text-center">
+                      <TableCell className="font-mono font-medium text-blue-600 py-1.5 whitespace-nowrap">{m.code}</TableCell>
+                      <TableCell className="py-1.5 text-muted-foreground max-w-xs truncate">{m.description}</TableCell>
+                      <TableCell className="py-1.5 text-center">
                         {m.mstnCleared
                           ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
                           : <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><XCircle className="h-3 w-3" />No</span>
                         }
                       </TableCell>
-                      <TableCell className="py-2 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
+                      <TableCell className="py-1.5 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1557,7 +1551,7 @@ function ServiceRequestDetailDialog({ request, open, onClose, onApprove, onRejec
 
           {/* Approver Chain */}
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Approval Chain</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Approval Chain</p>
             <ApproverChain
               approvers={request.approvers}
               requestId={request.id}
