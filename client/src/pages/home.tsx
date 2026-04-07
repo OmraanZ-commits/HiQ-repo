@@ -1,6 +1,5 @@
 import { useLocation } from "wouter";
-import { Network, BookOpen, ArrowRight, BarChart3, Layers } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Network, BookOpen, ArrowRight, BarChart3, Layers, Settings } from "lucide-react";
 
 const MODULES = [
   {
@@ -26,6 +25,18 @@ const MODULES = [
     accent: "from-[#0d8ecf] to-[#00b0d7]",
     features: ["Basepack & Material Matrix", "Geo Applicability", "Network Updates Feed", "Amendment Requests"],
     badge: "New",
+  },
+  {
+    id: "admin",
+    title: "Admin Center",
+    subtitle: "Configuration & Management",
+    description:
+      "Manage reference data, users, roles, and system configuration. Control channels, clusters, depots, and access permissions across the portal.",
+    icon: Settings,
+    path: "/admin",
+    accent: "from-[#6366f1] to-[#8b5cf6]",
+    features: ["Reference Data Management", "User & Role Management", "System Settings", "Security & Audit Logs"],
+    badge: "Admin",
   },
 ];
 
@@ -69,7 +80,7 @@ export default function HomePage() {
         </div>
 
         {/* Module Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
           {MODULES.map((mod) => {
             const Icon = mod.icon;
             return (
@@ -85,6 +96,8 @@ export default function HomePage() {
                     className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                       mod.badge === "New"
                         ? "bg-emerald-400/20 text-emerald-200 border border-emerald-400/30"
+                        : mod.badge === "Admin"
+                        ? "bg-violet-400/20 text-violet-200 border border-violet-400/30"
                         : "bg-white/20 text-white/80 border border-white/25"
                     }`}
                   >
