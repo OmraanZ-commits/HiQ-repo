@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import {
-  ArrowLeft, ListChecks, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, TrendingUp,
-  LayoutDashboard, GitBranch,
+  ArrowLeft, ListChecks, CheckCircle2, XCircle, LayoutDashboard, GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -12,6 +11,15 @@ import {
 import { UnileverHeader } from "@/components/unilever-header";
 import { SrStatusBadge, ApproverChain } from "@/components/sr-detail-components";
 import { useSrStore, approveStep, rejectStep } from "@/lib/sr-store";
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-4 py-3 border-b border-border/60 last:border-0">
+      <span className="w-44 flex-shrink-0 text-sm text-muted-foreground">{label}</span>
+      <span className="flex-1 text-sm font-medium text-foreground">{children}</span>
+    </div>
+  );
+}
 
 export default function ServiceRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +47,7 @@ export default function ServiceRequestDetailPage() {
   const doneSteps         = request.approvers.filter(a => a.status === "approved").length;
   const pct               = request.approvers.length > 0 ? (doneSteps / request.approvers.length) * 100 : 0;
   const pendingApprovals  = request.approvers.filter(a => a.status === "pending").length;
+  const pendingWith       = request.approvers.find(a => a.status === "pending")?.label ?? "—";
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,7 +55,7 @@ export default function ServiceRequestDetailPage() {
 
       <main className="max-w-[900px] mx-auto px-6 py-6">
 
-        {/* ── Slim page header — SR identity only ────────────────────────── */}
+        {/* ── Slim page header ─────────────────────────────────────────────── */}
         <div className="flex items-start gap-4 mb-6">
           <Button
             variant="ghost"
@@ -57,7 +66,6 @@ export default function ServiceRequestDetailPage() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="text-xs font-mono font-semibold text-slate-400">{request.id}</span>
@@ -92,40 +100,55 @@ export default function ServiceRequestDetailPage() {
           {/* ── Overview tab ─────────────────────────────────────────────── */}
           <TabsContent value="overview" className="space-y-6">
 
-            {/* Request Summary card */}
-            <div>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+            {/* Section header: label + approval progress aligned */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                 Request Summary
               </h2>
-              <div className="rounded-xl border bg-white shadow-sm px-6 py-5 space-y-3">
-                {/* Meta row */}
-                <p className="text-sm text-muted-foreground">
-                  {request.brand} · {request.bg} · Raised by{" "}
-                  <span className="font-medium text-foreground">{request.raisedBy}</span>
-                  {" "}· {request.raisedAt}
-                </p>
-
-                {/* Pills + progress */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
-                    {mstnPassed ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    MSTN {request.mstnCoverage}%
-                  </span>
-                  <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${request.criteriaMetAtRaise ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-                    {request.criteriaMetAtRaise ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
-                    {request.criteriaMetAtRaise ? "Criteria Met" : "Criteria Not Met at Raise"}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium bg-slate-50 text-slate-600 border-slate-200">
-                    <TrendingUp className="h-3.5 w-3.5" /> Target: {request.targetStatus}
-                  </span>
-                  <span className="ml-auto flex items-center gap-2.5">
-                    <span className="text-sm text-muted-foreground">{doneSteps}/{request.approvers.length} approved</span>
-                    <div className="w-28 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </span>
+              <span className="flex items-center gap-2.5">
+                <span className="text-sm text-muted-foreground" data-testid="text-approval-progress">
+                  {doneSteps}/{request.approvers.length} approved
+                </span>
+                <div className="w-28 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] rounded-full transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
-              </div>
+              </span>
+            </div>
+
+            {/* Request Summary card */}
+            <div className="rounded-xl border bg-white shadow-sm px-6 py-2">
+              <FieldRow label="Request Type">{request.requestType}</FieldRow>
+              <FieldRow label="Base Pack Name">{request.basepackName}</FieldRow>
+              <FieldRow label="Basepack Code">
+                <span className="font-mono">{request.basepackCode}</span>
+              </FieldRow>
+              <FieldRow label="Brand">{request.brand}</FieldRow>
+              <FieldRow label="Business Group">{request.bg}</FieldRow>
+              <FieldRow label="Status Change">
+                <span className="text-muted-foreground font-normal">Draft</span>
+                <span className="mx-2 text-muted-foreground">→</span>
+                <span className="font-semibold text-foreground">{request.targetStatus}</span>
+              </FieldRow>
+              <FieldRow label="Request Description">Activate basepack</FieldRow>
+              <FieldRow label="Raised By">{request.raisedBy}</FieldRow>
+              <FieldRow label="Created On">{request.raisedAt}</FieldRow>
+              <FieldRow label="Pending With">{pendingWith}</FieldRow>
+              <FieldRow label="MSTN Status">
+                <span className={`inline-flex items-center gap-1.5 ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
+                  {mstnPassed
+                    ? <CheckCircle2 className="h-4 w-4" />
+                    : <XCircle className="h-4 w-4" />}
+                  {request.mstnCoverage}%
+                </span>
+              </FieldRow>
+              <FieldRow label="Exception">
+                {request.criteriaMetAtRaise
+                  ? <span className="text-muted-foreground font-normal">None</span>
+                  : <span className="text-amber-700 font-medium">MSTN criteria not met</span>}
+              </FieldRow>
             </div>
 
             {/* Material Criteria table */}
@@ -151,8 +174,7 @@ export default function ServiceRequestDetailPage() {
                         <TableCell className="py-3.5 text-center">
                           {m.mstnCleared
                             ? <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-semibold"><CheckCircle2 className="h-4 w-4" />Yes</span>
-                            : <span className="inline-flex items-center gap-1.5 text-sm text-red-500 font-semibold"><XCircle className="h-4 w-4" />No</span>
-                          }
+                            : <span className="inline-flex items-center gap-1.5 text-sm text-red-500 font-semibold"><XCircle className="h-4 w-4" />No</span>}
                         </TableCell>
                         <TableCell className="py-3.5 text-center text-sm text-muted-foreground">{m.lastUpdated}</TableCell>
                       </TableRow>
@@ -164,7 +186,7 @@ export default function ServiceRequestDetailPage() {
 
           </TabsContent>
 
-          {/* ── Approval Chain tab ──────────────────────────────────────────── */}
+          {/* ── Approval Chain tab ────────────────────────────────────────── */}
           <TabsContent value="approval">
             <div className="rounded-xl border bg-white shadow-sm p-6">
               <ApproverChain
