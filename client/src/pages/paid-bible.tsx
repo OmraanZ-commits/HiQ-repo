@@ -158,14 +158,15 @@ function checkCriteria(bp: PbBasepack): {
   materials: MaterialCriteria[];
 } {
   const total   = bp.materials.length || 1;
-  const cleared = bp.materials.filter(m => MSTN_ACTIVE_STATUSES.has(m.networkStatus)).length;
+  const isMstnCleared = (m: PbMaterial) => MSTN_ACTIVE_STATUSES.has(m.networkStatus) || m.mstnPct >= 80;
+  const cleared = bp.materials.filter(isMstnCleared).length;
   const mstnCoverage = Math.round((cleared / total) * 100);
   const tdpCoverage  = simulateTdpCoverage(bp.basepackCode);
   const criteriaMet  = mstnCoverage >= 80 && tdpCoverage >= 75;
   const materials: MaterialCriteria[] = bp.materials.map(m => ({
     code:        m.code,
     description: m.description,
-    mstnCleared: MSTN_ACTIVE_STATUSES.has(m.networkStatus),
+    mstnCleared: isMstnCleared(m),
     lastUpdated: m.priceStart && m.priceStart !== "-" ? m.priceStart : "—",
   }));
   return { mstnCoverage, tdpCoverage, criteriaMet, materials };
