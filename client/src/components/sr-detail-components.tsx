@@ -47,16 +47,16 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
   };
 
   const statusColors = {
-    waiting:  "border-slate-200 bg-slate-50 text-slate-400",
-    pending:  "border-amber-300 bg-amber-50 text-amber-700",
-    approved: "border-emerald-300 bg-emerald-50 text-emerald-700",
-    rejected: "border-red-300 bg-red-50 text-red-700",
+    waiting:  "border-slate-200 bg-white text-slate-400",
+    pending:  "border-amber-300 bg-amber-50 text-amber-600",
+    approved: "border-emerald-300 bg-emerald-50 text-emerald-600",
+    rejected: "border-red-300 bg-red-50 text-red-500",
   };
   const statusIcons = {
-    waiting:  <Clock className="h-3.5 w-3.5" />,
-    pending:  <Clock className="h-3.5 w-3.5 text-amber-500" />,
-    approved: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />,
-    rejected: <XCircle className="h-3.5 w-3.5 text-red-500" />,
+    waiting:  <Clock className="h-4 w-4" />,
+    pending:  <Clock className="h-4 w-4" />,
+    approved: <CheckCircle2 className="h-4 w-4" />,
+    rejected: <XCircle className="h-4 w-4" />,
   };
 
   return (
@@ -64,85 +64,81 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
       {approvers.map((step, idx) => {
         const isLast = idx === approvers.length - 1;
         return (
-          <div key={step.role} className="flex gap-2.5">
-            {/* Timeline connector */}
-            <div className="flex flex-col items-center w-6 flex-shrink-0">
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${statusColors[step.status]}`}>
+          <div key={step.role} className="flex gap-4">
+            {/* Timeline */}
+            <div className="flex flex-col items-center w-8 flex-shrink-0">
+              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${statusColors[step.status]}`}>
                 {statusIcons[step.status]}
               </div>
-              {!isLast && <div className="w-px flex-1 bg-border mt-1 mb-1 min-h-[6px]" />}
+              {!isLast && <div className="w-px flex-1 bg-border mt-1.5 mb-1.5 min-h-[12px]" />}
             </div>
 
-            {/* Step content */}
-            <div className="pb-3 flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
+            {/* Content */}
+            <div className={`flex-1 min-w-0 ${isLast ? "pb-0" : "pb-5"}`}>
+              <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs font-semibold leading-tight">{step.label}</p>
-                    <span className="text-xs text-muted-foreground">· {step.subLabel}</span>
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <p className="text-sm font-semibold">{step.label}</p>
+                    <span className="text-sm text-muted-foreground">· {step.subLabel}</span>
                     {step.assignedTo && (
-                      <span className="text-xs text-slate-500 flex items-center gap-1">
-                        <User className="h-3 w-3" /> {step.assignedTo}
+                      <span className="text-sm text-slate-500 flex items-center gap-1">
+                        <User className="h-3.5 w-3.5" /> {step.assignedTo}
                       </span>
                     )}
                   </div>
                   {step.actedAt && (
-                    <p className="text-xs text-muted-foreground">{step.status === "approved" ? "Approved" : "Rejected"} · {step.actedAt}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {step.status === "approved" ? "Approved" : "Rejected"} · {step.actedAt}
+                    </p>
                   )}
                   {step.rejectionReason && (
-                    <p className="text-xs text-red-600 italic">Reason: {step.rejectionReason}</p>
+                    <p className="text-xs text-red-600 mt-0.5 italic">Reason: {step.rejectionReason}</p>
                   )}
                 </div>
-                <div className="flex-shrink-0">
-                  {step.status === "pending" && rejectingIdx !== idx && (
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => onApprove(requestId, idx)}
-                        data-testid={`button-approve-${requestId}-${idx}`}
-                      >
-                        <ThumbsUp className="h-3 w-3" /> Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1 border-red-300 text-red-600 hover:bg-red-50"
-                        onClick={() => { setRejectingIdx(idx); setSelectedReason(""); }}
-                        data-testid={`button-reject-${requestId}-${idx}`}
-                      >
-                        <ThumbsDown className="h-3 w-3" /> Reject
-                      </Button>
-                    </div>
-                  )}
-                </div>
+
+                {step.status === "pending" && rejectingIdx !== idx && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => onApprove(requestId, idx)}
+                      data-testid={`button-approve-${requestId}-${idx}`}
+                    >
+                      <ThumbsUp className="h-4 w-4" /> Approve
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gap-1.5 border-red-300 text-red-600 hover:bg-red-50"
+                      onClick={() => { setRejectingIdx(idx); setSelectedReason(""); }}
+                      data-testid={`button-reject-${requestId}-${idx}`}
+                    >
+                      <ThumbsDown className="h-4 w-4" /> Reject
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Rejection reason selector */}
               {step.status === "pending" && rejectingIdx === idx && (
-                <div className="mt-2 p-3 rounded-lg border border-red-200 bg-red-50 space-y-2">
-                  <p className="text-xs font-medium text-red-800">Select a reason for rejection:</p>
-                  <RadioGroup value={selectedReason} onValueChange={setSelectedReason} className="space-y-1">
+                <div className="mt-3 p-4 rounded-lg border border-red-200 bg-red-50 space-y-3">
+                  <p className="text-sm font-medium text-red-800">Select a reason for rejection:</p>
+                  <RadioGroup value={selectedReason} onValueChange={setSelectedReason} className="space-y-2">
                     {REJECTION_REASONS.map(r => (
-                      <div key={r} className="flex items-center gap-2">
-                        <RadioGroupItem value={r} id={`${requestId}-${idx}-${r}`} className="h-3.5 w-3.5" />
-                        <Label htmlFor={`${requestId}-${idx}-${r}`} className="text-xs cursor-pointer text-red-700">{r}</Label>
+                      <div key={r} className="flex items-center gap-2.5">
+                        <RadioGroupItem value={r} id={`${requestId}-${idx}-${r}`} />
+                        <Label htmlFor={`${requestId}-${idx}-${r}`} className="text-sm cursor-pointer text-red-700">{r}</Label>
                       </div>
                     ))}
                   </RadioGroup>
                   <div className="flex items-center gap-2 pt-1">
                     <Button
-                      size="sm"
-                      className="h-7 text-xs gap-1 bg-red-600 hover:bg-red-700 text-white"
+                      className="gap-1.5 bg-red-600 hover:bg-red-700 text-white"
                       disabled={!selectedReason}
                       onClick={() => submitReject(idx)}
                       data-testid={`button-confirm-reject-${requestId}-${idx}`}
                     >
-                      <XCircle className="h-3 w-3" /> Confirm Rejection
+                      <XCircle className="h-4 w-4" /> Confirm Rejection
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setRejectingIdx(null)}>
-                      Cancel
-                    </Button>
+                    <Button variant="ghost" onClick={() => setRejectingIdx(null)}>Cancel</Button>
                   </div>
                 </div>
               )}
