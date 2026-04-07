@@ -1,6 +1,7 @@
 import { useState, Fragment, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import type { PortalUser } from "@/lib/users-data";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,7 @@ interface ApproverStep {
   role: string;
   label: string;
   subLabel: string;
+  assignedTo?: string;
   status: "waiting" | "pending" | "approved" | "rejected";
   actedAt?: string;
   rejectionReason?: string;
@@ -434,9 +436,10 @@ interface ActivationCheckDialogProps {
   onClose: () => void;
   onActivate: (bpId: string) => void;
   onCreateRequest: (request: ServiceRequest) => void;
+  users: PortalUser[];
 }
 
-function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest }: ActivationCheckDialogProps) {
+function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users }: ActivationCheckDialogProps) {
   if (!bp) return null;
 
   const { mstnCoverage, tdpCoverage, criteriaMet, materials } = checkCriteria(bp);
@@ -449,8 +452,11 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest }: Act
   };
 
   const handleCreateRequest = () => {
+    const userByRole = (role: string): string | undefined =>
+      users.find(u => u.role === role && u.isActive)?.name;
     const approvers: ApproverStep[] = APPROVER_CHAIN.map((a, i) => ({
       ...a,
+      assignedTo: userByRole(a.role),
       status: i === 0 ? "pending" : "waiting",
     }));
     const sr: ServiceRequest = {
@@ -1411,6 +1417,11 @@ function ApproverChain({ approvers, requestId, onApprove, onReject }: {
                 <div className="min-w-0">
                   <p className="text-sm font-medium leading-tight">{step.label}</p>
                   <p className="text-xs text-muted-foreground">{step.subLabel}</p>
+                  {step.assignedTo && (
+                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                      <User className="h-3 w-3" /> {step.assignedTo}
+                    </p>
+                  )}
                   {step.actedAt && (
                     <p className="text-xs text-muted-foreground mt-0.5">{step.status === "approved" ? "Approved" : "Rejected"} · {step.actedAt}</p>
                   )}
@@ -1717,6 +1728,8 @@ export default function PaidBiblePage() {
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [activationTarget, setActivationTarget] = useState<PbBasepack | null>(null);
 
+  const { data: users = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
+
   const handleRequestActivation = (bp: PbBasepack) => {
     setActivationTarget(bp);
   };
@@ -1774,6 +1787,7 @@ export default function PaidBiblePage() {
         onClose={() => setActivationTarget(null)}
         onActivate={handleActivateDirect}
         onCreateRequest={handleCreateRequest}
+        users={users}
       />
 
       <main className="flex-1 overflow-y-auto">

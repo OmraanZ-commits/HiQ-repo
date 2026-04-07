@@ -231,11 +231,30 @@ Draft-status entries show two separate action buttons:
 In the Dates & Timeline section the field formerly labeled "Network Planner" is labeled **"Update Assignee"**. It filters available planners to the entry's Business Group.
 
 ### Paid Bible (`/paid-bible`)
-Read-only analytics view of basepacks and their CBUs, grouped by category. Key features:
-- MOC badge (Month of Change): Day ≥ 21 → next month; Day < 21 → current month
+Analytics and status management for basepacks and their CBUs, grouped by category. Five tabs:
+
+#### Overview Tab
+- Basepack table with status badges; inline status editing (Draft → Active Pack) triggers the Activation Check flow
 - Active basepack count: calculated from `ACTIVE_BP_STATUSES = { "Active Pack", "Active Pack (Channel)", "Active Pack (Customer)", "Seasonal Pack" }`
+- MOC badge (Month of Change): Day ≥ 21 → next month; Day < 21 → current month
 - Sticky table header: `h-screen overflow-hidden` layout with `overflow-y-auto` on main
 - View button in each expanded CBU row navigates to `/edit/:id?source=paid-bible&cbuStatus=<bpStatus>` (view-only mode)
+
+#### Activation Check Dialog (Draft → Active Pack)
+- Intercepts any Draft → Active Pack status change in the Overview table
+- Computes MSTN coverage (≥ 80% threshold) and Criteria Met flag for each basepack
+- Shows per-material table: Code, Description, MSTN Cleared (icon), Last Updated
+- Criteria met → activates directly; Criteria not met → "Continue Anyway" creates a Service Request ticket and navigates to Service Requests tab
+- `localBpStatus` state lifted to `PaidBiblePage` so status changes persist across tab switches
+
+#### Service Requests Tab
+- Lists all basepack status-change approval tickets (type: `ServiceRequest`)
+- Each card shows: SR id, request type, status badge, basepack name/code, raised-by, raised-at, MSTN coverage pill, Criteria Met/Not Met pill, Target Status, approval progress, 5-step approver chain
+- **Approval chain**: 5 sequential steps — Demand Planner → Supply Planner → Distribution Planner → Network Planner → NCSM
+- Each step has status: `waiting | pending | approved | rejected`; on full approval `localBpStatus[bpId]` flips to `targetStatus`
+- Each step shows the assigned user name ("Assigned to: [name]"), fetched live from `/api/users`
+- Rejection requires selecting a reason code (6 predefined); downstream steps reset to `waiting` on reject
+- Rejection reasons: Insufficient MSTN coverage, TDP estimates not built, Production capacity, Logistics routing, Price activation pending, Other
 
 ### View-Only Mode (Edit Entry from Paid Bible)
 When `?source=paid-bible` is present in the URL:

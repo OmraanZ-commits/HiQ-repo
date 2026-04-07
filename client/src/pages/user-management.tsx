@@ -93,6 +93,30 @@ const ROLE_CONFIG: Record<Role, RoleConfig> = {
     bg: "bg-purple-50",
     description: "Manage pricing updates and sourcing matrix",
   },
+  "Demand Planner": {
+    label: "Demand Planner",
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+    description: "Forecast approval — step 1 of basepack status change",
+  },
+  "Supply Planner": {
+    label: "Supply Planner",
+    color: "text-cyan-700",
+    bg: "bg-cyan-50",
+    description: "Production activities approval — step 2 of basepack status change",
+  },
+  "Distribution Planner": {
+    label: "Distribution Planner",
+    color: "text-indigo-700",
+    bg: "bg-indigo-50",
+    description: "Logistics activities approval — step 3 of basepack status change",
+  },
+  NCSM: {
+    label: "NCSM",
+    color: "text-rose-700",
+    bg: "bg-rose-50",
+    description: "Final approval — step 5 of basepack status change",
+  },
   Approver: {
     label: "Approver",
     color: "text-amber-700",

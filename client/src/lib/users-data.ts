@@ -17,6 +17,10 @@ export const ROLES = [
   "Admin",
   "Network Planner",
   "Paid Bible Owner",
+  "Demand Planner",
+  "Supply Planner",
+  "Distribution Planner",
+  "NCSM",
   "Approver",
   "Viewer",
 ] as const;
@@ -47,7 +51,11 @@ export const PORTAL_USERS: PortalUser[] = [
   { id: "10", name: "Kavitha Reddy",   email: "kavitha.reddy@unilever.com",   role: "Network Planner",  businessGroup: "Homecare",            isBgLead: false, isActive: false, createdAt: "2025-06-01" },
   { id: "11", name: "Ravi Shankar",    email: "ravi.shankar@unilever.com",    role: "Network Planner",  businessGroup: "Foods",               isBgLead: true,  isActive: true,  createdAt: "2025-07-01" },
   { id: "12", name: "Lakshmi Iyer",    email: "lakshmi.iyer@unilever.com",    role: "Network Planner",  businessGroup: "Beauty and Wellness", isBgLead: true,  isActive: true,  createdAt: "2025-07-15" },
-  { id: "13", name: "Nikhil Desai",    email: "nikhil.desai@unilever.com",    role: "Network Planner",  businessGroup: "Others",              isBgLead: true,  isActive: true,  createdAt: "2025-08-01" },
+  { id: "13", name: "Nikhil Desai",    email: "nikhil.desai@unilever.com",    role: "Network Planner",      businessGroup: "Others",              isBgLead: true,  isActive: true,  createdAt: "2025-08-01" },
+  { id: "14", name: "Arjun Kapoor",    email: "arjun.kapoor@unilever.com",    role: "Demand Planner",       businessGroup: "",                    isBgLead: false, isActive: true,  createdAt: "2025-09-01" },
+  { id: "15", name: "Sunita Mehrotra", email: "sunita.mehrotra@unilever.com", role: "Supply Planner",       businessGroup: "",                    isBgLead: false, isActive: true,  createdAt: "2025-09-01" },
+  { id: "16", name: "Kiran Bose",      email: "kiran.bose@unilever.com",      role: "Distribution Planner", businessGroup: "",                    isBgLead: false, isActive: true,  createdAt: "2025-09-01" },
+  { id: "17", name: "Rohit Aggarwal",  email: "rohit.aggarwal@unilever.com",  role: "NCSM",                 businessGroup: "",                    isBgLead: false, isActive: true,  createdAt: "2025-09-01" },
 ];
 
 /** All active Network Planners in a given BG */

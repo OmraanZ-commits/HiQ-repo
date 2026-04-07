@@ -103,10 +103,11 @@ class UsersStorage:
     def seed_users(self, seeds: List[dict]):
         db = SessionLocal()
         try:
-            count = db.query(UserModel).count()
-            if count > 0:
-                return
+            existing_emails = {u.email for u in db.query(UserModel.email).all()}
+            added = False
             for s in seeds:
+                if s["email"] in existing_emails:
+                    continue
                 row = UserModel(
                     id=uuid.uuid4(),
                     name=s["name"],
@@ -118,6 +119,8 @@ class UsersStorage:
                     created_at=datetime.fromisoformat(s["createdAt"] + "T00:00:00+00:00"),
                 )
                 db.add(row)
-            db.commit()
+                added = True
+            if added:
+                db.commit()
         finally:
             db.close()
