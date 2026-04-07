@@ -80,6 +80,8 @@ class NetworkEntryModel(Base):
     case_config_updated_at = Column(DateTime, nullable=True)
     price_updated_at = Column(DateTime, nullable=True)
     mstn_percentage = Column(Integer, nullable=True)
+    predecessor_doh = Column(Integer, nullable=True)
+    slob_risk = Column(Boolean, nullable=True, default=False)
 
 
 class EntryStatusModel(Base):
@@ -216,6 +218,8 @@ FIELD_MAP_TO_DB = {
     "caseConfigUpdatedAt": "case_config_updated_at",
     "priceUpdatedAt": "price_updated_at",
     "mstnPercentage": "mstn_percentage",
+    "predecessorDoh": "predecessor_doh",
+    "slobRisk": "slob_risk",
 }
 
 FIELD_MAP_TO_API = {v: k for k, v in FIELD_MAP_TO_DB.items()}

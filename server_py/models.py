@@ -56,6 +56,8 @@ class NetworkEntryBase(BaseModel):
     caseConfigUpdatedAt: Optional[str] = None
     priceUpdatedAt: Optional[str] = None
     mstnPercentage: Optional[int] = None
+    predecessorDoh: Optional[int] = None
+    slobRisk: Optional[bool] = None
 
 
 class InsertNetworkEntry(NetworkEntryBase):

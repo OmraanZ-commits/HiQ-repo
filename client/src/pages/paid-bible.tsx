@@ -77,7 +77,8 @@ interface PbMaterial {
   priceStart: string;
   priceEnd: string;
   copyCbu: string;
-  predecessorDoh: string;
+  predecessorDoh: number | null;
+  slobRisk: boolean;
   typeOfNetwork: string;
   mstnPct: number;
 }
@@ -581,7 +582,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
           ean:           e.ean              || "-",
           grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
           copyCbu:       e.copyCbu          || "-",
-          predecessorDoh: "-",
+          predecessorDoh: e.predecessorDoh ?? null,
+          slobRisk:      e.slobRisk         ?? false,
           typeOfNetwork: getNetworkChangeTypeName(e.typeOfNetwork),
           priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
           priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
@@ -962,7 +964,18 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                             {m.mstnPct}%
                                           </span>
                                         </TableCell>
-                                        <TableCell className="text-sm py-3 px-4 whitespace-nowrap text-muted-foreground">{m.predecessorDoh}</TableCell>
+                                        <TableCell className="py-3 px-4 whitespace-nowrap">
+                                          {m.predecessorDoh != null ? (
+                                            <span className="flex items-center gap-1.5">
+                                              <span className="text-sm text-muted-foreground">{m.predecessorDoh}</span>
+                                              {m.slobRisk && (
+                                                <span title="SLOB Risk" data-testid={`icon-slob-risk-${m.id}`}>
+                                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                                </span>
+                                              )}
+                                            </span>
+                                          ) : <span className="text-sm text-muted-foreground">-</span>}
+                                        </TableCell>
                                         <TableCell className="py-3 px-4">
                                           <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>{m.priceActive ? "Yes" : "No"}</span>
                                         </TableCell>

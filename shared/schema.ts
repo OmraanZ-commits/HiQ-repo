@@ -58,6 +58,8 @@ export const networkEntries = pgTable("network_entries", {
   caseConfigUpdatedAt: timestamp("case_config_updated_at"),
   priceUpdatedAt: timestamp("price_updated_at"),
   mstnPercentage: integer("mstn_percentage"),
+  predecessorDoh: integer("predecessor_doh"),
+  slobRisk: boolean("slob_risk").default(false),
 });
 
 export const insertNetworkEntrySchema = createInsertSchema(networkEntries).omit({
