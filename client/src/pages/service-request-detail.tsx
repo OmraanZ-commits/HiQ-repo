@@ -100,11 +100,14 @@ export default function ServiceRequestDetailPage() {
           {/* ── Overview tab ─────────────────────────────────────────────── */}
           <TabsContent value="overview" className="space-y-6">
 
-            {/* Section header: label + approval progress aligned */}
+            {/* Section header: label + status pill + approval progress */}
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                Request Summary
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Request Summary
+                </h2>
+                <SrStatusBadge status={request.overallStatus} />
+              </div>
               <span className="flex items-center gap-2.5">
                 <span className="text-sm text-muted-foreground" data-testid="text-approval-progress">
                   {doneSteps}/{request.approvers.length} approved
