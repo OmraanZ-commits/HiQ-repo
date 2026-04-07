@@ -44,27 +44,17 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-/* ── Department definitions ────────────────────────────────────── */
+/* ── Business Group definitions ────────────────────────────────── */
 
-const DEPARTMENTS: { label: string; allowedRoles: string[] | "all" }[] = [
-  { label: "Supply Chain", allowedRoles: "all" },
-  { label: "Finance",      allowedRoles: ["Viewer"] },
-  { label: "NCSM",         allowedRoles: ["Viewer", "Approver"] },
-];
+const BUSINESS_GROUPS = [
+  "Homecare",
+  "Personal Care",
+  "Foods",
+  "Beauty and Wellness",
+  "Others",
+] as const;
 
-function deptAllowed(dept: string, role: string): boolean {
-  if (!role) return true;
-  const cfg = DEPARTMENTS.find((d) => d.label === dept);
-  if (!cfg) return false;
-  return cfg.allowedRoles === "all" || cfg.allowedRoles.includes(role);
-}
-
-function availableDepts(role: string): string[] {
-  if (!role) return DEPARTMENTS.map((d) => d.label);
-  return DEPARTMENTS.filter(
-    (d) => d.allowedRoles === "all" || d.allowedRoles.includes(role)
-  ).map((d) => d.label);
-}
+type BusinessGroup = (typeof BUSINESS_GROUPS)[number];
 
 /* ── Role definitions ──────────────────────────────────────────── */
 
@@ -203,22 +193,22 @@ type AppUser = {
   name: string;
   email: string;
   role: Role;
-  department: string;
+  businessGroup: BusinessGroup | "";
   isActive: boolean;
   createdAt: string;
 };
 
 const INITIAL_USERS: AppUser[] = [
-  { id: "1",  name: "Rajesh Sharma",   email: "rajesh.sharma@unilever.com",   role: "Admin",            department: "Supply Chain", isActive: true,  createdAt: "2025-01-10" },
-  { id: "2",  name: "Priya Patel",     email: "priya.patel@unilever.com",     role: "Network Planner",  department: "Supply Chain", isActive: true,  createdAt: "2025-02-14" },
-  { id: "3",  name: "Ankit Verma",     email: "ankit.verma@unilever.com",     role: "Network Planner",  department: "Supply Chain", isActive: true,  createdAt: "2025-02-20" },
-  { id: "4",  name: "Sneha Gupta",     email: "sneha.gupta@unilever.com",     role: "Paid Bible Owner", department: "Supply Chain", isActive: true,  createdAt: "2025-03-01" },
-  { id: "5",  name: "Vikram Singh",    email: "vikram.singh@unilever.com",    role: "Approver",         department: "NCSM",         isActive: true,  createdAt: "2025-03-15" },
-  { id: "6",  name: "Meera Nair",      email: "meera.nair@unilever.com",      role: "Approver",         department: "NCSM",         isActive: true,  createdAt: "2025-04-02" },
-  { id: "7",  name: "Arun Mehta",      email: "arun.mehta@unilever.com",      role: "Viewer",           department: "Finance",      isActive: false, createdAt: "2025-04-10" },
-  { id: "8",  name: "Deepa Krishnan",  email: "deepa.krishnan@unilever.com",  role: "Paid Bible Owner", department: "Supply Chain", isActive: true,  createdAt: "2025-05-05" },
-  { id: "9",  name: "Suresh Rao",      email: "suresh.rao@unilever.com",      role: "Viewer",           department: "NCSM",         isActive: true,  createdAt: "2025-05-20" },
-  { id: "10", name: "Kavitha Reddy",   email: "kavitha.reddy@unilever.com",   role: "Network Planner",  department: "Supply Chain", isActive: false, createdAt: "2025-06-01" },
+  { id: "1",  name: "Rajesh Sharma",   email: "rajesh.sharma@unilever.com",   role: "Admin",            businessGroup: "Homecare",           isActive: true,  createdAt: "2025-01-10" },
+  { id: "2",  name: "Priya Patel",     email: "priya.patel@unilever.com",     role: "Network Planner",  businessGroup: "Personal Care",      isActive: true,  createdAt: "2025-02-14" },
+  { id: "3",  name: "Ankit Verma",     email: "ankit.verma@unilever.com",     role: "Network Planner",  businessGroup: "Homecare",           isActive: true,  createdAt: "2025-02-20" },
+  { id: "4",  name: "Sneha Gupta",     email: "sneha.gupta@unilever.com",     role: "Paid Bible Owner", businessGroup: "Foods",              isActive: true,  createdAt: "2025-03-01" },
+  { id: "5",  name: "Vikram Singh",    email: "vikram.singh@unilever.com",    role: "Approver",         businessGroup: "Beauty and Wellness",isActive: true,  createdAt: "2025-03-15" },
+  { id: "6",  name: "Meera Nair",      email: "meera.nair@unilever.com",      role: "Approver",         businessGroup: "Personal Care",      isActive: true,  createdAt: "2025-04-02" },
+  { id: "7",  name: "Arun Mehta",      email: "arun.mehta@unilever.com",      role: "Viewer",           businessGroup: "Foods",              isActive: false, createdAt: "2025-04-10" },
+  { id: "8",  name: "Deepa Krishnan",  email: "deepa.krishnan@unilever.com",  role: "Paid Bible Owner", businessGroup: "Beauty and Wellness",isActive: true,  createdAt: "2025-05-05" },
+  { id: "9",  name: "Suresh Rao",      email: "suresh.rao@unilever.com",      role: "Viewer",           businessGroup: "Others",             isActive: true,  createdAt: "2025-05-20" },
+  { id: "10", name: "Kavitha Reddy",   email: "kavitha.reddy@unilever.com",   role: "Network Planner",  businessGroup: "Homecare",           isActive: false, createdAt: "2025-06-01" },
 ];
 
 /* ── Helper components ─────────────────────────────────────────── */
@@ -272,10 +262,10 @@ type UserFormState = {
   name: string;
   email: string;
   role: Role | "";
-  department: string;
+  businessGroup: BusinessGroup | "";
 };
 
-const EMPTY_FORM: UserFormState = { name: "", email: "", role: "", department: "" };
+const EMPTY_FORM: UserFormState = { name: "", email: "", role: "", businessGroup: "" };
 
 function UserDialog({
   open,
@@ -335,14 +325,7 @@ function UserDialog({
             <Label htmlFor="um-role">Role <span className="text-destructive">*</span></Label>
             <Select
               value={form.role}
-              onValueChange={(v) => {
-                const newRole = v as Role;
-                setForm((p) => ({
-                  ...p,
-                  role: newRole,
-                  department: deptAllowed(p.department, newRole) ? p.department : "",
-                }));
-              }}
+              onValueChange={(v) => setForm((p) => ({ ...p, role: v as Role }))}
             >
               <SelectTrigger id="um-role" data-testid="select-user-role">
                 <SelectValue placeholder="Select a role" />
@@ -361,27 +344,22 @@ function UserDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="um-dept">Department</Label>
+            <Label htmlFor="um-bg">Business Group</Label>
             <Select
-              value={form.department}
-              onValueChange={(v) => setForm((p) => ({ ...p, department: v }))}
+              value={form.businessGroup}
+              onValueChange={(v) => setForm((p) => ({ ...p, businessGroup: v as BusinessGroup }))}
             >
-              <SelectTrigger id="um-dept" data-testid="select-user-department">
-                <SelectValue placeholder="Select department" />
+              <SelectTrigger id="um-bg" data-testid="select-user-business-group">
+                <SelectValue placeholder="Select business group" />
               </SelectTrigger>
               <SelectContent>
-                {availableDepts(form.role).map((d) => (
-                  <SelectItem key={d} value={d} data-testid={`option-dept-${d}`}>
-                    {d}
+                {BUSINESS_GROUPS.map((bg) => (
+                  <SelectItem key={bg} value={bg} data-testid={`option-bg-${bg}`}>
+                    {bg}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {form.role && availableDepts(form.role).length < DEPARTMENTS.length && (
-              <p className="text-xs text-muted-foreground">
-                Only departments available to the selected role are shown.
-              </p>
-            )}
           </div>
         </div>
 
@@ -406,7 +384,6 @@ function UserDialog({
 function RolesPermissionsTab() {
   return (
     <div className="space-y-5">
-      {/* Permissions matrix */}
       <div className="rounded-lg border bg-card overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
@@ -463,6 +440,20 @@ function RolesPermissionsTab() {
   );
 }
 
+/* ── Stat card ─────────────────────────────────────────────────── */
+
+function StatCard({ label, value, color, testId }: { label: string; value: number; color: string; testId: string }) {
+  return (
+    <div className="rounded-lg border bg-card p-4 flex items-center gap-3" data-testid={testId}>
+      <div className={cn("w-2 self-stretch rounded-full bg-gradient-to-b", color)} />
+      <div>
+        <p className="text-2xl font-bold tabular-nums">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main export ───────────────────────────────────────────────── */
 
 type SubTab = "users" | "roles";
@@ -485,7 +476,7 @@ export function UserManagementContent() {
         !q ||
         u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
-        u.department.toLowerCase().includes(q);
+        u.businessGroup.toLowerCase().includes(q);
       const matchRole = roleFilter === "All" || u.role === roleFilter;
       const matchStatus =
         statusFilter === "All" ||
@@ -523,7 +514,7 @@ export function UserManagementContent() {
       name: form.name.trim(),
       email: form.email.trim(),
       role: form.role as Role,
-      department: form.department.trim(),
+      businessGroup: form.businessGroup as BusinessGroup,
       isActive: true,
       createdAt: new Date().toISOString().split("T")[0],
     };
@@ -536,7 +527,7 @@ export function UserManagementContent() {
     setUsers((prev) =>
       prev.map((u) =>
         u.id === editTarget.id
-          ? { ...u, name: form.name, email: form.email, role: form.role as Role, department: form.department }
+          ? { ...u, name: form.name, email: form.email, role: form.role as Role, businessGroup: form.businessGroup as BusinessGroup }
           : u
       )
     );
@@ -584,7 +575,7 @@ export function UserManagementContent() {
 
       {/* Sub-tab strip */}
       <div className="flex items-center gap-1 border-b">
-        {([ 
+        {([
           { id: "users" as SubTab, label: "Users", icon: Users },
           { id: "roles" as SubTab, label: "Roles & Permissions", icon: ShieldCheck },
         ]).map(({ id, label, icon: Icon }) => (
@@ -647,7 +638,7 @@ export function UserManagementContent() {
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search name, email, department…"
+                placeholder="Search name, email, business group…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 h-9"
@@ -676,7 +667,7 @@ export function UserManagementContent() {
                 <TableRow className="bg-muted/40">
                   <TableHead className="w-[260px]">User</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Department</TableHead>
+                  <TableHead>Business Group</TableHead>
                   <TableHead>Added</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -710,7 +701,9 @@ export function UserManagementContent() {
                         </div>
                       </TableCell>
                       <TableCell><RoleBadge role={user.role} /></TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{user.department || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground" data-testid={`text-bg-${user.id}`}>
+                        {user.businessGroup || "—"}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground tabular-nums">
                         {new Date(user.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                       </TableCell>
@@ -737,14 +730,13 @@ export function UserManagementContent() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
-                          size="sm"
                           variant="ghost"
+                          size="sm"
                           onClick={() => openEdit(user)}
                           data-testid={`button-edit-user-${user.id}`}
-                          className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                          className="h-8 w-8 p-0"
                         >
-                          <Pencil className="h-3.5 w-3.5 mr-1" />
-                          Edit
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -760,33 +752,28 @@ export function UserManagementContent() {
       {subTab === "roles" && <RolesPermissionsTab />}
 
       {/* Dialogs */}
-      <UserDialog
-        open={showDialog === "add"}
-        onClose={() => setShowDialog(null)}
-        onSave={handleAdd}
-        mode="add"
-      />
-      {editTarget && (
+      {showDialog === "add" && (
         <UserDialog
-          open={showDialog === "edit"}
-          onClose={() => { setShowDialog(null); setEditTarget(null); }}
-          onSave={handleEdit}
-          initial={{ name: editTarget.name, email: editTarget.email, role: editTarget.role, department: editTarget.department }}
-          mode="edit"
+          open
+          mode="add"
+          onClose={() => setShowDialog(null)}
+          onSave={handleAdd}
         />
       )}
-    </div>
-  );
-}
-
-/* ── Stat card ─────────────────────────────────────────────────── */
-function StatCard({ label, value, color, testId }: { label: string; value: number; color: string; testId: string }) {
-  return (
-    <div className="rounded-lg border bg-card p-4 flex items-center gap-3">
-      <div className={cn("h-9 w-9 rounded-md bg-gradient-to-br flex items-center justify-center text-white text-sm font-bold shrink-0", color)}>
-        {value}
-      </div>
-      <span className="text-sm text-muted-foreground leading-tight" data-testid={testId}>{label}</span>
+      {showDialog === "edit" && editTarget && (
+        <UserDialog
+          open
+          mode="edit"
+          onClose={() => { setShowDialog(null); setEditTarget(null); }}
+          onSave={handleEdit}
+          initial={{
+            name: editTarget.name,
+            email: editTarget.email,
+            role: editTarget.role,
+            businessGroup: editTarget.businessGroup,
+          }}
+        />
+      )}
     </div>
   );
 }
