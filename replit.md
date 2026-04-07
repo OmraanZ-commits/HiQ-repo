@@ -20,6 +20,13 @@ Each microservice follows: **Router → Service → Storage**
 
 All status transitions go exclusively through the Saga Orchestrator (`/api/saga/transition/{id}`). There is no direct transition endpoint on the State Management router.
 
+### Verified Clean Layered Architecture (T001–T005)
+- **List Master router**: Zero direct storage calls — all CRUD delegated to `ListMasterService`
+- **State Management router**: Read-only only (`GET /flow`, `GET /:id`, `GET /:id/history`); no `POST` transition endpoint
+- **Lifecycle router**: Fully delegates to `LifecycleService.recompute_entry()` / `recompute_all()`
+- **Seed data**: Extracted from `main.py` into `server_py/seed_data.py`; `main.py` is ≤ 100 lines
+- **Date utilities**: `addDays`, `formatDateDisplay`, `computeYear` live in `client/src/lib/date-utils.ts`; controllers import from there
+
 ## Tech Stack
 - Frontend: React + TypeScript, Vite, TanStack Query, wouter routing, shadcn/ui
 - Backend: Python 3.12 + FastAPI (uvicorn)
@@ -140,7 +147,7 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 #### Core
 - `server_py/main.py` - FastAPI app entry point, CORS, router mounting, service wiring
 - `server_py/seed_data.py` - Seed data for 8 network entries covering all 7 statuses
-- `server_py/seed_users.py` - Seed data for 13 portal users (seeded on first startup)
+- `server_py/seed_users.py` - Seed data for 17 portal users across 9 roles (email-based upsert, safe to re-run)
 - `server_py/models.py` - Pydantic models (NetworkEntry, StateTransition, STATUS_FLOW)
 - `server_py/db.py` - SQLAlchemy engine, session, ORM models (including UserModel), field mapping utils
 
@@ -207,7 +214,7 @@ On failure at any step, compensating actions run in reverse order. All steps are
 - `saga_logs` — Saga Orchestrator: id (string PK), saga_type, entry_id, status, steps (JSONB array), started_at, completed_at, error
 - `users` — Users service: id (UUID PK), name, email, role, business_group, is_bg_lead, is_active, created_at
 - Field mapping between camelCase API and snake_case DB handled in `server_py/db.py`
-- Auto-seeds 8 network entries and 13 users on first startup; skips if tables already populated
+- Auto-seeds 8 network entries and 17 users on first startup; skips if tables already populated (email-based upsert — safe to re-run)
 
 ## Deployment Architecture
 - Frontend: Separate Azure App Service (React/Vite build)
@@ -242,7 +249,8 @@ Analytics and status management for basepacks and their CBUs, grouped by categor
 
 #### Activation Check Dialog (Draft → Active Pack)
 - Intercepts any Draft → Active Pack status change in the Overview table
-- Computes MSTN coverage (≥ 80% threshold) and Criteria Met flag for each basepack
+- Computes MSTN coverage only (≥ 80% threshold); TDP is not shown or evaluated in the dialog
+- Single MSTN Coverage card with pass/fail colour coding
 - Shows per-material table: Code, Description, MSTN Cleared (icon), Last Updated
 - Criteria met → activates directly; Criteria not met → "Continue Anyway" creates a Service Request ticket and navigates to Service Requests tab
 - `localBpStatus` state lifted to `PaidBiblePage` so status changes persist across tab switches
@@ -269,7 +277,7 @@ When `?source=paid-bible` is present in the URL:
 Admin portal with two sub-tabs:
 
 #### User Management
-- Manage portal users with roles: Network Planner, Category Manager, Supply Chain Manager, Finance Manager
+- Manage portal users with 9 roles: Admin, Network Planner, Paid Bible Owner, Demand Planner, Supply Planner, Distribution Planner, NCSM, Approver, Viewer
 - **Business Groups**: Homecare, Personal Care, Foods, Beauty and Wellness, Others
 - **BG Lead**: A Network Planner can be designated BG Lead for their Business Group (one per BG). Changing this auto-demotes the previous lead (after an AlertDialog confirmation).
 - Stats row: Total Users, Active, Inactive, Roles count

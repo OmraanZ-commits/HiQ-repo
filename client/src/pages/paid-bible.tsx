@@ -84,6 +84,7 @@ interface PbMaterial {
   priceEnd: string;
   copyCbu: string;
   typeOfNetwork: string;
+  mstnPct: number;
 }
 
 interface PbBasepack {
@@ -652,6 +653,9 @@ function OverviewTab({ localBpStatus, setLocalBpStatus, onRequestActivation }: O
           typeOfNetwork: e.typeOfNetwork    || "-",
           priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
           priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
+          mstnPct:       MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "")
+            ? 100
+            : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10,
         })),
       } as PbBasepack;
     });
@@ -999,7 +1003,7 @@ function OverviewTab({ localBpStatus, setLocalBpStatus, onRequestActivation }: O
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[160px]">NW Status</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">Copy CBU</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Case Config</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
@@ -1014,8 +1018,10 @@ function OverviewTab({ localBpStatus, setLocalBpStatus, onRequestActivation }: O
                                         <TableCell className="py-3 px-4"><NwStatusBadge status={m.networkStatus} /></TableCell>
                                         <TableCell className="py-3 px-4"><MatStatusBadge status={m.matStatus} /></TableCell>
                                         <TableCell className="text-sm py-3 px-4 text-muted-foreground whitespace-nowrap">{m.typeOfNetwork}</TableCell>
-                                        <TableCell className="text-sm font-mono py-3 px-4 text-muted-foreground whitespace-nowrap">
-                                          {m.typeOfNetwork === "NEW_LAUNCH" ? <span className="text-muted-foreground/40">—</span> : m.copyCbu}
+                                        <TableCell className="py-3 px-4 whitespace-nowrap">
+                                          <span className={`text-sm font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>
+                                            {m.mstnPct}%
+                                          </span>
                                         </TableCell>
                                         <TableCell className="text-sm py-3 px-4 whitespace-nowrap">{m.caseConfig}</TableCell>
                                         <TableCell className="py-3 px-4">
