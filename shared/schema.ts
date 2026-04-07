@@ -57,6 +57,7 @@ export const networkEntries = pgTable("network_entries", {
   createdAt: timestamp("created_at").defaultNow(),
   caseConfigUpdatedAt: timestamp("case_config_updated_at"),
   priceUpdatedAt: timestamp("price_updated_at"),
+  mstnPercentage: integer("mstn_percentage"),
 });
 
 export const insertNetworkEntrySchema = createInsertSchema(networkEntries).omit({

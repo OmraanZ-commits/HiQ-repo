@@ -79,6 +79,7 @@ class NetworkEntryModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     case_config_updated_at = Column(DateTime, nullable=True)
     price_updated_at = Column(DateTime, nullable=True)
+    mstn_percentage = Column(Integer, nullable=True)
 
 
 class EntryStatusModel(Base):
@@ -214,6 +215,7 @@ FIELD_MAP_TO_DB = {
     "createdAt": "created_at",
     "caseConfigUpdatedAt": "case_config_updated_at",
     "priceUpdatedAt": "price_updated_at",
+    "mstnPercentage": "mstn_percentage",
 }
 
 FIELD_MAP_TO_API = {v: k for k, v in FIELD_MAP_TO_DB.items()}

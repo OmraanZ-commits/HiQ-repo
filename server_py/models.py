@@ -55,6 +55,7 @@ class NetworkEntryBase(BaseModel):
     channelMapping: Optional[dict] = Field(default_factory=dict)
     caseConfigUpdatedAt: Optional[str] = None
     priceUpdatedAt: Optional[str] = None
+    mstnPercentage: Optional[int] = None
 
 
 class InsertNetworkEntry(NetworkEntryBase):

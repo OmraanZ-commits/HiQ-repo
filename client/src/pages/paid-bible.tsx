@@ -583,7 +583,9 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
           typeOfNetwork: e.typeOfNetwork    || "-",
           priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
           priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
-          mstnPct:       MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "")
+          mstnPct:       e.mstnPercentage != null
+            ? e.mstnPercentage
+            : MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "")
             ? 100
             : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10,
         })),
