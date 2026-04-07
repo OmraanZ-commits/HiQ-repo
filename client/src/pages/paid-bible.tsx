@@ -891,10 +891,9 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                             <div className="flex items-center gap-1.5 group">
                               <BpStatusBadge status={effStatus} />
                               {pendingActivationBpIds.has(bp.id) && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap" title="Activation approval in progress" data-testid={`badge-activation-in-progress-${bp.id}`}>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-medium text-amber-700 border-amber-300 bg-amber-50 whitespace-nowrap" data-testid={`badge-activation-in-progress-${bp.id}`}>
                                   In Progress
-                                </span>
+                                </Badge>
                               )}
                               <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => startEdit(bp, e)} data-testid={`button-edit-status-${bp.id}`} title="Edit basepack status">
                                 <Pencil className="h-3 w-3 text-muted-foreground" />
