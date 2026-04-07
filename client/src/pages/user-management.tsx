@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -16,7 +16,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -40,6 +51,7 @@ import {
   Minus,
   Pencil,
   ShieldCheck,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -120,70 +132,14 @@ type PermissionMatrix = {
 };
 
 const PERMISSION_MATRIX: PermissionMatrix[] = [
-  {
-    action: "View network entries",
-    Admin: "full",
-    "Network Planner": "full",
-    "Paid Bible Owner": "full",
-    Approver: "full",
-    Viewer: "full",
-  },
-  {
-    action: "Edit network entries",
-    Admin: "full",
-    "Network Planner": "full",
-    "Paid Bible Owner": "partial",
-    Approver: "none",
-    Viewer: "none",
-  },
-  {
-    action: "Trigger status transitions",
-    Admin: "full",
-    "Network Planner": "full",
-    "Paid Bible Owner": "none",
-    Approver: "partial",
-    Viewer: "none",
-  },
-  {
-    action: "Approve transitions",
-    Admin: "full",
-    "Network Planner": "none",
-    "Paid Bible Owner": "none",
-    Approver: "full",
-    Viewer: "none",
-  },
-  {
-    action: "Manage pricing / Paid Bible",
-    Admin: "full",
-    "Network Planner": "none",
-    "Paid Bible Owner": "full",
-    Approver: "none",
-    Viewer: "none",
-  },
-  {
-    action: "Manage reference data",
-    Admin: "full",
-    "Network Planner": "none",
-    "Paid Bible Owner": "none",
-    Approver: "none",
-    Viewer: "none",
-  },
-  {
-    action: "User management",
-    Admin: "full",
-    "Network Planner": "none",
-    "Paid Bible Owner": "none",
-    Approver: "none",
-    Viewer: "none",
-  },
-  {
-    action: "View reports & analytics",
-    Admin: "full",
-    "Network Planner": "full",
-    "Paid Bible Owner": "partial",
-    Approver: "partial",
-    Viewer: "full",
-  },
+  { action: "View network entries",        Admin: "full", "Network Planner": "full",    "Paid Bible Owner": "full",    Approver: "full",    Viewer: "full"    },
+  { action: "Edit network entries",        Admin: "full", "Network Planner": "full",    "Paid Bible Owner": "partial", Approver: "none",    Viewer: "none"    },
+  { action: "Trigger status transitions",  Admin: "full", "Network Planner": "full",    "Paid Bible Owner": "none",    Approver: "partial", Viewer: "none"    },
+  { action: "Approve transitions",         Admin: "full", "Network Planner": "none",    "Paid Bible Owner": "none",    Approver: "full",    Viewer: "none"    },
+  { action: "Manage pricing / Paid Bible", Admin: "full", "Network Planner": "none",    "Paid Bible Owner": "full",    Approver: "none",    Viewer: "none"    },
+  { action: "Manage reference data",       Admin: "full", "Network Planner": "none",    "Paid Bible Owner": "none",    Approver: "none",    Viewer: "none"    },
+  { action: "User management",             Admin: "full", "Network Planner": "none",    "Paid Bible Owner": "none",    Approver: "none",    Viewer: "none"    },
+  { action: "View reports & analytics",    Admin: "full", "Network Planner": "full",    "Paid Bible Owner": "partial", Approver: "partial", Viewer: "full"    },
 ];
 
 /* ── Static user data ──────────────────────────────────────────── */
@@ -194,21 +150,22 @@ type AppUser = {
   email: string;
   role: Role;
   businessGroup: BusinessGroup | "";
+  isBgLead: boolean;
   isActive: boolean;
   createdAt: string;
 };
 
 const INITIAL_USERS: AppUser[] = [
-  { id: "1",  name: "Rajesh Sharma",   email: "rajesh.sharma@unilever.com",   role: "Admin",            businessGroup: "Homecare",           isActive: true,  createdAt: "2025-01-10" },
-  { id: "2",  name: "Priya Patel",     email: "priya.patel@unilever.com",     role: "Network Planner",  businessGroup: "Personal Care",      isActive: true,  createdAt: "2025-02-14" },
-  { id: "3",  name: "Ankit Verma",     email: "ankit.verma@unilever.com",     role: "Network Planner",  businessGroup: "Homecare",           isActive: true,  createdAt: "2025-02-20" },
-  { id: "4",  name: "Sneha Gupta",     email: "sneha.gupta@unilever.com",     role: "Paid Bible Owner", businessGroup: "Foods",              isActive: true,  createdAt: "2025-03-01" },
-  { id: "5",  name: "Vikram Singh",    email: "vikram.singh@unilever.com",    role: "Approver",         businessGroup: "Beauty and Wellness",isActive: true,  createdAt: "2025-03-15" },
-  { id: "6",  name: "Meera Nair",      email: "meera.nair@unilever.com",      role: "Approver",         businessGroup: "Personal Care",      isActive: true,  createdAt: "2025-04-02" },
-  { id: "7",  name: "Arun Mehta",      email: "arun.mehta@unilever.com",      role: "Viewer",           businessGroup: "Foods",              isActive: false, createdAt: "2025-04-10" },
-  { id: "8",  name: "Deepa Krishnan",  email: "deepa.krishnan@unilever.com",  role: "Paid Bible Owner", businessGroup: "Beauty and Wellness",isActive: true,  createdAt: "2025-05-05" },
-  { id: "9",  name: "Suresh Rao",      email: "suresh.rao@unilever.com",      role: "Viewer",           businessGroup: "Others",             isActive: true,  createdAt: "2025-05-20" },
-  { id: "10", name: "Kavitha Reddy",   email: "kavitha.reddy@unilever.com",   role: "Network Planner",  businessGroup: "Homecare",           isActive: false, createdAt: "2025-06-01" },
+  { id: "1",  name: "Rajesh Sharma",   email: "rajesh.sharma@unilever.com",   role: "Admin",            businessGroup: "Homecare",            isBgLead: true,  isActive: true,  createdAt: "2025-01-10" },
+  { id: "2",  name: "Priya Patel",     email: "priya.patel@unilever.com",     role: "Network Planner",  businessGroup: "Personal Care",       isBgLead: true,  isActive: true,  createdAt: "2025-02-14" },
+  { id: "3",  name: "Ankit Verma",     email: "ankit.verma@unilever.com",     role: "Network Planner",  businessGroup: "Homecare",            isBgLead: false, isActive: true,  createdAt: "2025-02-20" },
+  { id: "4",  name: "Sneha Gupta",     email: "sneha.gupta@unilever.com",     role: "Paid Bible Owner", businessGroup: "Foods",               isBgLead: true,  isActive: true,  createdAt: "2025-03-01" },
+  { id: "5",  name: "Vikram Singh",    email: "vikram.singh@unilever.com",    role: "Approver",         businessGroup: "Beauty and Wellness", isBgLead: true,  isActive: true,  createdAt: "2025-03-15" },
+  { id: "6",  name: "Meera Nair",      email: "meera.nair@unilever.com",      role: "Approver",         businessGroup: "Personal Care",       isBgLead: false, isActive: true,  createdAt: "2025-04-02" },
+  { id: "7",  name: "Arun Mehta",      email: "arun.mehta@unilever.com",      role: "Viewer",           businessGroup: "Foods",               isBgLead: false, isActive: false, createdAt: "2025-04-10" },
+  { id: "8",  name: "Deepa Krishnan",  email: "deepa.krishnan@unilever.com",  role: "Paid Bible Owner", businessGroup: "Beauty and Wellness", isBgLead: false, isActive: true,  createdAt: "2025-05-05" },
+  { id: "9",  name: "Suresh Rao",      email: "suresh.rao@unilever.com",      role: "Viewer",           businessGroup: "Others",              isBgLead: true,  isActive: true,  createdAt: "2025-05-20" },
+  { id: "10", name: "Kavitha Reddy",   email: "kavitha.reddy@unilever.com",   role: "Network Planner",  businessGroup: "Homecare",            isBgLead: false, isActive: false, createdAt: "2025-06-01" },
 ];
 
 /* ── Helper components ─────────────────────────────────────────── */
@@ -222,14 +179,21 @@ function RoleBadge({ role }: { role: Role }) {
   );
 }
 
+function BgLeadBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+      <Crown className="h-3 w-3" />
+      BG Lead
+    </span>
+  );
+}
+
 function AvatarInitials({ name, isActive }: { name: string; isActive: boolean }) {
   const initials = name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   return (
     <div className={cn(
       "h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0",
-      isActive
-        ? "bg-gradient-to-br from-[#1f36c7] to-[#00b0d7]"
-        : "bg-slate-300"
+      isActive ? "bg-gradient-to-br from-[#1f36c7] to-[#00b0d7]" : "bg-slate-300"
     )}>
       {initials}
     </div>
@@ -256,6 +220,18 @@ function PermIcon({ level }: { level: Permission }) {
   );
 }
 
+function StatCard({ label, value, color, testId }: { label: string; value: number; color: string; testId: string }) {
+  return (
+    <div className="rounded-lg border bg-card p-4 flex items-center gap-3" data-testid={testId}>
+      <div className={cn("w-2 self-stretch rounded-full bg-gradient-to-b", color)} />
+      <div>
+        <p className="text-2xl font-bold tabular-nums">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
+
 /* ── Add / Edit User Dialog ────────────────────────────────────── */
 
 type UserFormState = {
@@ -263,9 +239,10 @@ type UserFormState = {
   email: string;
   role: Role | "";
   businessGroup: BusinessGroup | "";
+  isBgLead: boolean;
 };
 
-const EMPTY_FORM: UserFormState = { name: "", email: "", role: "", businessGroup: "" };
+const EMPTY_FORM: UserFormState = { name: "", email: "", role: "", businessGroup: "", isBgLead: false };
 
 function UserDialog({
   open,
@@ -273,109 +250,202 @@ function UserDialog({
   onSave,
   initial,
   mode,
+  existingBgLead,
+  editingUserId,
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (data: UserFormState) => void;
   initial?: Partial<UserFormState>;
   mode: "add" | "edit";
+  existingBgLead: (bg: BusinessGroup) => AppUser | undefined;
+  editingUserId?: string;
 }) {
   const [form, setForm] = useState<UserFormState>({ ...EMPTY_FORM, ...initial });
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingConflict, setPendingConflict] = useState<AppUser | null>(null);
 
   const isValid = form.name.trim() && form.email.trim() && form.role;
 
-  const handleSave = () => {
+  const handleSaveClick = () => {
     if (!isValid) return;
+
+    // If marking as BG lead, check for existing lead in the same BG
+    if (form.isBgLead && form.businessGroup) {
+      const existing = existingBgLead(form.businessGroup as BusinessGroup);
+      // Conflict = existing lead exists and it's not the user being edited
+      const isConflict = existing && existing.id !== editingUserId;
+      if (isConflict) {
+        setPendingConflict(existing!);
+        setConfirmOpen(true);
+        return;
+      }
+    }
+
+    onSave(form);
+    onClose();
+  };
+
+  const handleConfirmReplace = () => {
+    setConfirmOpen(false);
+    setPendingConflict(null);
     onSave(form);
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{mode === "add" ? "Add New User" : "Edit User"}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{mode === "add" ? "Add New User" : "Edit User"}</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="um-name">Full Name <span className="text-destructive">*</span></Label>
-            <Input
-              id="um-name"
-              data-testid="input-user-name"
-              placeholder="e.g. Priya Patel"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            />
-          </div>
+          <div className="space-y-4 py-2">
+            {/* Full Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="um-name">Full Name <span className="text-destructive">*</span></Label>
+              <Input
+                id="um-name"
+                data-testid="input-user-name"
+                placeholder="e.g. Priya Patel"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              />
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="um-email">Email <span className="text-destructive">*</span></Label>
-            <Input
-              id="um-email"
-              data-testid="input-user-email"
-              type="email"
-              placeholder="name@unilever.com"
-              value={form.email}
-              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-            />
-          </div>
+            {/* Email */}
+            <div className="space-y-1.5">
+              <Label htmlFor="um-email">Email <span className="text-destructive">*</span></Label>
+              <Input
+                id="um-email"
+                data-testid="input-user-email"
+                type="email"
+                placeholder="name@unilever.com"
+                value={form.email}
+                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+              />
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="um-role">Role <span className="text-destructive">*</span></Label>
-            <Select
-              value={form.role}
-              onValueChange={(v) => setForm((p) => ({ ...p, role: v as Role }))}
-            >
-              <SelectTrigger id="um-role" data-testid="select-user-role">
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLES.map((r) => (
-                  <SelectItem key={r} value={r} data-testid={`option-role-${r}`}>
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.role && (
-              <p className="text-xs text-muted-foreground">{ROLE_CONFIG[form.role as Role]?.description}</p>
+            {/* Role */}
+            <div className="space-y-1.5">
+              <Label htmlFor="um-role">Role <span className="text-destructive">*</span></Label>
+              <Select
+                value={form.role}
+                onValueChange={(v) => setForm((p) => ({ ...p, role: v as Role }))}
+              >
+                <SelectTrigger id="um-role" data-testid="select-user-role">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((r) => (
+                    <SelectItem key={r} value={r} data-testid={`option-role-${r}`}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.role && (
+                <p className="text-xs text-muted-foreground">{ROLE_CONFIG[form.role as Role]?.description}</p>
+              )}
+            </div>
+
+            {/* Business Group */}
+            <div className="space-y-1.5">
+              <Label htmlFor="um-bg">Business Group</Label>
+              <Select
+                value={form.businessGroup}
+                onValueChange={(v) => setForm((p) => ({ ...p, businessGroup: v as BusinessGroup, isBgLead: false }))}
+              >
+                <SelectTrigger id="um-bg" data-testid="select-user-business-group">
+                  <SelectValue placeholder="Select business group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUSINESS_GROUPS.map((bg) => (
+                    <SelectItem key={bg} value={bg} data-testid={`option-bg-${bg}`}>{bg}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* BG Lead checkbox — only shown when a BG is selected */}
+            {form.businessGroup && (
+              <div className="flex items-start gap-3 rounded-lg border bg-amber-50/50 border-amber-100 px-3 py-3">
+                <Checkbox
+                  id="um-bg-lead"
+                  data-testid="checkbox-bg-lead"
+                  checked={form.isBgLead}
+                  onCheckedChange={(checked) =>
+                    setForm((p) => ({ ...p, isBgLead: checked === true }))
+                  }
+                  className="mt-0.5 border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="um-bg-lead" className="cursor-pointer font-medium flex items-center gap-1.5">
+                    <Crown className="h-3.5 w-3.5 text-amber-600" />
+                    BG Lead for {form.businessGroup}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Only one BG Lead is allowed per Business Group.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="um-bg">Business Group</Label>
-            <Select
-              value={form.businessGroup}
-              onValueChange={(v) => setForm((p) => ({ ...p, businessGroup: v as BusinessGroup }))}
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose} data-testid="button-user-dialog-cancel">
+              Cancel
+            </Button>
+            <Button
+              disabled={!isValid}
+              onClick={handleSaveClick}
+              data-testid="button-user-dialog-save"
+              className="bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] text-white hover:opacity-90"
             >
-              <SelectTrigger id="um-bg" data-testid="select-user-business-group">
-                <SelectValue placeholder="Select business group" />
-              </SelectTrigger>
-              <SelectContent>
-                {BUSINESS_GROUPS.map((bg) => (
-                  <SelectItem key={bg} value={bg} data-testid={`option-bg-${bg}`}>
-                    {bg}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+              {mode === "add" ? "Add User" : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} data-testid="button-user-dialog-cancel">Cancel</Button>
-          <Button
-            disabled={!isValid}
-            onClick={handleSave}
-            data-testid="button-user-dialog-save"
-            className="bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] text-white hover:opacity-90"
-          >
-            {mode === "add" ? "Add User" : "Save Changes"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {/* BG Lead conflict confirmation */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent data-testid="dialog-bg-lead-conflict">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-amber-500" />
+              BG Lead Already Exists
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  <span className="font-semibold text-foreground">{pendingConflict?.name}</span> is
+                  currently the BG Lead for{" "}
+                  <span className="font-semibold text-foreground">{form.businessGroup}</span>.
+                </p>
+                <p>
+                  If you proceed, <span className="font-semibold text-foreground">{pendingConflict?.name}</span> will
+                  be demoted and <span className="font-semibold text-foreground">{form.name || "this user"}</span> will
+                  become the new BG Lead.
+                </p>
+                <p>Do you want to continue?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-conflict-cancel">
+              No, keep existing lead
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="button-conflict-confirm"
+              onClick={handleConfirmReplace}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              Yes, replace BG Lead
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -440,20 +510,6 @@ function RolesPermissionsTab() {
   );
 }
 
-/* ── Stat card ─────────────────────────────────────────────────── */
-
-function StatCard({ label, value, color, testId }: { label: string; value: number; color: string; testId: string }) {
-  return (
-    <div className="rounded-lg border bg-card p-4 flex items-center gap-3" data-testid={testId}>
-      <div className={cn("w-2 self-stretch rounded-full bg-gradient-to-b", color)} />
-      <div>
-        <p className="text-2xl font-bold tabular-nums">{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
-}
-
 /* ── Main export ───────────────────────────────────────────────── */
 
 type SubTab = "users" | "roles";
@@ -468,6 +524,26 @@ export function UserManagementContent() {
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
   const [showDialog, setShowDialog] = useState<"add" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<AppUser | null>(null);
+
+  /* Find existing BG lead for a given BG (excluding the user being edited) */
+  const getExistingBgLead = (bg: BusinessGroup): AppUser | undefined =>
+    users.find((u) => u.businessGroup === bg && u.isBgLead && u.id !== editTarget?.id);
+
+  /* Apply BG lead change: demote any existing lead for the same BG, then upsert */
+  const applyBgLeadChange = (
+    prevUsers: AppUser[],
+    targetId: string,
+    bg: BusinessGroup | "",
+    isBgLead: boolean
+  ): AppUser[] => {
+    return prevUsers.map((u) => {
+      // Demote current lead if there's a conflict
+      if (isBgLead && u.businessGroup === bg && u.isBgLead && u.id !== targetId) {
+        return { ...u, isBgLead: false };
+      }
+      return u;
+    });
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -509,29 +585,46 @@ export function UserManagementContent() {
   };
 
   const handleAdd = (form: UserFormState) => {
+    const newId = String(Date.now());
     const newUser: AppUser = {
-      id: String(Date.now()),
+      id: newId,
       name: form.name.trim(),
       email: form.email.trim(),
       role: form.role as Role,
       businessGroup: form.businessGroup as BusinessGroup,
+      isBgLead: form.isBgLead,
       isActive: true,
       createdAt: new Date().toISOString().split("T")[0],
     };
-    setUsers((prev) => [newUser, ...prev]);
-    toast({ title: "User added", description: `${newUser.name} has been added as ${newUser.role}.` });
+    setUsers((prev) => {
+      const demoted = applyBgLeadChange(prev, newId, newUser.businessGroup, newUser.isBgLead);
+      return [newUser, ...demoted];
+    });
+    toast({
+      title: "User added",
+      description: form.isBgLead
+        ? `${newUser.name} added as ${newUser.role} and BG Lead for ${newUser.businessGroup}.`
+        : `${newUser.name} has been added as ${newUser.role}.`,
+    });
   };
 
   const handleEdit = (form: UserFormState) => {
     if (!editTarget) return;
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === editTarget.id
-          ? { ...u, name: form.name, email: form.email, role: form.role as Role, businessGroup: form.businessGroup as BusinessGroup }
+    const id = editTarget.id;
+    setUsers((prev) => {
+      const demoted = applyBgLeadChange(prev, id, form.businessGroup as BusinessGroup, form.isBgLead);
+      return demoted.map((u) =>
+        u.id === id
+          ? { ...u, name: form.name, email: form.email, role: form.role as Role, businessGroup: form.businessGroup as BusinessGroup, isBgLead: form.isBgLead }
           : u
-      )
-    );
-    toast({ title: "User updated", description: `${form.name}'s details have been updated.` });
+      );
+    });
+    toast({
+      title: "User updated",
+      description: form.isBgLead
+        ? `${form.name} is now the BG Lead for ${form.businessGroup}.`
+        : `${form.name}'s details have been updated.`,
+    });
     setEditTarget(null);
   };
 
@@ -567,10 +660,10 @@ export function UserManagementContent() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Total Users" value={stats.total} color="from-[#1f36c7] to-[#0d8ecf]" testId="stat-total-users" />
-        <StatCard label="Active" value={stats.active} color="from-emerald-500 to-emerald-600" testId="stat-active-users" />
-        <StatCard label="Inactive" value={stats.inactive} color="from-slate-400 to-slate-500" testId="stat-inactive-users" />
-        <StatCard label="Roles" value={ROLES.length} color="from-purple-500 to-purple-600" testId="stat-roles-count" />
+        <StatCard label="Total Users"  value={stats.total}    color="from-[#1f36c7] to-[#0d8ecf]"      testId="stat-total-users"    />
+        <StatCard label="Active"       value={stats.active}   color="from-emerald-500 to-emerald-600"   testId="stat-active-users"   />
+        <StatCard label="Inactive"     value={stats.inactive} color="from-slate-400 to-slate-500"       testId="stat-inactive-users" />
+        <StatCard label="Roles"        value={ROLES.length}   color="from-purple-500 to-purple-600"     testId="stat-roles-count"    />
       </div>
 
       {/* Sub-tab strip */}
@@ -701,8 +794,11 @@ export function UserManagementContent() {
                         </div>
                       </TableCell>
                       <TableCell><RoleBadge role={user.role} /></TableCell>
-                      <TableCell className="text-sm text-muted-foreground" data-testid={`text-bg-${user.id}`}>
-                        {user.businessGroup || "—"}
+                      <TableCell data-testid={`text-bg-${user.id}`}>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm text-muted-foreground">{user.businessGroup || "—"}</span>
+                          {user.isBgLead && <BgLeadBadge />}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground tabular-nums">
                         {new Date(user.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
@@ -758,19 +854,23 @@ export function UserManagementContent() {
           mode="add"
           onClose={() => setShowDialog(null)}
           onSave={handleAdd}
+          existingBgLead={getExistingBgLead}
         />
       )}
       {showDialog === "edit" && editTarget && (
         <UserDialog
           open
           mode="edit"
+          editingUserId={editTarget.id}
           onClose={() => { setShowDialog(null); setEditTarget(null); }}
           onSave={handleEdit}
+          existingBgLead={getExistingBgLead}
           initial={{
             name: editTarget.name,
             email: editTarget.email,
             role: editTarget.role,
             businessGroup: editTarget.businessGroup,
+            isBgLead: editTarget.isBgLead,
           }}
         />
       )}
