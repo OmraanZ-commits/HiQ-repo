@@ -453,7 +453,7 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
         <div className={`rounded-lg p-3 flex items-center gap-2.5 ${criteriaMet ? "bg-emerald-50 border border-emerald-200" : "bg-amber-50 border border-amber-200"}`}>
           {criteriaMet
             ? <><ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" /><p className="text-sm font-medium text-emerald-800">All criteria met — a service request will be raised for stakeholder approval before activation.</p></>
-            : <><AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" /><p className="text-sm font-medium text-amber-800">Criteria not fully met — a service request will be raised for approval from all stakeholders.</p></>
+            : <><AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" /><p className="text-sm font-medium text-amber-800">Criteria not fully met</p></>
           }
         </div>
 
