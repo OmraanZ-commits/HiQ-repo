@@ -497,8 +497,8 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
           </DialogDescription>
         </DialogHeader>
 
-        {/* Criteria Summary Cards */}
-        <div className="grid grid-cols-2 gap-3 mt-2">
+        {/* Criteria Summary Card */}
+        <div className="mt-2">
           <div className={`rounded-lg border p-4 ${mstnPassed ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-medium text-muted-foreground">MSTN Coverage</p>
@@ -511,20 +511,6 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
               {mstnCoverage}%
             </p>
             <p className="text-xs mt-0.5 text-muted-foreground">Threshold: ≥ 80%</p>
-          </div>
-
-          <div className={`rounded-lg border p-4 ${tdpPassed ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-medium text-muted-foreground">TDP Coverage</p>
-              {tdpPassed
-                ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                : <XCircle className="h-4 w-4 text-red-500" />
-              }
-            </div>
-            <p className={`text-2xl font-bold ${tdpPassed ? "text-emerald-700" : "text-red-600"}`}>
-              {tdpCoverage}%
-            </p>
-            <p className="text-xs mt-0.5 text-muted-foreground">Threshold: ≥ 75% (4 TDPs)</p>
           </div>
         </div>
 
