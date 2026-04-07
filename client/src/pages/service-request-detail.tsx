@@ -12,11 +12,11 @@ import { UnileverHeader } from "@/components/unilever-header";
 import { SrStatusBadge, ApproverChain } from "@/components/sr-detail-components";
 import { useSrStore, approveStep, rejectStep } from "@/lib/sr-store";
 
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldCell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-4 py-3 border-b border-border/60 last:border-0">
-      <span className="w-44 flex-shrink-0 text-sm text-muted-foreground">{label}</span>
-      <span className="flex-1 text-sm font-medium text-foreground">{children}</span>
+    <div className="py-3.5">
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <div className="text-sm font-medium text-foreground">{children}</div>
     </div>
   );
 }
@@ -118,37 +118,42 @@ export default function ServiceRequestDetailPage() {
               </span>
             </div>
 
-            {/* Request Summary card */}
+            {/* Request Summary card — 2-column grid */}
             <div className="rounded-xl border bg-white shadow-sm px-6 py-2">
-              <FieldRow label="Request Type">{request.requestType}</FieldRow>
-              <FieldRow label="Base Pack Name">{request.basepackName}</FieldRow>
-              <FieldRow label="Basepack Code">
-                <span className="font-mono">{request.basepackCode}</span>
-              </FieldRow>
-              <FieldRow label="Brand">{request.brand}</FieldRow>
-              <FieldRow label="Business Group">{request.bg}</FieldRow>
-              <FieldRow label="Status Change">
-                <span className="text-muted-foreground font-normal">Draft</span>
-                <span className="mx-2 text-muted-foreground">→</span>
-                <span className="font-semibold text-foreground">{request.targetStatus}</span>
-              </FieldRow>
-              <FieldRow label="Request Description">Activate basepack</FieldRow>
-              <FieldRow label="Raised By">{request.raisedBy}</FieldRow>
-              <FieldRow label="Created On">{request.raisedAt}</FieldRow>
-              <FieldRow label="Pending With">{pendingWith}</FieldRow>
-              <FieldRow label="MSTN Status">
-                <span className={`inline-flex items-center gap-1.5 ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
-                  {mstnPassed
-                    ? <CheckCircle2 className="h-4 w-4" />
-                    : <XCircle className="h-4 w-4" />}
-                  {request.mstnCoverage}%
-                </span>
-              </FieldRow>
-              <FieldRow label="Exception">
-                {request.criteriaMetAtRaise
-                  ? <span className="text-muted-foreground font-normal">None</span>
-                  : <span className="text-amber-700 font-medium">MSTN criteria not met</span>}
-              </FieldRow>
+              <div className="grid grid-cols-2 divide-y divide-border/60 [&>*:nth-child(odd)]:pr-8 [&>*:nth-child(even)]:pl-8 [&>*:nth-child(even)]:border-l [&>*:nth-child(even)]:border-border/60">
+                <FieldCell label="Request Type">{request.requestType}</FieldCell>
+                <FieldCell label="Base Pack Name">{request.basepackName}</FieldCell>
+
+                <FieldCell label="Basepack Code">
+                  <span className="font-mono">{request.basepackCode}</span>
+                </FieldCell>
+                <FieldCell label="Brand">{request.brand}</FieldCell>
+
+                <FieldCell label="Business Group">{request.bg}</FieldCell>
+                <FieldCell label="Status Change">
+                  <span className="text-muted-foreground font-normal">Draft</span>
+                  <span className="mx-2 text-muted-foreground">→</span>
+                  <span className="font-semibold">{request.targetStatus}</span>
+                </FieldCell>
+
+                <FieldCell label="Request Description">Activate basepack</FieldCell>
+                <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
+
+                <FieldCell label="Created On">{request.raisedAt}</FieldCell>
+                <FieldCell label="Pending With">{pendingWith}</FieldCell>
+
+                <FieldCell label="MSTN Status">
+                  <span className={`inline-flex items-center gap-1.5 ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
+                    {mstnPassed ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                    {request.mstnCoverage}%
+                  </span>
+                </FieldCell>
+                <FieldCell label="Exception">
+                  {request.criteriaMetAtRaise
+                    ? <span className="text-muted-foreground font-normal">None</span>
+                    : <span className="text-amber-700 font-medium">MSTN criteria not met</span>}
+                </FieldCell>
+              </div>
             </div>
 
             {/* Material Criteria table */}
