@@ -252,7 +252,7 @@ The **ReassignmentDialog** (`components/reassignment-dialog.tsx`) presents:
 - **Bulk mode**: pick one Network Planner → reassign all
 - **Individual mode**: pick a different planner per entry; quick-fill "Apply to all" shortcut
 - **Confirm & Reassign**: PATCHes each entry's `assignedPerson` via API, then applies the user change
-- **Skip for now**: applies the user change without reassigning (entries stay orphaned)
+- **Cancel**: closes the dialog without applying the pending user change — user record and all assignments stay unchanged
 - Available planners: active NPs in the same BG as the affected entries, excluding the user themselves
 
 #### Roles & Permissions
