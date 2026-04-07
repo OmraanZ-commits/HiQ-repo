@@ -69,7 +69,7 @@ interface PbMaterial {
   code: string;
   description: string;
   networkStatus: string;
-  matStatus: "OK" | "Issue" | "In Progress" | "CP Pack";
+  matStatus: "OK" | "Issue" | "CP Pack";
   priceActive: boolean;
   mrp: string;
   ean: string;
@@ -136,13 +136,13 @@ function deriveBpStatus(statuses: (string | null)[]): string {
   return "Draft";
 }
 
-function deriveMatStatus(ns: string | null | undefined): "OK" | "Issue" | "In Progress" | "CP Pack" {
+function deriveMatStatus(ns: string | null | undefined): "OK" | "Issue" | "CP Pack" {
   switch (ns) {
     case "Active":
+    case "FTR Approved":
+    case "Production Started":
     case "Stock Movement Initiated":
     case "Network transition complete": return "OK";
-    case "FTR Approved":
-    case "Production Started":          return "In Progress";
     default:                            return "Issue";
   }
 }
@@ -252,7 +252,7 @@ const BIBLE_MATRIX = [
   },
   {
     salesCategory: "Foods", basepack: "22041", bpStatus: "Seasonal Pack", material: "KSMX5B",
-    matStatus: "In Progress", region: "East", cluster: "West Bengal", state: "W Bengal", regionCode: "E01",
+    matStatus: "Issue", region: "East", cluster: "West Bengal", state: "W Bengal", regionCode: "E01",
     depot: "KOL-01", mrp: "175", netWt: "500", cc: "8", ean: "8901058018021",
     csd: "N", gt: "Y", ka: "Y", oh: "N", mt: "Y", retail: "Y", ecom: "N", qcom: "N",
     priceStart: "-", priceEnd: "-", createdOn: "-",
@@ -299,10 +299,9 @@ const AMENDMENTS = [
 
 function MatStatusBadge({ status }: { status: string }) {
   const map: Record<string, { cls: string; icon: JSX.Element }> = {
-    "OK":          { cls: "bg-emerald-50 text-emerald-700 border-emerald-200",  icon: <CheckCircle2 className="h-3 w-3" /> },
-    "Issue":       { cls: "bg-red-50 text-red-700 border-red-200",              icon: <XCircle className="h-3 w-3" /> },
-    "In Progress": { cls: "bg-amber-50 text-amber-700 border-amber-200",        icon: <Clock className="h-3 w-3" /> },
-    "CP Pack":     { cls: "bg-blue-50 text-blue-700 border-blue-200",           icon: <Package className="h-3 w-3" /> },
+    "OK":      { cls: "bg-emerald-50 text-emerald-700 border-emerald-200",  icon: <CheckCircle2 className="h-3 w-3" /> },
+    "Issue":   { cls: "bg-red-50 text-red-700 border-red-200",              icon: <XCircle className="h-3 w-3" /> },
+    "CP Pack": { cls: "bg-blue-50 text-blue-700 border-blue-200",           icon: <Package className="h-3 w-3" /> },
   };
   const s = map[status] ?? map["Issue"];
   return (
