@@ -1474,7 +1474,7 @@ function ServiceRequestDetailDialog({ request, open, onClose, onApprove, onRejec
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
         {/* Compact header */}
         <div className="px-5 pt-4 pb-3 border-b">
           {/* Row 1: ID + badges */}
