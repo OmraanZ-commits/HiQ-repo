@@ -73,10 +73,10 @@ interface PbMaterial {
   mrp: string;
   ean: string;
   grammage: string;
-  caseConfig: string;
   priceStart: string;
   priceEnd: string;
   copyCbu: string;
+  predecessorDoh: string;
   typeOfNetwork: string;
   mstnPct: number;
 }
@@ -579,8 +579,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
           mrp:           "-",
           ean:           e.ean              || "-",
           grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
-          caseConfig:    e.caseConfig       || "-",
           copyCbu:       e.copyCbu          || "-",
+          predecessorDoh: "-",
           typeOfNetwork: e.typeOfNetwork    || "-",
           priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
           priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
@@ -942,7 +942,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">Case Config</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Predecessor CBU DOH</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 w-16"></TableHead>
@@ -961,7 +961,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                             {m.mstnPct}%
                                           </span>
                                         </TableCell>
-                                        <TableCell className="text-sm py-3 px-4 whitespace-nowrap">{m.caseConfig}</TableCell>
+                                        <TableCell className="text-sm py-3 px-4 whitespace-nowrap text-muted-foreground">{m.predecessorDoh}</TableCell>
                                         <TableCell className="py-3 px-4">
                                           <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>{m.priceActive ? "Yes" : "No"}</span>
                                         </TableCell>
