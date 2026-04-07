@@ -118,36 +118,25 @@ export default function ServiceRequestDetailPage() {
               </span>
             </div>
 
-            {/* Request Summary card — 2-column grid */}
-            <div className="rounded-xl border bg-white shadow-sm px-6 py-2">
-              <div className="grid grid-cols-2 divide-y divide-border/60 [&>*:nth-child(odd)]:pr-8 [&>*:nth-child(even)]:pl-8 [&>*:nth-child(even)]:border-l [&>*:nth-child(even)]:border-border/60">
-                <FieldCell label="Request Type">{request.requestType}</FieldCell>
+            {/* Request Summary — two side-by-side cards */}
+            <div className="grid grid-cols-2 gap-5">
+              {/* Left card */}
+              <div className="rounded-xl border bg-white shadow-sm px-5 py-4 space-y-0 divide-y divide-border/60">
                 <FieldCell label="Base Pack Name">{request.basepackName}</FieldCell>
-
                 <FieldCell label="Basepack Code">
                   <span className="font-mono">{request.basepackCode}</span>
                 </FieldCell>
                 <FieldCell label="Brand">{request.brand}</FieldCell>
-
                 <FieldCell label="Business Group">{request.bg}</FieldCell>
-                <FieldCell label="Status Change">
-                  <span className="text-muted-foreground font-normal">Draft</span>
-                  <span className="mx-2 text-muted-foreground">→</span>
-                  <span className="font-semibold">{request.targetStatus}</span>
-                </FieldCell>
+                <FieldCell label="Request Type">{request.requestType}</FieldCell>
+              </div>
 
+              {/* Right card */}
+              <div className="rounded-xl border bg-white shadow-sm px-5 py-4 space-y-0 divide-y divide-border/60">
                 <FieldCell label="Request Description">Activate basepack</FieldCell>
                 <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
-
                 <FieldCell label="Created On">{request.raisedAt}</FieldCell>
                 <FieldCell label="Pending With">{pendingWith}</FieldCell>
-
-                <FieldCell label="MSTN Status">
-                  <span className={`inline-flex items-center gap-1.5 ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
-                    {mstnPassed ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                    {request.mstnCoverage}%
-                  </span>
-                </FieldCell>
                 <FieldCell label="Exception">
                   {request.criteriaMetAtRaise
                     ? <span className="text-muted-foreground font-normal">None</span>
