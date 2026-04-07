@@ -1,0 +1,15 @@
+USER_SEEDS = [
+    { "name": "Rajesh Sharma",  "email": "rajesh.sharma@unilever.com",  "role": "Admin",            "businessGroup": "Homecare",            "isBgLead": False, "isActive": True,  "createdAt": "2025-01-10" },
+    { "name": "Priya Patel",    "email": "priya.patel@unilever.com",    "role": "Network Planner",  "businessGroup": "Personal Care",       "isBgLead": True,  "isActive": True,  "createdAt": "2025-02-14" },
+    { "name": "Ankit Verma",    "email": "ankit.verma@unilever.com",    "role": "Network Planner",  "businessGroup": "Homecare",            "isBgLead": True,  "isActive": True,  "createdAt": "2025-02-20" },
+    { "name": "Sneha Gupta",    "email": "sneha.gupta@unilever.com",    "role": "Paid Bible Owner", "businessGroup": "Foods",               "isBgLead": False, "isActive": True,  "createdAt": "2025-03-01" },
+    { "name": "Vikram Singh",   "email": "vikram.singh@unilever.com",   "role": "Approver",         "businessGroup": "Beauty and Wellness", "isBgLead": False, "isActive": True,  "createdAt": "2025-03-15" },
+    { "name": "Meera Nair",     "email": "meera.nair@unilever.com",     "role": "Approver",         "businessGroup": "Personal Care",       "isBgLead": False, "isActive": True,  "createdAt": "2025-04-02" },
+    { "name": "Arun Mehta",     "email": "arun.mehta@unilever.com",     "role": "Viewer",           "businessGroup": "Foods",               "isBgLead": False, "isActive": False, "createdAt": "2025-04-10" },
+    { "name": "Deepa Krishnan", "email": "deepa.krishnan@unilever.com", "role": "Paid Bible Owner", "businessGroup": "Beauty and Wellness", "isBgLead": False, "isActive": True,  "createdAt": "2025-05-05" },
+    { "name": "Suresh Rao",     "email": "suresh.rao@unilever.com",     "role": "Viewer",           "businessGroup": "Others",              "isBgLead": False, "isActive": True,  "createdAt": "2025-05-20" },
+    { "name": "Kavitha Reddy",  "email": "kavitha.reddy@unilever.com",  "role": "Network Planner",  "businessGroup": "Homecare",            "isBgLead": False, "isActive": False, "createdAt": "2025-06-01" },
+    { "name": "Ravi Shankar",   "email": "ravi.shankar@unilever.com",   "role": "Network Planner",  "businessGroup": "Foods",               "isBgLead": True,  "isActive": True,  "createdAt": "2025-07-01" },
+    { "name": "Lakshmi Iyer",   "email": "lakshmi.iyer@unilever.com",   "role": "Network Planner",  "businessGroup": "Beauty and Wellness", "isBgLead": True,  "isActive": True,  "createdAt": "2025-07-15" },
+    { "name": "Nikhil Desai",   "email": "nikhil.desai@unilever.com",   "role": "Network Planner",  "businessGroup": "Others",              "isBgLead": True,  "isActive": True,  "createdAt": "2025-08-01" },
+]

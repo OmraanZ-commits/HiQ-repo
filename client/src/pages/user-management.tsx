@@ -62,7 +62,6 @@ import { useToast } from "@/hooks/use-toast";
 import {
   BUSINESS_GROUPS,
   ROLES,
-  PORTAL_USERS,
   type BusinessGroup,
   type Role,
   type PortalUser as AppUser,
@@ -129,10 +128,6 @@ const PERMISSION_MATRIX: PermissionMatrix[] = [
   { action: "User management",             Admin: "full", "Network Planner": "none",    "Paid Bible Owner": "none",    Approver: "none",    Viewer: "none"    },
   { action: "View reports & analytics",    Admin: "full", "Network Planner": "full",    "Paid Bible Owner": "partial", Approver: "partial", Viewer: "full"    },
 ];
-
-/* ── Static user data ──────────────────────────────────────────── */
-
-/* AppUser and PORTAL_USERS are imported from @/lib/users-data */
 
 /* ── Helper components ─────────────────────────────────────────── */
 
@@ -491,32 +486,33 @@ export function UserManagementContent() {
   const { toast } = useToast();
 
   const [subTab, setSubTab] = useState<SubTab>("users");
-  const [users, setUsers] = useState<AppUser[]>(PORTAL_USERS);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | "All">("All");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
   const [showDialog, setShowDialog] = useState<"add" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<AppUser | null>(null);
 
+  /* ── Users API ─────────────────────────────────────────────── */
+
+  const { data: users = [] } = useQuery<AppUser[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: (data: Omit<AppUser, "id" | "createdAt">) =>
+      apiRequest("POST", "/api/users", data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, ...data }: Partial<AppUser> & { id: string }) =>
+      apiRequest("PATCH", `/api/users/${id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
+  });
+
   /* Find existing BG lead for a given BG (excluding the user being edited) */
   const getExistingBgLead = (bg: BusinessGroup): AppUser | undefined =>
     users.find((u) => u.businessGroup === bg && u.isBgLead && u.id !== editTarget?.id);
-
-  /* Apply BG lead change: demote any existing lead for the same BG, then upsert */
-  const applyBgLeadChange = (
-    prevUsers: AppUser[],
-    targetId: string,
-    bg: BusinessGroup | "",
-    isBgLead: boolean
-  ): AppUser[] => {
-    return prevUsers.map((u) => {
-      // Demote current lead if there's a conflict
-      if (isBgLead && u.businessGroup === bg && u.isBgLead && u.id !== targetId) {
-        return { ...u, isBgLead: false };
-      }
-      return u;
-    });
-  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -600,19 +596,16 @@ export function UserManagementContent() {
         p.name !== excludeName
     );
 
-  /* Apply a pending change (deactivation or edit) to users state */
+  /* Apply a pending change (deactivation or edit) to users via API */
   const applyPendingChange = (pending: PendingChange) => {
     if (pending.type === "deactivate") {
-      setUsers((prev) =>
-        prev.map((u) => {
-          if (u.id !== pending.userId) return u;
-          const next = { ...u, isActive: false };
-          toast({
-            title: "User deactivated",
-            description: `${next.name} is now inactive.`,
-          });
-          return next;
-        })
+      const user = users.find((u) => u.id === pending.userId);
+      updateUserMutation.mutate(
+        { id: pending.userId, isActive: false },
+        {
+          onSuccess: () =>
+            toast({ title: "User deactivated", description: `${user?.name ?? "User"} is now inactive.` }),
+        }
       );
     } else {
       handleEditApply(pending.form);
@@ -623,20 +616,18 @@ export function UserManagementContent() {
   const handleEditApply = (form: UserFormState) => {
     if (!editTarget) return;
     const id = editTarget.id;
-    setUsers((prev) => {
-      const demoted = applyBgLeadChange(prev, id, form.businessGroup as BusinessGroup, form.isBgLead);
-      return demoted.map((u) =>
-        u.id === id
-          ? { ...u, name: form.name, email: form.email, role: form.role as Role, businessGroup: form.businessGroup as BusinessGroup, isBgLead: form.isBgLead }
-          : u
-      );
-    });
-    toast({
-      title: "User updated",
-      description: form.isBgLead
-        ? `${form.name} is now the BG Lead for ${form.businessGroup}.`
-        : `${form.name}'s details have been updated.`,
-    });
+    updateUserMutation.mutate(
+      { id, name: form.name, email: form.email, role: form.role as Role, businessGroup: form.businessGroup as BusinessGroup | "", isBgLead: form.isBgLead },
+      {
+        onSuccess: () =>
+          toast({
+            title: "User updated",
+            description: form.isBgLead
+              ? `${form.name} is now the BG Lead for ${form.businessGroup}.`
+              : `${form.name}'s details have been updated.`,
+          }),
+      }
+    );
     setEditTarget(null);
     setShowDialog(null);
   };
@@ -662,12 +653,9 @@ export function UserManagementContent() {
 
     /* Activating: no affected-entry check needed */
     if (!user.isActive) {
-      setUsers((prev) =>
-        prev.map((u) => {
-          if (u.id !== id) return u;
-          toast({ title: "User activated", description: `${u.name} is now active.` });
-          return { ...u, isActive: true };
-        })
+      updateUserMutation.mutate(
+        { id, isActive: true },
+        { onSuccess: () => toast({ title: "User activated", description: `${user.name} is now active.` }) }
       );
       return;
     }
@@ -689,37 +677,32 @@ export function UserManagementContent() {
     }
 
     /* No affected entries — deactivate directly */
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id !== id) return u;
-        toast({ title: "User deactivated", description: `${u.name} is now inactive.` });
-        return { ...u, isActive: false };
-      })
+    updateUserMutation.mutate(
+      { id, isActive: false },
+      { onSuccess: () => toast({ title: "User deactivated", description: `${user.name} is now inactive.` }) }
     );
   };
 
   const handleAdd = (form: UserFormState) => {
-    const newId = String(Date.now());
-    const newUser: AppUser = {
-      id: newId,
-      name: form.name.trim(),
-      email: form.email.trim(),
-      role: form.role as Role,
-      businessGroup: form.businessGroup as BusinessGroup,
-      isBgLead: form.isBgLead,
-      isActive: true,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setUsers((prev) => {
-      const demoted = applyBgLeadChange(prev, newId, newUser.businessGroup, newUser.isBgLead);
-      return [newUser, ...demoted];
-    });
-    toast({
-      title: "User added",
-      description: form.isBgLead
-        ? `${newUser.name} added as ${newUser.role} and BG Lead for ${newUser.businessGroup}.`
-        : `${newUser.name} has been added as ${newUser.role}.`,
-    });
+    createUserMutation.mutate(
+      {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role as Role,
+        businessGroup: form.businessGroup as BusinessGroup,
+        isBgLead: form.isBgLead,
+        isActive: true,
+      },
+      {
+        onSuccess: () =>
+          toast({
+            title: "User added",
+            description: form.isBgLead
+              ? `${form.name.trim()} added as ${form.role} and BG Lead for ${form.businessGroup}.`
+              : `${form.name.trim()} has been added as ${form.role}.`,
+          }),
+      }
+    );
   };
 
   const handleEdit = (form: UserFormState) => {

@@ -26,6 +26,10 @@ from server_py.services.reference_data.router import (
 )
 from server_py.saga.router import router as saga_router, init_saga_services
 from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS
+from server_py.services.users.storage import UsersStorage
+from server_py.services.users.service import UsersService
+from server_py.services.users.router import router as users_router, set_service as set_users_service
+from server_py.seed_users import USER_SEEDS
 
 app = FastAPI(title="Unilever Network Visibility API", version="1.0.0", redirect_slashes=False)
 
@@ -43,6 +47,7 @@ app.include_router(state_router, prefix="/api/state", tags=["State Management"])
 app.include_router(lifecycle_router, prefix="/api/lifecycle", tags=["Lifecycle"])
 app.include_router(ref_data_router, prefix="/api/reference-data", tags=["Reference Data"])
 app.include_router(saga_router, prefix="/api/saga", tags=["Saga"])
+app.include_router(users_router, prefix="/api/users", tags=["Users"])
 
 
 @app.on_event("startup")
@@ -70,6 +75,11 @@ async def startup():
     set_ref_service(ref_service)
     ref_service.seed_all(CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS)
 
+    users_storage = UsersStorage()
+    users_service = UsersService(users_storage)
+    set_users_service(users_service)
+    users_service.seed_users(USER_SEEDS)
+
     state_service = get_state_service()
     lifecycle_service = get_lifecycle_service()
 
@@ -79,7 +89,7 @@ async def startup():
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "services": ["list-master", "state-management", "lifecycle", "reference-data", "saga"]}
+    return {"status": "ok", "services": ["list-master", "state-management", "lifecycle", "reference-data", "saga", "users"]}
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, Search, X, UserCircle, Crown } from "lucide-react";
-import { PORTAL_USERS, networkPlannersForBg, type PortalUser } from "@/lib/users-data";
+import { type PortalUser } from "@/lib/users-data";
 
 function getInitials(name: string): string {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -34,6 +35,10 @@ export function PeoplePicker({ value, onChange, testId, bg }: PeoplePickerProps)
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { data: allUsers = [] } = useQuery<PortalUser[]>({
+    queryKey: ["/api/users"],
+  });
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -45,11 +50,9 @@ export function PeoplePicker({ value, onChange, testId, bg }: PeoplePickerProps)
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  /* When a BG is provided, restrict to active Network Planners in that BG.
-     Otherwise fall back to all active users (legacy behaviour). */
   const pool: PortalUser[] = bg
-    ? networkPlannersForBg(bg)
-    : PORTAL_USERS.filter(u => u.isActive);
+    ? allUsers.filter(u => u.role === "Network Planner" && u.isActive && u.businessGroup === bg)
+    : allUsers.filter(u => u.isActive);
 
   const filtered = pool.filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -57,7 +60,7 @@ export function PeoplePicker({ value, onChange, testId, bg }: PeoplePickerProps)
     u.businessGroup.toLowerCase().includes(search.toLowerCase())
   );
 
-  const selectedUser = PORTAL_USERS.find(u => u.name === value);
+  const selectedUser = allUsers.find(u => u.name === value);
 
   return (
     <div className="relative" ref={containerRef} data-testid={testId}>
@@ -94,7 +97,6 @@ export function PeoplePicker({ value, onChange, testId, bg }: PeoplePickerProps)
 
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg overflow-hidden">
-          {/* Header hint when BG-scoped */}
           {bg && (
             <div className="px-3 py-2 bg-[#1f36c7]/5 border-b flex items-center gap-2">
               <span className="text-[11px] font-medium text-[#1f36c7]">

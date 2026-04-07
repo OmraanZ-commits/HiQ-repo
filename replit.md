@@ -132,11 +132,17 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - `server_py/saga/transition_saga.py` - TransitionSaga: 4-step saga (validate → record transition → update entry → recompute lifecycle)
 - `server_py/saga/router.py` - Saga API endpoints (execute transition, query saga logs)
 
+#### Users Service
+- `server_py/services/users/router.py` - Thin HTTP layer: GET /api/users, GET /api/users/:id, POST, PATCH
+- `server_py/services/users/service.py` - Pass-through to storage
+- `server_py/services/users/storage.py` - PostgreSQL CRUD; PATCH with isBgLead=True auto-demotes existing BG Lead in same BG
+
 #### Core
 - `server_py/main.py` - FastAPI app entry point, CORS, router mounting, service wiring
 - `server_py/seed_data.py` - Seed data for 8 network entries covering all 7 statuses
+- `server_py/seed_users.py` - Seed data for 13 portal users (seeded on first startup)
 - `server_py/models.py` - Pydantic models (NetworkEntry, StateTransition, STATUS_FLOW)
-- `server_py/db.py` - SQLAlchemy engine, session, ORM models, SagaLogModel, field mapping utils
+- `server_py/db.py` - SQLAlchemy engine, session, ORM models (including UserModel), field mapping utils
 
 ### Express Proxy (Development)
 - `server/routes.ts` - Spawns uvicorn, proxies /api/* requests to FastAPI on port 8000
@@ -169,6 +175,13 @@ Coordinates multi-step workflows with compensation on failure. The sole path for
 - `GET /api/saga/:sagaId` - Get saga execution log by ID
 - `GET /api/saga/entry/:entryId` - Get all saga logs for an entry
 
+### Users Service (`/api/users/`)
+Manages portal users with full persistence. Role and BG Lead changes are applied atomically.
+- `GET /api/users` - List all users
+- `GET /api/users/:id` - Get single user
+- `POST /api/users` - Create user (auto-demotes previous BG Lead if isBgLead=true)
+- `PATCH /api/users/:id` - Update user fields (auto-demotes previous BG Lead if isBgLead=true; auto-clears isBgLead if role changed away from Network Planner)
+
 ### Legacy Endpoints (`/api/network-entries/`)
 Same router as List Master, mounted at legacy path for backward compatibility.
 
@@ -192,8 +205,9 @@ On failure at any step, compensating actions run in reverse order. All steps are
 - `entry_statuses` — State Management service: entry_id (UUID PK), current_status, updated_at
 - `state_transitions` — State Management service: id (UUID PK), entry_id, from/to status, transition_date, triggered_by, metadata (JSONB), created_at
 - `saga_logs` — Saga Orchestrator: id (string PK), saga_type, entry_id, status, steps (JSONB array), started_at, completed_at, error
+- `users` — Users service: id (UUID PK), name, email, role, business_group, is_bg_lead, is_active, created_at
 - Field mapping between camelCase API and snake_case DB handled in `server_py/db.py`
-- Auto-seeds 8 entries on first startup (covering all 7 statuses); skips if tables already populated
+- Auto-seeds 8 network entries and 13 users on first startup; skips if tables already populated
 
 ## Deployment Architecture
 - Frontend: Separate Azure App Service (React/Vite build)
@@ -259,12 +273,14 @@ The **ReassignmentDialog** (`components/reassignment-dialog.tsx`) presents:
 Read-only matrix showing what each role can do.
 
 ## User Registry
-`client/src/lib/users-data.ts` is the single source of truth for portal users:
-- `PORTAL_USERS`: array of `PortalUser` — id, name, email, role, businessGroup, isBgLead, isActive, createdAt
-- `BUSINESS_GROUPS`: 5 values constant
-- `ROLES`: 4 role values constant
-- `networkPlannersForBg(bg)`: returns active NPs for a given BG (exported but user management now uses a live-state filter for dynamic adds)
-- User Management local state is seeded from `PORTAL_USERS` on mount; changes are in-session only (no backend persistence)
+User data is persisted in the `users` PostgreSQL table via the Users microservice. The frontend always reads from `/api/users`.
+
+`client/src/lib/users-data.ts` provides shared TypeScript types and constants only:
+- `PORTAL_USERS`: static seed reference (not used in UI — kept for type reference)
+- `BUSINESS_GROUPS`: 5 values constant (used by UI forms and filters)
+- `ROLES`: role values constant (used by UI forms and filters)
+- `PortalUser` type: id, name, email, role, businessGroup, isBgLead, isActive, createdAt
+- `networkPlannersForBg(bg)`: utility (legacy — filtering now done from live API data)
 
 ## Routes
 - `/` - Home landing page
