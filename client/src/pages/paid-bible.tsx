@@ -520,6 +520,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
 
   const { data: networkEntries = [], isLoading } = useQuery<NetworkEntry[]>({
     queryKey: ["/api/network-entries"],
+    staleTime: 0,
   });
 
   const [searchBp, setSearchBp]             = useState("");
