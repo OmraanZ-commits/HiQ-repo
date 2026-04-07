@@ -633,7 +633,7 @@ function OverviewTab({ localBpStatus, setLocalBpStatus, onRequestActivation }: O
         basepackCode:   bpCode,
         salesCategory:  first.salesCategory  || "-",
         brand:          first.brand          || "-",
-        bg:             first.bg             || "-",
+        bg:             entries.find(e => e.bg)?.bg || "-",
         clusters:       clusters.length ? clusters.join(", ") : "All India",
         channels,
         mstnStatus:     mstnYes ? "Yes" : "No",
