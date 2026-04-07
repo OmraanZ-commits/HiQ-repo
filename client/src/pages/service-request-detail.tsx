@@ -83,31 +83,31 @@ export default function ServiceRequestDetailPage() {
 
         {/* ── Tabs ─────────────────────────────────────────────────────────── */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1">
-            <TabsTrigger value="overview" className="gap-2" data-testid="tab-overview">
-              <LayoutDashboard className="h-4 w-4" /> Overview
-            </TabsTrigger>
-            <TabsTrigger value="approval" className="gap-2" data-testid="tab-approval">
-              <GitBranch className="h-4 w-4" /> Approval Chain
-              {pendingApprovals > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                  {pendingApprovals}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between mb-6">
+            <TabsList className="justify-start bg-muted/50 p-1">
+              <TabsTrigger value="overview" className="gap-2" data-testid="tab-overview">
+                <LayoutDashboard className="h-4 w-4" /> Overview
+              </TabsTrigger>
+              <TabsTrigger value="approval" className="gap-2" data-testid="tab-approval">
+                <GitBranch className="h-4 w-4" /> Approval Chain
+                {pendingApprovals > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                    {pendingApprovals}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+            <SrStatusBadge status={request.overallStatus} />
+          </div>
 
           {/* ── Overview tab ─────────────────────────────────────────────── */}
           <TabsContent value="overview" className="space-y-6">
 
-            {/* Section header: label + status pill + approval progress */}
+            {/* Section header: label + approval progress */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  Request Summary
-                </h2>
-                <SrStatusBadge status={request.overallStatus} />
-              </div>
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                Request Summary
+              </h2>
               <span className="flex items-center gap-2.5">
                 <span className="text-sm text-muted-foreground" data-testid="text-approval-progress">
                   {doneSteps}/{request.approvers.length} approved
