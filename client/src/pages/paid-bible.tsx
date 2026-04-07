@@ -945,7 +945,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap text-center">Predecessor CBU DOH</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Predecessor CBU DOH</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 w-16"></TableHead>
