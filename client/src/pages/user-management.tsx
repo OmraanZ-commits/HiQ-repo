@@ -642,10 +642,9 @@ export function UserManagementContent() {
   };
 
   /* Reassignment dialog handlers */
-  const handleReassignSkip = () => {
-    const pending = reassignState.pending;
+  const handleReassignCancel = () => {
+    /* Cancel — close the dialog; the pending user change is NOT applied */
     setReassignState((s) => ({ ...s, open: false, pending: null }));
-    if (pending) applyPendingChange(pending);
   };
 
   const handleReassignConfirm = async (assignments: Record<string, string>) => {
@@ -1002,7 +1001,7 @@ export function UserManagementContent() {
       {/* Reassignment dialog — shown when a NP's role/BG changes or they are deactivated */}
       <ReassignmentDialog
         open={reassignState.open}
-        onSkip={handleReassignSkip}
+        onCancel={handleReassignCancel}
         onConfirm={handleReassignConfirm}
         affectedEntries={reassignState.affectedEntries}
         availablePlanners={reassignState.availablePlanners}
