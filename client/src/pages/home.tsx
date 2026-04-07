@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { Network, BookOpen, ArrowRight, BarChart3, Layers, Settings } from "lucide-react";
+import { Network, BookOpen, BarChart3, Layers, Settings } from "lucide-react";
 
 const MODULES = [
   {
@@ -125,11 +125,6 @@ export default function HomePage() {
                   ))}
                 </ul>
 
-                {/* CTA */}
-                <div className="flex items-center gap-2 text-white font-semibold text-sm group-hover:gap-3 transition-all duration-150">
-                  <span>Launch Module</span>
-                  <ArrowRight className="h-4 w-4" />
-                </div>
               </button>
             );
           })}
