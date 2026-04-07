@@ -1831,16 +1831,6 @@ export default function PaidBiblePage() {
                 <Badge variant="outline" className="gap-1.5 text-xs">
                   <Clock className="h-3 w-3" /> MOC {moc.number} · {moc.label}
                 </Badge>
-                {serviceRequests.filter(r => r.overallStatus === "pending").length > 0 && (
-                  <button
-                    className="flex items-center gap-1.5 text-xs bg-amber-50 border border-amber-300 text-amber-700 rounded-full px-3 py-1 font-medium hover:bg-amber-100 transition-colors"
-                    onClick={() => setActiveTab("service-requests")}
-                    data-testid="badge-pending-requests"
-                  >
-                    <Clock className="h-3 w-3" />
-                    {serviceRequests.filter(r => r.overallStatus === "pending").length} pending request{serviceRequests.filter(r => r.overallStatus === "pending").length !== 1 ? "s" : ""}
-                  </button>
-                )}
                 <Button size="sm" variant="outline" className="gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Sync Listing Master
                 </Button>
