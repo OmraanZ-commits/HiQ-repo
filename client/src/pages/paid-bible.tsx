@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
 import { useSrStore, addRequest, setBpStatusOverride, formatNow } from "@/lib/sr-store";
+import { getNetworkChangeTypeName } from "@/lib/constants";
 import type { ServiceRequest, MaterialCriteria, ApproverStep } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
 import { UnileverHeader } from "@/components/unilever-header";
@@ -581,7 +582,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
           grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
           copyCbu:       e.copyCbu          || "-",
           predecessorDoh: "-",
-          typeOfNetwork: e.typeOfNetwork    || "-",
+          typeOfNetwork: getNetworkChangeTypeName(e.typeOfNetwork),
           priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
           priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
           mstnPct:       e.mstnPercentage != null
