@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, ListChecks, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, TrendingUp,
+  ClipboardList, GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableHeader, TableRow, TableHead, TableBody, TableCell,
 } from "@/components/ui/table";
@@ -13,6 +16,7 @@ import { useSrStore, approveStep, rejectStep } from "@/lib/sr-store";
 export default function ServiceRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState("criteria");
   const { requests } = useSrStore();
   const request = requests.find(r => r.id === id);
 
@@ -36,6 +40,7 @@ export default function ServiceRequestDetailPage() {
   const pct        = request.approvers.length > 0
     ? (doneSteps / request.approvers.length) * 100
     : 0;
+  const pendingApprovals = request.approvers.filter(a => a.status === "pending").length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -43,8 +48,8 @@ export default function ServiceRequestDetailPage() {
 
       <main className="max-w-[900px] mx-auto px-6 py-6">
 
-        {/* ── Page header row ─────────────────────────────────────────── */}
-        <div className="flex items-start gap-4 mb-8">
+        {/* ── Page header ────────────────────────────────────────────────── */}
+        <div className="flex items-start gap-4 mb-6">
           <Button
             variant="ghost"
             size="icon"
@@ -101,54 +106,65 @@ export default function ServiceRequestDetailPage() {
           </div>
         </div>
 
-        {/* ── Material Criteria ────────────────────────────────────────── */}
-        <section className="mb-8">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-            Material Criteria at Time of Raise
-          </h2>
-          <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead className="py-3 text-xs">CBU Code</TableHead>
-                  <TableHead className="py-3 text-xs">Description</TableHead>
-                  <TableHead className="py-3 text-xs text-center">MSTN Cleared</TableHead>
-                  <TableHead className="py-3 text-xs text-center">Last Updated</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {request.materials.map(m => (
-                  <TableRow key={m.code}>
-                    <TableCell className="py-3 font-mono font-medium text-blue-600 whitespace-nowrap text-sm">{m.code}</TableCell>
-                    <TableCell className="py-3 text-sm text-muted-foreground">{m.description}</TableCell>
-                    <TableCell className="py-3 text-center">
-                      {m.mstnCleared
-                        ? <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-semibold"><CheckCircle2 className="h-4 w-4" />Yes</span>
-                        : <span className="inline-flex items-center gap-1.5 text-sm text-red-500 font-semibold"><XCircle className="h-4 w-4" />No</span>
-                      }
-                    </TableCell>
-                    <TableCell className="py-3 text-center text-sm text-muted-foreground">{m.lastUpdated}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </section>
+        {/* ── Tabs ───────────────────────────────────────────────────────── */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1">
+            <TabsTrigger value="criteria" className="gap-2" data-testid="tab-criteria">
+              <ClipboardList className="h-4 w-4" /> Material Criteria
+            </TabsTrigger>
+            <TabsTrigger value="approval" className="gap-2" data-testid="tab-approval">
+              <GitBranch className="h-4 w-4" /> Approval Chain
+              {pendingApprovals > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                  {pendingApprovals}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* ── Approval Chain ────────────────────────────────────────────── */}
-        <section>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-            Approval Chain
-          </h2>
-          <div className="rounded-xl border bg-white shadow-sm p-6">
-            <ApproverChain
-              approvers={request.approvers}
-              requestId={request.id}
-              onApprove={(reqId, idx) => approveStep(reqId, idx)}
-              onReject={(reqId, idx, reason) => rejectStep(reqId, idx, reason)}
-            />
-          </div>
-        </section>
+          {/* Material Criteria tab */}
+          <TabsContent value="criteria">
+            <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="py-3 text-xs">CBU Code</TableHead>
+                    <TableHead className="py-3 text-xs">Description</TableHead>
+                    <TableHead className="py-3 text-xs text-center">MSTN Cleared</TableHead>
+                    <TableHead className="py-3 text-xs text-center">Last Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {request.materials.map(m => (
+                    <TableRow key={m.code}>
+                      <TableCell className="py-3.5 font-mono font-medium text-blue-600 whitespace-nowrap">{m.code}</TableCell>
+                      <TableCell className="py-3.5 text-sm text-muted-foreground">{m.description}</TableCell>
+                      <TableCell className="py-3.5 text-center">
+                        {m.mstnCleared
+                          ? <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-semibold"><CheckCircle2 className="h-4 w-4" />Yes</span>
+                          : <span className="inline-flex items-center gap-1.5 text-sm text-red-500 font-semibold"><XCircle className="h-4 w-4" />No</span>
+                        }
+                      </TableCell>
+                      <TableCell className="py-3.5 text-center text-sm text-muted-foreground">{m.lastUpdated}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          {/* Approval Chain tab */}
+          <TabsContent value="approval">
+            <div className="rounded-xl border bg-white shadow-sm p-6">
+              <ApproverChain
+                approvers={request.approvers}
+                requestId={request.id}
+                onApprove={(reqId, idx) => approveStep(reqId, idx)}
+                onReject={(reqId, idx, reason) => rejectStep(reqId, idx, reason)}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
 
       </main>
     </div>
