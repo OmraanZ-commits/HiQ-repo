@@ -162,7 +162,7 @@ function checkCriteria(bp: PbBasepack): {
   const cleared = bp.materials.filter(isMstnCleared).length;
   const mstnCoverage = Math.round((cleared / total) * 100);
   const tdpCoverage  = simulateTdpCoverage(bp.basepackCode);
-  const criteriaMet  = mstnCoverage >= 50 && tdpCoverage >= 75;
+  const criteriaMet  = mstnCoverage >= 100 && tdpCoverage >= 75;
   const materials: MaterialCriteria[] = bp.materials.map(m => ({
     code:        m.code,
     description: m.description,
@@ -378,7 +378,7 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
   if (!bp) return null;
 
   const { mstnCoverage, tdpCoverage, criteriaMet, materials } = checkCriteria(bp);
-  const mstnPassed = mstnCoverage >= 50;
+  const mstnPassed = mstnCoverage >= 100;
   const tdpPassed  = tdpCoverage  >= 75;
 
   const handleActivate = () => {
@@ -1284,7 +1284,7 @@ function ServiceRequestRow({ request, onView }: {
   request: ServiceRequest;
   onView: (r: ServiceRequest) => void;
 }) {
-  const mstnPassed = request.mstnCoverage >= 80;
+  const mstnPassed = request.mstnCoverage >= 100;
   const doneSteps  = request.approvers.filter(a => a.status === "approved").length;
   const total      = request.approvers.length;
   const pct        = total > 0 ? (doneSteps / total) * 100 : 0;
