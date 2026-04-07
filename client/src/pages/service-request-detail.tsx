@@ -148,7 +148,7 @@ export default function ServiceRequestDetailPage() {
             {/* Material Criteria table */}
             <div>
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                Material Criteria at Time of Raise
+                MSTN Status at Time of Request Creation
               </h2>
               <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
                 <Table>
