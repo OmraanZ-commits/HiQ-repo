@@ -392,7 +392,7 @@ export default function EditEntry() {
                     <ReadOnlyField label="CBU Created Date" value={form.cbuCreatedDate} testId="input-cbu-created-date" />
                     <ReadOnlyField label="Year (auto-calculated)" value={computedYear != null ? String(computedYear) : null} testId="input-year" />
                     <ReadOnlyField label="Network Status (calculated)" value={form.networkStatus} testId="input-network-status" />
-                    <FormField label="Network Planner" hint={form.bg ? `Showing active planners for ${form.bg}` : undefined}>
+                    <FormField label="Update Assignee" hint={form.bg ? `Showing active planners for ${form.bg}` : undefined}>
                       <PeoplePicker
                         value={form.assignedPerson}
                         onChange={(val) => updateField("assignedPerson", val)}
