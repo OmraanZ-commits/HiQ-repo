@@ -69,10 +69,6 @@ export default function ServiceRequestDetailPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="text-xs font-mono font-semibold text-slate-400">{request.id}</span>
-              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">
-                {request.requestType}
-              </span>
-              <SrStatusBadge status={request.overallStatus} />
             </div>
             <h1 className="text-xl font-bold">
               {request.basepackName}
