@@ -1486,7 +1486,6 @@ function ServiceRequestCard({ request, onApprove, onReject }: {
 }) {
   const [expanded, setExpanded] = useState(false);
   const mstnPassed = request.mstnCoverage >= 80;
-  const tdpPassed  = request.tdpCoverage  >= 75;
   const activeStep = request.approvers.findIndex(a => a.status === "pending");
   const doneSteps  = request.approvers.filter(a => a.status === "approved").length;
 
@@ -1529,10 +1528,6 @@ function ServiceRequestCard({ request, onApprove, onReject }: {
           <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
             {mstnPassed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
             MSTN {request.mstnCoverage}%
-          </div>
-          <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${tdpPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
-            {tdpPassed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-            TDP {request.tdpCoverage}%
           </div>
           <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${request.criteriaMetAtRaise ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
             {request.criteriaMetAtRaise ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
@@ -1707,18 +1702,6 @@ function ServiceRequestsTab({ requests, onApprove, onReject }: ServiceRequestsTa
         </div>
       )}
 
-      {/* Info footer */}
-      <Card className="border-dashed bg-muted/30">
-        <CardContent className="p-4 flex items-start gap-3">
-          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium mb-0.5">Basepack Status Change Approval Flow</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              A basepack status change from Draft to Active Pack requires sequential approval from Demand Planner, Supply Planner, Distribution Planner, Network Planner, and finally NCSM. The trigger is national level MSTN clearance at ≥ 80% cover of 4 TDP (3rd TDP of current MOC + 3 TDPs of next MOC), estimated by the 11th of every month. Once all approvers approve, the basepack status is automatically updated in the Overview.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
