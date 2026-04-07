@@ -2,6 +2,9 @@ import { useState, Fragment, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
+import { useSrStore, addRequest, setBpStatusOverride, formatNow } from "@/lib/sr-store";
+import type { ServiceRequest, MaterialCriteria, ApproverStep } from "@/lib/sr-store";
+import { SrStatusBadge } from "@/components/sr-detail-components";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +23,7 @@ import {
   Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock,
   Search, Filter, ChevronRight, ChevronDown, FileText, ArrowUpRight,
   Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, Eye,
-  ShieldCheck, ShieldAlert, ThumbsUp, ThumbsDown, Send, ListChecks,
+  ShieldCheck, ShieldAlert, Send, ListChecks,
   TrendingUp, Activity, AlertCircle, RotateCcw,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
@@ -58,15 +61,6 @@ const APPROVER_CHAIN = [
   { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval" },
 ];
 
-const REJECTION_REASONS = [
-  "Insufficient MSTN coverage (< 80%)",
-  "TDP estimates not built in DP tool",
-  "Production capacity not confirmed",
-  "Logistics routing not ready",
-  "Price activation pending",
-  "Other — refer to comments",
-];
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface PbMaterial {
@@ -101,42 +95,6 @@ interface PbBasepack {
   networkPlanner: string;
   paidBibleOwner: string;
   materials: PbMaterial[];
-}
-
-interface MaterialCriteria {
-  code: string;
-  description: string;
-  mstnCleared: boolean;
-  lastUpdated: string;
-}
-
-interface ApproverStep {
-  role: string;
-  label: string;
-  subLabel: string;
-  assignedTo?: string;
-  status: "waiting" | "pending" | "approved" | "rejected";
-  actedAt?: string;
-  rejectionReason?: string;
-}
-
-interface ServiceRequest {
-  id: string;
-  requestType: "Basepack Status Change";
-  targetStatus: string;
-  basepackId: string;
-  basepackCode: string;
-  basepackName: string;
-  brand: string;
-  bg: string;
-  raisedBy: string;
-  raisedAt: string;
-  mstnCoverage: number;
-  tdpCoverage: number;
-  criteriaMetAtRaise: boolean;
-  materials: MaterialCriteria[];
-  approvers: ApproverStep[];
-  overallStatus: "pending" | "approved" | "rejected";
 }
 
 // ─── MOC Calculator ──────────────────────────────────────────────────────────
@@ -215,13 +173,6 @@ function checkCriteria(bp: PbBasepack): {
 
 function makeTicketId(): string {
   return `SR-${Date.now().toString().slice(-6)}`;
-}
-
-function formatNow(): string {
-  return new Date().toLocaleString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
 }
 
 // ─── Static Data (Network Updates / Bible Matrix / Amendments) ────────────────
@@ -412,24 +363,6 @@ function YNBadge({ val }: { val: string }) {
   );
 }
 
-function SrStatusBadge({ status }: { status: "pending" | "approved" | "rejected" }) {
-  const map = {
-    pending:  "bg-amber-50 text-amber-700 border-amber-300",
-    approved: "bg-emerald-50 text-emerald-700 border-emerald-300",
-    rejected: "bg-red-50 text-red-700 border-red-300",
-  };
-  const icons = {
-    pending:  <Clock className="h-3 w-3" />,
-    approved: <CheckCircle2 className="h-3 w-3" />,
-    rejected: <XCircle className="h-3 w-3" />,
-  };
-  return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border capitalize ${map[status]}`}>
-      {icons[status]} {status}
-    </span>
-  );
-}
-
 // ─── Activation Criteria Check Dialog ────────────────────────────────────────
 
 interface ActivationCheckDialogProps {
@@ -576,11 +509,10 @@ function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users
 
 interface OverviewTabProps {
   localBpStatus: Record<string, string>;
-  setLocalBpStatus: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
   onRequestActivation: (bp: PbBasepack) => void;
 }
 
-function OverviewTab({ localBpStatus, setLocalBpStatus, onRequestActivation }: OverviewTabProps) {
+function OverviewTab({ localBpStatus, onRequestActivation }: OverviewTabProps) {
   const [, navigate] = useLocation();
 
   const { data: networkEntries = [], isLoading } = useQuery<NetworkEntry[]>({
@@ -709,7 +641,7 @@ function OverviewTab({ localBpStatus, setLocalBpStatus, onRequestActivation }: O
       setEditingId(null);
       onRequestActivation(bp);
     } else {
-      setLocalBpStatus(p => ({ ...p, [bp.id]: pendingStatus }));
+      setBpStatusOverride(bp.id, pendingStatus);
       setEditingId(null);
     }
   };
@@ -1332,237 +1264,6 @@ function AmendmentsTab() {
 
 interface ServiceRequestsTabProps {
   requests: ServiceRequest[];
-  onApprove: (requestId: string, stepIndex: number) => void;
-  onReject: (requestId: string, stepIndex: number, reason: string) => void;
-}
-
-function ApproverChain({ approvers, requestId, onApprove, onReject }: {
-  approvers: ApproverStep[];
-  requestId: string;
-  onApprove: (id: string, idx: number) => void;
-  onReject: (id: string, idx: number, reason: string) => void;
-}) {
-  const [rejectingIdx, setRejectingIdx] = useState<number | null>(null);
-  const [selectedReason, setSelectedReason] = useState("");
-
-  const submitReject = (idx: number) => {
-    if (!selectedReason) return;
-    onReject(requestId, idx, selectedReason);
-    setRejectingIdx(null);
-    setSelectedReason("");
-  };
-
-  return (
-    <div className="space-y-0">
-      {approvers.map((step, idx) => {
-        const isFirst = idx === 0;
-        const isLast  = idx === approvers.length - 1;
-        const statusColors = {
-          waiting:  "border-slate-200 bg-slate-50 text-slate-400",
-          pending:  "border-amber-300 bg-amber-50 text-amber-700",
-          approved: "border-emerald-300 bg-emerald-50 text-emerald-700",
-          rejected: "border-red-300 bg-red-50 text-red-700",
-        };
-        const statusIcons = {
-          waiting:  <Clock className="h-3.5 w-3.5" />,
-          pending:  <Clock className="h-3.5 w-3.5 text-amber-500" />,
-          approved: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />,
-          rejected: <XCircle className="h-3.5 w-3.5 text-red-500" />,
-        };
-
-        return (
-          <div key={step.role} className="flex gap-2.5">
-            {/* Timeline connector */}
-            <div className="flex flex-col items-center w-6 flex-shrink-0">
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${statusColors[step.status]}`}>
-                {statusIcons[step.status]}
-              </div>
-              {!isLast && <div className="w-px flex-1 bg-border mt-1 mb-1 min-h-[6px]" />}
-            </div>
-
-            {/* Step content */}
-            <div className="pb-3 flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold leading-tight">{step.label}</p>
-                    <span className="text-xs text-muted-foreground">· {step.subLabel}</span>
-                    {step.assignedTo && (
-                      <span className="text-xs text-slate-500 flex items-center gap-1">
-                        <User className="h-3 w-3" /> {step.assignedTo}
-                      </span>
-                    )}
-                  </div>
-                  {step.actedAt && (
-                    <p className="text-xs text-muted-foreground">{step.status === "approved" ? "Approved" : "Rejected"} · {step.actedAt}</p>
-                  )}
-                  {step.rejectionReason && (
-                    <p className="text-xs text-red-600 italic">Reason: {step.rejectionReason}</p>
-                  )}
-                </div>
-                <div className="flex-shrink-0">
-                  {step.status === "pending" && rejectingIdx !== idx && (
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => onApprove(requestId, idx)}
-                        data-testid={`button-approve-${requestId}-${idx}`}
-                      >
-                        <ThumbsUp className="h-3 w-3" /> Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1 border-red-300 text-red-600 hover:bg-red-50"
-                        onClick={() => { setRejectingIdx(idx); setSelectedReason(""); }}
-                        data-testid={`button-reject-${requestId}-${idx}`}
-                      >
-                        <ThumbsDown className="h-3 w-3" /> Reject
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Rejection reason selector */}
-              {step.status === "pending" && rejectingIdx === idx && (
-                <div className="mt-2 p-3 rounded-lg border border-red-200 bg-red-50 space-y-2">
-                  <p className="text-xs font-medium text-red-800">Select a reason for rejection:</p>
-                  <RadioGroup value={selectedReason} onValueChange={setSelectedReason} className="space-y-1">
-                    {REJECTION_REASONS.map(r => (
-                      <div key={r} className="flex items-center gap-2">
-                        <RadioGroupItem value={r} id={`${requestId}-${idx}-${r}`} className="h-3.5 w-3.5" />
-                        <Label htmlFor={`${requestId}-${idx}-${r}`} className="text-xs cursor-pointer text-red-700">{r}</Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      className="h-7 text-xs gap-1 bg-red-600 hover:bg-red-700 text-white"
-                      disabled={!selectedReason}
-                      onClick={() => submitReject(idx)}
-                      data-testid={`button-confirm-reject-${requestId}-${idx}`}
-                    >
-                      <XCircle className="h-3 w-3" /> Confirm Rejection
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setRejectingIdx(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function ServiceRequestDetailDialog({ request, open, onClose, onApprove, onReject }: {
-  request: ServiceRequest | null;
-  open: boolean;
-  onClose: () => void;
-  onApprove: (id: string, idx: number) => void;
-  onReject: (id: string, idx: number, reason: string) => void;
-}) {
-  if (!request) return null;
-  const mstnPassed = request.mstnCoverage >= 80;
-  const doneSteps  = request.approvers.filter(a => a.status === "approved").length;
-
-  return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[95vh] overflow-y-auto p-0">
-        {/* Compact header */}
-        <div className="px-5 pt-4 pb-3 border-b">
-          {/* Row 1: ID + badges */}
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <div className="w-6 h-6 rounded-md bg-[#1f36c7]/10 flex items-center justify-center flex-shrink-0">
-              <ListChecks className="h-3.5 w-3.5 text-[#1f36c7]" />
-            </div>
-            <span className="text-xs font-mono font-semibold text-slate-400">{request.id}</span>
-            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">{request.requestType}</span>
-            <SrStatusBadge status={request.overallStatus} />
-          </div>
-          {/* Row 2: name */}
-          <p className="text-sm font-semibold leading-tight">
-            {request.basepackName}
-            <span className="ml-2 text-xs font-mono text-muted-foreground font-normal">{request.basepackCode}</span>
-          </p>
-          {/* Row 3: meta */}
-          <p className="text-xs text-muted-foreground mt-0.5">{request.brand} · {request.bg} · Raised by <span className="font-medium text-foreground">{request.raisedBy}</span> · {request.raisedAt}</p>
-
-          {/* Row 4: pills + inline progress */}
-          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-            <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
-              {mstnPassed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-              MSTN {request.mstnCoverage}%
-            </div>
-            <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${request.criteriaMetAtRaise ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-              {request.criteriaMetAtRaise ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
-              {request.criteriaMetAtRaise ? "Criteria Met" : "Not Met"}
-            </div>
-            <div className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium bg-slate-50 text-slate-600 border-slate-200">
-              <TrendingUp className="h-3 w-3" /> {request.targetStatus}
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{doneSteps}/{request.approvers.length} approved</span>
-              <div className="w-20 h-1 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[#1f36c7] to-[#0d8ecf] rounded-full transition-all" style={{ width: `${(doneSteps / request.approvers.length) * 100}%` }} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-5 py-4 space-y-4">
-          {/* Material Criteria Table */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Material Criteria at Time of Raise</p>
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="text-xs py-1.5">CBU Code</TableHead>
-                    <TableHead className="text-xs py-1.5">Description</TableHead>
-                    <TableHead className="text-xs py-1.5 text-center">MSTN Cleared</TableHead>
-                    <TableHead className="text-xs py-1.5 text-center">Last Updated</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {request.materials.map(m => (
-                    <TableRow key={m.code} className="text-xs">
-                      <TableCell className="font-mono font-medium text-blue-600 py-1.5 whitespace-nowrap">{m.code}</TableCell>
-                      <TableCell className="py-1.5 text-muted-foreground max-w-xs truncate">{m.description}</TableCell>
-                      <TableCell className="py-1.5 text-center">
-                        {m.mstnCleared
-                          ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
-                          : <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><XCircle className="h-3 w-3" />No</span>
-                        }
-                      </TableCell>
-                      <TableCell className="py-1.5 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-
-          {/* Approver Chain */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Approval Chain</p>
-            <ApproverChain
-              approvers={request.approvers}
-              requestId={request.id}
-              onApprove={onApprove}
-              onReject={onReject}
-            />
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 function ServiceRequestRow({ request, onView }: {
@@ -1644,16 +1345,15 @@ function ServiceRequestRow({ request, onView }: {
   );
 }
 
-function ServiceRequestsTab({ requests, onApprove, onReject }: ServiceRequestsTabProps) {
+function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [, navigate] = useLocation();
 
   const pending  = requests.filter(r => r.overallStatus === "pending").length;
   const approved = requests.filter(r => r.overallStatus === "approved").length;
   const rejected = requests.filter(r => r.overallStatus === "rejected").length;
 
-  const filtered     = statusFilter === "all" ? requests : requests.filter(r => r.overallStatus === statusFilter);
-  const selectedReq  = selectedId ? requests.find(r => r.id === selectedId) ?? null : null;
+  const filtered = statusFilter === "all" ? requests : requests.filter(r => r.overallStatus === statusFilter);
 
   return (
     <div className="space-y-4">
@@ -1718,20 +1418,11 @@ function ServiceRequestsTab({ requests, onApprove, onReject }: ServiceRequestsTa
             <ServiceRequestRow
               key={request.id}
               request={request}
-              onView={r => setSelectedId(r.id)}
+              onView={r => navigate(`/paid-bible/requests/${r.id}`)}
             />
           ))}
         </Card>
       )}
-
-      {/* Detail dialog */}
-      <ServiceRequestDetailDialog
-        request={selectedReq}
-        open={!!selectedId}
-        onClose={() => setSelectedId(null)}
-        onApprove={onApprove}
-        onReject={onReject}
-      />
     </div>
   );
 }
@@ -1742,58 +1433,22 @@ export default function PaidBiblePage() {
   const [activeTab, setActiveTab] = useState("overview");
   const moc = getCurrentMoc();
 
-  // Lifted state — shared across Overview and Service Requests tabs
-  const [localBpStatus, setLocalBpStatus] = useState<Record<string, string>>({});
-  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
+  const { requests: serviceRequests, bpStatusOverrides } = useSrStore();
   const [activationTarget, setActivationTarget] = useState<PbBasepack | null>(null);
 
   const { data: users = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
 
-  const handleRequestActivation = (bp: PbBasepack) => {
-    setActivationTarget(bp);
-  };
+  const handleRequestActivation = (bp: PbBasepack) => setActivationTarget(bp);
 
   const handleActivateDirect = (bpId: string) => {
-    setLocalBpStatus(p => ({ ...p, [bpId]: "Active Pack" }));
+    setBpStatusOverride(bpId, "Active Pack");
     setActivationTarget(null);
   };
 
   const handleCreateRequest = (request: ServiceRequest) => {
-    setServiceRequests(prev => [request, ...prev]);
+    addRequest(request);
     setActivationTarget(null);
     setActiveTab("service-requests");
-  };
-
-  const handleApprove = (requestId: string, stepIndex: number) => {
-    setServiceRequests(prev => prev.map(sr => {
-      if (sr.id !== requestId) return sr;
-      const approvers = sr.approvers.map((a, i) => {
-        if (i === stepIndex) return { ...a, status: "approved" as const, actedAt: formatNow() };
-        if (i === stepIndex + 1) return { ...a, status: "pending" as const };
-        return a;
-      });
-      const allApproved = approvers.every(a => a.status === "approved");
-      if (allApproved) {
-        setLocalBpStatus(p => ({ ...p, [sr.basepackId]: sr.targetStatus }));
-      }
-      return {
-        ...sr,
-        approvers,
-        overallStatus: allApproved ? "approved" as const : "pending" as const,
-      };
-    }));
-  };
-
-  const handleReject = (requestId: string, stepIndex: number, reason: string) => {
-    setServiceRequests(prev => prev.map(sr => {
-      if (sr.id !== requestId) return sr;
-      const approvers = sr.approvers.map((a, i) => {
-        if (i === stepIndex) return { ...a, status: "rejected" as const, actedAt: formatNow(), rejectionReason: reason };
-        if (i > stepIndex) return { ...a, status: "waiting" as const };
-        return a;
-      });
-      return { ...sr, approvers, overallStatus: "rejected" as const };
-    }));
   };
 
   return (
@@ -1840,8 +1495,7 @@ export default function PaidBiblePage() {
 
           {activeTab === "overview" && (
             <OverviewTab
-              localBpStatus={localBpStatus}
-              setLocalBpStatus={setLocalBpStatus}
+              localBpStatus={bpStatusOverrides}
               onRequestActivation={handleRequestActivation}
             />
           )}
@@ -1849,11 +1503,7 @@ export default function PaidBiblePage() {
           {activeTab === "bible-matrix"     && <BibleMatrixTab />}
           {activeTab === "amendments"       && <AmendmentsTab />}
           {activeTab === "service-requests" && (
-            <ServiceRequestsTab
-              requests={serviceRequests}
-              onApprove={handleApprove}
-              onReject={handleReject}
-            />
+            <ServiceRequestsTab requests={serviceRequests} />
           )}
         </div>
       </main>
