@@ -160,7 +160,7 @@ function checkCriteria(bp: PbBasepack): {
   materials: MaterialCriteria[];
 } {
   const total   = bp.materials.length || 1;
-  const isMstnCleared = (m: PbMaterial) => MSTN_ACTIVE_STATUSES.has(m.networkStatus) || m.mstnPct >= 80;
+  const isMstnCleared = (m: PbMaterial) => m.mstnPct >= 80;
   const cleared = bp.materials.filter(isMstnCleared).length;
   const mstnCoverage = Math.round((cleared / total) * 100);
   const tdpCoverage  = simulateTdpCoverage(bp.basepackCode);
