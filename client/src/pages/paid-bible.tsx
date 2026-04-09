@@ -655,7 +655,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
   const saveEdit = (bp: PbBasepack, e: React.MouseEvent) => {
     e.stopPropagation();
     const currentStatus = localBpStatus[bp.id] ?? bp.bpStatus;
-    if (currentStatus === "Draft" && pendingStatus === "Active Pack") {
+    if (pendingStatus === "Active Pack" && currentStatus !== "Active Pack") {
       setEditingId(null);
       onRequestActivation(bp);
     } else {
