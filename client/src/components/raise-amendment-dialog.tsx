@@ -9,9 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  DollarSign, Map, Layers, Package, Grid3x3, Calendar, HelpCircle, AlertTriangle,
-} from "lucide-react";
+import { Map, Radio, PackageSearch, AlertTriangle } from "lucide-react";
 import type { PortalUser } from "@/lib/users-data";
 import {
   AMENDMENT_TYPE_META, addAmendment, type AmendmentType, type AmendmentRequest,
@@ -22,13 +20,9 @@ import { formatNow } from "@/lib/sr-store";
 // ─── Type config ──────────────────────────────────────────────────────────────
 
 const AMENDMENT_TYPES: { value: AmendmentType; icon: React.ElementType }[] = [
-  { value: "price-change",        icon: DollarSign },
-  { value: "distribution-change", icon: Map },
-  { value: "channel-change",      icon: Layers },
-  { value: "dimension-change",    icon: Package },
-  { value: "case-config-change",  icon: Grid3x3 },
-  { value: "timeline-change",     icon: Calendar },
-  { value: "other",               icon: HelpCircle },
+  { value: "geo-extension",      icon: Map },
+  { value: "channel-extension",  icon: Radio },
+  { value: "sourcing-amendment", icon: PackageSearch },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

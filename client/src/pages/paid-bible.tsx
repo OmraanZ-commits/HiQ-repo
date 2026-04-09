@@ -1252,17 +1252,13 @@ function BibleMatrixTab() {
 // ─── Part 4: Amendments ──────────────────────────────────────────────────────
 
 const AMENDMENT_TYPE_COLORS: Record<string, { bg: string; border: string; badge: string }> = {
-  "price-change":        { bg: "bg-emerald-50", border: "border-emerald-200", badge: "bg-emerald-100 text-emerald-700 border-emerald-300" },
-  "distribution-change": { bg: "bg-blue-50",    border: "border-blue-200",    badge: "bg-blue-100 text-blue-700 border-blue-300" },
-  "channel-change":      { bg: "bg-violet-50",  border: "border-violet-200",  badge: "bg-violet-100 text-violet-700 border-violet-300" },
-  "dimension-change":    { bg: "bg-amber-50",   border: "border-amber-200",   badge: "bg-amber-100 text-amber-700 border-amber-300" },
-  "case-config-change":  { bg: "bg-orange-50",  border: "border-orange-200",  badge: "bg-orange-100 text-orange-700 border-orange-300" },
-  "timeline-change":     { bg: "bg-sky-50",     border: "border-sky-200",     badge: "bg-sky-100 text-sky-700 border-sky-300" },
-  "other":               { bg: "bg-slate-50",   border: "border-slate-200",   badge: "bg-slate-100 text-slate-700 border-slate-300" },
+  "geo-extension":      { bg: "bg-blue-50",    border: "border-blue-200",    badge: "bg-blue-100 text-blue-700 border-blue-300" },
+  "channel-extension":  { bg: "bg-violet-50",  border: "border-violet-200",  badge: "bg-violet-100 text-violet-700 border-violet-300" },
+  "sourcing-amendment": { bg: "bg-amber-50",   border: "border-amber-200",   badge: "bg-amber-100 text-amber-700 border-amber-300" },
 };
 
 function AmendmentCard({ amendment, onView }: { amendment: AmendmentRequest; onView: (id: string) => void }) {
-  const colors   = AMENDMENT_TYPE_COLORS[amendment.amendmentType] ?? AMENDMENT_TYPE_COLORS["other"];
+  const colors   = AMENDMENT_TYPE_COLORS[amendment.amendmentType] ?? AMENDMENT_TYPE_COLORS["geo-extension"];
   const meta     = AMENDMENT_TYPE_META[amendment.amendmentType];
   const done     = amendment.approvers.filter(a => a.status === "approved").length;
   const total    = amendment.approvers.length;

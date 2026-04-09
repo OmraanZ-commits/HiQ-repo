@@ -260,7 +260,7 @@ Analytics and status management for basepacks and their CBUs, grouped by categor
 
 #### Amendments Tab
 - Lists all CBU-level amendment requests raised from the edit-entry page (paid bible view)
-- Amendment types: Price Change, Distribution Change, Channel Change, Pack Dimension Change, Case Configuration Change, Timeline / Date Change, Other
+- Amendment types: Geo Extension, Channel Extension, Sourcing Amendment
 - Each card shows: SR ID, amendment type badge (colour-coded per type), CBU code/description, status badge (pending/approved/rejected), current→requested change summary, raised-by/raised-at, 3-step approval progress bar
 - Type and status filters at top; empty state with usage hint
 - Click "View Details" → `/paid-bible/amendments/:id` (AmendmentDetailPage)

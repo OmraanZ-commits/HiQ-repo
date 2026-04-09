@@ -5,13 +5,9 @@ import { formatNow } from "./sr-store";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type AmendmentType =
-  | "price-change"
-  | "distribution-change"
-  | "channel-change"
-  | "dimension-change"
-  | "case-config-change"
-  | "timeline-change"
-  | "other";
+  | "geo-extension"
+  | "channel-extension"
+  | "sourcing-amendment";
 
 export interface AmendmentTypeMeta {
   label: string;
@@ -21,47 +17,23 @@ export interface AmendmentTypeMeta {
 }
 
 export const AMENDMENT_TYPE_META: Record<AmendmentType, AmendmentTypeMeta> = {
-  "price-change": {
-    label: "Price Change",
-    currentLabel: "Current MRP / Price",
-    requestedLabel: "Requested MRP / Price",
-    description: "Change in MRP, net realization, or price ladder",
-  },
-  "distribution-change": {
-    label: "Distribution Change",
+  "geo-extension": {
+    label: "Geo Extension",
     currentLabel: "Current Geographies / Clusters",
     requestedLabel: "Requested Geographies / Clusters",
-    description: "Add or remove geographies or distribution clusters",
+    description: "Extend distribution to additional geographies or clusters",
   },
-  "channel-change": {
-    label: "Channel Change",
+  "channel-extension": {
+    label: "Channel Extension",
     currentLabel: "Current Channels",
     requestedLabel: "Requested Channels",
-    description: "Add or remove trade channels (GT, MT, Ecom, KA, etc.)",
+    description: "Extend distribution to additional trade channels (GT, MT, Ecom, KA, etc.)",
   },
-  "dimension-change": {
-    label: "Pack Dimension Change",
-    currentLabel: "Current Dimensions (weight / EAN / ITF)",
-    requestedLabel: "Requested Dimensions (weight / EAN / ITF)",
-    description: "Change in grammage, weight, EAN barcode, or ITF code",
-  },
-  "case-config-change": {
-    label: "Case Configuration Change",
-    currentLabel: "Current Case Config (units per case)",
-    requestedLabel: "Requested Case Config (units per case)",
-    description: "Change in the number of units per case or pallet configuration",
-  },
-  "timeline-change": {
-    label: "Timeline / Date Change",
-    currentLabel: "Current Dates (Change / Start / End)",
-    requestedLabel: "Requested Dates (Change / Start / End)",
-    description: "Revision to network change date, start date, or end date",
-  },
-  "other": {
-    label: "Other",
-    currentLabel: "Current State",
-    requestedLabel: "Requested Change",
-    description: "Any other amendment not covered by the categories above",
+  "sourcing-amendment": {
+    label: "Sourcing Amendment",
+    currentLabel: "Current Sourcing Mode / Geos",
+    requestedLabel: "Requested Sourcing Mode / Geos",
+    description: "Change the sourcing mode or sourcing geography / depot assignments",
   },
 };
 
