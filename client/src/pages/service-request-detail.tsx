@@ -50,7 +50,8 @@ export default function ServiceRequestDetailPage() {
   const doneSteps       = request.approvers.filter(a => a.status === "approved").length;
   const pct             = request.approvers.length > 0 ? (doneSteps / request.approvers.length) * 100 : 0;
   const pendingApprovals = request.approvers.filter(a => a.status === "pending").length;
-  const pendingWith     = request.approvers.find(a => a.status === "pending")?.label ?? "—";
+  const pendingApprover = request.approvers.find(a => a.status === "pending");
+  const pendingWith     = pendingApprover?.label ?? "—";
 
   const pageTitle  = isCbu ? (request.cbuDescription || request.cbuCode || "—") : request.basepackName;
   const pageSubtitle = isCbu ? request.cbuCode : request.basepackCode;
@@ -129,32 +130,39 @@ export default function ServiceRequestDetailPage() {
             {/* ── CBU SR: two-card summary + change table + justification ── */}
             {isCbu && (
               <>
-                {/* Two side-by-side cards — mirrors the basepack SR layout */}
+                {/* Two side-by-side cards */}
                 <div className="grid grid-cols-2 gap-5">
-                  {/* Left card — CBU identity */}
+                  {/* Left card — CBU + basepack identity */}
                   <div className="rounded-xl border bg-white shadow-sm px-5 py-4 divide-y divide-border/60">
+                    <FieldCell label="CBU Description">{request.cbuDescription || "—"}</FieldCell>
                     <FieldCell label="CBU Code">
                       <span className="font-mono">{request.cbuCode || "—"}</span>
                     </FieldCell>
-                    <FieldCell label="CBU Description">{request.cbuDescription || "—"}</FieldCell>
+                    <FieldCell label="Basepack Name">{request.basepackName || "—"}</FieldCell>
                     <FieldCell label="Basepack Code">
                       <span className="font-mono">{request.basepackCode || "—"}</span>
                     </FieldCell>
                     <FieldCell label="Brand">{request.brand || "—"}</FieldCell>
                     <FieldCell label="Business Group">{request.bg || "—"}</FieldCell>
-                    <FieldCell label="Request Type">
-                      <Badge variant="secondary" className={`border ${meta.colorClass}`}>{meta.label}</Badge>
-                    </FieldCell>
                   </div>
 
-                  {/* Right card — request meta */}
+                  {/* Right card — request meta + justification */}
                   <div className="rounded-xl border bg-white shadow-sm px-5 py-4 divide-y divide-border/60">
                     <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
                     <FieldCell label="Created On">{request.raisedAt}</FieldCell>
-                    <FieldCell label="Pending With">{pendingWith}</FieldCell>
-                    <FieldCell label="Overall Status">
-                      <SrStatusBadge status={request.overallStatus} />
+                    <FieldCell label="Pending With">
+                      <div>
+                        <div className="font-medium">{pendingApprover?.label ?? "—"}</div>
+                        {pendingApprover?.assignedTo && (
+                          <div className="text-xs text-muted-foreground mt-0.5">{pendingApprover.assignedTo}</div>
+                        )}
+                      </div>
                     </FieldCell>
+                    {request.justification && (
+                      <FieldCell label="Business Justification">
+                        <span className="leading-relaxed whitespace-pre-wrap">{request.justification}</span>
+                      </FieldCell>
+                    )}
                   </div>
                 </div>
 
@@ -184,20 +192,6 @@ export default function ServiceRequestDetailPage() {
                     </Table>
                   </div>
                 </div>
-
-                {/* Business Justification */}
-                {request.justification && (
-                  <div>
-                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                      Business Justification
-                    </h2>
-                    <div className="rounded-xl border bg-white shadow-sm px-5 py-4">
-                      <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                        {request.justification}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </>
             )}
 
