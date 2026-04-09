@@ -1,5 +1,5 @@
 import { useState, Fragment, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
 import { useSrStore, addRequest, setBpStatusOverride, formatNow } from "@/lib/sr-store";
@@ -1519,7 +1519,9 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function PaidBiblePage() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const search = useSearch();
+  const initialTab = new URLSearchParams(search).get("tab") ?? "overview";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const moc = getCurrentMoc();
 
   const { requests: serviceRequests, bpStatusOverrides } = useSrStore();

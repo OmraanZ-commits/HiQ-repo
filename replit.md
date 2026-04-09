@@ -248,7 +248,7 @@ Analytics and status management for basepacks and their CBUs, grouped by categor
 - View button in each expanded CBU row navigates to `/edit/:id?source=paid-bible&cbuStatus=<bpStatus>` (view-only mode)
 
 #### Activation Check Dialog (Draft → Active Pack)
-- Intercepts any Draft → Active Pack status change in the Overview table
+- Intercepts any non-Active-Pack → Active Pack status change in the Overview table (not limited to Draft; allows re-activation from Seasonal, Stock Base Delisting, etc.)
 - Computes MSTN coverage only (≥ 80% threshold); TDP is not shown or evaluated in the dialog
 - Single MSTN Coverage card with pass/fail colour coding
 - Shows per-material table: Code, Description, MSTN Cleared (icon), Last Updated

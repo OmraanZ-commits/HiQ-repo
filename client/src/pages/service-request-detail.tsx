@@ -31,7 +31,8 @@ export default function ServiceRequestDetailPage() {
   if (!request) {
     return (
       <div className="min-h-screen bg-background">
-        <UnileverHeader module="paid-bible" activeTab="service-requests" />
+        <UnileverHeader module="paid-bible" activeTab="service-requests"
+        onTabChange={tab => navigate(`/paid-bible?tab=${tab}`)} />
         <div className="flex items-center justify-center py-40 flex-col gap-4">
           <ListChecks className="h-12 w-12 text-muted-foreground/30" />
           <p className="text-muted-foreground">Service request not found.</p>
@@ -51,7 +52,8 @@ export default function ServiceRequestDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <UnileverHeader module="paid-bible" activeTab="service-requests" />
+      <UnileverHeader module="paid-bible" activeTab="service-requests"
+        onTabChange={tab => navigate(`/paid-bible?tab=${tab}`)} />
 
       <main className="max-w-[1100px] mx-auto px-6 py-6">
 
