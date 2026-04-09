@@ -80,6 +80,7 @@ export function getBpStatusOverrides(): Record<string, string> {
 
 export function addRequest(req: ServiceRequest): void {
   _requests = [req, ..._requests];
+  _bpStatusOverrides = { ..._bpStatusOverrides, [req.basepackId]: "Draft" };
   notify();
 }
 
@@ -110,6 +111,7 @@ export function rejectStep(requestId: string, stepIndex: number, reason: string)
       if (i > stepIndex) return { ...a, status: "waiting" as const };
       return a;
     });
+    _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: "Draft" };
     return { ...sr, approvers, overallStatus: "rejected" as const };
   });
   notify();

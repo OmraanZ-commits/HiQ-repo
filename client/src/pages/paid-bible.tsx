@@ -2,7 +2,7 @@ import { useState, Fragment, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
-import { useSrStore, addRequest, setBpStatusOverride, formatNow } from "@/lib/sr-store";
+import { useSrStore, addRequest, formatNow } from "@/lib/sr-store";
 import { getNetworkChangeTypeName } from "@/lib/constants";
 import type { ServiceRequest, MaterialCriteria, ApproverStep } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
@@ -370,22 +370,16 @@ function YNBadge({ val }: { val: string }) {
 interface ActivationCheckDialogProps {
   bp: PbBasepack | null;
   onClose: () => void;
-  onActivate: (bpId: string) => void;
   onCreateRequest: (request: ServiceRequest) => void;
   users: PortalUser[];
 }
 
-function ActivationCheckDialog({ bp, onClose, onActivate, onCreateRequest, users }: ActivationCheckDialogProps) {
+function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: ActivationCheckDialogProps) {
   if (!bp) return null;
 
   const { mstnCoverage, tdpCoverage, criteriaMet, materials } = checkCriteria(bp);
   const mstnPassed = mstnCoverage >= 100;
   const tdpPassed  = tdpCoverage  >= 75;
-
-  const handleActivate = () => {
-    onActivate(bp.id);
-    onClose();
-  };
 
   const handleCreateRequest = () => {
     const userByRole = (role: string): string | undefined =>
@@ -1535,11 +1529,6 @@ export default function PaidBiblePage() {
 
   const handleRequestActivation = (bp: PbBasepack) => setActivationTarget(bp);
 
-  const handleActivateDirect = (bpId: string) => {
-    setBpStatusOverride(bpId, "Active Pack");
-    setActivationTarget(null);
-  };
-
   const handleCreateRequest = (request: ServiceRequest) => {
     addRequest(request);
     setActivationTarget(null);
@@ -1554,7 +1543,6 @@ export default function PaidBiblePage() {
       <ActivationCheckDialog
         bp={activationTarget}
         onClose={() => setActivationTarget(null)}
-        onActivate={handleActivateDirect}
         onCreateRequest={handleCreateRequest}
         users={users}
       />
