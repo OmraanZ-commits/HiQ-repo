@@ -2,7 +2,7 @@ import { useState, Fragment, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
-import { useSrStore, addRequest, formatNow } from "@/lib/sr-store";
+import { useSrStore, addRequest, setBpStatusOverride, formatNow } from "@/lib/sr-store";
 import { getNetworkChangeTypeName } from "@/lib/constants";
 import type { ServiceRequest, MaterialCriteria, ApproverStep } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
