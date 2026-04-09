@@ -15,11 +15,10 @@ import { cn } from "@/lib/utils";
 import type { PortalUser } from "@/lib/users-data";
 import type { ChannelDef } from "@/lib/distribution-data";
 import {
-  AMENDMENT_TYPE_META, addAmendment,
-  type AmendmentType, type AmendmentRequest,
-} from "@/lib/amendment-store";
-import type { ApproverStep } from "@/lib/sr-store";
-import { formatNow } from "@/lib/sr-store";
+  SR_TYPE_META, addRequest,
+  type SrType, type ServiceRequest, type ApproverStep,
+  formatNow,
+} from "@/lib/sr-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,19 +31,19 @@ interface ClusterInfo { name: string; region: string; }
 
 const AMENDMENT_TYPES = [
   {
-    value: "geo-extension" as AmendmentType,
+    value: "geo-extension" as SrType,
     icon: MapIcon,
     label: "Geo Extension",
     desc: "Extend distribution to additional geographies or clusters",
   },
   {
-    value: "channel-extension" as AmendmentType,
+    value: "channel-extension" as SrType,
     icon: Radio,
     label: "Channel Extension",
     desc: "Extend distribution to additional trade channels (GT, MT, Ecom, KA…)",
   },
   {
-    value: "sourcing-amendment" as AmendmentType,
+    value: "sourcing-amendment" as SrType,
     icon: PackageSearch,
     label: "Sourcing Amendment",
     desc: "Change the sourcing mode or centralized geography / depot scope",
@@ -61,7 +60,7 @@ const CHANNEL_GROUPS: { label: string; match: (c: ChannelDef) => boolean }[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function genId(): string {
-  return `AR-${Math.floor(100000 + Math.random() * 900000)}`;
+  return `SR-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
 function buildApprovers(
@@ -401,7 +400,7 @@ function SummaryView({
   newMode, centralizedGeo, centralizedDepots,
   justification, setJustification,
 }: {
-  amendmentType: AmendmentType;
+  amendmentType: SrType;
   currentGeo: string[];
   currentChannels: string[];
   currentDepots: string[];
@@ -556,7 +555,7 @@ export interface RaiseAmendmentDialogProps {
   bg: string;
   assignedPerson?: string | null;
   users: PortalUser[];
-  onSuccess?: (req: AmendmentRequest) => void;
+  onSuccess?: (req: ServiceRequest) => void;
   currentGeo: string[];
   currentDepots: string[];
   currentChannels: string[];
@@ -575,7 +574,7 @@ export function RaiseAmendmentDialog({
   clusters, leafChannels, geographyDepotMap,
 }: RaiseAmendmentDialogProps) {
   const [step,          setStep]          = useState<Step>("type");
-  const [amendmentType, setAmendmentType] = useState<AmendmentType | "">("");
+  const [amendmentType, setAmendmentType] = useState<SrType | "">("");
 
   const [addedGeos,     setAddedGeos]     = useState<string[]>([]);
   const [addedChannels, setAddedChannels] = useState<string[]>([]);
@@ -631,10 +630,13 @@ export function RaiseAmendmentDialog({
         : `Centralized — Geos: ${centralizedGeo.join(", ")}; Depots: ${centralizedDepots.join(", ")}`;
     }
 
-    const req: AmendmentRequest = {
+    const req: ServiceRequest = {
       id: genId(),
-      amendmentType: amendmentType as AmendmentType,
-      cbuId, cbuCode, cbuDescription, basepackCode, brand, bg,
+      srType: amendmentType as SrType,
+      basepackId: "",
+      basepackCode,
+      basepackName: `${brand} · ${basepackCode}`,
+      cbuId, cbuCode, cbuDescription, brand, bg,
       raisedBy: "Current User",
       raisedAt: formatNow(),
       currentValue,
@@ -643,14 +645,14 @@ export function RaiseAmendmentDialog({
       approvers: buildApprovers(users, assignedPerson),
       overallStatus: "pending",
     };
-    addAmendment(req);
+    addRequest(req);
     setSubmitting(false);
     onSuccess?.(req);
     handleClose();
   };
 
   const stepLabel = step === "type" ? "Select Type"
-    : step === "edit" ? (AMENDMENT_TYPE_META[amendmentType as AmendmentType]?.label ?? "Edit")
+    : step === "edit" ? (SR_TYPE_META[amendmentType as SrType]?.label ?? "Edit")
     : "Review & Confirm";
 
   return (
@@ -781,7 +783,7 @@ export function RaiseAmendmentDialog({
           {/* ── Step 3: Summary ── */}
           {step === "summary" && amendmentType && (
             <SummaryView
-              amendmentType={amendmentType as AmendmentType}
+              amendmentType={amendmentType as SrType}
               currentGeo={currentGeo}
               currentChannels={currentChannels}
               currentDepots={currentDepots}

@@ -1,21 +1,22 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import {
-  ArrowLeft, ListChecks, CheckCircle2, XCircle, LayoutDashboard, GitBranch,
+  ArrowLeft, ListChecks, CheckCircle2, XCircle, LayoutDashboard, GitBranch, FileEdit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableHeader, TableRow, TableHead, TableBody, TableCell,
 } from "@/components/ui/table";
 import { UnileverHeader } from "@/components/unilever-header";
 import { SrStatusBadge, ApproverChain } from "@/components/sr-detail-components";
-import { useSrStore, approveStep, rejectStep } from "@/lib/sr-store";
+import { useSrStore, approveStep, rejectStep, SR_TYPE_META, CBU_SR_TYPES } from "@/lib/sr-store";
 
 function FieldCell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 py-3 min-w-0">
-      <span className="w-36 flex-shrink-0 text-sm text-muted-foreground">{label}</span>
+    <div className="flex items-start gap-3 py-3 min-w-0 border-b last:border-b-0">
+      <span className="w-40 flex-shrink-0 text-sm text-muted-foreground pt-0.5">{label}</span>
       <span className="flex-1 text-sm font-medium text-foreground">{children}</span>
     </div>
   );
@@ -32,23 +33,27 @@ export default function ServiceRequestDetailPage() {
     return (
       <div className="min-h-screen bg-background">
         <UnileverHeader module="paid-bible" activeTab="service-requests"
-        onTabChange={tab => navigate(`/paid-bible?tab=${tab}`)} />
+          onTabChange={tab => navigate(`/paid-bible?tab=${tab}`)} />
         <div className="flex items-center justify-center py-40 flex-col gap-4">
           <ListChecks className="h-12 w-12 text-muted-foreground/30" />
           <p className="text-muted-foreground">Service request not found.</p>
-          <Button variant="outline" onClick={() => navigate("/paid-bible")}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Paid Bible
+          <Button variant="outline" onClick={() => navigate("/paid-bible?tab=service-requests")}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Service Requests
           </Button>
         </div>
       </div>
     );
   }
 
-  const mstnPassed        = request.mstnCoverage >= 80;
-  const doneSteps         = request.approvers.filter(a => a.status === "approved").length;
-  const pct               = request.approvers.length > 0 ? (doneSteps / request.approvers.length) * 100 : 0;
-  const pendingApprovals  = request.approvers.filter(a => a.status === "pending").length;
-  const pendingWith       = request.approvers.find(a => a.status === "pending")?.label ?? "—";
+  const isCbu           = CBU_SR_TYPES.includes(request.srType);
+  const meta            = SR_TYPE_META[request.srType];
+  const doneSteps       = request.approvers.filter(a => a.status === "approved").length;
+  const pct             = request.approvers.length > 0 ? (doneSteps / request.approvers.length) * 100 : 0;
+  const pendingApprovals = request.approvers.filter(a => a.status === "pending").length;
+  const pendingWith     = request.approvers.find(a => a.status === "pending")?.label ?? "—";
+
+  const pageTitle  = isCbu ? (request.cbuDescription || request.cbuCode || "—") : request.basepackName;
+  const pageSubtitle = isCbu ? request.cbuCode : request.basepackCode;
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,12 +62,11 @@ export default function ServiceRequestDetailPage() {
 
       <main className="max-w-[1100px] mx-auto px-6 py-6">
 
-        {/* ── Slim page header ─────────────────────────────────────────────── */}
+        {/* ── Page header ───────────────────────────────────────────────────── */}
         <div className="flex items-start gap-4 mb-6">
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/paid-bible")}
+            variant="ghost" size="icon"
+            onClick={() => navigate("/paid-bible?tab=service-requests")}
             data-testid="button-back-to-requests"
             className="mt-0.5 flex-shrink-0"
           >
@@ -71,10 +75,13 @@ export default function ServiceRequestDetailPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="text-xs font-mono font-semibold text-slate-400">{request.id}</span>
+              <Badge variant="secondary" className={`text-xs h-5 border ${meta.colorClass}`}>
+                <FileEdit className="h-3 w-3 mr-1" /> {meta.label}
+              </Badge>
             </div>
             <h1 className="text-xl font-bold">
-              {request.basepackName}
-              <span className="ml-2 text-sm font-mono text-muted-foreground font-normal">{request.basepackCode}</span>
+              {pageTitle}
+              <span className="ml-2 text-sm font-mono text-muted-foreground font-normal">{pageSubtitle}</span>
             </h1>
           </div>
         </div>
@@ -101,7 +108,7 @@ export default function ServiceRequestDetailPage() {
           {/* ── Overview tab ─────────────────────────────────────────────── */}
           <TabsContent value="overview" className="space-y-6">
 
-            {/* Section header: label + approval progress */}
+            {/* Approval progress summary */}
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                 Request Summary
@@ -119,69 +126,142 @@ export default function ServiceRequestDetailPage() {
               </span>
             </div>
 
-            {/* Request Summary — two side-by-side cards */}
-            <div className="grid grid-cols-2 gap-5">
-              {/* Left card */}
-              <div className="rounded-xl border bg-white shadow-sm px-5 py-4 space-y-0 divide-y divide-border/60">
-                <FieldCell label="Base Pack Name">{request.basepackName}</FieldCell>
-                <FieldCell label="Basepack Code">
-                  <span className="font-mono">{request.basepackCode}</span>
-                </FieldCell>
-                <FieldCell label="Brand">{request.brand}</FieldCell>
-                <FieldCell label="Business Group">{request.bg}</FieldCell>
-                <FieldCell label="Request Type">{request.requestType}</FieldCell>
-              </div>
+            {/* ── CBU SR: info card + change table + justification ── */}
+            {isCbu && (
+              <>
+                {/* Request info */}
+                <div className="rounded-xl border bg-card">
+                  <FieldCell label="Request ID">{request.id}</FieldCell>
+                  <FieldCell label="Request Type">
+                    <Badge variant="secondary" className={`border ${meta.colorClass}`}>{meta.label}</Badge>
+                  </FieldCell>
+                  <FieldCell label="CBU Code">
+                    <span className="font-mono">{request.cbuCode}</span>
+                  </FieldCell>
+                  <FieldCell label="CBU Description">{request.cbuDescription || "—"}</FieldCell>
+                  <FieldCell label="Basepack">
+                    <span className="font-mono">{request.basepackCode}</span>
+                  </FieldCell>
+                  <FieldCell label="Brand">{request.brand || "—"}</FieldCell>
+                  <FieldCell label="BG / Category">{request.bg || "—"}</FieldCell>
+                  <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
+                  <FieldCell label="Raised At">{request.raisedAt}</FieldCell>
+                  <FieldCell label="Pending With">{pendingWith}</FieldCell>
+                </div>
 
-              {/* Right card */}
-              <div className="rounded-xl border bg-white shadow-sm px-5 py-4 space-y-0 divide-y divide-border/60">
-                <FieldCell label="Request Description">Activate basepack</FieldCell>
-                <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
-                <FieldCell label="Created On">{request.raisedAt}</FieldCell>
-                <FieldCell label="Pending With">{pendingWith}</FieldCell>
-                <FieldCell label="Exception">
-                  {request.criteriaMetAtRaise
-                    ? <span className="text-muted-foreground font-normal">None</span>
-                    : <span className="text-amber-700 font-medium">MSTN criteria not met</span>}
-                </FieldCell>
-              </div>
-            </div>
+                {/* Current → Requested change table */}
+                <div>
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+                    Change Details
+                  </h2>
+                  <div className="rounded-xl border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40">
+                          <TableHead className="w-1/2 py-3 text-xs">Current</TableHead>
+                          <TableHead className="w-1/2 py-3 text-xs">Requested</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="text-sm align-top whitespace-pre-wrap text-muted-foreground">
+                            {request.currentValue || "—"}
+                          </TableCell>
+                          <TableCell className="text-sm align-top whitespace-pre-wrap font-medium">
+                            {request.requestedValue || "—"}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
 
-            {/* Material Criteria table */}
-            <div>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                MSTN Status at Time of Request Creation
-              </h2>
-              <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40">
-                      <TableHead className="py-3 text-xs">CBU Code</TableHead>
-                      <TableHead className="py-3 text-xs">Description</TableHead>
-                      <TableHead className="py-3 text-xs text-center">MSTN Cleared</TableHead>
-                      <TableHead className="py-3 text-xs text-center">Last Updated</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {request.materials.map(m => (
-                      <TableRow key={m.code}>
-                        <TableCell className="py-3.5 font-mono font-medium text-blue-600 whitespace-nowrap">{m.code}</TableCell>
-                        <TableCell className="py-3.5 text-sm text-muted-foreground">{m.description}</TableCell>
-                        <TableCell className="py-3.5 text-center">
-                          {m.mstnCleared
-                            ? <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-semibold"><CheckCircle2 className="h-4 w-4" />Yes</span>
-                            : <span className="inline-flex items-center gap-1.5 text-sm text-red-500 font-semibold"><XCircle className="h-4 w-4" />No</span>}
-                        </TableCell>
-                        <TableCell className="py-3.5 text-center text-sm text-muted-foreground">{m.lastUpdated}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+                {/* Justification */}
+                {request.justification && (
+                  <div>
+                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+                      Business Justification
+                    </h2>
+                    <div className="rounded-xl border bg-card px-5 py-4">
+                      <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                        {request.justification}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
+            {/* ── Basepack SR: two-card summary + MSTN table ── */}
+            {!isCbu && (
+              <>
+                <div className="grid grid-cols-2 gap-5">
+                  {/* Left card */}
+                  <div className="rounded-xl border bg-white shadow-sm px-5 py-4 divide-y divide-border/60">
+                    <FieldCell label="Base Pack Name">{request.basepackName}</FieldCell>
+                    <FieldCell label="Basepack Code">
+                      <span className="font-mono">{request.basepackCode}</span>
+                    </FieldCell>
+                    <FieldCell label="Brand">{request.brand}</FieldCell>
+                    <FieldCell label="Business Group">{request.bg}</FieldCell>
+                    <FieldCell label="Request Type">
+                      <Badge variant="secondary" className={`border ${meta.colorClass}`}>{meta.label}</Badge>
+                    </FieldCell>
+                  </div>
+
+                  {/* Right card */}
+                  <div className="rounded-xl border bg-white shadow-sm px-5 py-4 divide-y divide-border/60">
+                    <FieldCell label="Requested Status">{request.targetStatus ?? "—"}</FieldCell>
+                    <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
+                    <FieldCell label="Created On">{request.raisedAt}</FieldCell>
+                    <FieldCell label="Pending With">{pendingWith}</FieldCell>
+                    <FieldCell label="Exception">
+                      {request.criteriaMetAtRaise
+                        ? <span className="text-muted-foreground font-normal">None</span>
+                        : <span className="text-amber-700 font-medium">MSTN criteria not met</span>}
+                    </FieldCell>
+                  </div>
+                </div>
+
+                {/* MSTN table */}
+                {request.materials && request.materials.length > 0 && (
+                  <div>
+                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+                      MSTN Status at Time of Request Creation
+                    </h2>
+                    <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/40">
+                            <TableHead className="py-3 text-xs">CBU Code</TableHead>
+                            <TableHead className="py-3 text-xs">Description</TableHead>
+                            <TableHead className="py-3 text-xs text-center">MSTN Cleared</TableHead>
+                            <TableHead className="py-3 text-xs text-center">Last Updated</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {request.materials.map(m => (
+                            <TableRow key={m.code}>
+                              <TableCell className="py-3.5 font-mono font-medium text-blue-600 whitespace-nowrap">{m.code}</TableCell>
+                              <TableCell className="py-3.5 text-sm text-muted-foreground">{m.description}</TableCell>
+                              <TableCell className="py-3.5 text-center">
+                                {m.mstnCleared
+                                  ? <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-semibold"><CheckCircle2 className="h-4 w-4" />Yes</span>
+                                  : <span className="inline-flex items-center gap-1.5 text-sm text-red-500 font-semibold"><XCircle className="h-4 w-4" />No</span>}
+                              </TableCell>
+                              <TableCell className="py-3.5 text-center text-sm text-muted-foreground">{m.lastUpdated}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </TabsContent>
 
-          {/* ── Approval Chain tab ────────────────────────────────────────── */}
+          {/* ── Approval Chain tab ───────────────────────────────────────── */}
           <TabsContent value="approval">
             <div className="rounded-xl border bg-white shadow-sm p-6">
               <ApproverChain

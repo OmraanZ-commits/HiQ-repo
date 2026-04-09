@@ -20,12 +20,21 @@ Each microservice follows: **Router → Service → Storage**
 
 All status transitions go exclusively through the Saga Orchestrator (`/api/saga/transition/{id}`). There is no direct transition endpoint on the State Management router.
 
-### Verified Clean Layered Architecture (T001–T005)
+### Verified Clean Layered Architecture (T001–T006 complete)
 - **List Master router**: Zero direct storage calls — all CRUD delegated to `ListMasterService`
 - **State Management router**: Read-only only (`GET /flow`, `GET /:id`, `GET /:id/history`); no `POST` transition endpoint
 - **Lifecycle router**: Fully delegates to `LifecycleService.recompute_entry()` / `recompute_all()`
 - **Seed data**: Extracted from `main.py` into `server_py/seed_data.py`; `main.py` is ≤ 100 lines
 - **Date utilities**: `addDays`, `formatDateDisplay`, `computeYear` live in `client/src/lib/date-utils.ts`; controllers import from there
+- **replit.md** (T006): Updated to document unified SR model, removed Amendments tab docs, added SR type table
+
+### Unified SR Model (4 SR types)
+Amendments and Service Requests are unified under a single `ServiceRequest` model in `sr-store.ts`:
+- `srType: SrType` discriminates between the 4 types
+- `CBU_SR_TYPES` = `["geo-extension", "channel-extension", "sourcing-amendment"]`
+- `SR_TYPE_META` provides label, description, colorClass per type
+- All SRs use `SR-XXXXXX` (6-digit) ID format
+- Single "Service Requests" tab in Paid Bible header with type filter chips + status filter
 
 ## Tech Stack
 - Frontend: React + TypeScript, Vite, TanStack Query, wouter routing, shadcn/ui
@@ -115,9 +124,10 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - `client/src/components/people-picker.tsx` - Searchable people picker with avatars (accepts `bg` prop to filter to NPs in a BG)
 - `client/src/components/reassignment-dialog.tsx` - Bulk/individual reassignment dialog shown on NP role-change, BG-change, or deactivation
 - `client/src/lib/users-data.ts` - Portal user registry (PORTAL_USERS, BUSINESS_GROUPS, ROLES constants + networkPlannersForBg helper)
-- `client/src/lib/amendment-store.ts` - Module-level amendment SR store (addAmendment, approveAmendmentStep, rejectAmendmentStep, useAmendmentStore hook)
-- `client/src/components/raise-amendment-dialog.tsx` - Dialog for raising CBU-level amendment requests (type → current/requested values → justification → submit)
-- `client/src/pages/amendment-detail.tsx` - Amendment SR detail page with Overview + Approval Chain tabs
+- `client/src/lib/sr-store.ts` - Unified SR store for all 4 service request types (addRequest, approveStep, rejectStep, useSrStore; includes SR_TYPE_META + CBU_SR_TYPES constants)
+- `client/src/lib/amendment-store.ts` - Backward-compat shim; re-exports all SR store symbols under old amendment names
+- `client/src/components/raise-amendment-dialog.tsx` - Dialog for raising CBU-level SR requests (type → interactive editor → review & confirm); creates ServiceRequest with srType set to one of the 3 CBU SR types
+- `client/src/pages/amendment-detail.tsx` - Redirect shim: navigates `/paid-bible/amendments/:id` → `/paid-bible/requests/:id`
 - `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
 ### Python Backend — Microservices (Router → Service → Storage)
@@ -241,7 +251,7 @@ Draft-status entries show two separate action buttons:
 In the Dates & Timeline section the field formerly labeled "Network Planner" is labeled **"Update Assignee"**. It filters available planners to the entry's Business Group.
 
 ### Paid Bible (`/paid-bible`)
-Analytics and status management for basepacks and their CBUs, grouped by category. Five tabs:
+Analytics and status management for basepacks and their CBUs, grouped by category. Four tabs (Overview, Network Updates, Bible Matrix, Service Requests).
 
 #### Overview Tab
 - Basepack table with status badges; inline status editing (Draft → Active Pack) triggers the Activation Check flow
@@ -258,42 +268,44 @@ Analytics and status management for basepacks and their CBUs, grouped by categor
 - Always raises a Service Request regardless of whether criteria are met; criteria-met requests show emerald button, criteria-not-met show amber button
 - `localBpStatus` state lifted to `PaidBiblePage` so status changes persist across tab switches
 
-#### Amendments Tab
-- Lists all CBU-level amendment requests raised from the edit-entry page (paid bible view)
-- Amendment types: Geo Extension, Channel Extension, Sourcing Amendment
-- Each card shows: SR ID, amendment type badge (colour-coded per type), CBU code/description, status badge (pending/approved/rejected), current→requested change summary, raised-by/raised-at, 3-step approval progress bar
-- Type and status filters at top; empty state with usage hint
-- Click "View Details" → `/paid-bible/amendments/:id` (AmendmentDetailPage)
-- Approval chain: Paid Bible Owner (PBO Review) → Network Planner (Field Verification) → NCSM (Final Approval)
-- Workflow info card at bottom explaining that NCSM approval is required before Paid Bible Matrix is updated
+#### Unified Service Requests Tab
+All 4 SR types flow through a single Service Requests tab and a single detail page (`/paid-bible/requests/:id`):
 
-#### Raise Amendment Request Flow
+| SR Type | `srType` key | Approval Chain | Subject |
+|---|---|---|---|
+| Basepack Status Change | `basepack-status-change` | 5-step (Demand → Supply → Distribution → NP → NCSM) | Basepack name / code |
+| Geo Extension | `geo-extension` | 3-step (PBO → NP → NCSM) | CBU code / description |
+| Channel Extension | `channel-extension` | 3-step (PBO → NP → NCSM) | CBU code / description |
+| Sourcing Amendment | `sourcing-amendment` | 3-step (PBO → NP → NCSM) | CBU code / description |
+
+**Filters**: Status filter pills (Pending / Approved / Rejected) + Type filter chips (All Types / Status Change / Geo Extension / Channel Extension / Sourcing Amendment)
+
+**List row**: SR ID + colored type badge · Status badge · Subject (basepack name or CBU description) · Raised by · MSTN pill (basepack SRs only) · Approval progress bar
+
+**SR IDs**: all types use `SR-XXXXXX` (6-digit) format
+
+**Detail page** (`service-request-detail.tsx`) renders differently per `srType`:
+- `basepack-status-change`: two side-by-side info cards + MSTN materials table
+- CBU types: single info card (CBU code, description, basepack, brand, BG, raised-by) + Current→Requested change table + Business Justification section
+
+**Store**: `client/src/lib/sr-store.ts` — unified module-level store with `SrType`, `SR_TYPE_META`, `CBU_SR_TYPES`, `ServiceRequest` interface, `addRequest`, `approveStep`, `rejectStep`, `useSrStore`
+- `approveStep`: on final approval of `basepack-status-change` → updates `_bpStatusOverrides[basepackId]`; CBU types: no override update
+- `rejectStep`: for `basepack-status-change` → reverts bpStatus to "Draft"; CBU types: no override
+
+#### Raise Amendment Request Flow (CBU SR types)
 - Triggered from the "Raise Amendment Request" button on the edit-entry page (paid bible view-only mode)
 - Dialog (`RaiseAmendmentDialog`): 3-step interactive flow
-  1. **Select Type** — three card options (Geo Extension, Channel Extension, Sourcing Amendment); Continue button enables only after a type is selected
+  1. **Select Type** — three card options (Geo Extension, Channel Extension, Sourcing Amendment)
   2. **Interactive Editor** — adapts per type:
-     - *Geo Extension*: all 18 clusters shown as chips grouped by region (North/South/East/West); blue = existing (read-only), click white chip → turns green (new), click green → deselects; emerald summary bar shows count of new geos
-     - *Channel Extension*: leaf channels as chips in two groups (Core & Traditional / Modern Trade); same blue/green/white chip logic
-     - *Sourcing Amendment*: Decentralized | Centralized mode toggle; in Centralized mode, geography checkboxes + auto-populated depot checkboxes (filtered to depots already in current distribution)
-     - "Review Changes" disabled until at least one change is made
-  3. **Review & Confirm** — shows change diff (blue badges = existing/unchanged, green badges = new additions); business justification textarea; approval chain display (PBO → NP → NCSM)
-- On submit: creates `AmendmentRequest` in `useAmendmentStore`, navigates to `/paid-bible?tab=amendments`, shows toast
-- Approver chain is built at creation time by querying live users: first active PBO + NP matching assignedPerson (or any active NP) + first active NCSM
+     - *Geo Extension*: all 18 clusters as chips grouped by region; blue = existing (read-only), white → green (new addition)
+     - *Channel Extension*: leaf channels as chips in two groups; same chip logic
+     - *Sourcing Amendment*: Decentralized | Centralized mode toggle; Centralized = manual geo+depot selection
+  3. **Review & Confirm** — change diff (blue = existing, green = new); justification textarea; PBO→NP→NCSM chain display
+- On submit: creates `ServiceRequest` (srType = CBU type) via `addRequest()`, navigates to `/paid-bible?tab=service-requests`
 - **Important**: The Lucide `Map` icon is imported as `MapIcon` to avoid shadowing the JavaScript built-in `Map` constructor, which would crash GeoEditor's `useMemo`
 
-#### Amendment Detail Page (`/paid-bible/amendments/:id`)
-- Overview tab: amendment summary, current→requested comparison table, justification, approval progress bar
-- Approval Chain tab: same `ApproverChain` component as SR detail; Approve/Reject buttons with reason codes
-- Back button → `/paid-bible?tab=amendments`; header tabs navigate to the correct paid-bible tab
-
-#### Service Requests Tab
-- Lists all basepack status-change approval tickets (type: `ServiceRequest`)
-- Each card shows: SR id, request type, status badge, basepack name/code, raised-by, raised-at, MSTN coverage pill, Criteria Met/Not Met pill, Target Status, approval progress, 5-step approver chain
-- **Approval chain**: 5 sequential steps — Demand Planner → Supply Planner → Distribution Planner → Network Planner → NCSM
-- Each step has status: `waiting | pending | approved | rejected`; on full approval `localBpStatus[bpId]` flips to `targetStatus`
-- Each step shows the assigned user name ("Assigned to: [name]"), fetched live from `/api/users`
-- Rejection requires selecting a reason code (6 predefined); downstream steps reset to `waiting` on reject
-- Rejection reasons: Insufficient MSTN coverage, TDP estimates not built, Production capacity, Logistics routing, Price activation pending, Other
+#### Legacy Amendment Route
+`/paid-bible/amendments/:id` → redirects to `/paid-bible/requests/:id` via the `AmendmentDetailPage` redirect shim
 
 ### View-Only Mode (Edit Entry from Paid Bible)
 When `?source=paid-bible` is present in the URL:

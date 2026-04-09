@@ -2,6 +2,47 @@ import { useState, useEffect } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type SrType =
+  | "basepack-status-change"
+  | "geo-extension"
+  | "channel-extension"
+  | "sourcing-amendment";
+
+export interface SrTypeMeta {
+  label: string;
+  description: string;
+  colorClass: string;
+}
+
+export const SR_TYPE_META: Record<SrType, SrTypeMeta> = {
+  "basepack-status-change": {
+    label: "Status Change",
+    description: "Basepack status change approval",
+    colorClass: "bg-blue-100 text-blue-700 border-blue-300",
+  },
+  "geo-extension": {
+    label: "Geo Extension",
+    description: "Extend distribution to additional geographies or clusters",
+    colorClass: "bg-emerald-100 text-emerald-700 border-emerald-300",
+  },
+  "channel-extension": {
+    label: "Channel Extension",
+    description: "Extend to additional trade channels (GT, MT, Ecom, KA…)",
+    colorClass: "bg-violet-100 text-violet-700 border-violet-300",
+  },
+  "sourcing-amendment": {
+    label: "Sourcing Amendment",
+    description: "Change sourcing mode or centralized depot scope",
+    colorClass: "bg-amber-100 text-amber-700 border-amber-300",
+  },
+};
+
+export const CBU_SR_TYPES: SrType[] = [
+  "geo-extension",
+  "channel-extension",
+  "sourcing-amendment",
+];
+
 export interface MaterialCriteria {
   code: string;
   description: string;
@@ -21,19 +62,31 @@ export interface ApproverStep {
 
 export interface ServiceRequest {
   id: string;
-  requestType: "Basepack Status Change";
-  targetStatus: string;
+  srType: SrType;
+
+  // ── Basepack context (basepack-status-change) ──────────────────────────────
   basepackId: string;
   basepackCode: string;
   basepackName: string;
+  targetStatus?: string;
+  mstnCoverage?: number;
+  tdpCoverage?: number;
+  criteriaMetAtRaise?: boolean;
+  materials?: MaterialCriteria[];
+
+  // ── CBU context (geo / channel / sourcing) ─────────────────────────────────
+  cbuId?: string;
+  cbuCode?: string;
+  cbuDescription?: string;
+  currentValue?: string;
+  requestedValue?: string;
+  justification?: string;
+
+  // ── Common ─────────────────────────────────────────────────────────────────
   brand: string;
   bg: string;
   raisedBy: string;
   raisedAt: string;
-  mstnCoverage: number;
-  tdpCoverage: number;
-  criteriaMetAtRaise: boolean;
-  materials: MaterialCriteria[];
   approvers: ApproverStep[];
   overallStatus: "pending" | "approved" | "rejected";
 }
@@ -80,7 +133,9 @@ export function getBpStatusOverrides(): Record<string, string> {
 
 export function addRequest(req: ServiceRequest): void {
   _requests = [req, ..._requests];
-  _bpStatusOverrides = { ..._bpStatusOverrides, [req.basepackId]: "Draft" };
+  if (req.srType === "basepack-status-change" && req.basepackId) {
+    _bpStatusOverrides = { ..._bpStatusOverrides, [req.basepackId]: "Draft" };
+  }
   notify();
 }
 
@@ -94,7 +149,7 @@ export function approveStep(requestId: string, stepIndex: number): void {
       return a;
     });
     const allApproved = approvers.every(a => a.status === "approved");
-    if (allApproved) {
+    if (allApproved && sr.srType === "basepack-status-change" && sr.basepackId && sr.targetStatus) {
       _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: sr.targetStatus };
     }
     return { ...sr, approvers, overallStatus: allApproved ? "approved" as const : "pending" as const };
@@ -111,7 +166,9 @@ export function rejectStep(requestId: string, stepIndex: number, reason: string)
       if (i > stepIndex) return { ...a, status: "waiting" as const };
       return a;
     });
-    _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: "Draft" };
+    if (sr.srType === "basepack-status-change" && sr.basepackId) {
+      _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: "Draft" };
+    }
     return { ...sr, approvers, overallStatus: "rejected" as const };
   });
   notify();

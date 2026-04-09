@@ -2,11 +2,9 @@ import { useState, Fragment, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
-import { useSrStore, addRequest, setBpStatusOverride, formatNow } from "@/lib/sr-store";
+import { useSrStore, addRequest, setBpStatusOverride, formatNow, SR_TYPE_META, CBU_SR_TYPES } from "@/lib/sr-store";
 import { getNetworkChangeTypeName } from "@/lib/constants";
-import type { ServiceRequest, MaterialCriteria, ApproverStep } from "@/lib/sr-store";
-import { useAmendmentStore, AMENDMENT_TYPE_META } from "@/lib/amendment-store";
-import type { AmendmentRequest } from "@/lib/amendment-store";
+import type { ServiceRequest, MaterialCriteria, ApproverStep, SrType } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
@@ -363,7 +361,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
     }));
     const sr: ServiceRequest = {
       id:                makeTicketId(),
-      requestType:       "Basepack Status Change",
+      srType:            "basepack-status-change",
       targetStatus:      "Active Pack",
       basepackId:        bp.id,
       basepackCode:      bp.basepackCode,
@@ -1249,206 +1247,7 @@ function BibleMatrixTab() {
   );
 }
 
-// ─── Part 4: Amendments ──────────────────────────────────────────────────────
-
-const AMENDMENT_TYPE_COLORS: Record<string, { bg: string; border: string; badge: string }> = {
-  "geo-extension":      { bg: "bg-blue-50",    border: "border-blue-200",    badge: "bg-blue-100 text-blue-700 border-blue-300" },
-  "channel-extension":  { bg: "bg-violet-50",  border: "border-violet-200",  badge: "bg-violet-100 text-violet-700 border-violet-300" },
-  "sourcing-amendment": { bg: "bg-amber-50",   border: "border-amber-200",   badge: "bg-amber-100 text-amber-700 border-amber-300" },
-};
-
-function AmendmentCard({ amendment, onView }: { amendment: AmendmentRequest; onView: (id: string) => void }) {
-  const colors   = AMENDMENT_TYPE_COLORS[amendment.amendmentType] ?? AMENDMENT_TYPE_COLORS["geo-extension"];
-  const meta     = AMENDMENT_TYPE_META[amendment.amendmentType];
-  const done     = amendment.approvers.filter(a => a.status === "approved").length;
-  const total    = amendment.approvers.length;
-  const pct      = total > 0 ? (done / total) * 100 : 0;
-  const pending  = amendment.approvers.find(a => a.status === "pending");
-
-  const statusColors = {
-    pending:  "bg-amber-50 text-amber-700 border-amber-300",
-    approved: "bg-emerald-50 text-emerald-700 border-emerald-300",
-    rejected: "bg-red-50 text-red-700 border-red-300",
-  };
-
-  return (
-    <Card data-testid={`amendment-card-${amendment.id}`} className={`border ${colors.border} ${colors.bg}`}>
-      <CardContent className="p-5">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="text-xs font-mono font-semibold text-muted-foreground">{amendment.id}</span>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${colors.badge}`}>
-                {meta.label}
-              </span>
-            </div>
-            <p className="text-sm font-bold truncate">{amendment.cbuDescription || amendment.cbuCode}</p>
-            <p className="text-xs text-muted-foreground font-mono mt-0.5">{amendment.cbuCode}</p>
-          </div>
-          <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border capitalize ${statusColors[amendment.overallStatus]}`}>
-            {amendment.overallStatus === "pending"  && <Clock className="h-3 w-3" />}
-            {amendment.overallStatus === "approved" && <CheckCircle2 className="h-3 w-3" />}
-            {amendment.overallStatus === "rejected" && <XCircle className="h-3 w-3" />}
-            {amendment.overallStatus}
-          </span>
-        </div>
-
-        {/* Change summary */}
-        <div className="rounded-lg bg-white/70 border border-white px-3 py-2 mb-3 space-y-1">
-          <div className="flex items-start gap-2 text-xs">
-            <span className="w-16 flex-shrink-0 text-muted-foreground pt-0.5">Current</span>
-            <span className="flex-1 text-foreground line-clamp-2">{amendment.currentValue}</span>
-          </div>
-          <div className="flex items-start gap-2 text-xs">
-            <span className="w-16 flex-shrink-0 text-muted-foreground pt-0.5">Requested</span>
-            <span className="flex-1 font-medium text-foreground line-clamp-2">{amendment.requestedValue}</span>
-          </div>
-        </div>
-
-        {/* Meta */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs text-muted-foreground">
-          <span><span className="font-medium text-foreground">Raised by: </span>{amendment.raisedBy}</span>
-          <span><span className="font-medium text-foreground">At: </span>{amendment.raisedAt}</span>
-          {pending && (
-            <span><span className="font-medium text-foreground">Pending: </span>{pending.label}</span>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex-1 bg-white/80 border rounded-full h-1.5 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-emerald-500 transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-muted-foreground flex-shrink-0">{done}/{total}</span>
-        </div>
-
-        {/* Action */}
-        <Button
-          size="sm" variant="outline"
-          className="h-7 text-xs gap-1 bg-white"
-          onClick={() => onView(amendment.id)}
-          data-testid={`button-view-amendment-${amendment.id}`}
-        >
-          View Details <ChevronRight className="h-3 w-3" />
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AmendmentsTab({ amendments }: { amendments: AmendmentRequest[] }) {
-  const [, navigate] = useLocation();
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  const filtered = amendments.filter(a => {
-    if (typeFilter !== "all" && a.amendmentType !== typeFilter) return false;
-    if (statusFilter !== "all" && a.overallStatus !== statusFilter) return false;
-    return true;
-  });
-
-  const pendingCount = amendments.filter(a => a.overallStatus === "pending").length;
-
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Amendment Requests</h2>
-          <p className="text-xs text-muted-foreground">
-            CBU-level changes to existing packs — requires Paid Bible Owner → Network Planner → NCSM approval
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {pendingCount > 0 && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-300">
-              {pendingCount} pending
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Filters */}
-      {amendments.length > 0 && (
-        <div className="flex items-center gap-2">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-48 h-8 text-xs" data-testid="select-amendment-type-filter">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {Object.entries(AMENDMENT_TYPE_META).map(([value, meta]) => (
-                <SelectItem key={value} value={value}>{meta.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36 h-8 text-xs" data-testid="select-amendment-status-filter">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {/* Cards grid */}
-      {filtered.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4">
-          {filtered.map(a => (
-            <AmendmentCard
-              key={a.id}
-              amendment={a}
-              onView={id => navigate(`/paid-bible/amendments/${id}`)}
-            />
-          ))}
-        </div>
-      ) : amendments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-          <FileText className="h-12 w-12 text-muted-foreground/20" />
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">No amendment requests yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Open a CBU entry from the Paid Bible and click <span className="font-medium">"Raise Amendment Request"</span> to get started.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
-          <p className="text-sm text-muted-foreground">No amendments match the selected filters.</p>
-          <Button variant="ghost" size="sm" onClick={() => { setTypeFilter("all"); setStatusFilter("all"); }}>
-            Clear filters
-          </Button>
-        </div>
-      )}
-
-      {/* Workflow info card */}
-      <Card className="border-dashed bg-muted/30">
-        <CardContent className="p-4 flex items-start gap-3">
-          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium mb-0.5">Amendment Workflow</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              All CBU-level amendments (price, distribution, channel, dimensions, case config, timeline) are raised from the CBU entry view page.
-              Each request goes through a 3-step approval chain: Paid Bible Owner → Network Planner → NCSM.
-              The Paid Bible Matrix is updated only after NCSM final approval.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ─── Part 5: Service Requests ─────────────────────────────────────────────────
+// ─── Part 4: Service Requests ─────────────────────────────────────────────────
 
 interface ServiceRequestsTabProps {
   requests: ServiceRequest[];
@@ -1458,10 +1257,13 @@ function ServiceRequestRow({ request, onView }: {
   request: ServiceRequest;
   onView: (r: ServiceRequest) => void;
 }) {
-  const mstnPassed = request.mstnCoverage >= 100;
-  const doneSteps  = request.approvers.filter(a => a.status === "approved").length;
-  const total      = request.approvers.length;
-  const pct        = total > 0 ? (doneSteps / total) * 100 : 0;
+  const isCbu     = CBU_SR_TYPES.includes(request.srType);
+  const meta      = SR_TYPE_META[request.srType];
+  const doneSteps = request.approvers.filter(a => a.status === "approved").length;
+  const total     = request.approvers.length;
+  const pct       = total > 0 ? (doneSteps / total) * 100 : 0;
+
+  const subject = isCbu ? (request.cbuDescription || request.cbuCode || "—") : request.basepackName;
 
   return (
     <div
@@ -1473,10 +1275,12 @@ function ServiceRequestRow({ request, onView }: {
         <ListChecks className="h-3.5 w-3.5 text-[#1f36c7]" />
       </div>
 
-      {/* SR ID + type */}
-      <div className="w-28 flex-shrink-0">
+      {/* SR ID + type badge */}
+      <div className="w-36 flex-shrink-0">
         <p className="text-xs font-mono font-semibold text-slate-500 leading-tight">{request.id}</p>
-        <p className="text-[10px] text-muted-foreground truncate">Status Change</p>
+        <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded border leading-tight mt-0.5 ${meta.colorClass}`}>
+          {meta.label}
+        </span>
       </div>
 
       {/* Status badge */}
@@ -1484,10 +1288,14 @@ function ServiceRequestRow({ request, onView }: {
         <SrStatusBadge status={request.overallStatus} />
       </div>
 
-      {/* Basepack */}
+      {/* Subject (basepack or CBU) */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate leading-tight">{request.basepackName}</p>
-        <p className="text-xs text-muted-foreground truncate">{request.brand} · {request.bg} · <span className="font-mono">{request.basepackCode}</span></p>
+        <p className="text-sm font-medium truncate leading-tight">{subject}</p>
+        <p className="text-xs text-muted-foreground truncate">
+          {isCbu
+            ? <><span className="font-mono">{request.cbuCode}</span> · {request.brand} · {request.bg}</>
+            : <>{request.brand} · {request.bg} · <span className="font-mono">{request.basepackCode}</span></>}
+        </p>
       </div>
 
       {/* Raised by + date */}
@@ -1496,15 +1304,23 @@ function ServiceRequestRow({ request, onView }: {
         <p className="text-[10px] text-muted-foreground">{request.raisedAt}</p>
       </div>
 
-      {/* MSTN pill */}
-      <div className="flex-shrink-0 hidden lg:flex">
-        <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${mstnPassed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"}`}>
-          {mstnPassed ? <CheckCircle2 className="h-2.5 w-2.5" /> : <XCircle className="h-2.5 w-2.5" />}
-          MSTN {request.mstnCoverage}%
-        </span>
+      {/* MSTN pill — only for basepack-status-change */}
+      <div className="flex-shrink-0 hidden lg:flex w-20">
+        {!isCbu && request.mstnCoverage !== undefined && (
+          <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${
+            request.mstnCoverage >= 100
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+              : "bg-red-50 text-red-600 border-red-200"
+          }`}>
+            {request.mstnCoverage >= 100
+              ? <CheckCircle2 className="h-2.5 w-2.5" />
+              : <XCircle className="h-2.5 w-2.5" />}
+            MSTN {request.mstnCoverage}%
+          </span>
+        )}
       </div>
 
-      {/* Progress */}
+      {/* Approval progress bar */}
       <div className="w-32 flex-shrink-0 hidden md:block">
         <div className="flex items-center gap-2">
           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1535,21 +1351,27 @@ function ServiceRequestRow({ request, onView }: {
 
 function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [typeFilter,   setTypeFilter]   = useState<"all" | SrType>("all");
   const [, navigate] = useLocation();
 
   const pending  = requests.filter(r => r.overallStatus === "pending").length;
   const approved = requests.filter(r => r.overallStatus === "approved").length;
   const rejected = requests.filter(r => r.overallStatus === "rejected").length;
 
-  const filtered = statusFilter === "all" ? requests : requests.filter(r => r.overallStatus === statusFilter);
+  const filtered = requests.filter(r =>
+    (statusFilter === "all" || r.overallStatus === statusFilter) &&
+    (typeFilter   === "all" || r.srType       === typeFilter)
+  );
+
+  const hasFilters = statusFilter !== "all" || typeFilter !== "all";
 
   return (
     <div className="space-y-4">
-      {/* Header + stat pills in one row */}
+      {/* Header + stat pills */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Service Requests</h2>
-          <p className="text-xs text-muted-foreground">Basepack status change requests and approval workflows</p>
+          <p className="text-xs text-muted-foreground">All request types — status changes, geo/channel extensions, sourcing amendments</p>
         </div>
         <div className="flex items-center gap-2">
           {[
@@ -1566,12 +1388,34 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
               <span className="font-bold text-sm">{count}</span> {label}
             </button>
           ))}
-          {statusFilter !== "all" && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs px-2 gap-1" onClick={() => setStatusFilter("all")}>
+          {hasFilters && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs px-2 gap-1"
+              onClick={() => { setStatusFilter("all"); setTypeFilter("all"); }}>
               <X className="h-3 w-3" /> Clear
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Type filter chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {[
+          { value: "all" as const, label: "All Types" },
+          ...Object.entries(SR_TYPE_META).map(([value, m]) => ({ value: value as SrType, label: m.label })),
+        ].map(({ value, label }) => (
+          <button
+            key={value}
+            data-testid={`type-filter-${value}`}
+            onClick={() => setTypeFilter(value)}
+            className={`text-xs px-3 py-1 rounded-full border transition-all font-medium ${
+              typeFilter === value
+                ? "bg-[#1f36c7] text-white border-[#1f36c7]"
+                : "bg-white text-muted-foreground border-border hover:border-[#1f36c7]/50"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* List */}
@@ -1624,7 +1468,6 @@ export default function PaidBiblePage() {
   const moc = getCurrentMoc();
 
   const { requests: serviceRequests, bpStatusOverrides } = useSrStore();
-  const { amendments } = useAmendmentStore();
   const [activationTarget, setActivationTarget] = useState<PbBasepack | null>(null);
 
   const { data: users = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
@@ -1687,7 +1530,6 @@ export default function PaidBiblePage() {
           )}
           {activeTab === "network-updates"  && <NetworkUpdatesTab />}
           {activeTab === "bible-matrix"     && <BibleMatrixTab />}
-          {activeTab === "amendments"       && <AmendmentsTab amendments={amendments} />}
           {activeTab === "service-requests" && (
             <ServiceRequestsTab requests={serviceRequests} />
           )}

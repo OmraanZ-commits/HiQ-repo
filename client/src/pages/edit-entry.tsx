@@ -116,7 +116,7 @@ export default function EditEntry() {
       title: "Amendment request raised",
       description: `Your amendment request for ${entry?.cbuCode || "this CBU"} has been submitted for approval.`,
     });
-    navigate("/paid-bible?tab=amendments");
+    navigate("/paid-bible?tab=service-requests");
   };
 
   // Sourcing Matrix local state
