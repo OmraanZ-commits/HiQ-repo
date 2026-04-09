@@ -1471,6 +1471,12 @@ export default function EditEntry() {
             assignedPerson={entry.assignedPerson}
             users={portalUsers}
             onSuccess={handleAmendmentSuccess}
+            currentGeo={selectedGeo}
+            currentDepots={selectedDepots}
+            currentChannels={selectedChannels}
+            clusters={CLUSTERS}
+            leafChannels={LEAF_CHANNELS}
+            geographyDepotMap={GEOGRAPHY_DEPOT_MAP}
           />
         )}
       </main>
