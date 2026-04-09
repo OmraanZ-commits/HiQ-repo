@@ -17,7 +17,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import type { PortalUser } from "@/lib/users-data";
+import { RaiseAmendmentDialog } from "@/components/raise-amendment-dialog";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -103,11 +106,17 @@ export default function EditEntry() {
   const isPaidBibleView = _pbParams.get("source") === "paid-bible";
   const cbuStatusFromPaidBible = isPaidBibleView ? (_pbParams.get("cbuStatus") || "") : "";
 
-  const handleRaiseAmendment = () => {
+  const [showAmendmentDialog, setShowAmendmentDialog] = useState(false);
+  const { data: portalUsers = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
+
+  const handleRaiseAmendment = () => setShowAmendmentDialog(true);
+
+  const handleAmendmentSuccess = () => {
     toast({
       title: "Amendment request raised",
-      description: `A request to amend ${entry.cbuCode || "this entry"} has been sent to the Network Planner.`,
+      description: `Your amendment request for ${entry?.cbuCode || "this CBU"} has been submitted for approval.`,
     });
+    navigate("/paid-bible?tab=amendments");
   };
 
   // Sourcing Matrix local state
@@ -1447,6 +1456,23 @@ export default function EditEntry() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Amendment Request Dialog */}
+        {entry && (
+          <RaiseAmendmentDialog
+            open={showAmendmentDialog}
+            onOpenChange={setShowAmendmentDialog}
+            cbuId={entry.id}
+            cbuCode={entry.cbuCode ?? ""}
+            cbuDescription={entry.materialDescription ?? ""}
+            basepackCode={entry.basepack ?? ""}
+            brand={entry.brand ?? ""}
+            bg={entry.salesCategory ?? ""}
+            assignedPerson={entry.assignedPerson}
+            users={portalUsers}
+            onSuccess={handleAmendmentSuccess}
+          />
+        )}
       </main>
     </div>
   );

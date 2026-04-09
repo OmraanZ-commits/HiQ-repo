@@ -11,6 +11,7 @@ import AdminCenterPage from "@/pages/admin-center";
 import MyQueuePage from "@/pages/my-queue";
 import PaidBiblePage from "@/pages/paid-bible";
 import ServiceRequestDetailPage from "@/pages/service-request-detail";
+import AmendmentDetailPage from "@/pages/amendment-detail";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/network" component={Dashboard} />
       <Route path="/paid-bible" component={PaidBiblePage} />
       <Route path="/paid-bible/requests/:id" component={ServiceRequestDetailPage} />
+      <Route path="/paid-bible/amendments/:id" component={AmendmentDetailPage} />
       <Route path="/edit/:id" component={EditEntry} />
       <Route path="/my-queue" component={MyQueuePage} />
       <Route path="/admin" component={AdminCenterPage} />

@@ -115,6 +115,9 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - `client/src/components/people-picker.tsx` - Searchable people picker with avatars (accepts `bg` prop to filter to NPs in a BG)
 - `client/src/components/reassignment-dialog.tsx` - Bulk/individual reassignment dialog shown on NP role-change, BG-change, or deactivation
 - `client/src/lib/users-data.ts` - Portal user registry (PORTAL_USERS, BUSINESS_GROUPS, ROLES constants + networkPlannersForBg helper)
+- `client/src/lib/amendment-store.ts` - Module-level amendment SR store (addAmendment, approveAmendmentStep, rejectAmendmentStep, useAmendmentStore hook)
+- `client/src/components/raise-amendment-dialog.tsx` - Dialog for raising CBU-level amendment requests (type → current/requested values → justification → submit)
+- `client/src/pages/amendment-detail.tsx` - Amendment SR detail page with Overview + Approval Chain tabs
 - `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
 
 ### Python Backend — Microservices (Router → Service → Storage)
@@ -254,6 +257,26 @@ Analytics and status management for basepacks and their CBUs, grouped by categor
 - Shows per-material table: Code, Description, MSTN Cleared (icon), Last Updated
 - Always raises a Service Request regardless of whether criteria are met; criteria-met requests show emerald button, criteria-not-met show amber button
 - `localBpStatus` state lifted to `PaidBiblePage` so status changes persist across tab switches
+
+#### Amendments Tab
+- Lists all CBU-level amendment requests raised from the edit-entry page (paid bible view)
+- Amendment types: Price Change, Distribution Change, Channel Change, Pack Dimension Change, Case Configuration Change, Timeline / Date Change, Other
+- Each card shows: SR ID, amendment type badge (colour-coded per type), CBU code/description, status badge (pending/approved/rejected), current→requested change summary, raised-by/raised-at, 3-step approval progress bar
+- Type and status filters at top; empty state with usage hint
+- Click "View Details" → `/paid-bible/amendments/:id` (AmendmentDetailPage)
+- Approval chain: Paid Bible Owner (PBO Review) → Network Planner (Field Verification) → NCSM (Final Approval)
+- Workflow info card at bottom explaining that NCSM approval is required before Paid Bible Matrix is updated
+
+#### Raise Amendment Request Flow
+- Triggered from the "Raise Amendment Request" button on the edit-entry page (paid bible view-only mode)
+- Dialog (`RaiseAmendmentDialog`): select amendment type → fill in current value + requested value (labels adapt per type) → business justification → submit
+- On submit: creates `AmendmentRequest` in `useAmendmentStore`, navigates to `/paid-bible?tab=amendments`, shows toast
+- Approver chain is built at creation time by querying live users: first active PBO + NP matching assignedPerson (or any active NP) + first active NCSM
+
+#### Amendment Detail Page (`/paid-bible/amendments/:id`)
+- Overview tab: amendment summary, current→requested comparison table, justification, approval progress bar
+- Approval Chain tab: same `ApproverChain` component as SR detail; Approve/Reject buttons with reason codes
+- Back button → `/paid-bible?tab=amendments`; header tabs navigate to the correct paid-bible tab
 
 #### Service Requests Tab
 - Lists all basepack status-change approval tickets (type: `ServiceRequest`)
