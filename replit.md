@@ -269,9 +269,17 @@ Analytics and status management for basepacks and their CBUs, grouped by categor
 
 #### Raise Amendment Request Flow
 - Triggered from the "Raise Amendment Request" button on the edit-entry page (paid bible view-only mode)
-- Dialog (`RaiseAmendmentDialog`): select amendment type → fill in current value + requested value (labels adapt per type) → business justification → submit
+- Dialog (`RaiseAmendmentDialog`): 3-step interactive flow
+  1. **Select Type** — three card options (Geo Extension, Channel Extension, Sourcing Amendment); Continue button enables only after a type is selected
+  2. **Interactive Editor** — adapts per type:
+     - *Geo Extension*: all 18 clusters shown as chips grouped by region (North/South/East/West); blue = existing (read-only), click white chip → turns green (new), click green → deselects; emerald summary bar shows count of new geos
+     - *Channel Extension*: leaf channels as chips in two groups (Core & Traditional / Modern Trade); same blue/green/white chip logic
+     - *Sourcing Amendment*: Decentralized | Centralized mode toggle; in Centralized mode, geography checkboxes + auto-populated depot checkboxes (filtered to depots already in current distribution)
+     - "Review Changes" disabled until at least one change is made
+  3. **Review & Confirm** — shows change diff (blue badges = existing/unchanged, green badges = new additions); business justification textarea; approval chain display (PBO → NP → NCSM)
 - On submit: creates `AmendmentRequest` in `useAmendmentStore`, navigates to `/paid-bible?tab=amendments`, shows toast
 - Approver chain is built at creation time by querying live users: first active PBO + NP matching assignedPerson (or any active NP) + first active NCSM
+- **Important**: The Lucide `Map` icon is imported as `MapIcon` to avoid shadowing the JavaScript built-in `Map` constructor, which would crash GeoEditor's `useMemo`
 
 #### Amendment Detail Page (`/paid-bible/amendments/:id`)
 - Overview tab: amendment summary, current→requested comparison table, justification, approval progress bar

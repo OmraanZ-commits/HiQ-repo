@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Map, Radio, PackageSearch, AlertTriangle,
+  Map as MapIcon, Radio, PackageSearch, AlertTriangle,
   ChevronRight, ChevronLeft, CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ interface ClusterInfo { name: string; region: string; }
 const AMENDMENT_TYPES = [
   {
     value: "geo-extension" as AmendmentType,
-    icon: Map,
+    icon: MapIcon,
     label: "Geo Extension",
     desc: "Extend distribution to additional geographies or clusters",
   },
