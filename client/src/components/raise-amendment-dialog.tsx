@@ -67,14 +67,16 @@ function buildApprovers(
   users: PortalUser[],
   assignedPerson: string | null | undefined,
 ): ApproverStep[] {
-  const pbo  = users.find(u => u.role === "Paid Bible Owner"  && u.isActive);
-  const np   = users.find(u => u.name === assignedPerson      && u.isActive)
-            ?? users.find(u => u.role === "Network Planner"   && u.isActive);
-  const ncsm = users.find(u => u.role === "NCSM"              && u.isActive);
+  const byRole = (role: string) => users.find(u => u.role === role && u.isActive)?.name ?? "Unassigned";
+  const npName = users.find(u => u.name === assignedPerson && u.isActive)?.name
+              ?? users.find(u => u.role === "Network Planner" && u.isActive)?.name
+              ?? assignedPerson
+              ?? "Unassigned";
   return [
-    { role: "paid-bible-owner", label: "Paid Bible Owner", subLabel: "PBO Review",        assignedTo: pbo?.name  ?? "Unassigned", status: "pending" },
-    { role: "network-planner",  label: "Network Planner",  subLabel: "Field Verification", assignedTo: np?.name   ?? assignedPerson ?? "Unassigned", status: "waiting" },
-    { role: "ncsm",             label: "NCSM",             subLabel: "Final Approval",     assignedTo: ncsm?.name ?? "Unassigned", status: "waiting" },
+    { role: "network-planner",      label: "Network Planner",      subLabel: "Network Review",        assignedTo: npName,                      status: "pending"  },
+    { role: "supply-planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: byRole("Supply Planner"),    status: "waiting"  },
+    { role: "distribution-planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: byRole("Distribution Planner"), status: "waiting" },
+    { role: "ncsm",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: byRole("NCSM"),              status: "waiting"  },
   ];
 }
 

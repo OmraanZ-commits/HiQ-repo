@@ -55,10 +55,9 @@ const PB_OWNER_MAP: Record<string, string> = {
 };
 
 const APPROVER_CHAIN = [
-  { role: "Demand Planner",       label: "Demand Planner",       subLabel: "Forecast" },
+  { role: "Network Planner",      label: "Network Planner",      subLabel: "Network Review" },
   { role: "Supply Planner",       label: "Supply Planner",       subLabel: "Production Activities" },
   { role: "Distribution Planner", label: "Distribution Planner", subLabel: "Logistics Activities" },
-  { role: "Network Planner",      label: "Network Planner",      subLabel: "PCM & Pricing" },
   { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval" },
 ];
 
