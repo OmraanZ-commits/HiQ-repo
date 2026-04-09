@@ -126,27 +126,36 @@ export default function ServiceRequestDetailPage() {
               </span>
             </div>
 
-            {/* ── CBU SR: info card + change table + justification ── */}
+            {/* ── CBU SR: two-card summary + change table + justification ── */}
             {isCbu && (
               <>
-                {/* Request info */}
-                <div className="rounded-xl border bg-card">
-                  <FieldCell label="Request ID">{request.id}</FieldCell>
-                  <FieldCell label="Request Type">
-                    <Badge variant="secondary" className={`border ${meta.colorClass}`}>{meta.label}</Badge>
-                  </FieldCell>
-                  <FieldCell label="CBU Code">
-                    <span className="font-mono">{request.cbuCode}</span>
-                  </FieldCell>
-                  <FieldCell label="CBU Description">{request.cbuDescription || "—"}</FieldCell>
-                  <FieldCell label="Basepack">
-                    <span className="font-mono">{request.basepackCode}</span>
-                  </FieldCell>
-                  <FieldCell label="Brand">{request.brand || "—"}</FieldCell>
-                  <FieldCell label="BG / Category">{request.bg || "—"}</FieldCell>
-                  <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
-                  <FieldCell label="Raised At">{request.raisedAt}</FieldCell>
-                  <FieldCell label="Pending With">{pendingWith}</FieldCell>
+                {/* Two side-by-side cards — mirrors the basepack SR layout */}
+                <div className="grid grid-cols-2 gap-5">
+                  {/* Left card — CBU identity */}
+                  <div className="rounded-xl border bg-white shadow-sm px-5 py-4 divide-y divide-border/60">
+                    <FieldCell label="CBU Code">
+                      <span className="font-mono">{request.cbuCode || "—"}</span>
+                    </FieldCell>
+                    <FieldCell label="CBU Description">{request.cbuDescription || "—"}</FieldCell>
+                    <FieldCell label="Basepack Code">
+                      <span className="font-mono">{request.basepackCode || "—"}</span>
+                    </FieldCell>
+                    <FieldCell label="Brand">{request.brand || "—"}</FieldCell>
+                    <FieldCell label="Business Group">{request.bg || "—"}</FieldCell>
+                    <FieldCell label="Request Type">
+                      <Badge variant="secondary" className={`border ${meta.colorClass}`}>{meta.label}</Badge>
+                    </FieldCell>
+                  </div>
+
+                  {/* Right card — request meta */}
+                  <div className="rounded-xl border bg-white shadow-sm px-5 py-4 divide-y divide-border/60">
+                    <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
+                    <FieldCell label="Created On">{request.raisedAt}</FieldCell>
+                    <FieldCell label="Pending With">{pendingWith}</FieldCell>
+                    <FieldCell label="Overall Status">
+                      <SrStatusBadge status={request.overallStatus} />
+                    </FieldCell>
+                  </div>
                 </div>
 
                 {/* Current → Requested change table */}
@@ -154,7 +163,7 @@ export default function ServiceRequestDetailPage() {
                   <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
                     Change Details
                   </h2>
-                  <div className="rounded-xl border overflow-hidden">
+                  <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/40">
@@ -164,10 +173,10 @@ export default function ServiceRequestDetailPage() {
                       </TableHeader>
                       <TableBody>
                         <TableRow>
-                          <TableCell className="text-sm align-top whitespace-pre-wrap text-muted-foreground">
+                          <TableCell className="py-4 text-sm align-top whitespace-pre-wrap text-muted-foreground">
                             {request.currentValue || "—"}
                           </TableCell>
-                          <TableCell className="text-sm align-top whitespace-pre-wrap font-medium">
+                          <TableCell className="py-4 text-sm align-top whitespace-pre-wrap font-medium">
                             {request.requestedValue || "—"}
                           </TableCell>
                         </TableRow>
@@ -176,13 +185,13 @@ export default function ServiceRequestDetailPage() {
                   </div>
                 </div>
 
-                {/* Justification */}
+                {/* Business Justification */}
                 {request.justification && (
                   <div>
                     <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
                       Business Justification
                     </h2>
-                    <div className="rounded-xl border bg-card px-5 py-4">
+                    <div className="rounded-xl border bg-white shadow-sm px-5 py-4">
                       <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
                         {request.justification}
                       </p>
