@@ -1469,6 +1469,10 @@ export default function EditEntry() {
             brand={entry.brand ?? ""}
             bg={entry.salesCategory ?? ""}
             assignedPerson={entry.assignedPerson}
+            raisedBy={
+              portalUsers.find(u => u.role === "Paid Bible Owner" && u.businessGroup === (entry.salesCategory ?? "") && u.isActive)?.name
+              ?? portalUsers.find(u => u.role === "Paid Bible Owner" && u.isActive)?.name
+            }
             users={portalUsers}
             onSuccess={handleAmendmentSuccess}
             currentGeo={selectedGeo}

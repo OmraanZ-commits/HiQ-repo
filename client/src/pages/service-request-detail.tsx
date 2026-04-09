@@ -134,10 +134,10 @@ export default function ServiceRequestDetailPage() {
                 <div className="grid grid-cols-2 gap-5">
                   {/* Left card — CBU + basepack identity */}
                   <div className="rounded-xl border bg-white shadow-sm px-5 py-4 divide-y divide-border/60">
-                    <FieldCell label="CBU Description">{request.cbuDescription || "—"}</FieldCell>
                     <FieldCell label="CBU Code">
                       <span className="font-mono">{request.cbuCode || "—"}</span>
                     </FieldCell>
+                    <FieldCell label="CBU Description">{request.cbuDescription || "—"}</FieldCell>
                     <FieldCell label="Basepack Name">{request.basepackName || "—"}</FieldCell>
                     <FieldCell label="Basepack Code">
                       <span className="font-mono">{request.basepackCode || "—"}</span>
@@ -152,9 +152,9 @@ export default function ServiceRequestDetailPage() {
                     <FieldCell label="Created On">{request.raisedAt}</FieldCell>
                     <FieldCell label="Pending With">
                       <div>
-                        <div className="font-medium">{pendingApprover?.label ?? "—"}</div>
-                        {pendingApprover?.assignedTo && (
-                          <div className="text-xs text-muted-foreground mt-0.5">{pendingApprover.assignedTo}</div>
+                        <div className="font-medium">{pendingApprover?.assignedTo ?? pendingApprover?.label ?? "—"}</div>
+                        {pendingApprover?.label && (
+                          <div className="text-xs text-muted-foreground mt-0.5">{pendingApprover.label}</div>
                         )}
                       </div>
                     </FieldCell>

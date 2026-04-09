@@ -556,6 +556,7 @@ export interface RaiseAmendmentDialogProps {
   brand: string;
   bg: string;
   assignedPerson?: string | null;
+  raisedBy?: string;
   users: PortalUser[];
   onSuccess?: (req: ServiceRequest) => void;
   currentGeo: string[];
@@ -571,6 +572,7 @@ export interface RaiseAmendmentDialogProps {
 export function RaiseAmendmentDialog({
   open, onOpenChange,
   cbuId, cbuCode, cbuDescription, basepackCode, brand, bg, assignedPerson,
+  raisedBy: raisedByProp,
   users, onSuccess,
   currentGeo, currentDepots, currentChannels,
   clusters, leafChannels, geographyDepotMap,
@@ -639,7 +641,7 @@ export function RaiseAmendmentDialog({
       basepackCode,
       basepackName: `${brand} · ${basepackCode}`,
       cbuId, cbuCode, cbuDescription, brand, bg,
-      raisedBy: "Current User",
+      raisedBy: raisedByProp || users.find(u => u.role === "Paid Bible Owner" && u.isActive)?.name || "PB SPOC",
       raisedAt: formatNow(),
       currentValue,
       requestedValue,
