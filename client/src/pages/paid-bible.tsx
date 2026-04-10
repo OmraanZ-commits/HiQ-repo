@@ -1054,8 +1054,11 @@ function YesNoBadge({ val }: { val: string }) {
 }
 
 function NetworkUpdatesTab() {
+  const [subTab, setSubTab] = useState<"relaunch" | "new-launch">("relaunch");
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Network Updates</h2>
@@ -1067,17 +1070,39 @@ function NetworkUpdatesTab() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-            Relaunch Network
-            <Badge className="ml-1 text-xs bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">{RELAUNCH_NETWORKS.length} packs</Badge>
-            <span className="ml-auto text-xs font-normal text-muted-foreground">Updated in last 2 weeks · Descending order</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="rounded-md border overflow-x-auto">
+      {/* Sub-tabs */}
+      <div className="flex gap-1 border-b">
+        <button
+          data-testid="tab-relaunch"
+          onClick={() => setSubTab("relaunch")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            subTab === "relaunch"
+              ? "border-[#1f36c7] text-[#1f36c7]"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Relaunch
+          <Badge className="ml-2 text-xs bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">{RELAUNCH_NETWORKS.length}</Badge>
+        </button>
+        <button
+          data-testid="tab-new-launch"
+          onClick={() => setSubTab("new-launch")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            subTab === "new-launch"
+              ? "border-[#1f36c7] text-[#1f36c7]"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          New Launch
+          <Badge className="ml-2 text-xs bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">{NEW_LAUNCH_NETWORKS.length}</Badge>
+        </button>
+      </div>
+
+      {/* Relaunch table */}
+      {subTab === "relaunch" && (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Updated in last 2 weeks · Descending order</p>
+          <div className="rounded-md border overflow-x-auto bg-white">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -1110,20 +1135,14 @@ function NetworkUpdatesTab() {
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
-      <Card>
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
-            New Launch Network
-            <Badge className="ml-1 text-xs bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">{NEW_LAUNCH_NETWORKS.length} packs</Badge>
-            <span className="ml-auto text-xs font-normal text-muted-foreground">Innovation pipeline · Listing N-45 days</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="rounded-md border overflow-x-auto">
+      {/* New Launch table */}
+      {subTab === "new-launch" && (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Innovation pipeline · Listing N-45 days</p>
+          <div className="rounded-md border overflow-x-auto bg-white">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -1160,8 +1179,8 @@ function NetworkUpdatesTab() {
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }
