@@ -179,27 +179,48 @@ function makeTicketId(): string {
 
 // ─── Static Data (Network Updates / Bible Matrix / Amendments) ────────────────
 
-const RELAUNCH_NETWORKS = [
+const RELAUNCH_NETWORKS: Array<{
+  lastUpdate: string; bg: string; brand: string; basepack: string;
+  oldCbu: string; newCbu: string; description: string;
+  grammage: { changed: boolean; from?: string; to?: string };
+  mrp:      { changed: boolean; from?: string; to?: string };
+  caseConfig: { changed: boolean; from?: string; to?: string };
+  ean:      { changed: boolean; from?: string; to?: string };
+  artwork:  { changed: boolean };
+  geography: string; channels: string; production: string; invoicing: string;
+}> = [
   {
     lastUpdate: "14-Oct", bg: "HC / HHC", brand: "Wheel Bar", basepack: "14151",
     oldCbu: "WHGI15B", newCbu: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g",
-    grammage: "Yes", mrp: "No", caseConfig: "No", ean: "No", artwork: "No", promo: "No",
+    grammage:   { changed: true,  from: "130g",   to: "180g" },
+    mrp:        { changed: false },
+    caseConfig: { changed: false },
+    ean:        { changed: true,  from: "8901491100012", to: "8901491210421" },
+    artwork:    { changed: false },
     geography: "All India minus MPCG", channels: "All channels",
-    production: "05-Oct", invoicing: "15-Oct", remarks: "Dhule 30 Sep / Remaining sites from 12 Oct",
+    production: "05-Oct", invoicing: "15-Oct",
   },
   {
     lastUpdate: "10-Oct", bg: "BPC / PC", brand: "Dove", basepack: "18920",
     oldCbu: "DVCS100A", newCbu: "DVCS100B", description: "DOVE CREAM BAR 100g",
-    grammage: "No", mrp: "Yes", caseConfig: "No", ean: "Yes", artwork: "Yes", promo: "No",
+    grammage:   { changed: false },
+    mrp:        { changed: true,  from: "₹35",  to: "₹39"  },
+    caseConfig: { changed: false },
+    ean:        { changed: true,  from: "8901491197001", to: "8901491198001" },
+    artwork:    { changed: true },
     geography: "South + West", channels: "MT, GT",
-    production: "01-Oct", invoicing: "11-Oct", remarks: "Price change > 10%, new PL raised",
+    production: "01-Oct", invoicing: "11-Oct",
   },
   {
     lastUpdate: "08-Oct", bg: "F&R / Foods", brand: "Kissan", basepack: "22041",
     oldCbu: "KSMX5A", newCbu: "KSMX5B", description: "KISSAN MIXED FRUIT JAM 500g",
-    grammage: "No", mrp: "No", caseConfig: "Yes", ean: "Yes", artwork: "No", promo: "No",
+    grammage:   { changed: false },
+    mrp:        { changed: false },
+    caseConfig: { changed: true,  from: "12s",   to: "8s"   },
+    ean:        { changed: true,  from: "8901058018001", to: "8901058018021" },
+    artwork:    { changed: false },
     geography: "All India", channels: "GT, KA",
-    production: "28-Sep", invoicing: "10-Oct", remarks: "Case config from 12s to 8s",
+    production: "28-Sep", invoicing: "10-Oct",
   },
 ];
 
@@ -1053,6 +1074,24 @@ function YesNoBadge({ val }: { val: string }) {
   );
 }
 
+function RelaunchChangeCell({ field, mono }: {
+  field: { changed: boolean; from?: string; to?: string };
+  mono?: boolean;
+}) {
+  if (!field.changed) {
+    return <span className="text-xs text-muted-foreground/60">—</span>;
+  }
+  if (field.from && field.to) {
+    return (
+      <div className={`flex flex-col gap-0.5 ${mono ? "font-mono" : ""}`}>
+        <span className="text-xs text-muted-foreground line-through">{field.from}</span>
+        <span className="text-xs font-semibold text-emerald-600">{field.to}</span>
+      </div>
+    );
+  }
+  return <span className="text-xs font-medium text-amber-600">Changed</span>;
+}
+
 function NetworkUpdatesTab() {
   const [subTab, setSubTab] = useState<"relaunch" | "new-launch">("relaunch");
 
@@ -1106,7 +1145,7 @@ function NetworkUpdatesTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  {["Last Update","BG / Category","Brand","Basepack","Old CBU","New CBU","Grammage","MRP","Case Cfg","EAN","Artwork","Geography","Channels","Production","Invoicing","Remarks"].map(h => (
+                  {["Last Update","BG / Category","Brand","Basepack","Old CBU","New CBU","Grammage","MRP","Case Cfg","EAN","Artwork","Geography","Channels","Production","Invoicing"].map(h => (
                     <TableHead key={h} className="text-xs">{h}</TableHead>
                   ))}
                 </TableRow>
@@ -1120,16 +1159,15 @@ function NetworkUpdatesTab() {
                     <TableCell className="text-xs font-mono">{r.basepack}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{r.oldCbu}</TableCell>
                     <TableCell className="text-xs font-mono text-blue-600 font-medium">{r.newCbu}</TableCell>
-                    <TableCell><YesNoBadge val={r.grammage} /></TableCell>
-                    <TableCell><YesNoBadge val={r.mrp} /></TableCell>
-                    <TableCell><YesNoBadge val={r.caseConfig} /></TableCell>
-                    <TableCell><YesNoBadge val={r.ean} /></TableCell>
-                    <TableCell><YesNoBadge val={r.artwork} /></TableCell>
+                    <TableCell><RelaunchChangeCell field={r.grammage} /></TableCell>
+                    <TableCell><RelaunchChangeCell field={r.mrp} /></TableCell>
+                    <TableCell><RelaunchChangeCell field={r.caseConfig} /></TableCell>
+                    <TableCell><RelaunchChangeCell field={r.ean} mono /></TableCell>
+                    <TableCell><RelaunchChangeCell field={r.artwork} /></TableCell>
                     <TableCell className="text-xs max-w-32 truncate" title={r.geography}>{r.geography}</TableCell>
                     <TableCell className="text-xs">{r.channels}</TableCell>
                     <TableCell className="text-xs">{r.production}</TableCell>
                     <TableCell className="text-xs font-medium text-blue-600">{r.invoicing}</TableCell>
-                    <TableCell className="text-xs max-w-36 truncate text-muted-foreground" title={r.remarks}>{r.remarks}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1146,7 +1184,7 @@ function NetworkUpdatesTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  {["Last Update","BG / Category","Brand","Basepack","Material Code","Description","Grammage","MRP","Case Config","EAN","Artwork / FTR","Geography","Channels","Production","Landing Date","Remarks"].map(h => (
+                  {["Last Update","BG / Category","Brand","Basepack","Material Code","Description","Grammage","MRP","Case Config","EAN","Artwork / FTR","Geography","Channels","Production","Landing Date"].map(h => (
                     <TableHead key={h} className="text-xs">{h}</TableHead>
                   ))}
                 </TableRow>
@@ -1173,7 +1211,6 @@ function NetworkUpdatesTab() {
                     <TableCell className="text-xs">{r.channels}</TableCell>
                     <TableCell className="text-xs">{r.production}</TableCell>
                     <TableCell className="text-xs font-medium text-emerald-600">{r.landingDate}</TableCell>
-                    <TableCell className="text-xs max-w-36 truncate text-muted-foreground" title={r.remarks}>{r.remarks}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
