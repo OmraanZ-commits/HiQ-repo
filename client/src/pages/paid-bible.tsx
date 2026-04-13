@@ -580,7 +580,9 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
             description:   e.materialDescription || e.basepackDescription || "-",
             networkStatus: ns,
             matStatus,
-            priceActive:   MSTN_ACTIVE_STATUSES.has(ns),
+            priceActive:   e.priceActive !== null && e.priceActive !== undefined
+              ? e.priceActive
+              : MSTN_ACTIVE_STATUSES.has(ns),
             mrp:           "-",
             ean:           e.ean              || "-",
             grammage:      e.netWeight        ? `${e.netWeight}g` : "-",

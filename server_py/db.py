@@ -84,6 +84,7 @@ class NetworkEntryModel(Base):
     successor_doh = Column(Integer, nullable=True)
     doh_snapshot_date = Column(String, nullable=True)
     slob_risk = Column(Boolean, nullable=True, default=False)
+    price_active = Column(Boolean, nullable=True)
     launch_type = Column(String, nullable=True)  # "standard" | "relaunch" | "new-launch"
 
 
@@ -265,6 +266,9 @@ def run_migrations():
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS doh_snapshot_date VARCHAR"
         ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS price_active BOOLEAN"
+        ))
         conn.commit()
 
 
@@ -303,6 +307,7 @@ FIELD_MAP_TO_DB = {
     "successorDoh": "successor_doh",
     "dohSnapshotDate": "doh_snapshot_date",
     "slobRisk": "slob_risk",
+    "priceActive": "price_active",
     "launchType": "launch_type",
 }
 

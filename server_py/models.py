@@ -60,6 +60,7 @@ class NetworkEntryBase(BaseModel):
     successorDoh: Optional[int] = None
     dohSnapshotDate: Optional[str] = None
     slobRisk: Optional[bool] = None
+    priceActive: Optional[bool] = None
     launchType: Optional[str] = None  # "standard" | "relaunch" | "new-launch"
 
 
@@ -118,6 +119,7 @@ class UpdateNetworkEntry(BaseModel):
     successorDoh: Optional[int] = None
     dohSnapshotDate: Optional[str] = None
     slobRisk: Optional[bool] = None
+    priceActive: Optional[bool] = None
     launchType: Optional[str] = None
 
 
