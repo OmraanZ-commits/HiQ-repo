@@ -555,28 +555,34 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
         bpStatus:       deriveBpStatus(statuses),
         networkPlanner: planner,
         paidBibleOwner: PB_OWNER_MAP[planner] || "PB SPOC",
-        materials: entries.map(e => ({
-          id:            e.id,
-          code:          e.cbuCode          || "-",
-          description:   e.materialDescription || e.basepackDescription || "-",
-          networkStatus: e.networkStatus    || "Draft",
-          matStatus:     deriveMatStatus(e.networkStatus),
-          priceActive:   MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? ""),
-          mrp:           "-",
-          ean:           e.ean              || "-",
-          grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
-          copyCbu:       e.copyCbu          || "-",
-          predecessorDoh: e.predecessorDoh ?? null,
-          slobRisk:      e.slobRisk         ?? false,
-          typeOfNetwork: getNetworkChangeTypeName(e.typeOfNetwork),
-          priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
-          priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
-          mstnPct:       e.mstnPercentage != null
+        materials: entries.map(e => {
+          const mstnPct = e.mstnPercentage != null
             ? e.mstnPercentage
             : MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "")
             ? 100
-            : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10,
-        })),
+            : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10;
+          const nwMatStatus = deriveMatStatus(e.networkStatus);
+          const matStatus: "OK" | "Issue" | "CP Pack" =
+            nwMatStatus === "OK" && mstnPct < 80 ? "Issue" : nwMatStatus;
+          return {
+            id:            e.id,
+            code:          e.cbuCode          || "-",
+            description:   e.materialDescription || e.basepackDescription || "-",
+            networkStatus: e.networkStatus    || "Draft",
+            matStatus,
+            priceActive:   MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? ""),
+            mrp:           "-",
+            ean:           e.ean              || "-",
+            grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
+            copyCbu:       e.copyCbu          || "-",
+            predecessorDoh: e.predecessorDoh ?? null,
+            slobRisk:      e.slobRisk         ?? false,
+            typeOfNetwork: getNetworkChangeTypeName(e.typeOfNetwork),
+            priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
+            priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
+            mstnPct,
+          };
+        }),
       } as PbBasepack;
     });
   }, [networkEntries]);
