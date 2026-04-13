@@ -280,7 +280,7 @@ const BIBLE_MATRIX = [
 
 const TRIGGER_DEFS = [
   { id: "price-inactive", name: "Price Inactive", rule: "MSTN coverage > 80% but price inactive for respective channel", stakeholder: "Network Planner",       severity: "high"   },
-  { id: "slob-risk",      name: "SLOB Risk",      rule: "DOH in Copy CBU > 5 days compared to DOH of new CBU",          stakeholder: "Availability Planner", severity: "medium" },
+  { id: "slob-risk",      name: "SLOB Risk",      rule: "Predecessor CBU DOH exceeds Successor CBU DOH by more than 5 days", stakeholder: "Availability Planner", severity: "medium" },
 ] as const;
 
 

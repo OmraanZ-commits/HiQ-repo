@@ -42,7 +42,7 @@ Three new microservices + saga extension for the Paid Bible module:
 - SR types: `"basepack-status-change" | "geo-extension" | "channel-extension" | "sourcing-amendment"`
 - Approval chain for ALL SR types: Network Planner → Supply Planner → Distribution Planner → NCSM
 - Relaunch / New Launch: handled via `launchType` field on `NetworkEntryModel` + filter on `/api/network-entries?launchType=relaunch`
-- DOH SLOB risk rule: `predecessorDoh > successorDoh + 5 days` — auto-recomputed on every DOH file ingest
+- DOH SLOB risk rule: Predecessor CBU DOH exceeds Successor CBU DOH by more than 5 days (`predecessorDoh > successorDoh + 5`) — auto-recomputed on every DOH file ingest
 - MSTN window: 8th–11th of each month; check scope = entries with `networkStatus` in `"Stock Movement Initiated"` or `"Network transition complete"`
 - DB migration: `run_migrations()` in `db.py` adds `launch_type` column to existing `network_entries` table via `ALTER TABLE IF NOT EXISTS`
 
