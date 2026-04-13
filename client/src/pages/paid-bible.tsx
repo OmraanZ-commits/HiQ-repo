@@ -45,6 +45,11 @@ const MSTN_ACTIVE_STATUSES = new Set([
   "Active", "FTR Approved", "Stock Movement Initiated", "Network transition complete",
 ]);
 
+const MSTN_THRESHOLD_STATUSES = new Set([
+  "Stock Movement Initiated",
+  "Network transition complete",
+]);
+
 const PB_OWNER_MAP: Record<string, string> = {
   "Ravi Kumar":    "Priya Sharma",
   "Sneha Patel":   "Ananya Singh",
@@ -68,7 +73,7 @@ interface PbMaterial {
   code: string;
   description: string;
   networkStatus: string;
-  matStatus: "OK" | "Issue" | "CP Pack";
+  matStatus: "OK" | "Issue" | "In Progress";
   priceActive: boolean;
   mrp: string;
   ean: string;
@@ -79,7 +84,7 @@ interface PbMaterial {
   predecessorDoh: number | null;
   slobRisk: boolean;
   typeOfNetwork: string;
-  mstnPct: number;
+  mstnPct: number | null;
 }
 
 interface PbBasepack {
@@ -135,15 +140,9 @@ function deriveBpStatus(statuses: (string | null)[]): string {
   return "Draft";
 }
 
-function deriveMatStatus(ns: string | null | undefined): "OK" | "Issue" | "CP Pack" {
-  switch (ns) {
-    case "Active":
-    case "FTR Approved":
-    case "Production Started":
-    case "Stock Movement Initiated":
-    case "Network transition complete": return "OK";
-    default:                            return "Issue";
-  }
+function deriveMatStatus(ns: string | null | undefined, mstnPct: number | null): "OK" | "In Progress" | "Issue" {
+  if (!ns || !MSTN_THRESHOLD_STATUSES.has(ns)) return "In Progress";
+  return (mstnPct != null && mstnPct >= 80) ? "OK" : "Issue";
 }
 
 function simulateTdpCoverage(bpCode: string): number {
@@ -159,7 +158,7 @@ function checkCriteria(bp: PbBasepack): {
   materials: MaterialCriteria[];
 } {
   const total   = bp.materials.length || 1;
-  const isMstnCleared = (m: PbMaterial) => m.mstnPct >= 80;
+  const isMstnCleared = (m: PbMaterial) => m.mstnPct != null && m.mstnPct >= 80;
   const cleared = bp.materials.filter(isMstnCleared).length;
   const mstnCoverage = Math.round((cleared / total) * 100);
   const tdpCoverage  = simulateTdpCoverage(bp.basepackCode);
@@ -289,11 +288,11 @@ const TRIGGER_DEFS = [
 
 function MatStatusBadge({ status }: { status: string }) {
   const map: Record<string, { cls: string; icon: JSX.Element }> = {
-    "OK":      { cls: "bg-emerald-50 text-emerald-700 border-emerald-200",  icon: <CheckCircle2 className="h-3 w-3" /> },
-    "Issue":   { cls: "bg-red-50 text-red-700 border-red-200",              icon: <XCircle className="h-3 w-3" /> },
-    "CP Pack": { cls: "bg-blue-50 text-blue-700 border-blue-200",           icon: <Package className="h-3 w-3" /> },
+    "OK":          { cls: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="h-3 w-3" /> },
+    "Issue":       { cls: "bg-red-50 text-red-700 border-red-200",             icon: <XCircle className="h-3 w-3" /> },
+    "In Progress": { cls: "bg-amber-50 text-amber-700 border-amber-200",       icon: <Clock className="h-3 w-3" /> },
   };
-  const s = map[status] ?? map["Issue"];
+  const s = map[status] ?? map["In Progress"];
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${s.cls}`}>
       {s.icon} {status}
@@ -537,7 +536,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
     return Array.from(grouped.entries()).map(([bpCode, entries]) => {
       const first    = entries[0];
       const statuses = entries.map(e => e.networkStatus);
-      const mstnYes  = statuses.some(s => MSTN_ACTIVE_STATUSES.has(s ?? ""));
+      const mstnYes  = statuses.some(s => MSTN_THRESHOLD_STATUSES.has(s ?? ""));
       const clusters = [...new Set(entries.flatMap(e => e.geography ?? []))];
       const channels = [...new Set(entries.flatMap(e => e.channel  ?? []))];
       const planner  = first.assignedPerson || "Unassigned";
@@ -556,21 +555,24 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
         networkPlanner: planner,
         paidBibleOwner: PB_OWNER_MAP[planner] || "PB SPOC",
         materials: entries.map(e => {
-          const mstnPct = e.mstnPercentage != null
-            ? e.mstnPercentage
-            : MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "")
-            ? 100
-            : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10;
-          const nwMatStatus = deriveMatStatus(e.networkStatus);
-          const matStatus: "OK" | "Issue" | "CP Pack" =
-            nwMatStatus === "OK" && mstnPct < 80 ? "Issue" : nwMatStatus;
+          const ns = e.networkStatus ?? "Draft";
+          const atThreshold = MSTN_THRESHOLD_STATUSES.has(ns);
+
+          const mstnPct: number | null = atThreshold
+            ? (e.mstnPercentage != null
+                ? e.mstnPercentage
+                : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10)
+            : null;
+
+          const matStatus = deriveMatStatus(ns, mstnPct);
+
           return {
             id:            e.id,
             code:          e.cbuCode          || "-",
             description:   e.materialDescription || e.basepackDescription || "-",
-            networkStatus: e.networkStatus    || "Draft",
+            networkStatus: ns,
             matStatus,
-            priceActive:   MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? ""),
+            priceActive:   MSTN_ACTIVE_STATUSES.has(ns),
             mrp:           "-",
             ean:           e.ean              || "-",
             grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
@@ -578,8 +580,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
             predecessorDoh: e.predecessorDoh ?? null,
             slobRisk:      e.slobRisk         ?? false,
             typeOfNetwork: getNetworkChangeTypeName(e.typeOfNetwork),
-            priceStart:    MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "01-Apr-24" : "-",
-            priceEnd:      MSTN_ACTIVE_STATUSES.has(e.networkStatus ?? "") ? "9999" : "-",
+            priceStart:    MSTN_ACTIVE_STATUSES.has(ns) ? "01-Apr-24" : "-",
+            priceEnd:      MSTN_ACTIVE_STATUSES.has(ns) ? "9999" : "-",
             mstnPct,
           };
         }),
@@ -633,7 +635,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
       bp.materials.map(m => ({ ...m, basepakName: bp.basepakName }))
     );
     return {
-      "price-inactive": flat.filter(m => m.mstnPct >= 80 && !m.priceActive),
+      "price-inactive": flat.filter(m => m.mstnPct != null && m.mstnPct >= 80 && !m.priceActive),
       "slob-risk":      flat.filter(m => m.slobRisk),
     };
   }, [allBasepacks]);
@@ -1017,9 +1019,13 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                         <TableCell className="py-3 px-4"><MatStatusBadge status={m.matStatus} /></TableCell>
                                         <TableCell className="text-sm py-3 px-4 text-muted-foreground whitespace-nowrap">{m.typeOfNetwork}</TableCell>
                                         <TableCell className="py-3 px-4 whitespace-nowrap">
-                                          <span className={`text-sm font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>
-                                            {m.mstnPct}%
-                                          </span>
+                                          {m.mstnPct != null ? (
+                                            <span className={`text-sm font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>
+                                              {m.mstnPct}%
+                                            </span>
+                                          ) : (
+                                            <span className="text-sm text-muted-foreground">—</span>
+                                          )}
                                         </TableCell>
                                         <TableCell className="py-3 px-4 whitespace-nowrap text-center">
                                           {m.predecessorDoh != null ? (
