@@ -1123,16 +1123,92 @@ function NetworkStatusBadge({ status }: { status: string }) {
   );
 }
 
+interface TooltipCoords { x: number; y: number }
+
 function ClusterBadges({ clusters }: { clusters: string[] }) {
+  const [coords, setCoords] = useState<TooltipCoords | null>(null);
+  const first = clusters[0];
+  const rest  = clusters.length - 1;
+
   return (
-    <div className="flex flex-col gap-0.5 min-w-0">
-      {clusters.map(c => (
-        <span key={c} className="inline-flex items-center gap-0.5 text-xs text-slate-700">
+    <>
+      <div
+        className="inline-flex items-center gap-1 cursor-default select-none"
+        onMouseEnter={e => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setCoords({ x: r.left, y: r.bottom + 6 });
+        }}
+        onMouseLeave={() => setCoords(null)}
+        data-testid="clusters-trigger"
+      >
+        <span className="inline-flex items-center gap-0.5 text-xs text-slate-700">
           <MapPin className="h-2.5 w-2.5 text-slate-400 flex-shrink-0" />
-          <span className="truncate">{c}</span>
+          <span>{first}</span>
         </span>
-      ))}
-    </div>
+        {rest > 0 && (
+          <span className="text-[10px] font-medium bg-slate-100 text-slate-500 rounded px-1 py-0 leading-4 border border-slate-200">
+            +{rest}
+          </span>
+        )}
+      </div>
+
+      {coords && (
+        <div
+          style={{ position: "fixed", top: coords.y, left: coords.x, zIndex: 9999 }}
+          className="bg-white border border-slate-200 rounded-lg shadow-lg p-2.5 min-w-40 pointer-events-none"
+        >
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Clusters</p>
+          {clusters.map(c => (
+            <div key={c} className="flex items-center gap-1.5 py-0.5">
+              <MapPin className="h-3 w-3 text-blue-400 flex-shrink-0" />
+              <span className="text-xs text-slate-700">{c}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function ChannelsCell({ channels }: { channels: string }) {
+  const [coords, setCoords] = useState<TooltipCoords | null>(null);
+  const items = channels.split(",").map(s => s.trim()).filter(Boolean);
+  const preview = items.length > 1 ? `${items[0]} +${items.length - 1}` : channels;
+
+  return (
+    <>
+      <div
+        className="inline-flex items-center gap-1 cursor-default select-none"
+        onMouseEnter={e => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setCoords({ x: r.left, y: r.bottom + 6 });
+        }}
+        onMouseLeave={() => setCoords(null)}
+        data-testid="channels-trigger"
+      >
+        <span className="text-xs text-slate-700 whitespace-nowrap">{preview}</span>
+        {items.length > 1 && (
+          <span className="text-[10px] font-medium bg-slate-100 text-slate-500 rounded px-1 py-0 leading-4 border border-slate-200">
+            {items.length}
+          </span>
+        )}
+      </div>
+
+      {coords && (
+        <div
+          style={{ position: "fixed", top: coords.y, left: coords.x, zIndex: 9999 }}
+          className="bg-white border border-slate-200 rounded-lg shadow-lg p-2.5 min-w-36 pointer-events-none"
+        >
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Channels</p>
+          {items.map(ch => (
+            <div key={ch} className="flex items-center gap-1.5 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+              <span className="text-xs text-slate-700">{ch}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1227,7 +1303,7 @@ function NetworkUpdatesTab() {
                     <TableCell><RelaunchChangeCell field={r.ean} mono /></TableCell>
                     <TableCell><RelaunchChangeCell field={r.artwork} /></TableCell>
                     <TableCell className="max-w-40"><ClusterBadges clusters={r.clusters} /></TableCell>
-                    <TableCell className="text-xs">{r.channels}</TableCell>
+                    <TableCell><ChannelsCell channels={r.channels} /></TableCell>
                     <TableCell><NetworkStatusBadge status={r.networkStatus} /></TableCell>
                     <TableCell className={`text-xs font-medium ${r.priceValidTill === "-" ? "text-muted-foreground" : r.priceValidTill.includes("9999") ? "text-emerald-600" : "text-slate-700"}`}>{r.priceValidTill}</TableCell>
                   </TableRow>
@@ -1270,7 +1346,7 @@ function NetworkUpdatesTab() {
                         : <span className="text-xs text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="max-w-40"><ClusterBadges clusters={r.clusters} /></TableCell>
-                    <TableCell className="text-xs">{r.channels}</TableCell>
+                    <TableCell><ChannelsCell channels={r.channels} /></TableCell>
                     <TableCell><NetworkStatusBadge status={r.networkStatus} /></TableCell>
                     <TableCell className={`text-xs font-medium ${r.priceValidTill === "-" ? "text-muted-foreground" : r.priceValidTill.includes("9999") ? "text-emerald-600" : "text-slate-700"}`}>{r.priceValidTill}</TableCell>
                   </TableRow>
