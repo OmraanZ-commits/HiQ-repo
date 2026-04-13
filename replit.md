@@ -275,6 +275,7 @@ Analytics and status management for basepacks and their CBUs, grouped by categor
 - Basepack table with status badges; inline status editing (Draft → Active Pack) triggers the Activation Check flow
 - Active basepack count: calculated from `ACTIVE_BP_STATUSES = { "Active Pack", "Active Pack (Channel)", "Active Pack (Customer)", "Seasonal Pack" }`
 - MOC badge (Month of Change): Day ≥ 21 → next month; Day < 21 → current month
+- **MSTN "Yes/No" badge**: `"Yes"` only when (a) at least one material is at/beyond "Stock Movement Initiated" and (b) **every** such eligible material has MSTN ≥ 80%. Pre-threshold materials are excluded from both numerator and denominator. A basepack with one material at SMI but MSTN < 80% shows "No".
 - Sticky table header: `h-screen overflow-hidden` layout with `overflow-y-auto` on main
 - View button in each expanded CBU row navigates to `/edit/:id?source=paid-bible&cbuStatus=<bpStatus>` (view-only mode)
 

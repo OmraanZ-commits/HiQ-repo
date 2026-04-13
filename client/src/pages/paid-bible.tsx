@@ -536,7 +536,13 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
     return Array.from(grouped.entries()).map(([bpCode, entries]) => {
       const first    = entries[0];
       const statuses = entries.map(e => e.networkStatus);
-      const mstnYes  = statuses.some(s => MSTN_THRESHOLD_STATUSES.has(s ?? ""));
+      const eligibleEntries = entries.filter(e => MSTN_THRESHOLD_STATUSES.has(e.networkStatus ?? ""));
+      const mstnYes  = eligibleEntries.length > 0 && eligibleEntries.every(e => {
+        const pct = e.mstnPercentage != null
+          ? e.mstnPercentage
+          : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10;
+        return pct >= 80;
+      });
       const clusters = [...new Set(entries.flatMap(e => e.geography ?? []))];
       const channels = [...new Set(entries.flatMap(e => e.channel  ?? []))];
       const planner  = first.assignedPerson || "Unassigned";
