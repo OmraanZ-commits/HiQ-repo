@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
 from server_py.models import InsertNetworkEntry, UpdateNetworkEntry
 from server_py.services.list_master.service import ListMasterService
 
@@ -13,10 +14,13 @@ def set_service(service: ListMasterService):
 
 @router.get("")
 @router.get("/")
-async def get_all_entries():
+async def get_all_entries(launchType: Optional[str] = Query(None)):
     if not _service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    return _service.get_all()
+    entries = _service.get_all()
+    if launchType:
+        entries = [e for e in entries if e.get("launchType") == launchType]
+    return entries
 
 
 @router.get("/{entry_id}")

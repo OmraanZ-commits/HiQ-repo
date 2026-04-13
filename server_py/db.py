@@ -82,6 +82,7 @@ class NetworkEntryModel(Base):
     mstn_percentage = Column(Integer, nullable=True)
     predecessor_doh = Column(Integer, nullable=True)
     slob_risk = Column(Boolean, nullable=True, default=False)
+    launch_type = Column(String, nullable=True)  # "standard" | "relaunch" | "new-launch"
 
 
 class EntryStatusModel(Base):
@@ -182,9 +183,81 @@ class NetworkChangeTypeMasterModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+# ── Paid Bible Tables ───────────────────────────────────────────
+
+
+class ServiceRequestModel(Base):
+    __tablename__ = "service_requests"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sr_type = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    raised_by = Column(String, nullable=False)
+    business_group = Column(String, nullable=True)
+    basepack_code = Column(String, nullable=True)
+    basepack_name = Column(String, nullable=True)
+    business_justification = Column(Text, nullable=True)
+    materials = Column(JSONB, nullable=True, default=[])
+    approvers = Column(JSONB, nullable=True, default=[])
+    rejection_reason = Column(String, nullable=True)
+    criteria_met_at_raise = Column(Boolean, nullable=True)
+    mstn_coverage_at_raise = Column(Integer, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class BasepakStatusOverrideModel(Base):
+    __tablename__ = "basepack_status_overrides"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    bp_id = Column(String, nullable=False, index=True)
+    sr_id = Column(String, nullable=True)
+    status = Column(String, nullable=False)
+    previous_status = Column(String, nullable=True)
+    applied_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    applied_by = Column(String, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+
+class DohSnapshotModel(Base):
+    __tablename__ = "doh_snapshots"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    material_code = Column(String, nullable=False, index=True)
+    doh_value = Column(Integer, nullable=False)
+    snapshot_date = Column(Date, nullable=False)
+    source_type = Column(String, nullable=True)  # "predecessor" | "successor"
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class MstnAlertModel(Base):
+    __tablename__ = "mstn_alerts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entry_id = Column(String, nullable=False, index=True)
+    cbu_code = Column(String, nullable=True)
+    basepack_code = Column(String, nullable=True)
+    bg = Column(String, nullable=True)
+    mstn_pct = Column(Integer, nullable=True)
+    network_status = Column(String, nullable=True)
+    alert_type = Column(String, nullable=False)  # "mstn-below-threshold" | "slob-risk"
+    check_month = Column(String, nullable=True)  # e.g., "2026-04"
+    is_resolved = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
 
 def create_tables():
     Base.metadata.create_all(bind=engine)
+
+
+def run_migrations():
+    """Apply additive column migrations that create_all won't handle on existing tables."""
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS launch_type VARCHAR"
+        ))
+        conn.commit()
 
 
 FIELD_MAP_TO_DB = {
@@ -220,6 +293,7 @@ FIELD_MAP_TO_DB = {
     "mstnPercentage": "mstn_percentage",
     "predecessorDoh": "predecessor_doh",
     "slobRisk": "slob_risk",
+    "launchType": "launch_type",
 }
 
 FIELD_MAP_TO_API = {v: k for k, v in FIELD_MAP_TO_DB.items()}

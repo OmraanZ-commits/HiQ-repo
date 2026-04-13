@@ -5,10 +5,13 @@ from typing import Optional
 from server_py.db import SessionLocal, SagaLogModel
 from server_py.saga.transition_saga import build_transition_saga
 from server_py.saga.reference_data_saga import build_reference_data_saga
+from server_py.saga.sr_approval_saga import build_sr_approval_saga
 from server_py.services.state_management.service import StateManagementService
 from server_py.services.list_master.service import ListMasterService
 from server_py.services.lifecycle.service import LifecycleService
 from server_py.services.reference_data.service import ReferenceDataService
+from server_py.services.service_requests.service import ServiceRequestService
+from server_py.services.basepack_status.service import BasepakStatusService
 
 router = APIRouter()
 
@@ -16,6 +19,8 @@ _state_service: StateManagementService | None = None
 _list_service: ListMasterService | None = None
 _lifecycle_service: LifecycleService | None = None
 _ref_service: ReferenceDataService | None = None
+_sr_service: ServiceRequestService | None = None
+_bp_status_service: BasepakStatusService | None = None
 
 
 def init_saga_services(
@@ -23,12 +28,17 @@ def init_saga_services(
     list_service: ListMasterService,
     lifecycle_service: LifecycleService,
     ref_service: ReferenceDataService | None = None,
+    sr_service: ServiceRequestService | None = None,
+    bp_status_service: BasepakStatusService | None = None,
 ):
     global _state_service, _list_service, _lifecycle_service, _ref_service
+    global _sr_service, _bp_status_service
     _state_service = state_service
     _list_service = list_service
     _lifecycle_service = lifecycle_service
     _ref_service = ref_service
+    _sr_service = sr_service
+    _bp_status_service = bp_status_service
 
 
 class TransitionSagaRequest(BaseModel):
@@ -150,4 +160,62 @@ async def execute_reference_data_saga():
         },
         "steps": result["steps"],
     }
+
+
+# ── SR Approval Saga ─────────────────────────────────────────────
+
+
+class SrApproveRequest(BaseModel):
+    stepIndex: int
+    actionedBy: str
+
+
+class SrRejectRequest(BaseModel):
+    stepIndex: int
+    actionedBy: str
+    reason: str
+
+
+@router.post("/sr-approve/{sr_id}")
+async def execute_sr_approve(sr_id: str, req: SrApproveRequest):
+    """
+    Advance one approval step on a Service Request via the saga layer.
+    If this is the final step on a 'basepack-status-change' SR, also applies
+    the basepack status override atomically with compensation on failure.
+    """
+    if not _sr_service or not _bp_status_service:
+        raise HTTPException(status_code=503, detail="SR saga services not initialized")
+
+    saga = build_sr_approval_saga(
+        sr_id=sr_id,
+        sr_service=_sr_service,
+        bp_status_service=_bp_status_service,
+    )
+    result = saga.approve(step_index=req.stepIndex, actioned_by=req.actionedBy)
+
+    if result["status"] not in ("completed",):
+        raise HTTPException(status_code=400, detail=result)
+    return result
+
+
+@router.post("/sr-reject/{sr_id}")
+async def execute_sr_reject(sr_id: str, req: SrRejectRequest):
+    """Reject a step on a Service Request via the saga layer."""
+    if not _sr_service or not _bp_status_service:
+        raise HTTPException(status_code=503, detail="SR saga services not initialized")
+
+    saga = build_sr_approval_saga(
+        sr_id=sr_id,
+        sr_service=_sr_service,
+        bp_status_service=_bp_status_service,
+    )
+    result = saga.reject(
+        step_index=req.stepIndex,
+        actioned_by=req.actionedBy,
+        reason=req.reason,
+    )
+
+    if result["status"] == "failed":
+        raise HTTPException(status_code=400, detail=result)
+    return result
 

@@ -28,6 +28,24 @@ All status transitions go exclusively through the Saga Orchestrator (`/api/saga/
 - **Date utilities**: `addDays`, `formatDateDisplay`, `computeYear` live in `client/src/lib/date-utils.ts`; controllers import from there
 - **replit.md** (T006): Updated to document unified SR model, removed Amendments tab docs, added SR type table
 
+### Paid Bible Backend Services
+Three new microservices + saga extension for the Paid Bible module:
+
+| Service | Prefix | Description |
+|---|---|---|
+| Service Requests | `/api/service-requests` | All 4 SR types (Basepack Status Change, CBU Geo Extension, CBU Channel Extension, CBU Sourcing Amendment). Persist SR with 4-step approval chain. |
+| Basepack Status | `/api/basepack-status` | Persists basepack status overrides when SRs are fully approved. Supports compensation (revert). |
+| MSTN & DOH | `/api/mstn-doh` | Daily DOH file ingestion, SLOB risk recomputation, monthly MSTN check (8th–11th window), alert management. |
+| SR Approval Saga | `/api/saga/sr-approve/:id` `/api/saga/sr-reject/:id` | Orchestrates step-by-step approval. On final approval of a "basepack-status-change" SR, atomically writes status override with compensation on failure. |
+
+**Key design decisions:**
+- SR types: `"basepack-status-change" | "geo-extension" | "channel-extension" | "sourcing-amendment"`
+- Approval chain for ALL SR types: Network Planner → Supply Planner → Distribution Planner → NCSM
+- Relaunch / New Launch: handled via `launchType` field on `NetworkEntryModel` + filter on `/api/network-entries?launchType=relaunch`
+- DOH SLOB risk rule: `predecessorDoh > successorDoh + 5 days` — auto-recomputed on every DOH file ingest
+- MSTN window: 8th–11th of each month; check scope = entries with `networkStatus` in `"Stock Movement Initiated"` or `"Network transition complete"`
+- DB migration: `run_migrations()` in `db.py` adds `launch_type` column to existing `network_entries` table via `ALTER TABLE IF NOT EXISTS`
+
 ### Unified SR Model (4 SR types)
 Amendments and Service Requests are unified under a single `ServiceRequest` model in `sr-store.ts`:
 - `srType: SrType` discriminates between the 4 types
