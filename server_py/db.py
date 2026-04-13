@@ -81,6 +81,8 @@ class NetworkEntryModel(Base):
     price_updated_at = Column(DateTime, nullable=True)
     mstn_percentage = Column(Integer, nullable=True)
     predecessor_doh = Column(Integer, nullable=True)
+    successor_doh = Column(Integer, nullable=True)
+    doh_snapshot_date = Column(String, nullable=True)
     slob_risk = Column(Boolean, nullable=True, default=False)
     launch_type = Column(String, nullable=True)  # "standard" | "relaunch" | "new-launch"
 
@@ -257,6 +259,12 @@ def run_migrations():
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS launch_type VARCHAR"
         ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS successor_doh INTEGER"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS doh_snapshot_date VARCHAR"
+        ))
         conn.commit()
 
 
@@ -292,6 +300,8 @@ FIELD_MAP_TO_DB = {
     "priceUpdatedAt": "price_updated_at",
     "mstnPercentage": "mstn_percentage",
     "predecessorDoh": "predecessor_doh",
+    "successorDoh": "successor_doh",
+    "dohSnapshotDate": "doh_snapshot_date",
     "slobRisk": "slob_risk",
     "launchType": "launch_type",
 }

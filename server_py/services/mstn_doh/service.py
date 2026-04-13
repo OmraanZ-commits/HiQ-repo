@@ -63,6 +63,8 @@ class MstnDohService:
                             entry["id"],
                             UpdateNetworkEntry(
                                 predecessorDoh=pred_doh,
+                                successorDoh=succ_doh,
+                                dohSnapshotDate=req.snapshotDate,
                                 slobRisk=slob_risk,
                             ),
                         )

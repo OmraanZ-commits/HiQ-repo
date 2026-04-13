@@ -82,6 +82,8 @@ interface PbMaterial {
   priceEnd: string;
   copyCbu: string;
   predecessorDoh: number | null;
+  successorDoh: number | null;
+  dohSnapshotDate: string | null;
   slobRisk: boolean;
   typeOfNetwork: string;
   mstnPct: number | null;
@@ -583,8 +585,10 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
             ean:           e.ean              || "-",
             grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
             copyCbu:       e.copyCbu          || "-",
-            predecessorDoh: e.predecessorDoh ?? null,
-            slobRisk:      e.slobRisk         ?? false,
+            predecessorDoh:   e.predecessorDoh   ?? null,
+            successorDoh:     e.successorDoh     ?? null,
+            dohSnapshotDate:  e.dohSnapshotDate  ?? null,
+            slobRisk:         e.slobRisk         ?? false,
             typeOfNetwork: getNetworkChangeTypeName(e.typeOfNetwork),
             priceStart:    MSTN_ACTIVE_STATUSES.has(ns) ? "01-Apr-24" : "-",
             priceEnd:      MSTN_ACTIVE_STATUSES.has(ns) ? "9999" : "-",
@@ -754,6 +758,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                       {t.id === "slob-risk" && <>
                         <TableHead className="text-xs font-semibold">Predecessor Code</TableHead>
                         <TableHead className="text-xs font-semibold text-center">Predecessor DOH</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">Successor DOH</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">Last Updated</TableHead>
                       </>}
                     </TableRow>
                   </TableHeader>
@@ -770,6 +776,12 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                         {t.id === "slob-risk" && <>
                           <TableCell className="text-xs font-mono text-muted-foreground">{m.copyCbu || "—"}</TableCell>
                           <TableCell className="text-xs text-center text-muted-foreground">{m.predecessorDoh ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-center text-muted-foreground">{m.successorDoh ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-center text-muted-foreground">
+                            {m.dohSnapshotDate
+                              ? new Date(m.dohSnapshotDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                              : "—"}
+                          </TableCell>
                         </>}
                       </TableRow>
                     ))}

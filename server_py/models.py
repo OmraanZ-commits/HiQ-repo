@@ -57,6 +57,8 @@ class NetworkEntryBase(BaseModel):
     priceUpdatedAt: Optional[str] = None
     mstnPercentage: Optional[int] = None
     predecessorDoh: Optional[int] = None
+    successorDoh: Optional[int] = None
+    dohSnapshotDate: Optional[str] = None
     slobRisk: Optional[bool] = None
     launchType: Optional[str] = None  # "standard" | "relaunch" | "new-launch"
 
@@ -112,6 +114,10 @@ class UpdateNetworkEntry(BaseModel):
     channelMapping: Optional[dict] = None
     caseConfigUpdatedAt: Optional[str] = None
     priceUpdatedAt: Optional[str] = None
+    predecessorDoh: Optional[int] = None
+    successorDoh: Optional[int] = None
+    dohSnapshotDate: Optional[str] = None
+    slobRisk: Optional[bool] = None
     launchType: Optional[str] = None
 
 
