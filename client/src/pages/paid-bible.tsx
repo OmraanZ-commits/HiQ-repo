@@ -25,7 +25,7 @@ import {
   Search, Filter, ChevronRight, ChevronDown, FileText,
   Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, Eye,
   ShieldCheck, ShieldAlert, Send, ListChecks,
-  TrendingUp, Activity, AlertCircle, RotateCcw,
+  TrendingUp, TrendingDown, Activity, AlertCircle, RotateCcw,
 } from "lucide-react";
 import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 
@@ -1171,18 +1171,42 @@ function ChannelsCell({ channels }: { channels: string[] }) {
   );
 }
 
-function RelaunchChangeCell({ field, mono }: {
+function parseNumericVal(s: string): number | null {
+  const m = s.replace(/,/g, "").match(/[\d.]+/);
+  return m ? parseFloat(m[0]) : null;
+}
+
+function RelaunchChangeCell({ field, mono, delta }: {
   field: { changed: boolean; from?: string; to?: string };
   mono?: boolean;
+  delta?: boolean;
 }) {
   if (!field.changed) {
     return <span className="text-xs text-muted-foreground/60">—</span>;
   }
   if (field.from && field.to) {
+    let deltaEl: JSX.Element | null = null;
+    if (delta) {
+      const fromNum = parseNumericVal(field.from);
+      const toNum   = parseNumericVal(field.to);
+      if (fromNum !== null && toNum !== null && fromNum !== 0) {
+        const pct = ((toNum - fromNum) / fromNum) * 100;
+        const up  = pct >= 0;
+        deltaEl = (
+          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${up ? "text-emerald-600" : "text-red-500"}`}>
+            {up
+              ? <TrendingUp   className="h-3 w-3 flex-shrink-0" />
+              : <TrendingDown className="h-3 w-3 flex-shrink-0" />}
+            {up ? "+" : ""}{pct.toFixed(1)}%
+          </span>
+        );
+      }
+    }
     return (
       <div className={`flex flex-col gap-0.5 ${mono ? "font-mono" : ""}`}>
         <span className="text-xs text-muted-foreground line-through">{field.from}</span>
         <span className="text-xs font-semibold text-emerald-600">{field.to}</span>
+        {deltaEl}
       </div>
     );
   }
@@ -1276,8 +1300,8 @@ function NetworkUpdatesTab() {
                     <TableCell className="text-xs font-mono">{r.basepack}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{r.oldCbu}</TableCell>
                     <TableCell className="text-xs font-mono text-blue-600 font-medium">{r.newCbu}</TableCell>
-                    <TableCell><RelaunchChangeCell field={r.grammage} /></TableCell>
-                    <TableCell><RelaunchChangeCell field={r.mrp} /></TableCell>
+                    <TableCell><RelaunchChangeCell field={r.grammage} delta /></TableCell>
+                    <TableCell><RelaunchChangeCell field={r.mrp} delta /></TableCell>
                     <TableCell><RelaunchChangeCell field={r.caseConfig} /></TableCell>
                     <TableCell><RelaunchChangeCell field={r.ean} mono /></TableCell>
                     <TableCell><RelaunchChangeCell field={r.artwork} /></TableCell>
