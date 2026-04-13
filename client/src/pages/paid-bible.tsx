@@ -188,7 +188,7 @@ const RELAUNCH_NETWORKS: Array<{
   caseConfig: { changed: boolean; from?: string; to?: string };
   ean:      { changed: boolean; from?: string; to?: string };
   artwork:  { changed: boolean };
-  geography: string; channels: string; production: string; invoicing: string;
+  clusters: string[]; channels: string; networkStatus: string; priceValidTill: string;
 }> = [
   {
     lastUpdate: "14-Oct", bg: "HC / HHC", brand: "Wheel Bar", basepack: "14151",
@@ -198,8 +198,8 @@ const RELAUNCH_NETWORKS: Array<{
     caseConfig: { changed: false },
     ean:        { changed: true,  from: "8901491100012", to: "8901491210421" },
     artwork:    { changed: false },
-    geography: "All India minus MPCG", channels: "All channels",
-    production: "05-Oct", invoicing: "15-Oct",
+    clusters: ["Delhi NCR", "Punjab-Hills-Haryana"], channels: "All channels",
+    networkStatus: "Stock Movement Initiated", priceValidTill: "9999 ∞",
   },
   {
     lastUpdate: "10-Oct", bg: "BPC / PC", brand: "Dove", basepack: "18920",
@@ -209,8 +209,8 @@ const RELAUNCH_NETWORKS: Array<{
     caseConfig: { changed: false },
     ean:        { changed: true,  from: "8901491197001", to: "8901491198001" },
     artwork:    { changed: true },
-    geography: "South + West", channels: "MT, GT",
-    production: "01-Oct", invoicing: "11-Oct",
+    clusters: ["Mumbai Metro", "Tamil Nadu"], channels: "MT, GT",
+    networkStatus: "FTR Approved", priceValidTill: "31-Dec-24",
   },
   {
     lastUpdate: "08-Oct", bg: "F&R / Foods", brand: "Kissan", basepack: "22041",
@@ -220,8 +220,8 @@ const RELAUNCH_NETWORKS: Array<{
     caseConfig: { changed: true,  from: "12s",   to: "8s"   },
     ean:        { changed: true,  from: "8901058018001", to: "8901058018021" },
     artwork:    { changed: false },
-    geography: "All India", channels: "GT, KA",
-    production: "28-Sep", invoicing: "10-Oct",
+    clusters: ["West Bengal"], channels: "GT, KA",
+    networkStatus: "Production Started", priceValidTill: "-",
   },
 ];
 
@@ -230,15 +230,15 @@ const NEW_LAUNCH_NETWORKS = [
     lastUpdate: "14-Oct", bg: "HC / HHC", brand: "Wheel Bar", basepack: "14151",
     material: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g",
     grammage: "230g", mrp: "₹35", caseConfig: "24", ean: "8901491210421",
-    artwork: true, promo: "No", geography: "All India minus MPCG", channels: "All channels",
-    production: "05-Oct", landingDate: "15-Oct", remarks: "Dhule 30 Sep / Remaining sites from 12 Oct",
+    artwork: true, promo: "No", clusters: ["Delhi NCR", "Punjab-Hills-Haryana"], channels: "All channels",
+    networkStatus: "Stock Movement Initiated", priceValidTill: "9999 ∞",
   },
   {
     lastUpdate: "12-Oct", bg: "BPC / PC", brand: "TRESemmé", basepack: "30115",
     material: "TRSH400A", description: "TRESEMME SHAMPOO SMOOTH & SHINE 400ml",
     grammage: "400ml", mrp: "₹275", caseConfig: "12", ean: "8901491350082",
-    artwork: true, promo: "No", geography: "MT All India", channels: "MT, MT-ECOM",
-    production: "30-Sep", landingDate: "12-Oct", remarks: "N-45 listing with MT SPOC initiated",
+    artwork: true, promo: "No", clusters: ["All India MT"], channels: "MT, MT-ECOM",
+    networkStatus: "FTR Approved", priceValidTill: "-",
   },
 ];
 
@@ -1106,6 +1106,36 @@ function YesNoBadge({ val }: { val: string }) {
   );
 }
 
+function NetworkStatusBadge({ status }: { status: string }) {
+  const cfg: Record<string, string> = {
+    "Stock Movement Initiated": "bg-red-50 text-red-700 border-red-200",
+    "Network transition complete": "bg-red-100 text-red-800 border-red-300",
+    "FTR Approved":              "bg-amber-50 text-amber-700 border-amber-200",
+    "Production Started":        "bg-amber-50 text-amber-700 border-amber-200",
+    "Active":                    "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "Draft":                     "bg-slate-100 text-slate-500 border-slate-200",
+  };
+  const cls = cfg[status] ?? "bg-slate-100 text-slate-500 border-slate-200";
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${cls}`}>
+      {status}
+    </span>
+  );
+}
+
+function ClusterBadges({ clusters }: { clusters: string[] }) {
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      {clusters.map(c => (
+        <span key={c} className="inline-flex items-center gap-0.5 text-xs text-slate-700">
+          <MapPin className="h-2.5 w-2.5 text-slate-400 flex-shrink-0" />
+          <span className="truncate">{c}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function RelaunchChangeCell({ field, mono }: {
   field: { changed: boolean; from?: string; to?: string };
   mono?: boolean;
@@ -1177,7 +1207,7 @@ function NetworkUpdatesTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  {["Last Update","BG / Category","Brand","Basepack","Old CBU","New CBU","Grammage","MRP","Case Cfg","EAN","Artwork","Geography","Channels","Production","Invoicing"].map(h => (
+                  {["Last Update","BG / Category","Brand","Basepack","Old CBU","New CBU","Grammage","MRP","Case Cfg","EAN","Artwork","Geography (Clusters)","Channels","Network Status","Price Valid Till"].map(h => (
                     <TableHead key={h} className="text-xs">{h}</TableHead>
                   ))}
                 </TableRow>
@@ -1196,10 +1226,10 @@ function NetworkUpdatesTab() {
                     <TableCell><RelaunchChangeCell field={r.caseConfig} /></TableCell>
                     <TableCell><RelaunchChangeCell field={r.ean} mono /></TableCell>
                     <TableCell><RelaunchChangeCell field={r.artwork} /></TableCell>
-                    <TableCell className="text-xs max-w-32 truncate" title={r.geography}>{r.geography}</TableCell>
+                    <TableCell className="max-w-40"><ClusterBadges clusters={r.clusters} /></TableCell>
                     <TableCell className="text-xs">{r.channels}</TableCell>
-                    <TableCell className="text-xs">{r.production}</TableCell>
-                    <TableCell className="text-xs font-medium text-blue-600">{r.invoicing}</TableCell>
+                    <TableCell><NetworkStatusBadge status={r.networkStatus} /></TableCell>
+                    <TableCell className={`text-xs font-medium ${r.priceValidTill === "-" ? "text-muted-foreground" : r.priceValidTill.includes("9999") ? "text-emerald-600" : "text-slate-700"}`}>{r.priceValidTill}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1216,7 +1246,7 @@ function NetworkUpdatesTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  {["Last Update","BG / Category","Brand","Basepack","Material Code","Description","Grammage","MRP","Case Config","EAN","Artwork / FTR","Geography","Channels","Production","Landing Date"].map(h => (
+                  {["Last Update","BG / Category","Brand","Basepack","Material Code","Description","Grammage","MRP","Case Config","EAN","Artwork / FTR","Geography (Clusters)","Channels","Network Status","Price Valid Till"].map(h => (
                     <TableHead key={h} className="text-xs">{h}</TableHead>
                   ))}
                 </TableRow>
@@ -1239,10 +1269,10 @@ function NetworkUpdatesTab() {
                         ? <Button size="sm" variant="ghost" className="h-6 px-2 text-xs gap-1 text-blue-600"><FileText className="h-3 w-3" /> View FTR</Button>
                         : <span className="text-xs text-muted-foreground">-</span>}
                     </TableCell>
-                    <TableCell className="text-xs max-w-32 truncate" title={r.geography}>{r.geography}</TableCell>
+                    <TableCell className="max-w-40"><ClusterBadges clusters={r.clusters} /></TableCell>
                     <TableCell className="text-xs">{r.channels}</TableCell>
-                    <TableCell className="text-xs">{r.production}</TableCell>
-                    <TableCell className="text-xs font-medium text-emerald-600">{r.landingDate}</TableCell>
+                    <TableCell><NetworkStatusBadge status={r.networkStatus} /></TableCell>
+                    <TableCell className={`text-xs font-medium ${r.priceValidTill === "-" ? "text-muted-foreground" : r.priceValidTill.includes("9999") ? "text-emerald-600" : "text-slate-700"}`}>{r.priceValidTill}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
