@@ -178,7 +178,7 @@ function makeTicketId(): string {
   return `SR-${Date.now().toString().slice(-6)}`;
 }
 
-// ─── Static Data (Network Updates / Bible Matrix / Amendments) ────────────────
+// ─── Static Data (Network Updates) ──────────────────────────────────────────
 
 const RELAUNCH_NETWORKS: Array<{
   lastUpdate: string; bg: string; brand: string; basepack: string;
@@ -188,39 +188,36 @@ const RELAUNCH_NETWORKS: Array<{
   caseConfig: { changed: boolean; from?: string; to?: string };
   ean:      { changed: boolean; from?: string; to?: string };
   artwork:  { changed: boolean };
-  clusters: string[]; channels: string; networkStatus: string; priceValidTill: string;
+  networkStatus: string; priceValidTill: string;
 }> = [
   {
     lastUpdate: "14-Oct", bg: "HC / HHC", brand: "Wheel Bar", basepack: "14151",
-    oldCbu: "WHGI15B", newCbu: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g",
+    oldCbu: "WHGI15B", newCbu: "CBU-50008902", description: "WHEEL GREEN BAR FW 180g+50g",
     grammage:   { changed: true,  from: "130g",   to: "180g" },
     mrp:        { changed: false },
     caseConfig: { changed: false },
     ean:        { changed: true,  from: "8901491100012", to: "8901491210421" },
     artwork:    { changed: false },
-    clusters: ["Delhi NCR", "Punjab-Hills-Haryana"], channels: "All channels",
     networkStatus: "Stock Movement Initiated", priceValidTill: "9999 ∞",
   },
   {
     lastUpdate: "10-Oct", bg: "BPC / PC", brand: "Dove", basepack: "18920",
-    oldCbu: "DVCS100A", newCbu: "DVCS100B", description: "DOVE CREAM BAR 100g",
+    oldCbu: "DVCS100A", newCbu: "CBU-50017002", description: "DOVE CREAM BAR 100g",
     grammage:   { changed: false },
     mrp:        { changed: true,  from: "₹35",  to: "₹39"  },
     caseConfig: { changed: false },
     ean:        { changed: true,  from: "8901491197001", to: "8901491198001" },
     artwork:    { changed: true },
-    clusters: ["Mumbai Metro", "Tamil Nadu"], channels: "MT, GT",
     networkStatus: "FTR Approved", priceValidTill: "31-Dec-24",
   },
   {
     lastUpdate: "08-Oct", bg: "F&R / Foods", brand: "Kissan", basepack: "22041",
-    oldCbu: "KSMX5A", newCbu: "KSMX5B", description: "KISSAN MIXED FRUIT JAM 500g",
+    oldCbu: "KSMX5A", newCbu: "CBU-50017001", description: "KISSAN MIXED FRUIT JAM 500g",
     grammage:   { changed: false },
     mrp:        { changed: false },
     caseConfig: { changed: true,  from: "12s",   to: "8s"   },
     ean:        { changed: true,  from: "8901058018001", to: "8901058018021" },
     artwork:    { changed: false },
-    clusters: ["West Bengal"], channels: "GT, KA",
     networkStatus: "Production Started", priceValidTill: "-",
   },
 ];
@@ -228,57 +225,20 @@ const RELAUNCH_NETWORKS: Array<{
 const NEW_LAUNCH_NETWORKS = [
   {
     lastUpdate: "14-Oct", bg: "HC / HHC", brand: "Wheel Bar", basepack: "14151",
-    material: "WHGI15C", description: "WHEEL GREEN BAR FW 180g+50g",
+    material: "CBU-50018001", description: "WHEEL GREEN BAR FW 180g+50g",
     grammage: "230g", mrp: "₹35", caseConfig: "24", ean: "8901491210421",
-    artwork: true, promo: "No", clusters: ["Delhi NCR", "Punjab-Hills-Haryana"], channels: "All channels",
+    artwork: true, promo: "No",
     networkStatus: "Stock Movement Initiated", priceValidTill: "9999 ∞",
   },
   {
     lastUpdate: "12-Oct", bg: "BPC / PC", brand: "TRESemmé", basepack: "30115",
-    material: "TRSH400A", description: "TRESEMME SHAMPOO SMOOTH & SHINE 400ml",
+    material: "CBU-50017003", description: "TRESEMME SHAMPOO SMOOTH & SHINE 400ml",
     grammage: "400ml", mrp: "₹275", caseConfig: "12", ean: "8901491350082",
-    artwork: true, promo: "No", clusters: ["All India MT"], channels: "MT, MT-ECOM",
+    artwork: true, promo: "No",
     networkStatus: "FTR Approved", priceValidTill: "-",
   },
 ];
 
-const BIBLE_MATRIX = [
-  {
-    salesCategory: "HC", basepack: "14151", bpStatus: "Active Pack", material: "WHGI15C",
-    matStatus: "OK", region: "North", cluster: "Delhi NCR", state: "Delhi", regionCode: "N01",
-    depot: "DEL-01", mrp: "35", netWt: "180", cc: "24", ean: "8901491210421",
-    csd: "Y", gt: "Y", ka: "Y", oh: "N", mt: "Y", retail: "Y", ecom: "Y", qcom: "Y",
-    priceStart: "01-Apr-24", priceEnd: "9999", createdOn: "28-Mar-24",
-  },
-  {
-    salesCategory: "HC", basepack: "14151", bpStatus: "Active Pack", material: "WHGI15C",
-    matStatus: "OK", region: "North", cluster: "Punjab-Hills-Haryana", state: "Punjab", regionCode: "N02",
-    depot: "AMR-01", mrp: "35", netWt: "180", cc: "24", ean: "8901491210421",
-    csd: "Y", gt: "Y", ka: "N", oh: "N", mt: "Y", retail: "Y", ecom: "N", qcom: "N",
-    priceStart: "01-Apr-24", priceEnd: "9999", createdOn: "28-Mar-24",
-  },
-  {
-    salesCategory: "PC", basepack: "18920", bpStatus: "Active Pack (Channel)", material: "DVCS100B",
-    matStatus: "OK", region: "West", cluster: "Mumbai Metro", state: "Maharashtra", regionCode: "W01",
-    depot: "MUM-01", mrp: "99", netWt: "100", cc: "48", ean: "8901491198001",
-    csd: "N", gt: "Y", ka: "Y", oh: "N", mt: "Y", retail: "Y", ecom: "Y", qcom: "Y",
-    priceStart: "01-Oct-24", priceEnd: "9999", createdOn: "28-Sep-24",
-  },
-  {
-    salesCategory: "PC", basepack: "18920", bpStatus: "Active Pack (Channel)", material: "DVCS100B",
-    matStatus: "Issue", region: "South", cluster: "Tamil Nadu", state: "Tamil Nadu", regionCode: "S01",
-    depot: "CHN-01", mrp: "99", netWt: "100", cc: "48", ean: "8901491198001",
-    csd: "N", gt: "Y", ka: "N", oh: "N", mt: "N", retail: "Y", ecom: "N", qcom: "N",
-    priceStart: "01-Oct-24", priceEnd: "31-Dec-24", createdOn: "28-Sep-24",
-  },
-  {
-    salesCategory: "Foods", basepack: "22041", bpStatus: "Seasonal Pack", material: "KSMX5B",
-    matStatus: "Issue", region: "East", cluster: "West Bengal", state: "W Bengal", regionCode: "E01",
-    depot: "KOL-01", mrp: "175", netWt: "500", cc: "8", ean: "8901058018021",
-    csd: "N", gt: "Y", ka: "Y", oh: "N", mt: "Y", retail: "Y", ecom: "N", qcom: "N",
-    priceStart: "-", priceEnd: "-", createdOn: "-",
-  },
-];
 
 const TRIGGER_DEFS = [
   { id: "price-inactive", name: "Price Inactive", rule: "MSTN coverage > 80% but price inactive for respective channel", stakeholder: "Network Planner",       severity: "high"   },
@@ -1170,10 +1130,10 @@ function ClusterBadges({ clusters }: { clusters: string[] }) {
   );
 }
 
-function ChannelsCell({ channels }: { channels: string }) {
+function ChannelsCell({ channels }: { channels: string[] }) {
   const [coords, setCoords] = useState<TooltipCoords | null>(null);
-  const items = channels.split(",").map(s => s.trim()).filter(Boolean);
-  const preview = items.length > 1 ? `${items[0]} +${items.length - 1}` : channels;
+  const items = channels;
+  const preview = items.length === 0 ? "—" : items.length > 1 ? `${items[0]} +${items.length - 1}` : items[0];
 
   return (
     <>
@@ -1233,6 +1193,24 @@ function RelaunchChangeCell({ field, mono }: {
 function NetworkUpdatesTab() {
   const [subTab, setSubTab] = useState<"relaunch" | "new-launch">("relaunch");
 
+  const { data: allEntries } = useQuery<NetworkEntry[]>({
+    queryKey: ["/api/network-entries"],
+    staleTime: 0,
+  });
+
+  const entryGeoMap = useMemo(() => {
+    const map = new Map<string, { geography: string[]; channel: string[] }>();
+    if (allEntries) {
+      for (const e of allEntries) {
+        map.set(e.cbuCode ?? "", {
+          geography: (e.geography as string[] | null) ?? [],
+          channel:   (e.channel   as string[] | null) ?? [],
+        });
+      }
+    }
+    return map;
+  }, [allEntries]);
+
   return (
     <div className="space-y-5">
       {/* Header row */}
@@ -1289,7 +1267,9 @@ function NetworkUpdatesTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {RELAUNCH_NETWORKS.map((r, i) => (
+                {RELAUNCH_NETWORKS.map((r, i) => {
+                  const geo = entryGeoMap.get(r.newCbu);
+                  return (
                   <TableRow key={i} data-testid={`relaunch-row-${i}`}>
                     <TableCell className="text-xs font-medium">{r.lastUpdate}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{r.bg}</TableCell>
@@ -1302,12 +1282,13 @@ function NetworkUpdatesTab() {
                     <TableCell><RelaunchChangeCell field={r.caseConfig} /></TableCell>
                     <TableCell><RelaunchChangeCell field={r.ean} mono /></TableCell>
                     <TableCell><RelaunchChangeCell field={r.artwork} /></TableCell>
-                    <TableCell className="max-w-40"><ClusterBadges clusters={r.clusters} /></TableCell>
-                    <TableCell><ChannelsCell channels={r.channels} /></TableCell>
+                    <TableCell className="max-w-40"><ClusterBadges clusters={geo?.geography ?? []} /></TableCell>
+                    <TableCell><ChannelsCell channels={geo?.channel ?? []} /></TableCell>
                     <TableCell><NetworkStatusBadge status={r.networkStatus} /></TableCell>
                     <TableCell className={`text-xs font-medium ${r.priceValidTill === "-" ? "text-muted-foreground" : r.priceValidTill.includes("9999") ? "text-emerald-600" : "text-slate-700"}`}>{r.priceValidTill}</TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -1328,7 +1309,9 @@ function NetworkUpdatesTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {NEW_LAUNCH_NETWORKS.map((r, i) => (
+                {NEW_LAUNCH_NETWORKS.map((r, i) => {
+                  const geo = entryGeoMap.get(r.material);
+                  return (
                   <TableRow key={i} data-testid={`newlaunch-row-${i}`}>
                     <TableCell className="text-xs font-medium">{r.lastUpdate}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{r.bg}</TableCell>
@@ -1345,12 +1328,13 @@ function NetworkUpdatesTab() {
                         ? <Button size="sm" variant="ghost" className="h-6 px-2 text-xs gap-1 text-blue-600"><FileText className="h-3 w-3" /> View FTR</Button>
                         : <span className="text-xs text-muted-foreground">-</span>}
                     </TableCell>
-                    <TableCell className="max-w-40"><ClusterBadges clusters={r.clusters} /></TableCell>
-                    <TableCell><ChannelsCell channels={r.channels} /></TableCell>
+                    <TableCell className="max-w-40"><ClusterBadges clusters={geo?.geography ?? []} /></TableCell>
+                    <TableCell><ChannelsCell channels={geo?.channel ?? []} /></TableCell>
                     <TableCell><NetworkStatusBadge status={r.networkStatus} /></TableCell>
                     <TableCell className={`text-xs font-medium ${r.priceValidTill === "-" ? "text-muted-foreground" : r.priceValidTill.includes("9999") ? "text-emerald-600" : "text-slate-700"}`}>{r.priceValidTill}</TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -1360,87 +1344,7 @@ function NetworkUpdatesTab() {
   );
 }
 
-// ─── Part 3: Bible Matrix ────────────────────────────────────────────────────
-
-function BibleMatrixTab() {
-  const [search, setSearch] = useState("");
-  const rows = BIBLE_MATRIX.filter(r =>
-    !search || r.basepack.includes(search) || r.material.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Paid Bible Matrix</h2>
-          <p className="text-xs text-muted-foreground">Complete assortment matrix · Pack Details · Geo Master · Attributes · Distribution · Pricing</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search basepack / material…" value={search} onChange={e => setSearch(e.target.value)} className="h-8 pl-7 text-xs w-52" data-testid="search-bible-matrix" />
-          </div>
-          <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-download-matrix"><Download className="h-3.5 w-3.5" /> Export Matrix</Button>
-        </div>
-      </div>
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-[#1f36c7]/5 border-b-0">
-                  <TableHead colSpan={5} className="text-xs font-bold text-[#1f36c7] text-center border-r py-2">Pack Details</TableHead>
-                  <TableHead colSpan={5} className="text-xs font-bold text-[#0d8ecf] text-center border-r py-2">Geo Master</TableHead>
-                  <TableHead colSpan={4} className="text-xs font-bold text-violet-700 text-center border-r py-2">Attributes</TableHead>
-                  <TableHead colSpan={8} className="text-xs font-bold text-amber-700 text-center border-r py-2">Distribution Channels</TableHead>
-                  <TableHead colSpan={3} className="text-xs font-bold text-emerald-700 text-center py-2">Price Activation</TableHead>
-                </TableRow>
-                <TableRow className="bg-muted/60">
-                  {["Sales Cat.","Basepack","BP Status","Material","Mat. Status","Region","Cluster","State","Reg. Code","Depot","MRP","Net Wt","CC","EAN","CSD","GT","KA","OH","MT","Retail","MT-ECOM","MT-QCOM","Start Date","End Date","Created On"].map((h, i) => (
-                    <TableHead key={i} className={`text-xs py-2 ${[4,9,13,21].includes(i) ? "border-r" : ""}`}>{h}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r, i) => (
-                  <TableRow key={i} data-testid={`bible-matrix-row-${i}`} className="hover:bg-muted/30">
-                    <TableCell className="text-xs">{r.salesCategory}</TableCell>
-                    <TableCell className="text-xs font-mono">{r.basepack}</TableCell>
-                    <TableCell><BpStatusBadge status={r.bpStatus} /></TableCell>
-                    <TableCell className="text-xs font-mono text-blue-600">{r.material}</TableCell>
-                    <TableCell className="border-r"><MatStatusBadge status={r.matStatus} /></TableCell>
-                    <TableCell className="text-xs">{r.region}</TableCell>
-                    <TableCell className="text-xs">{r.cluster}</TableCell>
-                    <TableCell className="text-xs">{r.state}</TableCell>
-                    <TableCell className="text-xs font-mono">{r.regionCode}</TableCell>
-                    <TableCell className="text-xs border-r font-mono">{r.depot}</TableCell>
-                    <TableCell className="text-xs font-medium">₹{r.mrp}</TableCell>
-                    <TableCell className="text-xs">{r.netWt}g</TableCell>
-                    <TableCell className="text-xs">{r.cc}</TableCell>
-                    <TableCell className="text-xs font-mono border-r text-muted-foreground">{r.ean}</TableCell>
-                    {[r.csd,r.gt,r.ka,r.oh,r.mt,r.retail,r.ecom,r.qcom].map((v, j) => (
-                      <TableCell key={j} className={j === 7 ? "border-r" : ""}><YNBadge val={v} /></TableCell>
-                    ))}
-                    <TableCell className="text-xs">{r.priceStart}</TableCell>
-                    <TableCell className={`text-xs font-medium ${r.priceEnd === "9999" ? "text-emerald-600" : r.priceEnd === "-" ? "text-muted-foreground" : "text-red-500"}`}>
-                      {r.priceEnd === "9999" ? "9999 ∞" : r.priceEnd}
-                    </TableCell>
-                    <TableCell className="text-xs">{r.createdOn}</TableCell>
-                  </TableRow>
-                ))}
-                {rows.length === 0 && (
-                  <TableRow><TableCell colSpan={25} className="text-center text-muted-foreground text-sm py-10">No records match your search</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ─── Part 4: Service Requests ─────────────────────────────────────────────────
+// ─── Part 3: Service Requests ─────────────────────────────────────────────────
 
 interface ServiceRequestsTabProps {
   requests: ServiceRequest[];
@@ -1722,7 +1626,6 @@ export default function PaidBiblePage() {
             />
           )}
           {activeTab === "network-updates"  && <NetworkUpdatesTab />}
-          {activeTab === "bible-matrix"     && <BibleMatrixTab />}
           {activeTab === "service-requests" && (
             <ServiceRequestsTab requests={serviceRequests} />
           )}

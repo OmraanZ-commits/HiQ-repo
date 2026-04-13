@@ -13,7 +13,6 @@ interface UnileverHeaderProps {
 const PAID_BIBLE_TABS = [
   { label: "Overview",         tab: "overview" },
   { label: "Network Updates",  tab: "network-updates" },
-  { label: "Bible Matrix",     tab: "bible-matrix" },
   { label: "Service Requests", tab: "service-requests" },
 ];
 
