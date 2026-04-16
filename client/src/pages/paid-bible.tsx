@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
 import { useSrStore, addRequest, setBpStatusOverride, formatNow, SR_TYPE_META, CBU_SR_TYPES } from "@/lib/sr-store";
 import { getNetworkChangeTypeName } from "@/lib/constants";
+import { formatDateDisplay } from "@/lib/date-utils";
 import type { ServiceRequest, MaterialCriteria, ApproverStep, SrType } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
 import { UnileverHeader } from "@/components/unilever-header";
@@ -543,7 +544,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
             slobRisk:         e.slobRisk         ?? false,
             typeOfNetwork: getNetworkChangeTypeName(e.typeOfNetwork),
             priceStart:    MSTN_ACTIVE_STATUSES.has(ns) ? "01-Apr-24" : "-",
-            priceEnd:      MSTN_ACTIVE_STATUSES.has(ns) ? "9999" : "-",
+            priceEnd:      e.endDate ? formatDateDisplay(e.endDate) : "-",
             mstnPct,
           };
         }),
@@ -1010,7 +1011,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                         <TableCell className="py-3 px-4">
                                           <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>{m.priceActive ? "Yes" : "No"}</span>
                                         </TableCell>
-                                        <TableCell className={`text-sm font-medium py-3 px-4 whitespace-nowrap ${m.priceEnd === "9999" ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                        <TableCell className={`text-sm font-medium py-3 px-4 whitespace-nowrap ${m.priceEnd === "-" ? "text-muted-foreground" : "text-slate-700"}`}>
                                           {m.priceEnd}
                                         </TableCell>
                                         <TableCell className="py-3 px-4">
