@@ -70,7 +70,6 @@ export interface ServiceRequest {
   basepackName: string;
   targetStatus?: string;
   mstnCoverage?: number;
-  tdpCoverage?: number;
   criteriaMetAtRaise?: boolean;
   materials?: MaterialCriteria[];
 

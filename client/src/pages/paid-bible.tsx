@@ -147,15 +147,8 @@ function deriveMatStatus(ns: string | null | undefined, mstnPct: number | null):
   return (mstnPct != null && mstnPct >= 80) ? "OK" : "Issue";
 }
 
-function simulateTdpCoverage(bpCode: string): number {
-  let hash = 0;
-  for (const c of bpCode) hash = (hash * 31 + c.charCodeAt(0)) % 100;
-  return 50 + (hash % 40);
-}
-
 function checkCriteria(bp: PbBasepack): {
   mstnCoverage: number;
-  tdpCoverage: number;
   criteriaMet: boolean;
   materials: MaterialCriteria[];
 } {
@@ -163,15 +156,14 @@ function checkCriteria(bp: PbBasepack): {
   const isMstnCleared = (m: PbMaterial) => m.mstnPct != null && m.mstnPct >= 80;
   const cleared = bp.materials.filter(isMstnCleared).length;
   const mstnCoverage = Math.round((cleared / total) * 100);
-  const tdpCoverage  = simulateTdpCoverage(bp.basepackCode);
-  const criteriaMet  = mstnCoverage >= 100 && tdpCoverage >= 75;
+  const criteriaMet  = mstnCoverage >= 100;
   const materials: MaterialCriteria[] = bp.materials.map(m => ({
     code:        m.code,
     description: m.description,
     mstnCleared: isMstnCleared(m),
     lastUpdated: m.priceStart && m.priceStart !== "-" ? m.priceStart : "—",
   }));
-  return { mstnCoverage, tdpCoverage, criteriaMet, materials };
+  return { mstnCoverage, criteriaMet, materials };
 }
 
 function makeTicketId(): string {
@@ -328,9 +320,8 @@ interface ActivationCheckDialogProps {
 function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: ActivationCheckDialogProps) {
   if (!bp) return null;
 
-  const { mstnCoverage, tdpCoverage, criteriaMet, materials } = checkCriteria(bp);
+  const { mstnCoverage, criteriaMet, materials } = checkCriteria(bp);
   const mstnPassed = mstnCoverage >= 100;
-  const tdpPassed  = tdpCoverage  >= 75;
 
   const handleCreateRequest = () => {
     const userByRole = (role: string): string | undefined =>
@@ -352,7 +343,6 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
       raisedBy:          bp.paidBibleOwner || "Brand Planner",
       raisedAt:          formatNow(),
       mstnCoverage,
-      tdpCoverage,
       criteriaMetAtRaise: criteriaMet,
       materials,
       approvers,
