@@ -25,7 +25,7 @@ import {
   Search, Filter, ChevronRight, ChevronDown, FileText,
   Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, Eye,
   ShieldCheck, ShieldAlert, Send, ListChecks,
-  TrendingUp, TrendingDown, Activity, AlertCircle, RotateCcw,
+  TrendingUp, TrendingDown, ArrowUp, ArrowDown, Activity, AlertCircle, RotateCcw,
 } from "lucide-react";
 import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 
@@ -1173,28 +1173,31 @@ function RelaunchChangeCell({ field, mono, delta }: {
     return <span className="text-xs text-muted-foreground/60">—</span>;
   }
   if (field.from && field.to) {
-    let deltaEl: JSX.Element | null = null;
     if (delta) {
       const fromNum = parseNumericVal(field.from);
       const toNum   = parseNumericVal(field.to);
-      if (fromNum !== null && toNum !== null && fromNum !== 0) {
-        const pct = ((toNum - fromNum) / fromNum) * 100;
-        const up  = pct >= 0;
-        deltaEl = (
-          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${up ? "text-emerald-600" : "text-red-500"}`}>
-            {up
-              ? <TrendingUp   className="h-3 w-3 flex-shrink-0" />
-              : <TrendingDown className="h-3 w-3 flex-shrink-0" />}
-            {up ? "+" : ""}{pct.toFixed(1)}%
-          </span>
-        );
-      }
+      const hasDelta = fromNum !== null && toNum !== null && fromNum !== 0;
+      const pct = hasDelta ? ((toNum! - fromNum!) / fromNum!) * 100 : 0;
+      const up  = pct >= 0;
+      return (
+        <div className={`flex flex-col gap-0.5 ${mono ? "font-mono" : ""}`}>
+          <span className="text-xs font-semibold text-emerald-600">{field.to}</span>
+          {hasDelta && (
+            <span
+              title={`Was: ${field.from}`}
+              className={`inline-flex items-center gap-0.5 text-xs font-medium cursor-help ${up ? "text-emerald-600" : "text-red-500"}`}
+            >
+              {up ? <ArrowUp className="h-3 w-3 flex-shrink-0" /> : <ArrowDown className="h-3 w-3 flex-shrink-0" />}
+              {up ? "+" : ""}{pct.toFixed(1)}%
+            </span>
+          )}
+        </div>
+      );
     }
     return (
       <div className={`flex flex-col gap-0.5 ${mono ? "font-mono" : ""}`}>
         <span className="text-xs text-muted-foreground line-through">{field.from}</span>
         <span className="text-xs font-semibold text-emerald-600">{field.to}</span>
-        {deltaEl}
       </div>
     );
   }
