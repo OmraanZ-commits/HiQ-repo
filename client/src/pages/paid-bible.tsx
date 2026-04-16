@@ -740,9 +740,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                           <TableCell className="text-xs text-center text-muted-foreground">{m.predecessorDoh ?? "—"}</TableCell>
                           <TableCell className="text-xs text-center text-muted-foreground">{m.successorDoh ?? "—"}</TableCell>
                           <TableCell className="text-xs text-center text-muted-foreground">
-                            {m.dohSnapshotDate
-                              ? new Date(m.dohSnapshotDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                              : "—"}
+                            {new Date(m.dohSnapshotDate ?? Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                           </TableCell>
                         </>}
                       </TableRow>
