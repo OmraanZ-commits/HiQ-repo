@@ -129,56 +129,193 @@ function SelectionLegend() {
 
 // ─── Geo Editor ───────────────────────────────────────────────────────────────
 
-function GeoEditor({ clusters, currentGeo, addedGeos, setAddedGeos }: {
+function GeoEditor({
+  clusters, currentGeo, addedGeos, setAddedGeos,
+  geographyDepotMap, addedDepots, setAddedDepots,
+}: {
   clusters: ClusterInfo[];
   currentGeo: string[];
   addedGeos: string[];
   setAddedGeos: (v: string[]) => void;
+  geographyDepotMap: Record<string, string[]>;
+  addedDepots: string[];
+  setAddedDepots: (v: string[]) => void;
 }) {
-  const grouped = useMemo(() => {
-    const map = new Map<string, ClusterInfo[]>();
-    REGION_ORDER.forEach(r => map.set(r, []));
-    clusters.forEach(c => {
-      if (!map.has(c.region)) map.set(c.region, []);
-      map.get(c.region)!.push(c);
-    });
-    return Array.from(map.entries()).filter(([, items]) => items.length > 0);
-  }, [clusters]);
+  const sorted = useMemo(
+    () => [...clusters].sort((a, b) => a.name.localeCompare(b.name)),
+    [clusters],
+  );
 
-  const getState = (name: string): ChipState =>
-    currentGeo.includes(name) ? "existing"
-    : addedGeos.includes(name) ? "new"
-    : "available";
-
-  const toggle = (name: string) => {
+  const toggleGeo = (name: string) => {
     if (currentGeo.includes(name)) return;
-    setAddedGeos(
-      addedGeos.includes(name)
-        ? addedGeos.filter(g => g !== name)
-        : [...addedGeos, name],
-    );
+    const isAdding = !addedGeos.includes(name);
+    setAddedGeos(isAdding ? [...addedGeos, name] : addedGeos.filter(g => g !== name));
+    if (!isAdding) {
+      const geoDepots = geographyDepotMap[name] || [];
+      setAddedDepots(addedDepots.filter(d => !geoDepots.includes(d)));
+    }
   };
 
+  const toggleDepot = (depot: string) =>
+    setAddedDepots(
+      addedDepots.includes(depot)
+        ? addedDepots.filter(d => d !== depot)
+        : [...addedDepots, depot],
+    );
+
+  const toggleAllGeoDepots = (geo: string) => {
+    const geoDepots = geographyDepotMap[geo] || [];
+    const allSelected = geoDepots.every(d => addedDepots.includes(d));
+    if (allSelected) {
+      setAddedDepots(addedDepots.filter(d => !geoDepots.includes(d)));
+    } else {
+      const newDepots = [...addedDepots];
+      geoDepots.forEach(d => { if (!newDepots.includes(d)) newDepots.push(d); });
+      setAddedDepots(newDepots);
+    }
+  };
+
+  const newGeoCount = addedGeos.length;
+  const newDepotCount = addedDepots.length;
+
   return (
-    <div className="space-y-4">
-      <SelectionLegend />
-      {grouped.map(([region, items]) => (
-        <div key={region}>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            {region}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {items.map(c => (
-              <Chip key={c.name} label={c.name} state={getState(c.name)} onClick={() => toggle(c.name)} />
-            ))}
-          </div>
+    <div className="space-y-3">
+      {/* Header counters */}
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-primary/80 inline-block" />
+          <span className="font-medium text-foreground">{currentGeo.length}/{clusters.length} geo</span>
+          <span className="text-muted-foreground">(current)</span>
+        </span>
+        {newGeoCount > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+            <span className="font-medium text-emerald-700">+{newGeoCount} geo · +{newDepotCount} depots</span>
+            <span className="text-muted-foreground">(adding)</span>
+          </span>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="max-h-[340px] overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-muted/50 border-b">
+              <th className="text-left py-2 px-3 font-medium text-xs w-[200px]">Geography</th>
+              <th className="text-left py-2 px-3 font-medium text-xs">Available Depots</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((cluster, idx) => {
+              const isExisting = currentGeo.includes(cluster.name);
+              const isNew      = addedGeos.includes(cluster.name);
+              const geoDepots  = geographyDepotMap[cluster.name] || [];
+              const allNewDepotsSelected = geoDepots.length > 0 && geoDepots.every(d => addedDepots.includes(d));
+
+              return (
+                <tr
+                  key={cluster.name}
+                  className={cn(
+                    idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+                    isExisting && "opacity-60",
+                  )}
+                >
+                  {/* Geography column */}
+                  <td className="py-2 px-3 border-r align-middle whitespace-nowrap">
+                    <label className={cn(
+                      "flex items-center gap-2 text-xs font-medium rounded px-1 py-0.5",
+                      isExisting ? "cursor-not-allowed" : "cursor-pointer",
+                      isNew && "bg-emerald-50 text-emerald-800",
+                      !isNew && !isExisting && "hover:bg-muted/50",
+                    )}>
+                      <Checkbox
+                        checked={isExisting || isNew}
+                        disabled={isExisting}
+                        onCheckedChange={() => toggleGeo(cluster.name)}
+                        className={cn(isNew && "data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500")}
+                        data-testid={`checkbox-geo-${cluster.name.toLowerCase().replace(/[\s-]+/g, "-")}`}
+                      />
+                      <span>{cluster.name}</span>
+                      {isExisting && (
+                        <span className="ml-auto text-[10px] text-primary font-semibold">current</span>
+                      )}
+                    </label>
+                  </td>
+
+                  {/* Depots column */}
+                  <td className="py-2 px-3">
+                    {isExisting ? (
+                      /* Existing geo — show current depots read-only */
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {geoDepots.length === 0
+                          ? <span className="text-[11px] text-muted-foreground italic">—</span>
+                          : geoDepots.map(depot => (
+                            <span key={depot} className="text-[11px] font-mono text-muted-foreground">{depot}</span>
+                          ))}
+                      </div>
+                    ) : isNew ? (
+                      /* New geo — selectable depots */
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {geoDepots.length > 1 && (
+                          <label className={cn(
+                            "flex items-center gap-1.5 py-0.5 px-2 rounded border cursor-pointer transition-colors text-[11px] font-medium",
+                            allNewDepotsSelected
+                              ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                              : "bg-muted/50 border-muted text-muted-foreground hover:bg-muted",
+                          )}>
+                            <Checkbox
+                              checked={allNewDepotsSelected}
+                              onCheckedChange={() => toggleAllGeoDepots(cluster.name)}
+                              className="h-3 w-3 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                            />
+                            All
+                          </label>
+                        )}
+                        {geoDepots.map(depot => {
+                          const checked = addedDepots.includes(depot);
+                          return (
+                            <label key={depot} className={cn(
+                              "flex items-center gap-1.5 py-0.5 px-1.5 rounded cursor-pointer transition-colors",
+                              checked ? "bg-emerald-50" : "hover:bg-muted/50",
+                            )}>
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={() => toggleDepot(depot)}
+                                className="h-3 w-3 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                                data-testid={`checkbox-depot-${depot.toLowerCase()}`}
+                              />
+                              <span className="text-xs font-mono">{depot}</span>
+                            </label>
+                          );
+                        })}
+                        {geoDepots.length === 0 && (
+                          <span className="text-[11px] text-muted-foreground italic">No depots mapped</span>
+                        )}
+                      </div>
+                    ) : (
+                      /* Available geo — show depots greyed out */
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 opacity-40">
+                        {geoDepots.length === 0
+                          ? <span className="text-[11px] text-muted-foreground italic">—</span>
+                          : geoDepots.map(depot => (
+                            <span key={depot} className="text-[11px] font-mono text-muted-foreground">{depot}</span>
+                          ))}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
         </div>
-      ))}
-      {addedGeos.length > 0 && (
-        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700">
-          <span className="font-semibold">{addedGeos.length} new {addedGeos.length === 1 ? "geography" : "geographies"} to add:</span>{" "}
-          {addedGeos.join(", ")}
-        </div>
+      </div>
+
+      {newGeoCount === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-1">
+          Click a geography checkbox to add it to the extension request.
+        </p>
       )}
     </div>
   );
@@ -398,7 +535,7 @@ function SourcingEditor({
 
 function SummaryView({
   amendmentType, currentGeo, currentChannels, currentDepots,
-  addedGeos, addedChannels,
+  addedGeos, addedChannels, addedDepots,
   newMode, centralizedGeo, centralizedDepots,
   justification, setJustification,
 }: {
@@ -408,6 +545,7 @@ function SummaryView({
   currentDepots: string[];
   addedGeos: string[];
   addedChannels: string[];
+  addedDepots: string[];
   newMode: "decentralized" | "centralized";
   centralizedGeo: string[];
   centralizedDepots: string[];
@@ -442,6 +580,16 @@ function SummaryView({
                 ))}
               </div>
             </div>
+            {addedDepots.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Adding Depots</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {addedDepots.map(d => (
+                    <Badge key={d} className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono font-normal">{d}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -581,6 +729,7 @@ export function RaiseAmendmentDialog({
   const [amendmentType, setAmendmentType] = useState<SrType | "">("");
 
   const [addedGeos,     setAddedGeos]     = useState<string[]>([]);
+  const [addedDepots,   setAddedDepots]   = useState<string[]>([]);
   const [addedChannels, setAddedChannels] = useState<string[]>([]);
 
   const [newMode,          setNewMode]          = useState<"decentralized" | "centralized">("decentralized");
@@ -606,6 +755,7 @@ export function RaiseAmendmentDialog({
     setStep("type");
     setAmendmentType("");
     setAddedGeos([]);
+    setAddedDepots([]);
     setAddedChannels([]);
     setNewMode("decentralized");
     setCentralizedGeo([]);
@@ -623,7 +773,9 @@ export function RaiseAmendmentDialog({
     let requestedValue = "";
     if (amendmentType === "geo-extension") {
       currentValue     = currentGeo.join(", ") || "None";
-      requestedValue   = [...currentGeo, ...addedGeos].join(", ");
+      const geoStr     = [...currentGeo, ...addedGeos].join(", ");
+      const depotStr   = addedDepots.length > 0 ? `; Depots: ${addedDepots.join(", ")}` : "";
+      requestedValue   = geoStr + depotStr;
     } else if (amendmentType === "channel-extension") {
       currentValue     = currentChannels.join(", ") || "None";
       requestedValue   = [...currentChannels, ...addedChannels].join(", ");
@@ -758,6 +910,9 @@ export function RaiseAmendmentDialog({
               currentGeo={currentGeo}
               addedGeos={addedGeos}
               setAddedGeos={setAddedGeos}
+              geographyDepotMap={geographyDepotMap}
+              addedDepots={addedDepots}
+              setAddedDepots={setAddedDepots}
             />
           )}
 
@@ -792,6 +947,7 @@ export function RaiseAmendmentDialog({
               currentChannels={currentChannels}
               currentDepots={currentDepots}
               addedGeos={addedGeos}
+              addedDepots={addedDepots}
               addedChannels={addedChannels}
               newMode={newMode}
               centralizedGeo={centralizedGeo}
