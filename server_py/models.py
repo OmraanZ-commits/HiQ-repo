@@ -302,6 +302,13 @@ class ServiceRequestBase(BaseModel):
     approvers: Optional[List[ApproverStep]] = Field(default_factory=list)
     criteriaMetAtRaise: Optional[bool] = None
     mstnCoverageAtRaise: Optional[int] = None
+    cbuId: Optional[str] = None
+    cbuCode: Optional[str] = None
+    cbuDescription: Optional[str] = None
+    currentValue: Optional[str] = None
+    requestedValue: Optional[str] = None
+    addedGeos: Optional[List[str]] = Field(default_factory=list)
+    addedDepots: Optional[List[str]] = Field(default_factory=list)
 
 
 class InsertServiceRequest(ServiceRequestBase):

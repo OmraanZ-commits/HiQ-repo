@@ -205,6 +205,13 @@ class ServiceRequestModel(Base):
     rejection_reason = Column(String, nullable=True)
     criteria_met_at_raise = Column(Boolean, nullable=True)
     mstn_coverage_at_raise = Column(Integer, nullable=True)
+    cbu_id = Column(String, nullable=True)
+    cbu_code = Column(String, nullable=True)
+    cbu_description = Column(String, nullable=True)
+    current_value = Column(Text, nullable=True)
+    requested_value = Column(Text, nullable=True)
+    added_geos = Column(JSONB, nullable=True, default=[])
+    added_depots = Column(JSONB, nullable=True, default=[])
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
@@ -268,6 +275,27 @@ def run_migrations():
         ))
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS price_active BOOLEAN"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS cbu_id VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS cbu_code VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS cbu_description VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS current_value TEXT"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS requested_value TEXT"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS added_geos JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS added_depots JSONB"
         ))
         conn.commit()
 

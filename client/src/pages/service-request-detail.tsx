@@ -171,26 +171,60 @@ export default function ServiceRequestDetailPage() {
                   <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
                     Change Details
                   </h2>
-                  <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/40">
-                          <TableHead className="w-1/2 py-3 text-xs">Current</TableHead>
-                          <TableHead className="w-1/2 py-3 text-xs">Requested</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell className="py-4 text-sm align-top whitespace-pre-wrap text-muted-foreground">
-                            {request.currentValue || "—"}
-                          </TableCell>
-                          <TableCell className="py-4 text-sm align-top whitespace-pre-wrap font-medium">
-                            {request.requestedValue || "—"}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
+
+                  {request.srType === "geo-extension" && (request.addedGeos?.length ?? 0) > 0 ? (
+                    /* Structured geo-extension view */
+                    <div className="rounded-xl border bg-white shadow-sm divide-y divide-border/60">
+                      <div className="px-5 py-4 space-y-1.5">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Adding Geographies
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-added-geos">
+                          {request.addedGeos!.map(g => (
+                            <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal" data-testid={`badge-geo-${g}`}>
+                              {g}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      {(request.addedDepots?.length ?? 0) > 0 && (
+                        <div className="px-5 py-4 space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Adding Depots
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-added-depots">
+                            {request.addedDepots!.map(d => (
+                              <Badge key={d} variant="outline" className="text-xs font-mono" data-testid={`badge-depot-${d}`}>
+                                {d}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Plain-text fallback for other SR types */
+                    <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/40">
+                            <TableHead className="w-1/2 py-3 text-xs">Current</TableHead>
+                            <TableHead className="w-1/2 py-3 text-xs">Requested</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell className="py-4 text-sm align-top whitespace-pre-wrap text-muted-foreground">
+                              {request.currentValue || "—"}
+                            </TableCell>
+                            <TableCell className="py-4 text-sm align-top whitespace-pre-wrap font-medium">
+                              {request.requestedValue || "—"}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </div>
               </>
             )}

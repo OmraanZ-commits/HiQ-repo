@@ -80,6 +80,8 @@ export interface ServiceRequest {
   currentValue?: string;
   requestedValue?: string;
   justification?: string;
+  addedGeos?: string[];
+  addedDepots?: string[];
 
   // ── Structured payloads for SR types ───────────────────────────────────────
   addedGeos?: string[];

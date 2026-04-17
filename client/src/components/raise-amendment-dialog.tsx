@@ -19,6 +19,7 @@ import {
   type SrType, type ServiceRequest, type ApproverStep,
   formatNow,
 } from "@/lib/sr-store";
+import { apiRequest } from "@/lib/queryClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -765,7 +766,7 @@ export function RaiseAmendmentDialog({
 
   const handleClose = () => { onOpenChange(false); reset(); };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!amendmentType || !justification.trim()) return;
     setSubmitting(true);
 
@@ -787,6 +788,9 @@ export function RaiseAmendmentDialog({
         : `Centralized — Geos: ${centralizedGeo.join(", ")}; Depots: ${centralizedDepots.join(", ")}`;
     }
 
+    const raisedBy = raisedByProp || users.find(u => u.role === "Paid Bible Owner" && u.isActive)?.name || "PB SPOC";
+    const approvers = buildApprovers(users, assignedPerson);
+
     const req: ServiceRequest = {
       id: genId(),
       srType: amendmentType as SrType,
@@ -794,15 +798,37 @@ export function RaiseAmendmentDialog({
       basepackCode,
       basepackName: `${brand} · ${basepackCode}`,
       cbuId, cbuCode, cbuDescription, brand, bg,
-      raisedBy: raisedByProp || users.find(u => u.role === "Paid Bible Owner" && u.isActive)?.name || "PB SPOC",
+      raisedBy,
       raisedAt: formatNow(),
       currentValue,
       requestedValue,
       justification: justification.trim(),
-      approvers: buildApprovers(users, assignedPerson),
+      approvers,
       overallStatus: "pending",
-      ...(amendmentType === "geo-extension" && { addedGeos, addedDepots }),
+      addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
+      addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
     };
+
+    try {
+      await apiRequest("POST", "/api/service-requests", {
+        srType: amendmentType,
+        raisedBy,
+        businessGroup: bg,
+        basepakCode: basepackCode,
+        basepakName: `${brand} · ${basepackCode}`,
+        businessJustification: justification.trim(),
+        cbuId,
+        cbuCode,
+        cbuDescription,
+        currentValue,
+        requestedValue,
+        addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
+        addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
+        approvers,
+      });
+    } catch {
+    }
+
     addRequest(req);
     setSubmitting(false);
     onSuccess?.(req);
