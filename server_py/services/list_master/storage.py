@@ -98,6 +98,27 @@ class ListMasterStorage:
         finally:
             db.close()
 
+    def merge_geo_depots(self, entry_id: str, added_geos: list, added_depots: list) -> Optional[dict]:
+        """Merge new geographies and depots into the CBU record without duplication."""
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return None
+            existing_geo = list(row.geography or [])
+            existing_depot = list(row.depot or [])
+            merged_geo = existing_geo + [g for g in added_geos if g not in existing_geo]
+            merged_depot = existing_depot + [d for d in added_depots if d not in existing_depot]
+            row.geography = merged_geo
+            row.depot = merged_depot
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
     def delete(self, entry_id: str) -> bool:
         db = SessionLocal()
         try:

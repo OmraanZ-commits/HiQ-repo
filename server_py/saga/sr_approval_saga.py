@@ -2,7 +2,10 @@
 SR Approval Saga
 Orchestrates the approval of a Service Request step-by-step.
 On full approval of a "basepack-status-change" SR, it writes the status override
-to the Basepack Status service. Supports compensation (rollback) on failure.
+to the Basepack Status service.
+On full approval of a "geo-extension" SR, it merges the addedGeos and addedDepots
+into the CBU record permanently.
+Supports compensation (rollback) on failure.
 """
 import uuid
 from datetime import datetime, timezone
@@ -10,6 +13,7 @@ from typing import Optional
 
 from server_py.services.service_requests.service import ServiceRequestService
 from server_py.services.basepack_status.service import BasepakStatusService
+from server_py.services.list_master.service import ListMasterService
 from server_py.models import ApproveStepRequest, RejectStepRequest, InsertBasepakStatusOverride
 
 
@@ -23,13 +27,16 @@ class SrApprovalSaga:
         sr_id: str,
         sr_service: ServiceRequestService,
         bp_status_service: BasepakStatusService,
+        list_master_service: Optional[ListMasterService] = None,
     ):
         self.saga_id = str(uuid.uuid4())
         self.sr_id = sr_id
         self.sr_service = sr_service
         self.bp_status_service = bp_status_service
+        self.list_master_service = list_master_service
         self.steps_log: list = []
         self._applied_bp_override: Optional[str] = None  # bpId applied (for compensation)
+        self._applied_geo_extension: Optional[dict] = None  # {cbuId, addedGeos, addedDepots} (for compensation)
 
     def _log_step(self, name: str, status: str, result=None, error: Optional[str] = None):
         self.steps_log.append({
@@ -44,6 +51,7 @@ class SrApprovalSaga:
         """
         Advance one approval step. If this is the final step and the SR type is
         'basepack-status-change', also apply the basepack status override.
+        If the SR type is 'geo-extension', merge the new geos/depots into the CBU record.
         Returns saga result dict.
         """
         try:
@@ -57,6 +65,9 @@ class SrApprovalSaga:
 
             if updated_sr["status"] == "approved" and sr.get("srType") == "basepack-status-change":
                 self._apply_bp_override(updated_sr, actioned_by)
+
+            if updated_sr["status"] == "approved" and sr.get("srType") == "geo-extension":
+                self._apply_geo_extension(sr, actioned_by)
 
             return self._result("completed")
 
@@ -92,6 +103,34 @@ class SrApprovalSaga:
         self._applied_bp_override = bp_id
         self._log_step("apply_bp_override", "completed", result={"bpId": bp_id, "status": new_status})
 
+    def _apply_geo_extension(self, sr: dict, actioned_by: str):
+        cbu_id = sr.get("cbuId")
+        added_geos = sr.get("addedGeos") or []
+        added_depots = sr.get("addedDepots") or []
+
+        if not cbu_id:
+            self._log_step("apply_geo_extension", "skipped", result={"reason": "No cbuId on SR"})
+            return
+
+        if not added_geos and not added_depots:
+            self._log_step("apply_geo_extension", "skipped", result={"reason": "No geos or depots to add"})
+            return
+
+        if not self.list_master_service:
+            self._log_step("apply_geo_extension", "skipped", result={"reason": "ListMasterService not available"})
+            return
+
+        result = self.list_master_service.merge_geo_depots(cbu_id, added_geos, added_depots)
+        if not result:
+            raise LookupError(f"CBU {cbu_id} not found when applying geo extension")
+
+        self._applied_geo_extension = {"cbuId": cbu_id, "addedGeos": added_geos, "addedDepots": added_depots}
+        self._log_step("apply_geo_extension", "completed", result={
+            "cbuId": cbu_id,
+            "addedGeos": added_geos,
+            "addedDepots": added_depots,
+        })
+
     def _compensate(self):
         if self._applied_bp_override:
             try:
@@ -116,9 +155,11 @@ def build_sr_approval_saga(
     sr_id: str,
     sr_service: ServiceRequestService,
     bp_status_service: BasepakStatusService,
+    list_master_service: Optional[ListMasterService] = None,
 ) -> SrApprovalSaga:
     return SrApprovalSaga(
         sr_id=sr_id,
         sr_service=sr_service,
         bp_status_service=bp_status_service,
+        list_master_service=list_master_service,
     )

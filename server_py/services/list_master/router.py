@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel
 from server_py.models import InsertNetworkEntry, UpdateNetworkEntry
 from server_py.services.list_master.service import ListMasterService
 
@@ -46,6 +47,21 @@ async def update_entry(entry_id: str, data: UpdateNetworkEntry):
     if not _service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     entry = _service.update(entry_id, data)
+    if not entry:
+        raise HTTPException(status_code=404, detail={"service": "list-master", "message": "Entry not found"})
+    return entry
+
+
+class GeoExtensionRequest(BaseModel):
+    addedGeos: List[str] = []
+    addedDepots: List[str] = []
+
+
+@router.post("/{entry_id}/geo-extension")
+async def apply_geo_extension(entry_id: str, data: GeoExtensionRequest):
+    if not _service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    entry = _service.merge_geo_depots(entry_id, data.addedGeos, data.addedDepots)
     if not entry:
         raise HTTPException(status_code=404, detail={"service": "list-master", "message": "Entry not found"})
     return entry

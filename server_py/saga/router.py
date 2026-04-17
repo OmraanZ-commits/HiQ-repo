@@ -190,6 +190,7 @@ async def execute_sr_approve(sr_id: str, req: SrApproveRequest):
         sr_id=sr_id,
         sr_service=_sr_service,
         bp_status_service=_bp_status_service,
+        list_master_service=_list_service,
     )
     result = saga.approve(step_index=req.stepIndex, actioned_by=req.actionedBy)
 

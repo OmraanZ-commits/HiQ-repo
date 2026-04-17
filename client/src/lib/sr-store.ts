@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,7 +121,6 @@ export function formatNow(): string {
 
 let _requests: ServiceRequest[] = [];
 let _bpStatusOverrides: Record<string, string> = {};
-let _geoOverrides: Record<string, { geos: string[]; depots: string[] }> = {};
 const _listeners = new Set<() => void>();
 
 function notify() {
@@ -138,10 +137,6 @@ export function getRequest(id: string): ServiceRequest | undefined {
 
 export function getBpStatusOverrides(): Record<string, string> {
   return _bpStatusOverrides;
-}
-
-export function getGeoOverrides(): Record<string, { geos: string[]; depots: string[] }> {
-  return _geoOverrides;
 }
 
 export function addRequest(req: ServiceRequest): void {
@@ -166,12 +161,13 @@ export function approveStep(requestId: string, stepIndex: number): void {
       _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: sr.targetStatus };
     }
     if (allApproved && sr.srType === "geo-extension" && sr.cbuId && (sr.addedGeos?.length || sr.addedDepots?.length)) {
-      const prev = _geoOverrides[sr.cbuId] ?? { geos: [], depots: [] };
-      const mergedGeos   = [...new Set([...prev.geos,   ...(sr.addedGeos   ?? [])])];
-      const mergedDepots = [...new Set([...prev.depots, ...(sr.addedDepots ?? [])])];
-      _geoOverrides = { ..._geoOverrides, [sr.cbuId]: { geos: mergedGeos, depots: mergedDepots } };
-      queryClient.invalidateQueries({
-        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/service-requests"),
+      apiRequest("POST", `/api/network-entries/${sr.cbuId}/geo-extension`, {
+        addedGeos: sr.addedGeos ?? [],
+        addedDepots: sr.addedDepots ?? [],
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      }).catch(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
       });
     }
     return { ...sr, approvers, overallStatus: allApproved ? "approved" as const : "pending" as const };
@@ -211,13 +207,11 @@ export function subscribe(cb: () => void): () => void {
 export function useSrStore() {
   const [requests, setRequests] = useState<ServiceRequest[]>(getRequests);
   const [bpStatusOverrides, setBpStatusOverrides] = useState<Record<string, string>>(getBpStatusOverrides);
-  const [geoOverrides, setGeoOverrides] = useState<Record<string, { geos: string[]; depots: string[] }>>(getGeoOverrides);
   useEffect(() => {
     return subscribe(() => {
       setRequests([...getRequests()]);
       setBpStatusOverrides({ ...getBpStatusOverrides() });
-      setGeoOverrides({ ...getGeoOverrides() });
     });
   }, []);
-  return { requests, bpStatusOverrides, geoOverrides };
+  return { requests, bpStatusOverrides };
 }

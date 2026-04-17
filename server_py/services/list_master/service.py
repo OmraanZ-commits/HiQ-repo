@@ -40,3 +40,6 @@ class ListMasterService:
 
     def compensate_status_update(self, entry_id: str, previous_status: str):
         self.storage.update(entry_id, UpdateNetworkEntry(networkStatus=previous_status))
+
+    def merge_geo_depots(self, entry_id: str, added_geos: list, added_depots: list) -> Optional[dict]:
+        return self.storage.merge_geo_depots(entry_id, added_geos, added_depots)

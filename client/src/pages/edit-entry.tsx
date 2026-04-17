@@ -21,7 +21,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PortalUser } from "@/lib/users-data";
 import { RaiseAmendmentDialog } from "@/components/raise-amendment-dialog";
-import { useSrStore } from "@/lib/sr-store";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -109,8 +108,6 @@ export default function EditEntry() {
 
   const [showAmendmentDialog, setShowAmendmentDialog] = useState(false);
   const { data: portalUsers = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
-  const { geoOverrides } = useSrStore();
-
   const handleRaiseAmendment = () => setShowAmendmentDialog(true);
 
   const handleAmendmentSuccess = () => {
@@ -213,26 +210,6 @@ export default function EditEntry() {
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
 
-  // Fetch approved geo-extension SRs from the database (survives page refresh)
-  const { data: approvedGeoSrs = [] } = useQuery<Array<{ cbuId?: string; addedGeos?: string[]; addedDepots?: string[]; overallStatus: string; srType: string }>>({
-    queryKey: ["/api/service-requests?status=approved&srType=geo-extension"],
-    enabled: !!entry,
-  });
-
-  // Aggregate from database: all approved geo-extension SRs for this CBU
-  const dbAddedGeos   = [...new Set(approvedGeoSrs.filter(sr => sr.cbuId === entry?.id).flatMap(sr => sr.addedGeos   ?? []))];
-  const dbAddedDepots = [...new Set(approvedGeoSrs.filter(sr => sr.cbuId === entry?.id).flatMap(sr => sr.addedDepots ?? []))];
-
-  // Merge DB overrides with in-memory overrides (in-memory covers real-time approvals before refetch)
-  const inMemOverride = entry ? (geoOverrides[entry.id] ?? null) : null;
-  const allAddedGeos   = [...new Set([...dbAddedGeos,   ...(inMemOverride?.geos   ?? [])])];
-  const allAddedDepots = [...new Set([...dbAddedDepots, ...(inMemOverride?.depots ?? [])])];
-
-  // Filter to only the truly "new" additions (not already in the CBU's base selection)
-  const approvedAddedGeos   = allAddedGeos.filter(g => !selectedGeo.includes(g));
-  const approvedAddedDepots = allAddedDepots.filter(d => !selectedDepots.includes(d));
-  const effectiveGeo    = approvedAddedGeos.length   > 0 ? [...selectedGeo,    ...approvedAddedGeos]   : selectedGeo;
-  const effectiveDepots = approvedAddedDepots.length > 0 ? [...selectedDepots, ...approvedAddedDepots] : selectedDepots;
 
 
   if (isLoading) {
@@ -546,8 +523,8 @@ export default function EditEntry() {
                         <div className="flex items-center gap-2">
                           <Globe className="h-4 w-4 text-primary" />
                           <h3 className="text-sm font-semibold">Geography & Depots</h3>
-                          <Badge variant="secondary" className="text-[10px]">{effectiveGeo.length}/{CLUSTERS.length} geo</Badge>
-                          <Badge variant="outline" className="text-[10px]">{effectiveDepots.length}/{getAvailableDepots(effectiveGeo).length || 0} depots</Badge>
+                          <Badge variant="secondary" className="text-[10px]">{selectedGeo.length}/{CLUSTERS.length} geo</Badge>
+                          <Badge variant="outline" className="text-[10px]">{selectedDepots.length}/{getAvailableDepots(selectedGeo).length || 0} depots</Badge>
                         </div>
                         <div className="flex items-center gap-4">
                           <label className="flex items-center gap-2 cursor-pointer" data-testid="toggle-all-clusters">
@@ -569,28 +546,6 @@ export default function EditEntry() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {(approvedAddedGeos.length > 0 || approvedAddedDepots.length > 0) && (
-                        <div className="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 flex flex-wrap items-start gap-2">
-                          <Check className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-emerald-700 mb-1">SR Approved — pending backend sync</p>
-                            {approvedAddedGeos.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-1">
-                                {approvedAddedGeos.map(g => (
-                                  <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-[10px] font-normal">{g}</Badge>
-                                ))}
-                              </div>
-                            )}
-                            {approvedAddedDepots.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {approvedAddedDepots.map(d => (
-                                  <Badge key={d} className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-mono font-normal">{d}</Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
                       <div className="border rounded-lg overflow-hidden" data-testid="checkboxes-geography-depot">
                         <table className="w-full text-sm">
                           <thead>
@@ -601,19 +556,17 @@ export default function EditEntry() {
                           </thead>
                           <tbody>
                             {CLUSTERS.map((cluster, idx) => {
-                              const isGeoSelected = effectiveGeo.includes(cluster.name);
-                              const isGeoFromSr   = approvedAddedGeos.includes(cluster.name);
+                              const isGeoSelected = selectedGeo.includes(cluster.name);
                               const geoDepots = GEOGRAPHY_DEPOT_MAP[cluster.name] || [];
-                              const allGeoDepotsSelected = geoDepots.length > 0 && geoDepots.every(d => effectiveDepots.includes(d));
-                              const someGeoDepotsSelected = geoDepots.some(d => effectiveDepots.includes(d));
+                              const allGeoDepotsSelected = geoDepots.length > 0 && geoDepots.every(d => selectedDepots.includes(d));
+                              const someGeoDepotsSelected = geoDepots.some(d => selectedDepots.includes(d));
                               return (
                                 <tr key={cluster.name} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
                                   <td className="py-2 px-3 border-r font-medium text-xs whitespace-nowrap align-middle">
-                                    <label className={`flex items-center gap-2 rounded px-1 py-0.5 ${isGeoFromSr ? "cursor-default" : "cursor-pointer"} ${isGeoSelected ? "bg-primary/10" : "hover:bg-muted/50"}`}>
+                                    <label className={`flex items-center gap-2 rounded px-1 py-0.5 cursor-pointer ${isGeoSelected ? "bg-primary/10" : "hover:bg-muted/50"}`}>
                                       <Checkbox
                                         checked={isGeoSelected}
-                                        disabled={isGeoFromSr}
-                                        onCheckedChange={() => !isGeoFromSr && toggleArrayItem("geography", cluster.name)}
+                                        onCheckedChange={() => toggleArrayItem("geography", cluster.name)}
                                         data-testid={`checkbox-geo-${cluster.name.toLowerCase().replace(/[\s-]+/g, "-")}`}
                                       />
                                       <span>{cluster.name}</span>
@@ -642,14 +595,13 @@ export default function EditEntry() {
                                         </label>
                                       )}
                                       {geoDepots.map(depot => {
-                                        const isChecked     = effectiveDepots.includes(depot);
-                                        const isDepotFromSr = approvedAddedDepots.includes(depot);
+                                        const isChecked = selectedDepots.includes(depot);
                                         return (
-                                          <label key={depot} className={`flex items-center gap-1.5 py-1 px-2 rounded transition-colors ${(!isGeoSelected || isDepotFromSr) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${isChecked ? "bg-primary/10" : "hover:bg-muted/50"}`}>
+                                          <label key={depot} className={`flex items-center gap-1.5 py-1 px-2 rounded transition-colors ${!isGeoSelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${isChecked ? "bg-primary/10" : "hover:bg-muted/50"}`}>
                                             <Checkbox
                                               checked={isChecked}
-                                              disabled={!isGeoSelected || isDepotFromSr}
-                                              onCheckedChange={() => !isDepotFromSr && toggleArrayItem("depot", depot)}
+                                              disabled={!isGeoSelected}
+                                              onCheckedChange={() => toggleArrayItem("depot", depot)}
                                               data-testid={`checkbox-depot-${depot.toLowerCase()}`}
                                             />
                                             <span className="text-xs font-mono">{depot}</span>
@@ -1523,8 +1475,8 @@ export default function EditEntry() {
             }
             users={portalUsers}
             onSuccess={handleAmendmentSuccess}
-            currentGeo={effectiveGeo}
-            currentDepots={effectiveDepots}
+            currentGeo={selectedGeo}
+            currentDepots={selectedDepots}
             currentChannels={selectedChannels}
             clusters={CLUSTERS}
             leafChannels={LEAF_CHANNELS}
