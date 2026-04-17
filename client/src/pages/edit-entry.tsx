@@ -213,10 +213,29 @@ export default function EditEntry() {
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
 
-  // Approved geo overrides for this CBU (from fully approved Geo Extension SRs)
-  const approvedGeoOverride = entry ? (geoOverrides[entry.id] ?? null) : null;
-  const approvedAddedGeos   = approvedGeoOverride?.geos.filter(g => !selectedGeo.includes(g)) ?? [];
-  const approvedAddedDepots = approvedGeoOverride?.depots.filter(d => !selectedDepots.includes(d)) ?? [];
+  // Fetch approved geo-extension SRs from the database (survives page refresh)
+  const { data: approvedGeoSrs = [] } = useQuery<Array<{ cbuId?: string; addedGeos?: string[]; addedDepots?: string[]; overallStatus: string; srType: string }>>({
+    queryKey: ["/api/service-requests", { status: "approved", srType: "geo-extension" }],
+    queryFn: async () => {
+      const res = await fetch("/api/service-requests?status=approved&srType=geo-extension");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!entry,
+  });
+
+  // Aggregate from database: all approved geo-extension SRs for this CBU
+  const dbAddedGeos   = [...new Set(approvedGeoSrs.filter(sr => sr.cbuId === entry?.id).flatMap(sr => sr.addedGeos   ?? []))];
+  const dbAddedDepots = [...new Set(approvedGeoSrs.filter(sr => sr.cbuId === entry?.id).flatMap(sr => sr.addedDepots ?? []))];
+
+  // Merge DB overrides with in-memory overrides (in-memory covers real-time approvals before refetch)
+  const inMemOverride = entry ? (geoOverrides[entry.id] ?? null) : null;
+  const allAddedGeos   = [...new Set([...dbAddedGeos,   ...(inMemOverride?.geos   ?? [])])];
+  const allAddedDepots = [...new Set([...dbAddedDepots, ...(inMemOverride?.depots ?? [])])];
+
+  // Filter to only the truly "new" additions (not already in the CBU's base selection)
+  const approvedAddedGeos   = allAddedGeos.filter(g => !selectedGeo.includes(g));
+  const approvedAddedDepots = allAddedDepots.filter(d => !selectedDepots.includes(d));
   const effectiveGeo    = approvedAddedGeos.length   > 0 ? [...selectedGeo,    ...approvedAddedGeos]   : selectedGeo;
   const effectiveDepots = approvedAddedDepots.length > 0 ? [...selectedDepots, ...approvedAddedDepots] : selectedDepots;
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { queryClient } from "@/lib/queryClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,9 +84,6 @@ export interface ServiceRequest {
   addedGeos?: string[];
   addedDepots?: string[];
 
-  // ── Structured payloads for SR types ───────────────────────────────────────
-  addedGeos?: string[];
-  addedDepots?: string[];
 
   // ── Common ─────────────────────────────────────────────────────────────────
   brand: string;
@@ -167,6 +165,7 @@ export function approveStep(requestId: string, stepIndex: number): void {
       const mergedGeos   = [...new Set([...prev.geos,   ...(sr.addedGeos   ?? [])])];
       const mergedDepots = [...new Set([...prev.depots, ...(sr.addedDepots ?? [])])];
       _geoOverrides = { ..._geoOverrides, [sr.cbuId]: { geos: mergedGeos, depots: mergedDepots } };
+      queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
     }
     return { ...sr, approvers, overallStatus: allApproved ? "approved" as const : "pending" as const };
   });
