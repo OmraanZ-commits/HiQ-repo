@@ -327,7 +327,10 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
   const handleCreateRequest = () => {
     const userByRole = (role: string): string | undefined =>
       users.find(u => u.role === role && u.isActive)?.name;
-    const approvers: ApproverStep[] = APPROVER_CHAIN.map((a, i) => ({
+    const chain = criteriaMet
+      ? APPROVER_CHAIN.filter(a => a.role === "NCSM")
+      : APPROVER_CHAIN;
+    const approvers: ApproverStep[] = chain.map((a, i) => ({
       ...a,
       assignedTo: userByRole(a.role),
       status: i === 0 ? "pending" : "waiting",
@@ -389,8 +392,8 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
         {/* Verdict Banner */}
         <div className={`rounded-lg p-3 flex items-center gap-2.5 ${criteriaMet ? "bg-emerald-50 border border-emerald-200" : "bg-amber-50 border border-amber-200"}`}>
           {criteriaMet
-            ? <><ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" /><p className="text-sm font-medium text-emerald-800">All criteria met — a service request will be raised for stakeholder approval before activation.</p></>
-            : <><AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" /><p className="text-sm font-medium text-amber-800">Criteria not fully met</p></>
+            ? <><ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" /><p className="text-sm font-medium text-emerald-800">All criteria met — NCSM approval only required.</p></>
+            : <><AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" /><p className="text-sm font-medium text-amber-800">Criteria not fully met — all 4 approvals required (Network Planner → Supply Planner → Distribution Planner → NCSM).</p></>
           }
         </div>
 
