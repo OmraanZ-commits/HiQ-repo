@@ -27,7 +27,8 @@ const NETWORK_NAV = [
 export function UnileverHeader({ module = "network", activeTab, onTabChange }: UnileverHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [location, navigate] = useLocation();
-  const { unreadCount } = useNotificationStore();
+  const { unreadCount, notifications } = useNotificationStore();
+  const hasNotifications = notifications.length > 0;
 
   return (
     <header className="sticky top-0 z-50" data-testid="header">
@@ -97,11 +98,13 @@ export function UnileverHeader({ module = "network", activeTab, onTabChange }: U
               onClick={() => navigate("/my-queue")}
             >
               <Bell className="h-4 w-4" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 flex items-center justify-center h-4 w-4 bg-orange-400 rounded-full text-[9px] font-bold text-white leading-none">
+              {unreadCount > 0 ? (
+                <span className="absolute top-1 right-1 flex items-center justify-center h-4 w-4 bg-orange-400 rounded-full text-[9px] font-bold text-white leading-none" data-testid="badge-unread-count">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
-              )}
+              ) : hasNotifications ? (
+                <span className="absolute top-1 right-1 h-2 w-2 bg-white/40 rounded-full" data-testid="badge-all-read" />
+              ) : null}
             </Button>
             <Button
               size="icon" variant="ghost"
