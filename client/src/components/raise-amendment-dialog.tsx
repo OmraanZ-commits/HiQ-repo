@@ -809,7 +809,7 @@ export function RaiseAmendmentDialog({
       addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
       addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
       sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
-      centralizedGeo: amendmentType === "sourcing-amendment" ? centralizedGeo : [],
+      centralizedGeos: amendmentType === "sourcing-amendment" ? centralizedGeo : [],
       centralizedDepots: amendmentType === "sourcing-amendment" ? centralizedDepots : [],
     };
 

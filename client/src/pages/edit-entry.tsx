@@ -108,6 +108,7 @@ export default function EditEntry() {
 
   const [showAmendmentDialog, setShowAmendmentDialog] = useState(false);
   const { data: portalUsers = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
+  const { channelOverrides, sourcingOverrides } = useSrStore();
   const handleRaiseAmendment = () => setShowAmendmentDialog(true);
 
   const handleAmendmentSuccess = () => {
@@ -210,6 +211,34 @@ export default function EditEntry() {
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
 
+
+  // Apply approved channel-extension overrides
+  const inMemChannelOverride = entry ? (channelOverrides[entry.id] ?? []) : [];
+  const effectiveChannels = inMemChannelOverride.length > 0
+    ? [...new Set([...selectedChannels, ...inMemChannelOverride])]
+    : selectedChannels;
+  const effectiveChannelMapping: Record<string, string[]> = inMemChannelOverride.length > 0
+    ? Object.fromEntries(
+        selectedGeo.map(geo => [
+          geo,
+          [...new Set([...(channelMapping[geo] || []), ...inMemChannelOverride])],
+        ])
+      )
+    : channelMapping;
+
+  // Apply approved sourcing-amendment overrides
+  const inMemSourcingOverride = entry ? (sourcingOverrides[entry.id] ?? null) : null;
+  useEffect(() => {
+    if (!inMemSourcingOverride) return;
+    setSourcingMode(inMemSourcingOverride.mode);
+    if (inMemSourcingOverride.mode === "centralized") {
+      setCentralizedGeo(inMemSourcingOverride.centralizedGeos);
+      setCentralizedDepots(inMemSourcingOverride.centralizedDepots);
+    } else {
+      setCentralizedGeo([]);
+      setCentralizedDepots([]);
+    }
+  }, [inMemSourcingOverride]);
 
 
   if (isLoading) {
@@ -655,14 +684,14 @@ export default function EditEntry() {
                                 const allMtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
                                 const colState = (code: string) => {
                                   const codes = code === "MT" ? allMtSubCodes : [code];
-                                  const all = selectedGeo.every(g => codes.every(c => (channelMapping[g] || []).includes(c)));
-                                  const some = selectedGeo.some(g => codes.some(c => (channelMapping[g] || []).includes(c)));
+                                  const all = selectedGeo.every(g => codes.every(c => (effectiveChannelMapping[g] || []).includes(c)));
+                                  const some = selectedGeo.some(g => codes.some(c => (effectiveChannelMapping[g] || []).includes(c)));
                                   return all ? true : some ? ("indeterminate" as const) : false;
                                 };
                                 const allColState = (() => {
                                   const leafCodes = LEAF_CHANNELS.map(c => c.code);
-                                  const all = selectedGeo.every(g => leafCodes.every(c => (channelMapping[g] || []).includes(c)));
-                                  const some = selectedGeo.some(g => leafCodes.some(c => (channelMapping[g] || []).includes(c)));
+                                  const all = selectedGeo.every(g => leafCodes.every(c => (effectiveChannelMapping[g] || []).includes(c)));
+                                  const some = selectedGeo.some(g => leafCodes.some(c => (effectiveChannelMapping[g] || []).includes(c)));
                                   return all ? true : some ? ("indeterminate" as const) : false;
                                 })();
                                 // Pill component for column header toggles
@@ -742,7 +771,7 @@ export default function EditEntry() {
                             </thead>
                             <tbody>
                               {selectedGeo.map((geo, idx) => {
-                                const geoChannels = channelMapping[geo] || [];
+                                const geoChannels = effectiveChannelMapping[geo] || [];
                                 const allGeoSelected = LEAF_CHANNELS.every(c => geoChannels.includes(c.code));
                                 const mtSubCodes = MT_SUB_CHANNELS.map(c => c.code);
                                 const geoMtAllSelected = mtSubCodes.every(c => geoChannels.includes(c));
@@ -1477,7 +1506,7 @@ export default function EditEntry() {
             onSuccess={handleAmendmentSuccess}
             currentGeo={selectedGeo}
             currentDepots={selectedDepots}
-            currentChannels={selectedChannels}
+            currentChannels={effectiveChannels}
             clusters={CLUSTERS}
             leafChannels={LEAF_CHANNELS}
             geographyDepotMap={GEOGRAPHY_DEPOT_MAP}

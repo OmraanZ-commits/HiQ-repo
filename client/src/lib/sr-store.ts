@@ -88,7 +88,7 @@ export interface ServiceRequest {
   addedDepots?: string[];
   addedChannels?: string[];
   sourcingMode?: "decentralized" | "centralized";
-  centralizedGeo?: string[];
+  centralizedGeos?: string[];
   centralizedDepots?: string[];
 
   // ── Common ─────────────────────────────────────────────────────────────────
@@ -122,6 +122,8 @@ export function formatNow(): string {
 
 let _requests: ServiceRequest[] = [];
 let _bpStatusOverrides: Record<string, string> = {};
+let _channelOverrides: Record<string, string[]> = {};
+let _sourcingOverrides: Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }> = {};
 const _listeners = new Set<() => void>();
 
 function notify() {
@@ -138,6 +140,14 @@ export function getRequest(id: string): ServiceRequest | undefined {
 
 export function getBpStatusOverrides(): Record<string, string> {
   return _bpStatusOverrides;
+}
+
+export function getChannelOverrides(): Record<string, string[]> {
+  return _channelOverrides;
+}
+
+export function getSourcingOverrides(): Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }> {
+  return _sourcingOverrides;
 }
 
 export function addRequest(req: ServiceRequest): void {
@@ -179,6 +189,21 @@ export function approveStep(requestId: string, stepIndex: number): void {
         queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
       });
     }
+    if (allApproved && sr.srType === "channel-extension" && sr.cbuId && sr.addedChannels?.length) {
+      const prev = _channelOverrides[sr.cbuId] ?? [];
+      const merged = [...new Set([...prev, ...sr.addedChannels])];
+      _channelOverrides = { ..._channelOverrides, [sr.cbuId]: merged };
+    }
+    if (allApproved && sr.srType === "sourcing-amendment" && sr.cbuId && sr.sourcingMode) {
+      _sourcingOverrides = {
+        ..._sourcingOverrides,
+        [sr.cbuId]: {
+          mode: sr.sourcingMode,
+          centralizedGeos: sr.centralizedGeos ?? [],
+          centralizedDepots: sr.centralizedDepots ?? [],
+        },
+      };
+    }
     return { ...sr, approvers, overallStatus: allApproved ? "approved" as const : "pending" as const };
   });
   notify();
@@ -216,11 +241,15 @@ export function subscribe(cb: () => void): () => void {
 export function useSrStore() {
   const [requests, setRequests] = useState<ServiceRequest[]>(getRequests);
   const [bpStatusOverrides, setBpStatusOverrides] = useState<Record<string, string>>(getBpStatusOverrides);
+  const [channelOverrides, setChannelOverrides] = useState<Record<string, string[]>>(getChannelOverrides);
+  const [sourcingOverrides, setSourcingOverrides] = useState<Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }>>(getSourcingOverrides);
   useEffect(() => {
     return subscribe(() => {
       setRequests([...getRequests()]);
       setBpStatusOverrides({ ...getBpStatusOverrides() });
+      setChannelOverrides({ ...getChannelOverrides() });
+      setSourcingOverrides({ ...getSourcingOverrides() });
     });
   }, []);
-  return { requests, bpStatusOverrides };
+  return { requests, bpStatusOverrides, channelOverrides, sourcingOverrides };
 }

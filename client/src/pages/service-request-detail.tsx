@@ -246,13 +246,13 @@ export default function ServiceRequestDetailPage() {
                           </div>
                         </div>
                       </div>
-                      {request.sourcingMode === "centralized" && (request.centralizedGeo?.length ?? 0) > 0 && (
+                      {request.sourcingMode === "centralized" && (request.centralizedGeos?.length ?? 0) > 0 && (
                         <div className="px-5 py-4 space-y-1.5">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Centralized Geographies
                           </p>
                           <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-centralized-geos">
-                            {request.centralizedGeo!.map(g => (
+                            {request.centralizedGeos!.map(g => (
                               <Badge key={g} className="bg-amber-100 text-amber-700 border border-amber-300 text-xs font-normal" data-testid={`badge-centralized-geo-${g}`}>
                                 {g}
                               </Badge>
