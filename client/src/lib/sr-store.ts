@@ -179,11 +179,14 @@ export function approveStep(requestId: string, stepIndex: number): void {
         queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
         addNotification({
           type: "geo-extension-applied",
+          srId: sr.id,
           cbuId: sr.cbuId!,
           cbuCode: sr.cbuCode ?? sr.cbuId!,
           cbuDescription: sr.cbuDescription ?? "",
+          raisedBy: sr.raisedBy,
           addedGeos: sr.addedGeos ?? [],
           addedDepots: sr.addedDepots ?? [],
+          approvers,
         });
       }).catch(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });

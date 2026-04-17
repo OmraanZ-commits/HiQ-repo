@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
+import type { ApproverStep } from "@/lib/sr-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface GeoExtensionNotification {
   id: string;
   type: "geo-extension-applied";
+  srId: string;
   cbuId: string;
   cbuCode: string;
   cbuDescription: string;
+  raisedBy: string;
   addedGeos: string[];
   addedDepots: string[];
+  approvers: ApproverStep[];
   timestamp: number;
   read: boolean;
 }
