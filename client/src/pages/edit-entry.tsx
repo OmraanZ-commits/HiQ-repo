@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PortalUser } from "@/lib/users-data";
 import { RaiseAmendmentDialog } from "@/components/raise-amendment-dialog";
+import { useSrStore } from "@/lib/sr-store";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {

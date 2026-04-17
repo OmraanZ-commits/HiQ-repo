@@ -46,11 +46,14 @@ I prefer detailed explanations and iterative development. Ask before making majo
     - **MSTN & DOH Monitoring**: Daily DOH file ingestion, SLOB risk recomputation, and monthly MSTN checks with alerts.
     - **Activation Check Dialog**: Intercepts status changes to "Active Pack," evaluates MSTN coverage, and always initiates a Service Request for tracking.
     - **Raise Amendment Request Flow**: A guided 3-step interactive dialog for CBU-level service requests (Geo/Channel Extension, Sourcing Amendment), adapting the UI based on the request type.
-- **Seed Data**: `main.py` is kept lean by extracting seed data into dedicated scripts for network entries and users, designed for safe re-execution.
+- **Seed Data**: `main.py` is kept lean — seed data lives in dedicated scripts (`seed_data.py`, `seed_reference_data.py`, `seed_users.py`), keeping `main.py` focused on app initialization, router mounting, and service wiring.
+- **In-Memory Store Overrides**: `sr-store.ts` maintains module-level `_channelOverrides` and `_sourcingOverrides` maps that are applied immediately upon SR approval, before any backend persistence, to give instant UI feedback. These drive `effectiveChannels` / `effectiveChannelMapping` in the edit page.
+- **Notification System**: `notification-store.ts` implements a lightweight pub/sub pattern (module-level array + `_listeners` Set) for approval confirmations. The Bell icon in the header shows a 3-state badge (orange count / grey dot / hidden). Clicking navigates to `/notifications`. My Queue (`/my-queue`) is a separate placeholder for future pending-approvals workflow.
+- **Utility Library**: Pure date helpers (`addDays`, `formatDateDisplay`, `computeYear`) live in `client/src/lib/date-utils.ts` — not in controllers — ensuring controllers contain only business logic hooks.
 
 ### File Structure and Modularity
-- **Frontend**: Organized into `controllers`, `components`, `pages`, `lib` (utilities), and `shared` (common types).
-- **Backend**: Microservices structured by domain, each containing `router.py`, `service.py`, and `storage.py`. Core components (`main.py`, `models.py`, `db.py`) handle application entry, data models, and database interactions.
+- **Frontend**: Organized into `controllers/` (headless business-logic hooks), `components/` (UI), `pages/` (route-level views), `lib/` (pure utilities: `date-utils.ts`, `sr-store.ts`, `notification-store.ts`, `queryClient.ts`), and `shared/` (common types).
+- **Backend**: Microservices structured by domain under `server_py/services/`, each containing `router.py` (thin HTTP), `service.py` (business logic), and `storage.py` (DB access only). Core components (`main.py`, `models.py`, `db.py`) handle app initialization, data models, and database interactions. All status transitions must go through `/api/saga/transition/{id}` — there is no direct transition endpoint.
 
 ## External Dependencies
 - **Frontend:** React, TypeScript, Vite, TanStack Query, wouter, shadcn/ui, Tailwind CSS.
