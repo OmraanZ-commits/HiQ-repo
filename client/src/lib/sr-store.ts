@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { addNotification } from "@/lib/notification-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -166,6 +167,14 @@ export function approveStep(requestId: string, stepIndex: number): void {
         addedDepots: sr.addedDepots ?? [],
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+        addNotification({
+          type: "geo-extension-applied",
+          cbuId: sr.cbuId!,
+          cbuCode: sr.cbuCode ?? sr.cbuId!,
+          cbuDescription: sr.cbuDescription ?? "",
+          addedGeos: sr.addedGeos ?? [],
+          addedDepots: sr.addedDepots ?? [],
+        });
       }).catch(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
       });

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useNotificationStore } from "@/lib/notification-store";
 
 interface UnileverHeaderProps {
   module?: "network" | "paid-bible";
@@ -26,6 +27,7 @@ const NETWORK_NAV = [
 export function UnileverHeader({ module = "network", activeTab, onTabChange }: UnileverHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [location, navigate] = useLocation();
+  const { unreadCount } = useNotificationStore();
 
   return (
     <header className="sticky top-0 z-50" data-testid="header">
@@ -92,9 +94,14 @@ export function UnileverHeader({ module = "network", activeTab, onTabChange }: U
               size="icon" variant="ghost"
               className="text-white no-default-hover-elevate no-default-active-elevate relative"
               data-testid="button-notifications"
+              onClick={() => navigate("/my-queue")}
             >
               <Bell className="h-4 w-4" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-orange-400 rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 flex items-center justify-center h-4 w-4 bg-orange-400 rounded-full text-[9px] font-bold text-white leading-none">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </Button>
             <Button
               size="icon" variant="ghost"
