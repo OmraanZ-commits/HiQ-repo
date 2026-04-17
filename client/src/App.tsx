@@ -9,6 +9,7 @@ import Dashboard from "@/pages/dashboard";
 import EditEntry from "@/pages/edit-entry";
 import AdminCenterPage from "@/pages/admin-center";
 import MyQueuePage from "@/pages/my-queue";
+import NotificationsPage from "@/pages/notifications";
 import PaidBiblePage from "@/pages/paid-bible";
 import ServiceRequestDetailPage from "@/pages/service-request-detail";
 import AmendmentDetailPage from "@/pages/amendment-detail";
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/paid-bible/amendments/:id" component={AmendmentDetailPage} />
       <Route path="/edit/:id" component={EditEntry} />
       <Route path="/my-queue" component={MyQueuePage} />
+      <Route path="/notifications" component={NotificationsPage} />
       <Route path="/admin" component={AdminCenterPage} />
       <Route component={NotFound} />
     </Switch>

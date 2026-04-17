@@ -95,7 +95,7 @@ export function UnileverHeader({ module = "network", activeTab, onTabChange }: U
               size="icon" variant="ghost"
               className="text-white no-default-hover-elevate no-default-active-elevate relative"
               data-testid="button-notifications"
-              onClick={() => navigate("/my-queue")}
+              onClick={() => navigate("/notifications")}
             >
               <Bell className="h-4 w-4" />
               {unreadCount > 0 ? (
