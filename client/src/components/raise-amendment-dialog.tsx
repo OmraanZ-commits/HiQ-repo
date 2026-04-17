@@ -776,6 +776,7 @@ export function RaiseAmendmentDialog({
       const geoStr     = [...currentGeo, ...addedGeos].join(", ");
       const depotStr   = addedDepots.length > 0 ? `; Depots: ${addedDepots.join(", ")}` : "";
       requestedValue   = geoStr + depotStr;
+
     } else if (amendmentType === "channel-extension") {
       currentValue     = currentChannels.join(", ") || "None";
       requestedValue   = [...currentChannels, ...addedChannels].join(", ");
@@ -800,6 +801,7 @@ export function RaiseAmendmentDialog({
       justification: justification.trim(),
       approvers: buildApprovers(users, assignedPerson),
       overallStatus: "pending",
+      ...(amendmentType === "geo-extension" && { addedGeos, addedDepots }),
     };
     addRequest(req);
     setSubmitting(false);

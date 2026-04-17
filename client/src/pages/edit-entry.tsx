@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PortalUser } from "@/lib/users-data";
 import { RaiseAmendmentDialog } from "@/components/raise-amendment-dialog";
+import { useSrStore } from "@/lib/sr-store";
 
 function getStatusVariant(status: string | null): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -108,6 +109,7 @@ export default function EditEntry() {
 
   const [showAmendmentDialog, setShowAmendmentDialog] = useState(false);
   const { data: portalUsers = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
+  const { geoOverrides } = useSrStore();
 
   const handleRaiseAmendment = () => setShowAmendmentDialog(true);
 
@@ -210,6 +212,13 @@ export default function EditEntry() {
 
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
+
+  // Approved geo overrides for this CBU (from fully approved Geo Extension SRs)
+  const approvedGeoOverride = entry ? (geoOverrides[entry.id] ?? null) : null;
+  const approvedAddedGeos   = approvedGeoOverride?.geos.filter(g => !selectedGeo.includes(g)) ?? [];
+  const approvedAddedDepots = approvedGeoOverride?.depots.filter(d => !selectedDepots.includes(d)) ?? [];
+  const effectiveGeo    = approvedAddedGeos.length   > 0 ? [...selectedGeo,    ...approvedAddedGeos]   : selectedGeo;
+  const effectiveDepots = approvedAddedDepots.length > 0 ? [...selectedDepots, ...approvedAddedDepots] : selectedDepots;
 
 
   if (isLoading) {
@@ -546,6 +555,28 @@ export default function EditEntry() {
                       </div>
                     </CardHeader>
                     <CardContent>
+                      {(approvedAddedGeos.length > 0 || approvedAddedDepots.length > 0) && (
+                        <div className="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 flex flex-wrap items-start gap-2">
+                          <Check className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-emerald-700 mb-1">SR Approved — pending backend sync</p>
+                            {approvedAddedGeos.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-1">
+                                {approvedAddedGeos.map(g => (
+                                  <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-[10px] font-normal">{g}</Badge>
+                                ))}
+                              </div>
+                            )}
+                            {approvedAddedDepots.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {approvedAddedDepots.map(d => (
+                                  <Badge key={d} className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-mono font-normal">{d}</Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       <div className="border rounded-lg overflow-hidden" data-testid="checkboxes-geography-depot">
                         <table className="w-full text-sm">
                           <thead>
@@ -1475,8 +1506,8 @@ export default function EditEntry() {
             }
             users={portalUsers}
             onSuccess={handleAmendmentSuccess}
-            currentGeo={selectedGeo}
-            currentDepots={selectedDepots}
+            currentGeo={effectiveGeo}
+            currentDepots={effectiveDepots}
             currentChannels={selectedChannels}
             clusters={CLUSTERS}
             leafChannels={LEAF_CHANNELS}

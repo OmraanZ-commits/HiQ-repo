@@ -81,6 +81,10 @@ export interface ServiceRequest {
   requestedValue?: string;
   justification?: string;
 
+  // ── Structured payloads for SR types ───────────────────────────────────────
+  addedGeos?: string[];
+  addedDepots?: string[];
+
   // ── Common ─────────────────────────────────────────────────────────────────
   brand: string;
   bg: string;
@@ -112,6 +116,7 @@ export function formatNow(): string {
 
 let _requests: ServiceRequest[] = [];
 let _bpStatusOverrides: Record<string, string> = {};
+let _geoOverrides: Record<string, { geos: string[]; depots: string[] }> = {};
 const _listeners = new Set<() => void>();
 
 function notify() {
@@ -128,6 +133,10 @@ export function getRequest(id: string): ServiceRequest | undefined {
 
 export function getBpStatusOverrides(): Record<string, string> {
   return _bpStatusOverrides;
+}
+
+export function getGeoOverrides(): Record<string, { geos: string[]; depots: string[] }> {
+  return _geoOverrides;
 }
 
 export function addRequest(req: ServiceRequest): void {
@@ -150,6 +159,12 @@ export function approveStep(requestId: string, stepIndex: number): void {
     const allApproved = approvers.every(a => a.status === "approved");
     if (allApproved && sr.srType === "basepack-status-change" && sr.basepackId && sr.targetStatus) {
       _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: sr.targetStatus };
+    }
+    if (allApproved && sr.srType === "geo-extension" && sr.cbuId && (sr.addedGeos?.length || sr.addedDepots?.length)) {
+      const prev = _geoOverrides[sr.cbuId] ?? { geos: [], depots: [] };
+      const mergedGeos   = [...new Set([...prev.geos,   ...(sr.addedGeos   ?? [])])];
+      const mergedDepots = [...new Set([...prev.depots, ...(sr.addedDepots ?? [])])];
+      _geoOverrides = { ..._geoOverrides, [sr.cbuId]: { geos: mergedGeos, depots: mergedDepots } };
     }
     return { ...sr, approvers, overallStatus: allApproved ? "approved" as const : "pending" as const };
   });
@@ -188,11 +203,13 @@ export function subscribe(cb: () => void): () => void {
 export function useSrStore() {
   const [requests, setRequests] = useState<ServiceRequest[]>(getRequests);
   const [bpStatusOverrides, setBpStatusOverrides] = useState<Record<string, string>>(getBpStatusOverrides);
+  const [geoOverrides, setGeoOverrides] = useState<Record<string, { geos: string[]; depots: string[] }>>(getGeoOverrides);
   useEffect(() => {
     return subscribe(() => {
       setRequests([...getRequests()]);
       setBpStatusOverrides({ ...getBpStatusOverrides() });
+      setGeoOverrides({ ...getGeoOverrides() });
     });
   }, []);
-  return { requests, bpStatusOverrides };
+  return { requests, bpStatusOverrides, geoOverrides };
 }
