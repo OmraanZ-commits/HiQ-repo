@@ -202,8 +202,81 @@ export default function ServiceRequestDetailPage() {
                         </div>
                       )}
                     </div>
+                  ) : request.srType === "channel-extension" && (request.addedChannels?.length ?? 0) > 0 ? (
+                    /* Structured channel-extension view */
+                    <div className="rounded-xl border bg-white shadow-sm divide-y divide-border/60">
+                      <div className="px-5 py-4 space-y-1.5">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Adding Channels
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-added-channels">
+                          {request.addedChannels!.map(c => (
+                            <Badge key={c} className="bg-violet-100 text-violet-700 border border-violet-300 text-xs font-normal" data-testid={`badge-channel-${c}`}>
+                              {c}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : request.srType === "sourcing-amendment" && request.sourcingMode ? (
+                    /* Structured sourcing-amendment view */
+                    <div className="rounded-xl border bg-white shadow-sm divide-y divide-border/60">
+                      <div className="px-5 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              Current Mode
+                            </p>
+                            <Badge className="bg-blue-100 text-blue-700 border border-blue-300 text-xs font-normal" data-testid="badge-sourcing-current-mode">
+                              Decentralized
+                            </Badge>
+                          </div>
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              Requested Mode
+                            </p>
+                            <Badge
+                              className={request.sourcingMode === "centralized"
+                                ? "bg-amber-100 text-amber-700 border border-amber-300 text-xs font-normal"
+                                : "bg-blue-100 text-blue-700 border border-blue-300 text-xs font-normal"}
+                              data-testid="badge-sourcing-requested-mode"
+                            >
+                              {request.sourcingMode === "centralized" ? "Centralized" : "Decentralized"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      {request.sourcingMode === "centralized" && (request.centralizedGeo?.length ?? 0) > 0 && (
+                        <div className="px-5 py-4 space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Centralized Geographies
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-centralized-geos">
+                            {request.centralizedGeo!.map(g => (
+                              <Badge key={g} className="bg-amber-100 text-amber-700 border border-amber-300 text-xs font-normal" data-testid={`badge-centralized-geo-${g}`}>
+                                {g}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {request.sourcingMode === "centralized" && (request.centralizedDepots?.length ?? 0) > 0 && (
+                        <div className="px-5 py-4 space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Centralized Depots
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-centralized-depots">
+                            {request.centralizedDepots!.map(d => (
+                              <Badge key={d} variant="outline" className="text-xs font-mono" data-testid={`badge-centralized-depot-${d}`}>
+                                {d}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    /* Plain-text fallback for other SR types */
+                    /* Plain-text fallback — only if no structured data available */
                     <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
                       <Table>
                         <TableHeader>

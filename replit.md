@@ -1,379 +1,40 @@
 # Unilever Network Visibility Portal
 
 ## Overview
-A central portal for managing network visibility across all Unilever product categories. Built with Unilever's brand identity (blue gradient header, Open Sans typography). Uses MVC architecture with a Python/FastAPI backend and Saga pattern for orchestrating multi-service workflows.
+The Unilever Network Visibility Portal is a central application designed to manage and provide visibility into network changes across all Unilever product categories. Its primary purpose is to streamline the lifecycle of network entries, from initial drafting and activation through various stages of production and network transition. The portal aims to improve data consistency, facilitate multi-step approval workflows, and offer comprehensive analytics for supply chain and product management. Key capabilities include managing network entries, orchestrating complex status transitions via a Saga pattern, and providing detailed dashboards for tracking and analysis. The project vision is to enhance operational efficiency and strategic decision-making by offering a unified platform for network visibility.
 
-## Architecture
+## User Preferences
+I prefer detailed explanations and iterative development. Ask before making major changes.
 
-### Frontend (MVC)
-- **Models**: `shared/schema.ts` (frontend types) + `server_py/models.py` (Pydantic models)
-- **Views**: `client/src/components/` and `client/src/pages/` - React components
-- **Controllers**: `client/src/controllers/` - Business logic hooks (useNetworkEntries, useNetworkEntryForm, useLifecycleData)
-- **Lib/Utils**: `client/src/lib/` - Pure utility functions (date-utils, distribution-data, queryClient)
+## System Architecture
 
-### Backend (Layered Microservices + Saga)
-Each microservice follows: **Router → Service → Storage**
-- **Router**: Thin HTTP layer (request parsing, response formatting, status codes). Zero business logic.
-- **Service**: Business logic, validation, orchestration, compensating actions
-- **Storage**: Database access only, no business logic
-- **Saga Orchestrator**: Coordinates multi-step workflows across services with compensation on failure
+### UI/UX Decisions
+The portal adheres to Unilever's brand identity, featuring a blue gradient header and Open Sans typography. It utilizes `shadcn/ui` for components and Tailwind CSS for styling, incorporating Unilever-branded color tokens (HSL 199 blue primary). The dashboard presents information through two tabs: a Summary tab for analytics with gradient metric strips and segmented pipeline bars, and a Network tab for data tables. Edit pages are fullscreen with tabbed forms and a 7-step color-coded status flow progress bar. Detailed views are presented in dialogs with organized sections.
 
-All status transitions go exclusively through the Saga Orchestrator (`/api/saga/transition/{id}`). There is no direct transition endpoint on the State Management router.
+### Technical Implementations
+The system employs a Model-View-Controller (MVC) pattern for the frontend, built with React and TypeScript, Vite for tooling, TanStack Query for data fetching, and wouter for routing. The backend is implemented using Python 3.12 and FastAPI (uvicorn), following a layered microservices architecture (Router → Service → Storage). PostgreSQL is used as the database, accessed via SQLAlchemy.
 
-### Verified Clean Layered Architecture (T001–T006 complete)
-- **List Master router**: Zero direct storage calls — all CRUD delegated to `ListMasterService`
-- **State Management router**: Read-only only (`GET /flow`, `GET /:id`, `GET /:id/history`); no `POST` transition endpoint
-- **Lifecycle router**: Fully delegates to `LifecycleService.recompute_entry()` / `recompute_all()`
-- **Seed data**: Extracted from `main.py` into `server_py/seed_data.py`; `main.py` is ≤ 100 lines
-- **Date utilities**: `addDays`, `formatDateDisplay`, `computeYear` live in `client/src/lib/date-utils.ts`; controllers import from there
-- **replit.md** (T006): Updated to document unified SR model, removed Amendments tab docs, added SR type table
+### Feature Specifications
+**Core Features:**
+- **Network Entry Management:** Full CRUD operations for network entries, including fields for basic info, product details, dimensions, distribution (geography, depot, channel, `channelMapping` JSONB), and sourcing matrix.
+- **Saga-orchestrated Status Transitions:** A 7-step status flow (Draft, Active, Pricing Updated, Production Started, FTR Approved, Stock Movement Initiated, Network transition complete) managed by a Saga Orchestrator for multi-step, transactional updates with automatic rollback on failure.
+- **Lifecycle Management:** Automated computation and display of lifecycle color flags (Amber, Red, Blinking Red) and urgency levels based on entry status, visible in tables, edit pages, and detail dialogs.
+- **Dashboard:** Provides a two-tab view: a Summary tab with analytics (total, draft, active, NW complete counts and percentages, pending items by status and assignee) and a Network tab for detailed data display with search and filtering.
+- **Edit Page Functionality:** Tabbed interface for editing various aspects of a network entry, including detailed configuration for pricing lots, distribution matrices (geo-channel mapping), and sourcing modes (Decentralized/Centralized). Includes robust date validation and activation confirmation dialogs.
+- **Paid Bible Module:** Manages basepack analytics and status. Features an Overview tab with inline status editing, an Activation Check dialog with MSTN coverage evaluation, and a unified Service Requests tab.
+- **Unified Service Requests (SR) Model:** Consolidates four types of service requests (Basepack Status Change, CBU Geo Extension, CBU Channel Extension, CBU Sourcing Amendment) under a single model with common ID format (`SR-XXXXXX`), approval chains, and a unified UI for listing and detail viewing.
+- **User Management (Admin Center):** Allows management of portal users, roles (Admin, Network Planner, Paid Bible Owner, etc.), and business groups. Includes functionality for designating Business Group Leads and handling reassignment of network entries upon role changes, BG changes, or user deactivation.
+- **View-Only Mode:** Provides a restricted view of network entries when accessed from specific contexts (e.g., Paid Bible), replacing edit controls with a "Raise Amendment Request" button and displaying an amber banner.
 
-### Paid Bible Backend Services
-Three new microservices + saga extension for the Paid Bible module:
+### System Design Choices
+- **Microservices Architecture:** Each domain (List Master, State Management, Lifecycle, Users) is a distinct microservice following a `Router → Service → Storage` pattern, promoting separation of concerns and scalability.
+- **Saga Pattern:** Critical for orchestrating complex, multi-service transactions (e.g., status transitions, SR approvals) ensuring data consistency with compensation logic for failures. Status transitions explicitly route through the Saga Orchestrator, not direct service endpoints.
+- **Unified Data Model:** Consolidation of Amendment and Service Request entities into a single `ServiceRequest` model to simplify management and UI.
+- **Seed Data:** `main.py` is kept lean by extracting seed data into dedicated scripts for network entries and users, designed for safe re-execution.
+- **Unilever Brand Compliance:** Integrated directly into styling (Tailwind CSS color tokens) and component design.
 
-| Service | Prefix | Description |
-|---|---|---|
-| Service Requests | `/api/service-requests` | All 4 SR types (Basepack Status Change, CBU Geo Extension, CBU Channel Extension, CBU Sourcing Amendment). Persist SR with 4-step approval chain. |
-| Basepack Status | `/api/basepack-status` | Persists basepack status overrides when SRs are fully approved. Supports compensation (revert). |
-| MSTN & DOH | `/api/mstn-doh` | Daily DOH file ingestion, SLOB risk recomputation, monthly MSTN check (8th–11th window), alert management. |
-| SR Approval Saga | `/api/saga/sr-approve/:id` `/api/saga/sr-reject/:id` | Orchestrates step-by-step approval. On final approval of a "basepack-status-change" SR, atomically writes status override with compensation on failure. |
-
-**Key design decisions:**
-- SR types: `"basepack-status-change" | "geo-extension" | "channel-extension" | "sourcing-amendment"`
-- Approval chain for ALL SR types: Network Planner → Supply Planner → Distribution Planner → NCSM
-- Relaunch / New Launch: handled via `launchType` field on `NetworkEntryModel` + filter on `/api/network-entries?launchType=relaunch`
-- DOH SLOB risk rule: Predecessor CBU DOH exceeds Successor CBU DOH by more than 5 days (`predecessorDoh > successorDoh + 5`) — auto-recomputed on every DOH file ingest
-- MSTN window: 8th–11th of each month; check scope = entries with `networkStatus` in `"Stock Movement Initiated"` or `"Network transition complete"`
-- DB migration: `run_migrations()` in `db.py` adds `launch_type` column to existing `network_entries` table via `ALTER TABLE IF NOT EXISTS`
-
-### Unified SR Model (4 SR types)
-Amendments and Service Requests are unified under a single `ServiceRequest` model in `sr-store.ts`:
-- `srType: SrType` discriminates between the 4 types
-- `CBU_SR_TYPES` = `["geo-extension", "channel-extension", "sourcing-amendment"]`
-- `SR_TYPE_META` provides label, description, colorClass per type
-- All SRs use `SR-XXXXXX` (6-digit) ID format
-- Single "Service Requests" tab in Paid Bible header with type filter chips + status filter
-
-## Tech Stack
-- Frontend: React + TypeScript, Vite, TanStack Query, wouter routing, shadcn/ui
-- Backend: Python 3.12 + FastAPI (uvicorn)
-- Database: PostgreSQL via SQLAlchemy (Docker local / Azure PostgreSQL production)
-- Proxy: Express.js serves Vite frontend and proxies /api/* to FastAPI in development
-- Styling: Tailwind CSS with Unilever-branded color tokens (HSL 199 blue primary)
-- Pattern: Orchestration-based Saga for multi-service transactions
-
-## Key Features
-
-### Dashboard
-- **Two-tab dashboard**: Summary tab (default landing, analytics) and Network tab (data table)
-- **Network tab**: Data table with CBU Created Date, Assigned Person columns, search, status filtering, and Trigger column
-- **Summary tab** (analytics overview):
-  - Gradient metric strip: Total / Draft / Active / NW Complete cards (each showing count + % of total)
-  - Segmented pipeline bar with color-coded legend showing count + % per status
-  - **Pending by Status** panel (left): ageing table with columns Status / Items / Avg Age / 7–30d / 1–3mo / >3mo; buckets are mutually exclusive based on `cbuCreatedDate` age; counts shown in amber/orange/red as urgency increases
-  - **Pending by Assignee** panel (right): avatar initials, name, proportional bar, and bold pending count per person; sorted by pending count desc
-  - Both panels displayed side-by-side in a 2-column grid
-- Gradient stat cards (Total, Active, Draft, NW Complete)
-
-### Edit Page
-- Fullscreen edit page with tabbed form: Basic Info, Product Details, Dimensions, Distribution, Sourcing Matrix, Pricing
-- Status flow progress bar (7 steps, color-coded by status)
-- **Pricing tab**: Price lots displayed as `{CBU code}-{priceLot}` (e.g. "CBU123-01"); 4 scope types coexist simultaneously — All India, Region Specific, Channel Specific, Region×Channel matrix; states shown as compact wrapping blue-tinted badge pills; channels shown as amber badge pills; Region×Channel shown as a 2-column mini-table
-- Distribution tab: Geography/Clusters card, Channels by Geography card (per-geography channel selection), Depots card, Distribution Matrix Preview
-- Geo→Channel matrix table: rows = selected clusters, columns = GT | CSD | RD | MT (All + 4 sub-channels) | All; each cell is a checkbox per cluster×channel intersection
-- Column header pills (row 1 for top-level channels, row 2 for MT sub-channels): clicking a header pill toggles that entire column across all selected clusters; pill shows filled (all), dash (partial), or empty ring (none) aggregate state
-- MT column: two-row header — row 1 "MT" spans all sub-columns (label only), row 2 has individual pills for All + each MT sub-channel; clicking "All" in row 2 toggles all MT sub-channels
-- Per-row "MT All" checkbox: each cluster row has a dedicated checkbox in the MT group to toggle all MT sub-channels for that single cluster
-- `channelMapping` (JSONB): stores per-geography channel selections as `Record<string, string[]>`; flat `channel` array auto-derived as union for backward compatibility; leaf channel count = 8 (GT, CSD, RD, Ecom, KA, MT Retail, Qcom + one legacy)
-- **Sourcing Matrix tab**: Decentralized / Centralized pill toggle
-  - **Decentralized** (default): shows the distribution-selected clusters and depots pre-checked and read-only
-  - **Centralized**: starts unselected; user manually picks from the same filtered cluster/depot list derived from the Distribution tab; switching back to Decentralized resets centralized selections
-  - Validation: if geo selected in centralized mode with no depot for that geo → blocked with toast naming the offending geo; if zero total depots in centralized mode → blocked with toast; if user selects all available geos+depots → dialog prompts switch to Decentralized
-  - State persisted in: `sourcingMode`, `centralizedGeo`, `centralizedDepots`
-- View detail dialog with organized sections and status flow
-- Year auto-calculated from CBU Created Date
-- Network Change Date auto-calculated as CBU Created Date + 15 days for Draft entries
-- Date validation: Change Date min = CBU+1 day, Start Date min = Change Date, End Date min = Start Date
-- Draft→Active validation: requires all 3 dates + at least 1 cluster, depot, channel
-- Confirmation dialog before activation showing: dates, predecessor/successor CBU, distribution matrix preview
-- Assigned Person field with avatar initials in table
-- Read-only fields for data-sourced values; editable fields for manual input
-- No create new / delete entry actions (view + edit only)
-
-### Platform
-- **Saga-orchestrated status transitions**: Draft→Active goes through validate → record transition → update entry → recompute lifecycle, with automatic rollback on failure
-- **Lifecycle color flags**: Amber (Production Started, FTR Approved), Red (Stock Movement Initiated), Blinking Red (Network transition complete) — shown in table Trigger column, edit page, detail dialog, and status flow
-- Draft entries seed with blank start/end dates and empty distribution fields
-- Configurable API base URL (VITE_API_BASE_URL) for separate frontend/backend deployment
-
-## Status Flow
-7-step progression exported as STATUS_FLOW constant (shared between frontend `shared/schema.ts` and backend `server_py/models.py`):
-1. Draft
-2. Active
-3. Pricing Updated
-4. Production Started
-5. FTR Approved
-6. Stock Movement Initiated
-7. Network transition complete
-
-## Data Model
-`NetworkEntry` with ~38 fields covering:
-- Basic info (CBU code, dates, annexure, network type, assigned person)
-- Product details (brand, BG, format, profit centre, etc.)
-- Dimensions (weight, length, width, height, EAN, ITF)
-- Distribution (geography=18 Indian clusters, depot=24 depot codes, channel=9 channels with MT sub-channels, channelMapping=per-geography channel selections as JSONB)
-
-## File Structure
-
-### Frontend
-- `client/src/controllers/useNetworkEntries.ts` - Dashboard controller hook
-- `client/src/controllers/useNetworkEntryForm.ts` - Edit page controller hook (uses saga endpoint for activation)
-- `client/src/controllers/useLifecycleData.ts` - Lifecycle data hook + flag class helpers
-- `client/src/lib/date-utils.ts` - Date utility functions (addDays, formatDateDisplay, computeYear)
-- `client/src/lib/distribution-data.ts` - Master data constants (clusters, depots, channels from Excel)
-- `client/src/lib/queryClient.ts` - API client with configurable VITE_API_BASE_URL
-- `client/src/pages/dashboard.tsx` - Main dashboard page
-- `client/src/pages/edit-entry.tsx` - Fullscreen edit page
-- `client/src/components/unilever-header.tsx` - Branded header
-- `client/src/components/stats-cards.tsx` - Gradient stat cards
-- `client/src/components/status-flow.tsx` - 7-step status progress bar with lifecycle flag overlay
-- `client/src/components/network-table.tsx` - Data table with Trigger column for lifecycle flags
-- `client/src/components/entry-detail-dialog.tsx` - View details dialog with status flow and lifecycle info
-- `client/src/components/people-picker.tsx` - Searchable people picker with avatars (accepts `bg` prop to filter to NPs in a BG)
-- `client/src/components/reassignment-dialog.tsx` - Bulk/individual reassignment dialog shown on NP role-change, BG-change, or deactivation
-- `client/src/lib/users-data.ts` - Portal user registry (PORTAL_USERS, BUSINESS_GROUPS, ROLES constants + networkPlannersForBg helper)
-- `client/src/lib/sr-store.ts` - Unified SR store for all 4 service request types (addRequest, approveStep, rejectStep, useSrStore; includes SR_TYPE_META + CBU_SR_TYPES constants)
-- `client/src/lib/amendment-store.ts` - Backward-compat shim; re-exports all SR store symbols under old amendment names
-- `client/src/components/raise-amendment-dialog.tsx` - Dialog for raising CBU-level SR requests (type → interactive editor → review & confirm); creates ServiceRequest with srType set to one of the 3 CBU SR types
-- `client/src/pages/amendment-detail.tsx` - Redirect shim: navigates `/paid-bible/amendments/:id` → `/paid-bible/requests/:id`
-- `shared/schema.ts` - Data model, types, and STATUS_FLOW constant
-
-### Python Backend — Microservices (Router → Service → Storage)
-
-#### List Master Service
-- `server_py/services/list_master/router.py` - Thin HTTP layer, delegates all ops to ListMasterService
-- `server_py/services/list_master/service.py` - Business logic: CRUD pass-through, update_status, compensate_status_update
-- `server_py/services/list_master/storage.py` - PostgreSQL CRUD storage
-
-#### State Management Service
-- `server_py/services/state_management/router.py` - Read-only endpoints (flow, status, history). No transition endpoint — transitions go through saga.
-- `server_py/services/state_management/service.py` - Business logic: validate_transition, record_transition, compensate_transition
-- `server_py/services/state_management/storage.py` - PostgreSQL storage for statuses + transitions
-
-#### Lifecycle Service
-- `server_py/services/lifecycle/router.py` - Thin HTTP layer, delegates to LifecycleService
-- `server_py/services/lifecycle/service.py` - Business logic: recompute_entry, recompute_all
-- `server_py/services/lifecycle/engine.py` - Computation logic: maps status → colorFlag/flagLabel/urgencyLevel/doh
-
-#### Saga Orchestrator
-- `server_py/saga/base.py` - SagaOrchestrator base class + SagaStep: executes steps in order, compensates in reverse on failure, logs to saga_logs table
-- `server_py/saga/transition_saga.py` - TransitionSaga: 4-step saga (validate → record transition → update entry → recompute lifecycle)
-- `server_py/saga/router.py` - Saga API endpoints (execute transition, query saga logs)
-
-#### Users Service
-- `server_py/services/users/router.py` - Thin HTTP layer: GET /api/users, GET /api/users/:id, POST, PATCH
-- `server_py/services/users/service.py` - Pass-through to storage
-- `server_py/services/users/storage.py` - PostgreSQL CRUD; PATCH with isBgLead=True auto-demotes existing BG Lead in same BG
-
-#### Core
-- `server_py/main.py` - FastAPI app entry point, CORS, router mounting, service wiring
-- `server_py/seed_data.py` - Seed data for 8 network entries covering all 7 statuses
-- `server_py/seed_users.py` - Seed data for 17 portal users across 9 roles (email-based upsert, safe to re-run)
-- `server_py/models.py` - Pydantic models (NetworkEntry, StateTransition, STATUS_FLOW)
-- `server_py/db.py` - SQLAlchemy engine, session, ORM models (including UserModel), field mapping utils
-
-### Express Proxy (Development)
-- `server/routes.ts` - Spawns uvicorn, proxies /api/* requests to FastAPI on port 8000
-- `server/index.ts` - Express server entry point, serves Vite frontend + API proxy
-
-## Microservice API Endpoints
-
-### List Master Service (`/api/list-master/`)
-Manages CRUD operations for network entries data. All routes go through ListMasterService.
-- `GET /api/list-master` - List all entries
-- `GET /api/list-master/:id` - Get single entry
-- `POST /api/list-master` - Create entry
-- `PATCH /api/list-master/:id` - Update entry
-- `DELETE /api/list-master/:id` - Delete entry
-
-### State Management Service (`/api/state/`)
-Read-only status queries and transition history. All mutations go through the Saga.
-- `GET /api/state/flow` - Get status flow definition (7 steps)
-- `GET /api/state/:entryId` - Get current status with step info
-- `GET /api/state/:entryId/history` - Get transition history
-
-### Lifecycle Service (`/api/lifecycle/`)
-Computes lifecycle color flags, labels, and DOH values based on entry status. Read-only — no DB writes.
-- `GET /api/lifecycle` - Get lifecycle data for all entries (batch map of entryId → flags)
-- `GET /api/lifecycle/:entryId` - Get lifecycle data for single entry
-
-### Saga Orchestrator (`/api/saga/`)
-Coordinates multi-step workflows with compensation on failure. The sole path for status transitions.
-- `POST /api/saga/transition/:entryId` - Execute status transition saga (4 steps: validate → record → update → recompute)
-- `GET /api/saga/:sagaId` - Get saga execution log by ID
-- `GET /api/saga/entry/:entryId` - Get all saga logs for an entry
-
-### Users Service (`/api/users/`)
-Manages portal users with full persistence. Role and BG Lead changes are applied atomically.
-- `GET /api/users` - List all users
-- `GET /api/users/:id` - Get single user
-- `POST /api/users` - Create user (auto-demotes previous BG Lead if isBgLead=true)
-- `PATCH /api/users/:id` - Update user fields (auto-demotes previous BG Lead if isBgLead=true; auto-clears isBgLead if role changed away from Network Planner)
-
-### Legacy Endpoints (`/api/network-entries/`)
-Same router as List Master, mounted at legacy path for backward compatibility.
-
-## Saga Pattern
-
-### Transition Saga (Draft → Active example)
-```
-Step 1: validate_transition   — State Management validates flow order + activation rules
-Step 2: record_transition     — State Management writes audit trail (compensate: revert status)
-Step 3: update_entry_status   — List Master updates networkStatus field (compensate: revert to previous)
-Step 4: recompute_lifecycle   — Lifecycle recomputes flags (no compensation — read-only)
-```
-On failure at any step, compensating actions run in reverse order. All steps are logged to `saga_logs` table with full step details.
-
-### Saga Statuses
-- `pending` → `running` → `completed` (success)
-- `pending` → `running` → `compensating` → `compensated` (failure with rollback)
-
-## Database Tables
-- `network_entries` — List Master service: all ~39 fields (including `channel_mapping` JSONB), UUID primary key, snake_case columns
-- `entry_statuses` — State Management service: entry_id (UUID PK), current_status, updated_at
-- `state_transitions` — State Management service: id (UUID PK), entry_id, from/to status, transition_date, triggered_by, metadata (JSONB), created_at
-- `saga_logs` — Saga Orchestrator: id (string PK), saga_type, entry_id, status, steps (JSONB array), started_at, completed_at, error
-- `users` — Users service: id (UUID PK), name, email, role, business_group, is_bg_lead, is_active, created_at
-- Field mapping between camelCase API and snake_case DB handled in `server_py/db.py`
-- Auto-seeds 8 network entries and 17 users on first startup; skips if tables already populated (email-based upsert — safe to re-run)
-
-## Deployment Architecture
-- Frontend: Separate Azure App Service (React/Vite build)
-- Backend: Separate Azure App Service (Python/FastAPI via uvicorn)
-- Database: Azure Database for PostgreSQL (or Docker PostgreSQL for local dev)
-- Each microservice has its own tables in the same database
-- Set DATABASE_URL env var for PostgreSQL connection
-- Set VITE_API_BASE_URL env var to point frontend to backend URL
-
-## Modules
-
-### Network Planning (`/network`)
-Full CRUD management of CBU entries — create, view, edit, and activate entries through the saga-orchestrated status flow. Accessible via the sidebar.
-
-#### Save Draft vs Submit & Activate
-Draft-status entries show two separate action buttons:
-- **Save Draft** (outline) — calls `PATCH /api/network-entries/:id` directly, bypasses activation validation; allows partial saves (e.g. assigning a Network Planner)
-- **Submit & Activate** (filled) — runs full validation (dates, geo, depot, channels) then triggers the saga transition from Draft → Active
-
-#### Edit Entry — Update Assignee field
-In the Dates & Timeline section the field formerly labeled "Network Planner" is labeled **"Update Assignee"**. It filters available planners to the entry's Business Group.
-
-### Paid Bible (`/paid-bible`)
-Analytics and status management for basepacks and their CBUs, grouped by category. Four tabs (Overview, Network Updates, Bible Matrix, Service Requests).
-
-#### Overview Tab
-- Basepack table with status badges; inline status editing (Draft → Active Pack) triggers the Activation Check flow
-- Active basepack count: calculated from `ACTIVE_BP_STATUSES = { "Active Pack", "Active Pack (Channel)", "Active Pack (Customer)", "Seasonal Pack" }`
-- MOC badge (Month of Change): Day ≥ 21 → next month; Day < 21 → current month
-- **MSTN "Yes/No" badge**: `"Yes"` only when (a) at least one material is at/beyond "Stock Movement Initiated" and (b) **every** such eligible material has MSTN ≥ 80%. Pre-threshold materials are excluded from both numerator and denominator. A basepack with one material at SMI but MSTN < 80% shows "No".
-- Sticky table header: `h-screen overflow-hidden` layout with `overflow-y-auto` on main
-- View button in each expanded CBU row navigates to `/edit/:id?source=paid-bible&cbuStatus=<bpStatus>` (view-only mode)
-
-#### Activation Check Dialog (Draft → Active Pack)
-- Intercepts any non-Active-Pack → Active Pack status change in the Overview table (not limited to Draft; allows re-activation from Seasonal, Stock Base Delisting, etc.)
-- Computes MSTN coverage only (≥ 80% threshold); TDP is not shown or evaluated in the dialog
-- Single MSTN Coverage card with pass/fail colour coding
-- Shows per-material table: Code, Description, MSTN Cleared (icon), Last Updated
-- Always raises a Service Request regardless of whether criteria are met; criteria-met requests show emerald button, criteria-not-met show amber button
-- `localBpStatus` state lifted to `PaidBiblePage` so status changes persist across tab switches
-
-#### Unified Service Requests Tab
-All 4 SR types flow through a single Service Requests tab and a single detail page (`/paid-bible/requests/:id`):
-
-| SR Type | `srType` key | Approval Chain | Subject |
-|---|---|---|---|
-| Basepack Status Change | `basepack-status-change` | 5-step (Demand → Supply → Distribution → NP → NCSM) | Basepack name / code |
-| Geo Extension | `geo-extension` | 3-step (PBO → NP → NCSM) | CBU code / description |
-| Channel Extension | `channel-extension` | 3-step (PBO → NP → NCSM) | CBU code / description |
-| Sourcing Amendment | `sourcing-amendment` | 3-step (PBO → NP → NCSM) | CBU code / description |
-
-**Filters**: Status filter pills (Pending / Approved / Rejected) + Type filter chips (All Types / Status Change / Geo Extension / Channel Extension / Sourcing Amendment)
-
-**List row**: SR ID + colored type badge · Status badge · Subject (basepack name or CBU description) · Raised by · MSTN pill (basepack SRs only) · Approval progress bar
-
-**SR IDs**: all types use `SR-XXXXXX` (6-digit) format
-
-**Detail page** (`service-request-detail.tsx`) renders differently per `srType`:
-- `basepack-status-change`: two side-by-side info cards + MSTN materials table
-- CBU types: single info card (CBU code, description, basepack, brand, BG, raised-by) + Current→Requested change table + Business Justification section
-
-**Store**: `client/src/lib/sr-store.ts` — unified module-level store with `SrType`, `SR_TYPE_META`, `CBU_SR_TYPES`, `ServiceRequest` interface, `addRequest`, `approveStep`, `rejectStep`, `useSrStore`
-- `approveStep`: on final approval of `basepack-status-change` → updates `_bpStatusOverrides[basepackId]`; CBU types: no override update
-- `rejectStep`: for `basepack-status-change` → reverts bpStatus to "Draft"; CBU types: no override
-
-#### Raise Amendment Request Flow (CBU SR types)
-- Triggered from the "Raise Amendment Request" button on the edit-entry page (paid bible view-only mode)
-- Dialog (`RaiseAmendmentDialog`): 3-step interactive flow
-  1. **Select Type** — three card options (Geo Extension, Channel Extension, Sourcing Amendment)
-  2. **Interactive Editor** — adapts per type:
-     - *Geo Extension*: all 18 clusters as chips grouped by region; blue = existing (read-only), white → green (new addition)
-     - *Channel Extension*: leaf channels as chips in two groups; same chip logic
-     - *Sourcing Amendment*: Decentralized | Centralized mode toggle; Centralized = manual geo+depot selection
-  3. **Review & Confirm** — change diff (blue = existing, green = new); justification textarea; PBO→NP→NCSM chain display
-- On submit: creates `ServiceRequest` (srType = CBU type) via `addRequest()`, navigates to `/paid-bible?tab=service-requests`
-- **Important**: The Lucide `Map` icon is imported as `MapIcon` to avoid shadowing the JavaScript built-in `Map` constructor, which would crash GeoEditor's `useMemo`
-
-#### Legacy Amendment Route
-`/paid-bible/amendments/:id` → redirects to `/paid-bible/requests/:id` via the `AmendmentDetailPage` redirect shim
-
-### View-Only Mode (Edit Entry from Paid Bible)
-When `?source=paid-bible` is present in the URL:
-- Status progress bar is hidden
-- Save button replaced with "Raise Amendment Request" (amber, outlined button)
-- Amber banner shown: "View only — You are viewing this entry from the Paid Bible"
-- Back button returns to `/paid-bible` instead of `/network`
-- Info strip shows both Network Status and CBU Status (passed via `?cbuStatus=` query param)
-- Toast fired on amendment request: "Amendment request raised. Network Planner will be notified."
-
-### Admin Center (`/admin`)
-Admin portal with two sub-tabs:
-
-#### User Management
-- Manage portal users with 9 roles: Admin, Network Planner, Paid Bible Owner, Demand Planner, Supply Planner, Distribution Planner, NCSM, Approver, Viewer
-- **Business Groups**: Homecare, Personal Care, Foods, Beauty and Wellness, Others
-- **BG Lead**: A Network Planner can be designated BG Lead for their Business Group (one per BG). Changing this auto-demotes the previous lead (after an AlertDialog confirmation).
-- Stats row: Total Users, Active, Inactive, Roles count
-
-**User edit triggers that check for reassignment:**
-Three events prompt the Reassignment Required dialog if the user is a Network Planner with incomplete assigned entries:
-1. **Role changed away from Network Planner** (`trigger: "role-change"`)
-2. **Business Group changed** (`trigger: "bg-change"`) — entries in the OLD BG are surfaced
-3. **User deactivated** (`trigger: "deactivation"`)
-
-The **ReassignmentDialog** (`components/reassignment-dialog.tsx`) presents:
-- Count of affected incomplete entries (all except "Network transition complete")
-- **Bulk mode**: pick one Network Planner → reassign all
-- **Individual mode**: pick a different planner per entry; quick-fill "Apply to all" shortcut
-- **Confirm & Reassign**: PATCHes each entry's `assignedPerson` via API, then applies the user change
-- **Cancel**: closes the dialog without applying the pending user change — user record and all assignments stay unchanged
-- Available planners: active NPs in the same BG as the affected entries, excluding the user themselves
-
-#### Roles & Permissions
-Read-only matrix showing what each role can do.
-
-## User Registry
-User data is persisted in the `users` PostgreSQL table via the Users microservice. The frontend always reads from `/api/users`.
-
-`client/src/lib/users-data.ts` provides shared TypeScript types and constants only:
-- `PORTAL_USERS`: static seed reference (not used in UI — kept for type reference)
-- `BUSINESS_GROUPS`: 5 values constant (used by UI forms and filters)
-- `ROLES`: role values constant (used by UI forms and filters)
-- `PortalUser` type: id, name, email, role, businessGroup, isBgLead, isActive, createdAt
-- `networkPlannersForBg(bg)`: utility (legacy — filtering now done from live API data)
-
-## Routes
-- `/` - Home landing page
-- `/network` - Network Planning dashboard with data table and stats
-- `/paid-bible` - Paid Bible analytics view
-- `/admin` - Admin Center (User Management + Roles & Permissions)
-- `/edit/:id` - Fullscreen edit/view page for an entry; adds view-only behaviour when `?source=paid-bible`
+## External Dependencies
+- **Frontend:** React, TypeScript, Vite, TanStack Query, wouter, shadcn/ui.
+- **Backend:** Python 3.12, FastAPI, uvicorn.
+- **Database:** PostgreSQL (Docker for local, Azure Database for PostgreSQL for production) via SQLAlchemy.
+- **Proxy (Development):** Express.js for serving the Vite frontend and proxying API requests to FastAPI.

@@ -807,6 +807,10 @@ export function RaiseAmendmentDialog({
       overallStatus: "pending",
       addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
       addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
+      addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
+      sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
+      centralizedGeo: amendmentType === "sourcing-amendment" ? centralizedGeo : [],
+      centralizedDepots: amendmentType === "sourcing-amendment" ? centralizedDepots : [],
     };
 
     try {
@@ -824,6 +828,10 @@ export function RaiseAmendmentDialog({
         requestedValue,
         addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
         addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
+        addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
+        sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
+        centralizedGeo: amendmentType === "sourcing-amendment" ? centralizedGeo : [],
+        centralizedDepots: amendmentType === "sourcing-amendment" ? centralizedDepots : [],
         approvers,
       });
     } catch {

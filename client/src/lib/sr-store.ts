@@ -81,9 +81,14 @@ export interface ServiceRequest {
   currentValue?: string;
   requestedValue?: string;
   justification?: string;
+
+  // ── Structured payloads for SR types ───────────────────────────────────────
   addedGeos?: string[];
   addedDepots?: string[];
-
+  addedChannels?: string[];
+  sourcingMode?: "decentralized" | "centralized";
+  centralizedGeo?: string[];
+  centralizedDepots?: string[];
 
   // ── Common ─────────────────────────────────────────────────────────────────
   brand: string;
