@@ -212,6 +212,10 @@ class ServiceRequestModel(Base):
     requested_value = Column(Text, nullable=True)
     added_geos = Column(JSONB, nullable=True, default=[])
     added_depots = Column(JSONB, nullable=True, default=[])
+    added_channels = Column(JSONB, nullable=True, default=[])
+    sourcing_mode = Column(String, nullable=True)
+    centralized_geo = Column(JSONB, nullable=True, default=[])
+    centralized_depots = Column(JSONB, nullable=True, default=[])
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
@@ -296,6 +300,18 @@ def run_migrations():
         ))
         conn.execute(text(
             "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS added_depots JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS added_channels JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS sourcing_mode VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS centralized_geo JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS centralized_depots JSONB"
         ))
         conn.commit()
 

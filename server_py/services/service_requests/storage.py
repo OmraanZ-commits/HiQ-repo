@@ -27,6 +27,10 @@ def _row_to_dict(row: ServiceRequestModel) -> dict:
         "requestedValue": row.requested_value,
         "addedGeos": row.added_geos or [],
         "addedDepots": row.added_depots or [],
+        "addedChannels": row.added_channels or [],
+        "sourcingMode": row.sourcing_mode,
+        "centralizedGeo": row.centralized_geo or [],
+        "centralizedDepots": row.centralized_depots or [],
         "createdAt": row.created_at.isoformat() if row.created_at else None,
         "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
     }
@@ -83,6 +87,10 @@ class ServiceRequestStorage:
                 requested_value=data.get("requestedValue"),
                 added_geos=data.get("addedGeos", []),
                 added_depots=data.get("addedDepots", []),
+                added_channels=data.get("addedChannels", []),
+                sourcing_mode=data.get("sourcingMode"),
+                centralized_geo=data.get("centralizedGeo", []),
+                centralized_depots=data.get("centralizedDepots", []),
                 created_at=now,
                 updated_at=now,
             )

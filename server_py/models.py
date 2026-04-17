@@ -309,6 +309,10 @@ class ServiceRequestBase(BaseModel):
     requestedValue: Optional[str] = None
     addedGeos: Optional[List[str]] = Field(default_factory=list)
     addedDepots: Optional[List[str]] = Field(default_factory=list)
+    addedChannels: Optional[List[str]] = Field(default_factory=list)
+    sourcingMode: Optional[str] = None
+    centralizedGeo: Optional[List[str]] = Field(default_factory=list)
+    centralizedDepots: Optional[List[str]] = Field(default_factory=list)
 
 
 class InsertServiceRequest(ServiceRequestBase):
