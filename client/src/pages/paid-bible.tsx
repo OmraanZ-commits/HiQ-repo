@@ -33,14 +33,23 @@ import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const BP_STATUS_OPTIONS = [
-  "Draft",
   "Active Pack",
-  "Active Pack (Channel)",
-  "Active Pack (Customer)",
+  "Delisted Packs",
+  "Stock Base Delisted",
   "Seasonal Pack",
-  "Stock Base Delisting",
-  "Inactive/Delisted",
+  "Inactive Pack",
 ];
+
+const BP_STATUS_ALIASES: Record<string, string> = {
+  "Stock Base Delisting":  "Stock Base Delisted",
+  "Inactive/Delisted":     "Inactive Pack",
+  "Active Pack (Channel)": "Active Pack",
+  "Active Pack (Customer)":"Active Pack",
+};
+
+function normalizeBpStatus(s: string): string {
+  return BP_STATUS_ALIASES[s] ?? s;
+}
 
 const MSTN_ACTIVE_STATUSES = new Set([
   "Active", "FTR Approved", "Stock Movement Initiated", "Network transition complete",
@@ -136,10 +145,10 @@ function deriveBpStatus(statuses: (string | null)[]): string {
   if (ss.every(s => s === "Draft"))                          return "Draft";
   if (ss.some(s => s === "Network transition complete"))     return "Active Pack";
   if (ss.some(s => s === "Stock Movement Initiated"))        return "Active Pack";
-  if (ss.some(s => s === "FTR Approved"))                   return "Active Pack (Channel)";
+  if (ss.some(s => s === "FTR Approved"))                   return "Active Pack";
   if (ss.some(s => s === "Active"))                          return "Active Pack";
-  if (ss.some(s => s === "Production Started"))              return "Active Pack (Channel)";
-  if (ss.some(s => s === "Pricing Updated"))                 return "Stock Base Delisting";
+  if (ss.some(s => s === "Production Started"))              return "Active Pack";
+  if (ss.some(s => s === "Pricing Updated"))                 return "Stock Base Delisted";
   return "Draft";
 }
 
@@ -270,13 +279,12 @@ function MstnBadge({ status }: { status: "Yes" | "No" }) {
 
 function BpStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    "Draft":                 "bg-slate-50 text-slate-600 border-slate-300",
-    "Active Pack":           "bg-emerald-50 text-emerald-700 border-emerald-200",
-    "Inactive/Delisted":     "bg-red-50 text-red-700 border-red-200",
-    "Stock Base Delisting":  "bg-orange-50 text-orange-700 border-orange-200",
-    "Seasonal Pack":         "bg-violet-50 text-violet-700 border-violet-200",
-    "Active Pack (Channel)": "bg-blue-50 text-blue-700 border-blue-200",
-    "Active Pack (Customer)":"bg-cyan-50 text-cyan-700 border-cyan-200",
+    "Draft":                "bg-slate-50 text-slate-600 border-slate-300",
+    "Active Pack":          "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "Delisted Packs":       "bg-red-50 text-red-700 border-red-200",
+    "Stock Base Delisted":  "bg-orange-50 text-orange-700 border-orange-200",
+    "Seasonal Pack":        "bg-violet-50 text-violet-700 border-violet-200",
+    "Inactive Pack":        "bg-slate-100 text-slate-600 border-slate-300",
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${map[status] ?? "bg-slate-50 text-slate-600 border-slate-200"}`}>
@@ -569,7 +577,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
   );
 
   const filtered = useMemo(() => allBasepacks.filter(b => {
-    const effStatus = localBpStatus[b.id] ?? b.bpStatus;
+    const effStatus = normalizeBpStatus(localBpStatus[b.id] ?? b.bpStatus);
     const q  = searchBp.toLowerCase();
     return (
       (!q || b.basepakName.toLowerCase().includes(q) || b.basepackCode.includes(q) || b.brand.toLowerCase().includes(q)) &&
@@ -585,11 +593,11 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
     );
   }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, bgFilter, materialSearch]);
 
-  const ACTIVE_BP_STATUSES = new Set(["Active Pack", "Active Pack (Channel)", "Active Pack (Customer)", "Seasonal Pack"]);
+  const ACTIVE_BP_STATUSES = new Set(["Active Pack", "Seasonal Pack"]);
   const total       = allBasepacks.length;
   const mstnYes     = allBasepacks.filter(b => b.mstnStatus === "Yes").length;
   const drafts      = allBasepacks.filter(b => (localBpStatus[b.id] ?? b.bpStatus) === "Draft").length;
-  const activeCount = allBasepacks.filter(b => ACTIVE_BP_STATUSES.has(localBpStatus[b.id] ?? b.bpStatus)).length;
+  const activeCount = allBasepacks.filter(b => ACTIVE_BP_STATUSES.has(normalizeBpStatus(localBpStatus[b.id] ?? b.bpStatus))).length;
 
   const activeFilterCount = [
     bpStatusFilter !== "all", channelFilter !== "all",
@@ -612,13 +620,13 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
 
   const startEdit = (bp: PbBasepack, e: React.MouseEvent) => {
     e.stopPropagation();
-    setPendingStatus(localBpStatus[bp.id] ?? bp.bpStatus);
+    setPendingStatus(normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus));
     setEditingId(bp.id);
   };
 
   const saveEdit = (bp: PbBasepack, e: React.MouseEvent) => {
     e.stopPropagation();
-    const currentStatus = localBpStatus[bp.id] ?? bp.bpStatus;
+    const currentStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
     if (pendingStatus === "Active Pack" && currentStatus !== "Active Pack") {
       setEditingId(null);
       onRequestActivation(bp);
@@ -869,7 +877,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                     <TableCell colSpan={10} className="text-center text-muted-foreground py-16">No basepacks found — try adjusting your filters</TableCell>
                   </TableRow>
                 ) : filtered.map(bp => {
-                  const effStatus = localBpStatus[bp.id] ?? bp.bpStatus;
+                  const effStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
                   const isExpanded = expandedId === bp.id;
                   const isEditing  = editingId  === bp.id;
 
