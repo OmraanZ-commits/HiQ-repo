@@ -67,17 +67,28 @@ function genId(): string {
 function buildApprovers(
   users: PortalUser[],
   assignedPerson: string | null | undefined,
+  cbuNetworkStatus?: string,
 ): ApproverStep[] {
   const byRole = (role: string) => users.find(u => u.role === role && u.isActive)?.name ?? "Unassigned";
   const npName = users.find(u => u.name === assignedPerson && u.isActive)?.name
               ?? users.find(u => u.role === "Network Planner" && u.isActive)?.name
               ?? assignedPerson
               ?? "Unassigned";
+
+  const networkPlanner: ApproverStep = {
+    role: "network-planner", label: "Network Planner", subLabel: "Network Review",
+    assignedTo: npName, status: "pending",
+  };
+
+  if (cbuNetworkStatus !== "Network transition complete") {
+    return [networkPlanner];
+  }
+
   return [
-    { role: "network-planner",      label: "Network Planner",      subLabel: "Network Review",        assignedTo: npName,                      status: "pending"  },
-    { role: "supply-planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: byRole("Supply Planner"),    status: "waiting"  },
+    networkPlanner,
+    { role: "supply-planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: byRole("Supply Planner"),       status: "waiting" },
     { role: "distribution-planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: byRole("Distribution Planner"), status: "waiting" },
-    { role: "ncsm",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: byRole("NCSM"),              status: "waiting"  },
+    { role: "ncsm",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: byRole("NCSM"),                status: "waiting" },
   ];
 }
 
@@ -538,7 +549,7 @@ function SummaryView({
   amendmentType, currentGeo, currentChannels, currentDepots,
   addedGeos, addedChannels, addedDepots,
   newMode, centralizedGeo, centralizedDepots,
-  justification, setJustification,
+  justification, setJustification, cbuNetworkStatus,
 }: {
   amendmentType: SrType;
   currentGeo: string[];
@@ -552,6 +563,7 @@ function SummaryView({
   centralizedDepots: string[];
   justification: string;
   setJustification: (v: string) => void;
+  cbuNetworkStatus?: string;
 }) {
   return (
     <div className="space-y-4">
@@ -681,7 +693,10 @@ function SummaryView({
           Approval Chain
         </p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {["Paid Bible Owner", "Network Planner", "NCSM"].map((role, i, arr) => (
+          {(cbuNetworkStatus === "Network transition complete"
+            ? ["Network Planner", "Supply Planner", "Distribution Planner", "NCSM"]
+            : ["Network Planner"]
+          ).map((role, i, arr) => (
             <span key={role} className="flex items-center gap-1.5">
               <span className="text-xs bg-white border rounded-full px-2.5 py-0.5 font-medium">{role}</span>
               {i < arr.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
@@ -701,6 +716,7 @@ export interface RaiseAmendmentDialogProps {
   cbuId: string;
   cbuCode: string;
   cbuDescription: string;
+  cbuNetworkStatus?: string;
   basepackCode: string;
   brand: string;
   bg: string;
@@ -720,7 +736,7 @@ export interface RaiseAmendmentDialogProps {
 
 export function RaiseAmendmentDialog({
   open, onOpenChange,
-  cbuId, cbuCode, cbuDescription, basepackCode, brand, bg, assignedPerson,
+  cbuId, cbuCode, cbuDescription, cbuNetworkStatus, basepackCode, brand, bg, assignedPerson,
   raisedBy: raisedByProp,
   users, onSuccess,
   currentGeo, currentDepots, currentChannels,
@@ -789,7 +805,7 @@ export function RaiseAmendmentDialog({
     }
 
     const raisedBy = raisedByProp || users.find(u => u.role === "Paid Bible Owner" && u.isActive)?.name || "PB SPOC";
-    const approvers = buildApprovers(users, assignedPerson);
+    const approvers = buildApprovers(users, assignedPerson, cbuNetworkStatus);
 
     const req: ServiceRequest = {
       id: genId(),
@@ -990,6 +1006,7 @@ export function RaiseAmendmentDialog({
               centralizedDepots={centralizedDepots}
               justification={justification}
               setJustification={setJustification}
+              cbuNetworkStatus={cbuNetworkStatus}
             />
           )}
         </div>

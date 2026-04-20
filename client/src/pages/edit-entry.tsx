@@ -1495,6 +1495,7 @@ export default function EditEntry() {
             cbuId={entry.id}
             cbuCode={entry.cbuCode ?? ""}
             cbuDescription={entry.materialDescription ?? ""}
+            cbuNetworkStatus={entry.networkStatus ?? ""}
             basepackCode={entry.basepack ?? ""}
             brand={entry.brand ?? ""}
             bg={entry.salesCategory ?? ""}
