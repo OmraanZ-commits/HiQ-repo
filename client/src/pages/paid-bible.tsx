@@ -143,9 +143,10 @@ function deriveBpStatus(statuses: (string | null)[]): string {
   return "Draft";
 }
 
-function deriveMatStatus(ns: string | null | undefined, mstnPct: number | null): "OK" | "In Progress" | "Issue" {
+function deriveMatStatus(ns: string | null | undefined, endDate: string | null | undefined): "OK" | "In Progress" | "Issue" {
   if (!ns || !MSTN_THRESHOLD_STATUSES.has(ns)) return "In Progress";
-  return (mstnPct != null && mstnPct >= 80) ? "OK" : "Issue";
+  if (endDate && new Date(endDate) < new Date()) return "Issue";
+  return "OK";
 }
 
 function checkCriteria(bp: PbBasepack): {
@@ -526,7 +527,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                 : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10)
             : null;
 
-          const matStatus = deriveMatStatus(ns, mstnPct);
+          const priceExpired = e.endDate ? new Date(e.endDate) < new Date() : false;
+          const matStatus = deriveMatStatus(ns, e.endDate);
 
           return {
             id:            e.id,
@@ -534,9 +536,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
             description:   e.materialDescription || e.basepackDescription || "-",
             networkStatus: ns,
             matStatus,
-            priceActive:   e.priceActive !== null && e.priceActive !== undefined
-              ? e.priceActive
-              : MSTN_ACTIVE_STATUSES.has(ns),
+            priceActive:   priceExpired ? false : MSTN_ACTIVE_STATUSES.has(ns),
             mrp:           "-",
             ean:           e.ean              || "-",
             grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
