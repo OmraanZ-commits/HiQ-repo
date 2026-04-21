@@ -33,6 +33,7 @@ import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const BP_STATUS_OPTIONS = [
+  "Draft",
   "Active Pack",
   "Delisted Packs",
   "Stock Base Delisted",
