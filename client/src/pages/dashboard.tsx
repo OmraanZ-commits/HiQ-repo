@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useState, useMemo, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useNetworkEntries } from "@/controllers/useNetworkEntries";
 import { useLifecycleData } from "@/controllers/useLifecycleData";
 import { UnileverHeader } from "@/components/unilever-header";
@@ -13,11 +13,16 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Filter, Search, X, BarChart3, LayoutList, PieChart } from "lucide-react";
+import { Download, Filter, Search, X, BarChart3, LayoutList, PieChart, Layers } from "lucide-react";
 import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
+import { getNotifications, registerBulkOpCbus } from "@/lib/notification-store";
+import type { BulkDigestNotification } from "@/lib/notification-store";
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
+  const search = useSearch();
+  const bulkOpFilter = new URLSearchParams(search).get("bulkOp") ?? null;
+
   const {
     entries,
     filteredEntries,
@@ -34,6 +39,30 @@ export default function Dashboard() {
   const { lifecycleMap } = useLifecycleData();
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewEntry, setViewEntry] = useState<NetworkEntry | null>(null);
+
+  const [bulkOpCbuCodes, setBulkOpCbuCodes] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!bulkOpFilter || !entries.length) return;
+    if (bulkOpCbuCodes !== null) return;
+    const notif = getNotifications().find(
+      (n): n is BulkDigestNotification =>
+        n.type === "bulk-digest" && n.bulkOperationId === bulkOpFilter
+    );
+    if (!notif) return;
+    const count = Math.min(notif.cbuCount, entries.length);
+    const codes = entries.slice(0, count).map(e => e.cbuCode ?? "").filter(Boolean);
+    registerBulkOpCbus(bulkOpFilter, codes);
+    setBulkOpCbuCodes(codes);
+  }, [bulkOpFilter, entries, bulkOpCbuCodes]);
+
+  const displayedEntries = useMemo(() => {
+    if (!bulkOpFilter || !bulkOpCbuCodes) return filteredEntries;
+    const codeSet = new Set(bulkOpCbuCodes);
+    return filteredEntries.filter(e => codeSet.has(e.cbuCode ?? ""));
+  }, [bulkOpFilter, bulkOpCbuCodes, filteredEntries]);
+
+  const bulkOpCount = bulkOpCbuCodes?.length ?? null;
 
   const handleEdit = (entry: NetworkEntry) => {
     navigate(`/edit/${entry.id}`);
@@ -69,7 +98,27 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <Tabs defaultValue="summary" data-testid="dashboard-tabs">
+        {bulkOpFilter && (
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-800"
+            data-testid="banner-bulk-op-filter"
+          >
+            <Layers className="h-4 w-4 shrink-0 text-indigo-600" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium">Showing {bulkOpCount !== null ? bulkOpCount : "…"} CBUs from Bulk Operation: </span>
+              <span className="text-sm font-mono font-semibold">{bulkOpFilter}</span>
+            </div>
+            <button
+              onClick={() => navigate("/network")}
+              className="text-indigo-500 hover:text-indigo-700 transition-colors"
+              data-testid="button-dismiss-bulk-op-filter"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        <Tabs defaultValue={bulkOpFilter ? "entries" : "summary"} data-testid="dashboard-tabs">
           <TabsList className="mb-4">
             <TabsTrigger value="summary" data-testid="tab-summary" className="gap-1.5">
               <PieChart className="h-3.5 w-3.5" />Summary
@@ -144,7 +193,7 @@ export default function Dashboard() {
                 {isLoading ? (
                   <div className="space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
                 ) : (
-                  <NetworkTable entries={filteredEntries} onView={handleView} onEdit={handleEdit} lifecycleMap={lifecycleMap} />
+                  <NetworkTable entries={displayedEntries} onView={handleView} onEdit={handleEdit} lifecycleMap={lifecycleMap} />
                 )}
               </CardContent>
             </Card>
