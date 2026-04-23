@@ -1476,6 +1476,7 @@ function ServiceRequestRow({ request, onView }: {
 function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [typeFilter,   setTypeFilter]   = useState<"all" | SrType>("all");
+  const [cbuIdSearch,  setCbuIdSearch]  = useState("");
   const [, navigate] = useLocation();
 
   const pending  = requests.filter(r => r.overallStatus === "pending").length;
@@ -1484,10 +1485,11 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
 
   const filtered = requests.filter(r =>
     (statusFilter === "all" || r.overallStatus === statusFilter) &&
-    (typeFilter   === "all" || r.srType       === typeFilter)
+    (typeFilter   === "all" || r.srType       === typeFilter) &&
+    (cbuIdSearch.trim() === "" || (r.cbuCode ?? "").toLowerCase().includes(cbuIdSearch.trim().toLowerCase()))
   );
 
-  const hasFilters = statusFilter !== "all" || typeFilter !== "all";
+  const hasFilters = statusFilter !== "all" || typeFilter !== "all" || cbuIdSearch.trim() !== "";
 
   return (
     <div className="space-y-4">
@@ -1514,14 +1516,14 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
           ))}
           {hasFilters && (
             <Button size="sm" variant="ghost" className="h-7 text-xs px-2 gap-1"
-              onClick={() => { setStatusFilter("all"); setTypeFilter("all"); }}>
+              onClick={() => { setStatusFilter("all"); setTypeFilter("all"); setCbuIdSearch(""); }}>
               <X className="h-3 w-3" /> Clear
             </Button>
           )}
         </div>
       </div>
 
-      {/* Type filter chips */}
+      {/* Type filter chips + CBU ID search */}
       <div className="flex items-center gap-2 flex-wrap">
         {[
           { value: "all" as const, label: "All Types" },
@@ -1540,6 +1542,25 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
             {label}
           </button>
         ))}
+        <div className="relative ml-auto">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            data-testid="input-cbu-id-search"
+            value={cbuIdSearch}
+            onChange={e => setCbuIdSearch(e.target.value)}
+            placeholder="Search CBU ID…"
+            className="h-7 pl-7 pr-7 text-xs w-44"
+          />
+          {cbuIdSearch && (
+            <button
+              data-testid="button-clear-cbu-search"
+              onClick={() => setCbuIdSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List */}
@@ -1548,7 +1569,14 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
           <CardContent className="py-16 flex flex-col items-center gap-3">
             <ListChecks className="h-10 w-10 text-muted-foreground/40" />
             <p className="text-sm font-medium text-muted-foreground">
-              {requests.length === 0 ? "No service requests yet" : `No ${statusFilter} requests`}
+              {requests.length === 0
+                ? "No service requests yet"
+                : cbuIdSearch.trim()
+                  ? `No requests matching "${cbuIdSearch.trim()}"`
+                  : statusFilter !== "all"
+                    ? `No ${statusFilter} requests`
+                    : "No requests match the selected filters"
+              }
             </p>
             {requests.length === 0 && (
               <p className="text-xs text-muted-foreground text-center max-w-sm">
