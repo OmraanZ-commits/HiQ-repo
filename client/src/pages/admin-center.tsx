@@ -2,12 +2,14 @@ import { useState } from "react";
 import { UnileverHeader } from "@/components/unilever-header";
 import { ReferenceDataContent } from "@/pages/reference-data";
 import { UserManagementContent } from "@/pages/user-management";
+import { IntegrationMonitoringContent } from "@/pages/integration-monitoring";
 import { cn } from "@/lib/utils";
 import {
   Database,
   Settings,
   Users,
   Shield,
+  Activity,
   ChevronRight,
 } from "lucide-react";
 
@@ -24,6 +26,12 @@ const adminTabs = [
     label: "User Management",
     icon: Users,
     description: "Roles & permissions",
+  },
+  {
+    id: "integration-monitoring",
+    label: "Integration Monitoring",
+    icon: Activity,
+    description: "Ingestion health & run logs",
   },
   {
     id: "system-settings",
@@ -103,6 +111,7 @@ export default function AdminCenterPage() {
           <div className="flex-1 min-w-0">
             {activeTab === "reference-data" && <ReferenceDataContent />}
             {activeTab === "user-management" && <UserManagementContent />}
+            {activeTab === "integration-monitoring" && <IntegrationMonitoringContent />}
             {activeTab === "system-settings" && <PlaceholderPanel title="System Settings" description="Application configuration options coming soon." />}
             {activeTab === "security" && <PlaceholderPanel title="Security" description="Audit logs and access control coming soon." />}
           </div>

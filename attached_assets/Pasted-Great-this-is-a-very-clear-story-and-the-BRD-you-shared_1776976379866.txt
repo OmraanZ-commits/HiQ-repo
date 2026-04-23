@@ -1,0 +1,263 @@
+Great, this is a **very clear story** and the BRD you shared actually helps a lot. Below is a **ready‑to‑paste set of instructions for Replit** to create a **frontend mockup** of the **Integration Monitoring tab** for the Network Visibility application.
+
+This is written so that:
+
+*   Replit can generate a **working UI mock**
+*   Uses **mock API responses / static JSON**
+*   Demonstrates **successful + failed ingestion**
+*   Covers **all lifecycle–related ingestion sources** from your BRD
+*   Respects all **explicit non‑responsibilities**
+
+***
+
+# Replit Instructions
+
+## Integration Monitoring Tab – Frontend Mockup
+
+### 1. Objective
+
+Create a **read‑only Integration Monitoring tab** inside an **Admin Center UI** that allows Admin users to:
+
+*   View **daily ingestion runs**
+*   See **success / failure metrics per run**
+*   Drill down into **failed records**
+*   Monitor **integration health without DB access**
+
+This is a **mock frontend only** using **static JSON or mocked APIs**.
+
+***
+
+### 2. Navigation & Placement
+
+**Navigation path:**
+
+    Admin Center → Integration Monitoring
+
+*   Show this tab **only** if user role = `ADMIN`
+*   If role ≠ ADMIN, hide menu item entirely
+
+***
+
+### 3. Screen Layout (High Level)
+
+#### 3.1 Page Header
+
+**Title:**  
+`Integration Monitoring`
+
+**Subtext:**  
+`Read-only view of ingestion health across source systems`
+
+***
+
+### 3.2 Integration Runs Summary Table
+
+A table that lists **each ingestion run**.
+
+**Columns:**
+
+*   Run Date (YYYY‑MM‑DD)
+*   Integration Name
+*   Source System
+*   Records Received
+*   Records Successful
+*   Records Failed
+*   Run Status (✅ Success | ⚠️ Partial | ❌ Failed)
+*   Last Run Timestamp
+*   Action → `View Details`
+
+***
+
+### 4. Integrations to Display (from BRD)
+
+Create rows for these integrations:
+
+| Integration Name          | Source     | Related Lifecycle Stage     |
+| ------------------------- | ---------- | --------------------------- |
+| CBU Master Data Ingestion | WPC / SCNC | Draft                       |
+| Pricing Tables Sync       | SAP ECC    | Price Circular Updated      |
+| Production Booking Status | SAP ECC    | Production Started          |
+| Stock Transfer Initiation | UDL        | Stock Movement Initiated    |
+| Customer Invoice Sync     | UDL        | Network Transition Complete |
+
+***
+
+### 5. Mock Ingestion Run Data (Static JSON)
+
+Use **this exact style of mocked data**.
+
+```json
+[
+  {
+    "runId": "RUN-2026-04-22-001",
+    "integrationName": "CBU Master Data Ingestion",
+    "source": "WPC",
+    "runDate": "2026-04-22",
+    "lastRunTimestamp": "2026-04-22T02:15:00Z",
+    "recordsReceived": 120,
+    "recordsSuccessful": 115,
+    "recordsFailed": 5,
+    "status": "PARTIAL"
+  },
+  {
+    "runId": "RUN-2026-04-22-002",
+    "integrationName": "Pricing Tables Sync",
+    "source": "SAP ECC",
+    "runDate": "2026-04-22",
+    "lastRunTimestamp": "2026-04-22T03:10:00Z",
+    "recordsReceived": 80,
+    "recordsSuccessful": 80,
+    "recordsFailed": 0,
+    "status": "SUCCESS"
+  },
+  {
+    "runId": "RUN-2026-04-22-003",
+    "integrationName": "Production Booking Status",
+    "source": "SAP ECC",
+    "runDate": "2026-04-22",
+    "lastRunTimestamp": "2026-04-22T04:30:00Z",
+    "recordsReceived": 40,
+    "recordsSuccessful": 32,
+    "recordsFailed": 8,
+    "status": "FAILED"
+  }
+]
+```
+
+***
+
+### 6. Drill‑Down: Run Details Page
+
+When clicking **“View Details”**, navigate to:
+
+    Admin Center → Integration Monitoring → Run Details
+
+***
+
+### 7. Run Details – Summary Panel
+
+Display **read‑only metadata**:
+
+*   Run ID
+*   Integration Name
+*   Source System
+*   Run Date
+*   Start Time
+*   End Time
+*   Total Records
+*   Successful Records
+*   Failed Records
+
+***
+
+### 8. Failed Records Drill‑Down Table
+
+Only show this section **if recordsFailed > 0**
+
+#### Columns:
+
+*   Record ID
+*   Data Object / Table
+*   Lifecycle Stage Impacted
+*   Error Code
+*   Error Message
+*   Failure Timestamp
+
+***
+
+### 9. Example Failed Records (Use This Mock Data)
+
+```json
+[
+  {
+    "recordId": "MAT-100234",
+    "dataObject": "material.xlsx",
+    "lifecycleStage": "Draft",
+    "errorCode": "MANDATORY_FIELD_MISSING",
+    "errorMessage": "Basepack Description is missing",
+    "failureTimestamp": "2026-04-22T02:16:12Z"
+  },
+  {
+    "recordId": "A939-889234",
+    "dataObject": "A939 Pricing Table",
+    "lifecycleStage": "Price Circular Updated",
+    "errorCode": "INVALID_MRP",
+    "errorMessage": "MRP value is not matching pricing lot",
+    "failureTimestamp": "2026-04-22T03:11:45Z"
+  },
+  {
+    "recordId": "MAT-554321",
+    "dataObject": "YMMSTNRECPT",
+    "lifecycleStage": "Stock Movement Initiated",
+    "errorCode": "DEPOT_MAPPING_NOT_FOUND",
+    "errorMessage": "Depot not mapped to cluster",
+    "failureTimestamp": "2026-04-22T04:34:18Z"
+  },
+  {
+    "recordId": "INV-889911",
+    "dataObject": "VRPMA",
+    "lifecycleStage": "Network Transition Complete",
+    "errorCode": "INVALID_VTWEG",
+    "errorMessage": "VTWEG value 'ST' is excluded from completion logic",
+    "failureTimestamp": "2026-04-22T05:02:09Z"
+  }
+]
+```
+
+***
+
+### 10. UX Rules (Strict)
+
+✅ Read‑only UI  
+✅ No retry buttons  
+✅ No edit / update / delete  
+✅ No logic inference  
+✅ No status recalculation
+
+Add a **note banner** at bottom:
+
+> *All ingestion logic, validation, retries, and audit persistence are handled by backend systems. This screen is for monitoring only.*
+
+***
+
+### 11. Visual Indicators
+
+*   ✅ Success → green
+*   ⚠️ Partial → amber
+*   ❌ Failed → red
+
+Lifecycle stages should be shown as **labels**, not computed.
+
+***
+
+### 12. Tech Stack Recommendation (Optional)
+
+Replit can use:
+
+*   React + Vite
+*   Mock JSON served via local file or mock API
+*   Simple role check:
+
+```js
+const userRole = "ADMIN";
+```
+
+***
+
+### 13. Out of Scope (Do NOT Implement)
+
+❌ Reprocess ingestion  
+❌ Retry buttons  
+❌ Error correction  
+❌ Admin actions on data
+
+***
+
+If you want, I can next:
+
+*   Convert this into **Jira‑ready acceptance criteria**
+*   Provide **Figma‑like wireframe layout**
+*   Map **each failed record type to lifecycle stage**
+*   Generate **TypeScript interfaces** for the mock APIs
+
+Just tell me 👍
