@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from datetime import datetime
 
 STATUS_FLOW = [
@@ -56,6 +56,7 @@ class NetworkEntryBase(BaseModel):
     caseConfigUpdatedAt: Optional[str] = None
     priceUpdatedAt: Optional[str] = None
     mstnPercentage: Optional[int] = None
+    mstnByDepot: Optional[Dict[str, int]] = Field(default_factory=dict)
     predecessorDoh: Optional[int] = None
     successorDoh: Optional[int] = None
     dohSnapshotDate: Optional[str] = None

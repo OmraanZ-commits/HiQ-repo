@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { UnileverHeader } from "@/components/unilever-header";
@@ -10,7 +10,7 @@ import {
   ArrowLeft, Package, User, Globe,
   Waypoints, Shuffle, ArrowRightLeft, GitCommit, CalendarCheck,
   CalendarX, Archive, Activity, AlertTriangle, ExternalLink,
-  History, ChevronRight, AlertCircle,
+  History, ChevronRight, ChevronDown, AlertCircle, BarChart2,
 } from "lucide-react";
 import { SrStatusBadge } from "@/components/sr-detail-components";
 
@@ -26,6 +26,7 @@ interface CbuRecord {
   depot?: string[] | string;
   channel?: string[];
   mstnPercentage?: number;
+  mstnByDepot?: Record<string, number>;
   slobRisk?: boolean;
   priceActive?: boolean;
 }
@@ -264,7 +265,44 @@ function OverviewTab({ profile }: { profile: BasepakProfile }) {
 
 // ─── CBUs Tab ─────────────────────────────────────────────────────────────────
 
+function DepotMstnBreakdown({ mstnByDepot, depots }: { mstnByDepot: Record<string, number>; depots: string[] }) {
+  const entries = depots
+    .filter((d) => mstnByDepot[d] != null)
+    .map((d) => ({ depot: d, pct: mstnByDepot[d] }));
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="px-4 py-3 bg-muted/30 border-t">
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Depot-Level MSTN %</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {entries.map(({ depot, pct }) => (
+          <div key={depot} className="flex flex-col gap-0.5" data-testid={`depot-mstn-${depot}`}>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-medium">{depot}</span>
+              <span className={`text-xs font-semibold ${pct >= 80 ? "text-emerald-600" : "text-amber-600"}`}>
+                {pct}%
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : "bg-amber-500"}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CbusTab({ cbus }: { cbus: CbuRecord[] }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   if (!cbus.length) {
     return <p className="text-sm text-muted-foreground py-8 text-center">No CBU records found for this basepack.</p>;
   }
@@ -273,6 +311,7 @@ function CbusTab({ cbus }: { cbus: CbuRecord[] }) {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
+            <TableHead className="text-xs py-2.5 w-8" />
             <TableHead className="text-xs py-2.5">CBU Code</TableHead>
             <TableHead className="text-xs py-2.5">Description</TableHead>
             <TableHead className="text-xs py-2.5">Network Status</TableHead>
@@ -285,50 +324,74 @@ function CbusTab({ cbus }: { cbus: CbuRecord[] }) {
         <TableBody>
           {cbus.map((cbu) => {
             const geos = cbu.geography ?? [];
-            const depots = cbu.depots ?? cbu.depot ?? [];
+            const depots: string[] = Array.isArray(cbu.depots ?? cbu.depot)
+              ? (cbu.depots ?? cbu.depot) as string[]
+              : [];
             const channels = cbu.channel ?? [];
+            const mstnByDepot = cbu.mstnByDepot ?? {};
+            const hasDepotBreakdown = Object.keys(mstnByDepot).length > 0;
+            const isExpanded = expandedId === cbu.id;
+
             return (
-              <TableRow key={cbu.id} data-testid={`cbu-row-${cbu.id}`} className="text-xs">
-                <TableCell className="font-mono font-medium text-blue-600 py-2.5">
-                  {cbu.cbuCode || cbu.id?.slice(0, 8)}
-                </TableCell>
-                <TableCell className="py-2.5 max-w-48 truncate text-muted-foreground" title={cbu.materialDescription}>
-                  {cbu.materialDescription || "—"}
-                </TableCell>
-                <TableCell className="py-2.5">
-                  <NwStatusBadge status={cbu.networkStatus ?? "Draft"} />
-                </TableCell>
-                <TableCell className="py-2.5 max-w-32 truncate text-muted-foreground" title={geos.join(", ")}>
-                  {geos.length > 0 ? geos.slice(0, 2).join(", ") + (geos.length > 2 ? ` +${geos.length - 2}` : "") : "—"}
-                </TableCell>
-                <TableCell className="py-2.5 max-w-32 truncate text-muted-foreground" title={Array.isArray(depots) ? depots.join(", ") : depots}>
-                  {Array.isArray(depots) && depots.length > 0
-                    ? depots.slice(0, 2).join(", ") + (depots.length > 2 ? ` +${depots.length - 2}` : "")
-                    : typeof depots === "string" && depots
-                    ? depots
-                    : "—"}
-                </TableCell>
-                <TableCell className="py-2.5">
-                  <div className="flex flex-wrap gap-1">
-                    {channels.length > 0
-                      ? channels.slice(0, 3).map((ch: string) => (
-                          <Badge key={ch} variant="outline" className="text-xs px-1.5 py-0">{ch}</Badge>
-                        ))
-                      : <span className="text-muted-foreground">—</span>
-                    }
-                    {channels.length > 3 && (
-                      <Badge variant="outline" className="text-xs px-1.5 py-0">+{channels.length - 3}</Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="py-2.5 text-right font-medium">
-                  {cbu.mstnPercentage != null ? (
-                    <span className={cbu.mstnPercentage >= 80 ? "text-emerald-600" : "text-amber-600"}>
-                      {cbu.mstnPercentage}%
-                    </span>
-                  ) : "—"}
-                </TableCell>
-              </TableRow>
+              <Fragment key={cbu.id}>
+                <TableRow
+                  data-testid={`cbu-row-${cbu.id}`}
+                  className={`text-xs ${hasDepotBreakdown ? "cursor-pointer hover:bg-muted/40" : ""}`}
+                  onClick={() => hasDepotBreakdown && setExpandedId(isExpanded ? null : cbu.id)}
+                >
+                  <TableCell className="py-2.5 pl-3 pr-0 w-8">
+                    {hasDepotBreakdown ? (
+                      isExpanded
+                        ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="font-mono font-medium text-blue-600 py-2.5">
+                    {cbu.cbuCode || cbu.id?.slice(0, 8)}
+                  </TableCell>
+                  <TableCell className="py-2.5 max-w-48 truncate text-muted-foreground" title={cbu.materialDescription}>
+                    {cbu.materialDescription || "—"}
+                  </TableCell>
+                  <TableCell className="py-2.5">
+                    <NwStatusBadge status={cbu.networkStatus ?? "Draft"} />
+                  </TableCell>
+                  <TableCell className="py-2.5 max-w-32 truncate text-muted-foreground" title={geos.join(", ")}>
+                    {geos.length > 0 ? geos.slice(0, 2).join(", ") + (geos.length > 2 ? ` +${geos.length - 2}` : "") : "—"}
+                  </TableCell>
+                  <TableCell className="py-2.5 max-w-32 truncate text-muted-foreground" title={depots.join(", ")}>
+                    {depots.length > 0
+                      ? depots.slice(0, 2).join(", ") + (depots.length > 2 ? ` +${depots.length - 2}` : "")
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="py-2.5">
+                    <div className="flex flex-wrap gap-1">
+                      {channels.length > 0
+                        ? channels.slice(0, 3).map((ch: string) => (
+                            <Badge key={ch} variant="outline" className="text-xs px-1.5 py-0">{ch}</Badge>
+                          ))
+                        : <span className="text-muted-foreground">—</span>
+                      }
+                      {channels.length > 3 && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0">+{channels.length - 3}</Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2.5 text-right font-medium">
+                    {cbu.mstnPercentage != null ? (
+                      <span className={cbu.mstnPercentage >= 80 ? "text-emerald-600" : "text-amber-600"}>
+                        {cbu.mstnPercentage}%
+                      </span>
+                    ) : "—"}
+                  </TableCell>
+                </TableRow>
+                {isExpanded && hasDepotBreakdown && (
+                  <TableRow data-testid={`cbu-depot-breakdown-${cbu.id}`}>
+                    <TableCell colSpan={8} className="p-0">
+                      <DepotMstnBreakdown mstnByDepot={mstnByDepot} depots={depots} />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
             );
           })}
         </TableBody>

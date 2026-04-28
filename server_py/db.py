@@ -80,6 +80,7 @@ class NetworkEntryModel(Base):
     case_config_updated_at = Column(DateTime, nullable=True)
     price_updated_at = Column(DateTime, nullable=True)
     mstn_percentage = Column(Integer, nullable=True)
+    mstn_by_depot = Column(JSONB, nullable=True, default={})
     predecessor_doh = Column(Integer, nullable=True)
     successor_doh = Column(Integer, nullable=True)
     doh_snapshot_date = Column(String, nullable=True)
@@ -357,6 +358,23 @@ def run_migrations():
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS centralized_depots JSONB"
         ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS mstn_by_depot JSONB"
+        ))
+        conn.execute(text("""
+            UPDATE network_entries
+            SET mstn_by_depot = (
+                SELECT jsonb_object_agg(
+                    d.v,
+                    GREATEST(0, LEAST(100, mstn_percentage + (hashtext(d.v) % 13) - 6))
+                )
+                FROM unnest(depot) AS d(v)
+            )
+            WHERE mstn_percentage IS NOT NULL
+              AND depot IS NOT NULL
+              AND array_length(depot, 1) > 0
+              AND (mstn_by_depot IS NULL OR mstn_by_depot = '{}')
+        """))
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS basepack_status_history (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -407,6 +425,7 @@ FIELD_MAP_TO_DB = {
     "caseConfigUpdatedAt": "case_config_updated_at",
     "priceUpdatedAt": "price_updated_at",
     "mstnPercentage": "mstn_percentage",
+    "mstnByDepot": "mstn_by_depot",
     "predecessorDoh": "predecessor_doh",
     "successorDoh": "successor_doh",
     "dohSnapshotDate": "doh_snapshot_date",
