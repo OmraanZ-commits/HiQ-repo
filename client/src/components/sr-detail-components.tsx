@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Clock, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, User,
+  Clock, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, User, MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -36,15 +36,28 @@ export function SrStatusBadge({ status }: { status: "pending" | "approved" | "re
 export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
   approvers: ApproverStep[];
   requestId: string;
-  onApprove: (id: string, idx: number) => void;
+  onApprove: (id: string, idx: number, comment?: string) => void;
   onReject: (id: string, idx: number, reason: string) => void;
 }) {
   const [rejectingIdx, setRejectingIdx] = useState<number | null>(null);
+  const [approvingIdx, setApprovingIdx] = useState<number | null>(null);
+  const [approvalComment, setApprovalComment] = useState("");
   const [selectedReason, setSelectedReason] = useState("");
   const [otherComment, setOtherComment] = useState("");
 
   const isOther = selectedReason === OTHER_REASON;
   const canSubmit = !!selectedReason && (!isOther || otherComment.trim().length > 0);
+
+  const submitApprove = (idx: number) => {
+    onApprove(requestId, idx, approvalComment);
+    setApprovingIdx(null);
+    setApprovalComment("");
+  };
+
+  const cancelApprove = () => {
+    setApprovingIdx(null);
+    setApprovalComment("");
+  };
 
   const submitReject = (idx: number) => {
     if (!canSubmit) return;
@@ -106,16 +119,22 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
                       {step.status === "approved" ? "Approved" : "Rejected"} · {step.actedAt}
                     </p>
                   )}
+                  {step.status === "approved" && step.approvalComment && (
+                    <p className="text-xs text-emerald-700 mt-0.5 flex items-start gap-1">
+                      <MessageSquare className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span className="italic">{step.approvalComment}</span>
+                    </p>
+                  )}
                   {step.rejectionReason && (
                     <p className="text-xs text-red-600 mt-0.5 italic">Reason: {step.rejectionReason}</p>
                   )}
                 </div>
 
-                {step.status === "pending" && rejectingIdx !== idx && (
+                {step.status === "pending" && approvingIdx !== idx && rejectingIdx !== idx && (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
                       className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => onApprove(requestId, idx)}
+                      onClick={() => { setApprovingIdx(idx); setApprovalComment(""); }}
                       data-testid={`button-approve-${requestId}-${idx}`}
                     >
                       <ThumbsUp className="h-4 w-4" /> Approve
@@ -131,6 +150,38 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
                   </div>
                 )}
               </div>
+
+              {/* Approval comment panel */}
+              {step.status === "pending" && approvingIdx === idx && (
+                <div className="mt-3 p-4 rounded-lg border border-emerald-200 bg-emerald-50 space-y-3">
+                  <p className="text-sm font-medium text-emerald-800">Confirm approval</p>
+                  <div>
+                    <Label className="text-xs font-medium text-emerald-800 mb-1.5 block">
+                      Comment <span className="font-normal text-emerald-600">(optional)</span>
+                    </Label>
+                    <Textarea
+                      value={approvalComment}
+                      onChange={e => setApprovalComment(e.target.value)}
+                      placeholder="Add a note for this approval…"
+                      className="resize-none bg-white border-emerald-200 text-sm focus-visible:ring-emerald-300"
+                      rows={3}
+                      data-testid={`textarea-approve-comment-${requestId}-${idx}`}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => submitApprove(idx)}
+                      data-testid={`button-confirm-approve-${requestId}-${idx}`}
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Confirm Approval
+                    </Button>
+                    <Button variant="ghost" onClick={cancelApprove} data-testid={`button-cancel-approve-${requestId}-${idx}`}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Rejection reason selector */}
               {step.status === "pending" && rejectingIdx === idx && (

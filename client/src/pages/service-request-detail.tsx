@@ -377,7 +377,7 @@ export default function ServiceRequestDetailPage() {
               <ApproverChain
                 approvers={request.approvers}
                 requestId={request.id}
-                onApprove={(reqId, idx) => approveStep(reqId, idx)}
+                onApprove={(reqId, idx, comment) => approveStep(reqId, idx, comment)}
                 onReject={(reqId, idx, reason) => rejectStep(reqId, idx, reason)}
               />
             </div>

@@ -60,6 +60,7 @@ export interface ApproverStep {
   status: "waiting" | "pending" | "approved" | "rejected";
   actedAt?: string;
   rejectionReason?: string;
+  approvalComment?: string;
 }
 
 export interface ServiceRequest {
@@ -158,12 +159,12 @@ export function addRequest(req: ServiceRequest): void {
   notify();
 }
 
-export function approveStep(requestId: string, stepIndex: number): void {
+export function approveStep(requestId: string, stepIndex: number, comment?: string): void {
   const now = formatNow();
   _requests = _requests.map(sr => {
     if (sr.id !== requestId) return sr;
     const approvers = sr.approvers.map((a, i) => {
-      if (i === stepIndex) return { ...a, status: "approved" as const, actedAt: now };
+      if (i === stepIndex) return { ...a, status: "approved" as const, actedAt: now, approvalComment: comment?.trim() || undefined };
       if (i === stepIndex + 1) return { ...a, status: "pending" as const };
       return a;
     });
