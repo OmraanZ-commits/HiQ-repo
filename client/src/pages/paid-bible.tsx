@@ -248,7 +248,7 @@ const NEW_LAUNCH_NETWORKS = [
 
 const TRIGGER_DEFS = [
   { id: "price-inactive", name: "Price Inactive", rule: "MSTN coverage > 80% but price inactive for respective channel", stakeholder: "Network Planner",       severity: "high"   },
-  { id: "slob-risk",      name: "SLOB Risk",      rule: "Predecessor CBU DOH exceeds Successor CBU DOH by more than 5 days", stakeholder: "Availability Planner", severity: "medium" },
+  { id: "slob-risk",      name: "SLOB Risk",      rule: "CBU status is Network Transition Complete AND Predecessor DOH exceeds Successor DOH by more than 5 days", stakeholder: "Availability Planner", severity: "medium" },
 ] as const;
 
 

@@ -47,27 +47,39 @@ class MstnDohService:
 
         # After ingestion, recompute slob_risk for all network entries that have
         # predecessor/successor codes in this snapshot.
+        # SLOB risk is only applicable once the CBU has reached
+        # "Network transition complete" status; for all other statuses the flag
+        # is explicitly cleared so stale values don't persist.
         if self._list_storage:
             doh_map = self.storage.get_doh_map()
             entries = self._list_storage.get_all()
+            from server_py.models import UpdateNetworkEntry
             for entry in entries:
                 pred_code = entry.get("predecessorCode")
                 succ_code = entry.get("successorCode")
-                if pred_code and succ_code:
-                    pred_doh = doh_map.get(pred_code)
-                    succ_doh = doh_map.get(succ_code)
-                    if pred_doh is not None and succ_doh is not None:
-                        slob_risk = pred_doh > (succ_doh + SLOB_RISK_THRESHOLD_DAYS)
-                        from server_py.models import UpdateNetworkEntry
-                        self._list_storage.update(
-                            entry["id"],
-                            UpdateNetworkEntry(
-                                predecessorDoh=pred_doh,
-                                successorDoh=succ_doh,
-                                dohSnapshotDate=req.snapshotDate,
-                                slobRisk=slob_risk,
-                            ),
-                        )
+                if not (pred_code and succ_code):
+                    continue
+                network_status = entry.get("networkStatus") or ""
+                if network_status != "Network transition complete":
+                    # Clear any previously set SLOB risk flag
+                    self._list_storage.update(
+                        entry["id"],
+                        UpdateNetworkEntry(slobRisk=False),
+                    )
+                    continue
+                pred_doh = doh_map.get(pred_code)
+                succ_doh = doh_map.get(succ_code)
+                if pred_doh is not None and succ_doh is not None:
+                    slob_risk = pred_doh > (succ_doh + SLOB_RISK_THRESHOLD_DAYS)
+                    self._list_storage.update(
+                        entry["id"],
+                        UpdateNetworkEntry(
+                            predecessorDoh=pred_doh,
+                            successorDoh=succ_doh,
+                            dohSnapshotDate=req.snapshotDate,
+                            slobRisk=slob_risk,
+                        ),
+                    )
 
         return {"ingested": count, "snapshotDate": req.snapshotDate}
 
