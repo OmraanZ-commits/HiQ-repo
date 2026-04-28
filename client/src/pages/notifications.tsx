@@ -8,7 +8,7 @@ import {
 import {
   Bell, CheckCircle2, MapPin, Warehouse, User, XCircle, Clock, Hash,
   Activity, UserCheck, UserX, Mail, Layers, AlertTriangle,
-  ChevronDown, ChevronUp, Search, X, CheckCheck, Inbox,
+  ChevronDown, ChevronUp, Search, X, CheckCheck, Inbox, Package,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/lib/notification-store";
 import type {
   GeoExtensionNotification, LifecycleNotification, AssignmentNotification,
-  FinanceEmailNotification, BulkDigestNotification, AppNotification,
+  FinanceEmailNotification, FinanceCbu, BulkDigestNotification, AppNotification,
 } from "@/lib/notification-store";
 import type { ApproverStep } from "@/lib/sr-store";
 import type { NetworkEntry } from "@shared/schema";
@@ -102,7 +102,7 @@ function summaryLine(n: AppNotification): string {
     case "assignment":
       return `${n.action === "assigned" ? "Assigned" : "Removed"}: ${n.cbuCode}`;
     case "finance-email":
-      return `${n.success ? "Sent" : "Failed"} · SR ${n.srId}`;
+      return `${n.cbuList.length} CBU${n.cbuList.length !== 1 ? "s" : ""} · ${n.success ? "Sent to finance@unilever.com" : "Delivery failed"}`;
     case "bulk-digest":
       return `${n.cbuCount} CBUs ${n.action === "assigned" ? "assigned to you" : "removed from you"} · ${n.bulkOperationId}`;
     default:
@@ -205,7 +205,8 @@ function GeoExtDetail({ n }: { n: GeoExtensionNotification }) {
 
 function FinanceDetail({ n }: { n: FinanceEmailNotification }) {
   return (
-    <div className="px-5 py-3 border-t border-border/50 bg-muted/20">
+    <div className="border-t border-border/50 bg-muted/20 space-y-3 px-5 py-4">
+      {/* Status message */}
       <div className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
         n.success ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
                   : "bg-red-50 border border-red-200 text-red-700"
@@ -215,6 +216,40 @@ function FinanceDetail({ n }: { n: FinanceEmailNotification }) {
           : <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-500" />}
         <span>{n.message}</span>
       </div>
+
+      {/* CBU list */}
+      {n.cbuList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Package className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+              CBUs in this notification ({n.cbuList.length})
+            </span>
+          </div>
+          <div className="rounded-md border overflow-hidden">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-muted/40 border-b border-border">
+                  <th className="text-left px-3 py-1.5 font-semibold text-muted-foreground whitespace-nowrap">CBU Code</th>
+                  <th className="text-left px-3 py-1.5 font-semibold text-muted-foreground">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {n.cbuList.map((cbu: FinanceCbu, i: number) => (
+                  <tr
+                    key={cbu.code}
+                    className={cn("border-b border-border/50 last:border-0", i % 2 === 0 ? "bg-background" : "bg-muted/20")}
+                    data-testid={`row-finance-cbu-${cbu.code}`}
+                  >
+                    <td className="px-3 py-2 font-mono text-foreground whitespace-nowrap">{cbu.code}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{cbu.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -38,13 +38,19 @@ export interface AssignmentNotification {
   read: boolean;
 }
 
+export interface FinanceCbu {
+  code: string;
+  description: string;
+}
+
 export interface FinanceEmailNotification {
   id: string;
   type: "finance-email";
-  srId: string;
+  srId?: string;
   networkId: string;
   success: boolean;
   message: string;
+  cbuList: FinanceCbu[];
   timestamp: number;
   read: boolean;
 }
@@ -138,20 +144,29 @@ function seedDemoNotifications() {
     {
       id: "seed-finance-1",
       type: "finance-email",
-      srId: "SR-20240001",
       networkId: "NET-4421",
       success: true,
       message: "Finance confirmation email sent successfully to finance@unilever.com",
+      cbuList: [
+        { code: "CBU-50008901", description: "Dove Body Wash 250ml" },
+        { code: "CBU-50008902", description: "Dove Body Wash 500ml" },
+        { code: "CBU-50009011", description: "Surf Excel Matic LF 1kg" },
+        { code: "CBU-50009012", description: "Surf Excel Matic LF 2kg" },
+        { code: "CBU-50009101", description: "Lux Soft Rose 75g" },
+      ],
       timestamp: base - 1000 * 60 * 18,
       read: false,
     },
     {
       id: "seed-finance-2",
       type: "finance-email",
-      srId: "SR-20240002",
       networkId: "NET-3305",
       success: false,
       message: "Finance email delivery failed — SMTP timeout. Please retry or contact IT support.",
+      cbuList: [
+        { code: "CBU-50010201", description: "Rin Advanced Powder 500g" },
+        { code: "CBU-50010202", description: "Rin Advanced Powder 1kg" },
+      ],
       timestamp: base - 1000 * 60 * 35,
       read: false,
     },
