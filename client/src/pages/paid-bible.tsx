@@ -652,7 +652,11 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
   const [pendingStatus, setPendingStatus]   = useState<string>("");
 
   const pendingActivationBpIds = useMemo(
-    () => new Set(serviceRequests.filter(r => r.overallStatus === "pending").map(r => r.basepackId)),
+    () => new Set(
+      serviceRequests
+        .filter(r => r.overallStatus === "pending" && r.srType === "basepack-status-change")
+        .map(r => r.basepackId)
+    ),
     [serviceRequests],
   );
 
@@ -1107,7 +1111,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                             <div className="flex items-center gap-1.5 group">
                               <BpStatusBadge status={effStatus} />
                               {pendingActivationBpIds.has(bp.id) && (
-                                <span title="Activation request in progress" data-testid={`badge-activation-in-progress-${bp.id}`}>
+                                <span title="Status change request pending approval" data-testid={`badge-activation-in-progress-${bp.id}`}>
                                   <Clock className="h-3.5 w-3.5 text-amber-500" />
                                 </span>
                               )}
