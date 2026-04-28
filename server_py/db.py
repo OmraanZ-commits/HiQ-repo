@@ -86,6 +86,9 @@ class NetworkEntryModel(Base):
     slob_risk = Column(Boolean, nullable=True, default=False)
     price_active = Column(Boolean, nullable=True)
     launch_type = Column(String, nullable=True)  # "standard" | "relaunch" | "new-launch"
+    sourcing_mode = Column(String, nullable=True)  # "decentralized" | "centralized"
+    centralized_geos = Column(JSONB, nullable=True, default=[])
+    centralized_depots = Column(JSONB, nullable=True, default=[])
 
 
 class EntryStatusModel(Base):
@@ -216,6 +219,8 @@ class ServiceRequestModel(Base):
     sourcing_mode = Column(String, nullable=True)
     centralized_geo = Column(JSONB, nullable=True, default=[])
     centralized_depots = Column(JSONB, nullable=True, default=[])
+    brand = Column(String, nullable=True)
+    target_status = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
@@ -258,6 +263,16 @@ class MstnAlertModel(Base):
     check_month = Column(String, nullable=True)  # e.g., "2026-04"
     is_resolved = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class BasepakLifecycleDateModel(Base):
+    __tablename__ = "basepack_lifecycle_dates"
+
+    bp_code = Column(String, primary_key=True)
+    activation_date = Column(String, nullable=True)
+    inactive_date = Column(String, nullable=True)
+    delist_date = Column(String, nullable=True)
+    updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
 def create_tables():
@@ -313,6 +328,21 @@ def run_migrations():
         conn.execute(text(
             "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS centralized_depots JSONB"
         ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS brand VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS target_status VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS sourcing_mode VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS centralized_geos JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS centralized_depots JSONB"
+        ))
         conn.commit()
 
 
@@ -353,6 +383,9 @@ FIELD_MAP_TO_DB = {
     "slobRisk": "slob_risk",
     "priceActive": "price_active",
     "launchType": "launch_type",
+    "sourcingMode": "sourcing_mode",
+    "centralizedGeos": "centralized_geos",
+    "centralizedDepots": "centralized_depots",
 }
 
 FIELD_MAP_TO_API = {v: k for k, v in FIELD_MAP_TO_DB.items()}

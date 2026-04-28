@@ -62,6 +62,9 @@ class NetworkEntryBase(BaseModel):
     slobRisk: Optional[bool] = None
     priceActive: Optional[bool] = None
     launchType: Optional[str] = None  # "standard" | "relaunch" | "new-launch"
+    sourcingMode: Optional[str] = None  # "decentralized" | "centralized"
+    centralizedGeos: Optional[List[str]] = Field(default_factory=list)
+    centralizedDepots: Optional[List[str]] = Field(default_factory=list)
 
 
 class InsertNetworkEntry(NetworkEntryBase):
@@ -121,6 +124,9 @@ class UpdateNetworkEntry(BaseModel):
     slobRisk: Optional[bool] = None
     priceActive: Optional[bool] = None
     launchType: Optional[str] = None
+    sourcingMode: Optional[str] = None
+    centralizedGeos: Optional[List[str]] = None
+    centralizedDepots: Optional[List[str]] = None
 
 
 class StateTransition(BaseModel):
@@ -295,8 +301,12 @@ class ServiceRequestBase(BaseModel):
     srType: str
     raisedBy: str
     businessGroup: Optional[str] = None
+    brand: Optional[str] = None
     basepakCode: Optional[str] = None
     basepakName: Optional[str] = None
+    basepackCode: Optional[str] = None
+    basepackName: Optional[str] = None
+    targetStatus: Optional[str] = None
     businessJustification: Optional[str] = None
     materials: Optional[List[MaterialCriteria]] = Field(default_factory=list)
     approvers: Optional[List[ApproverStep]] = Field(default_factory=list)
@@ -357,6 +367,24 @@ class BasepakStatusOverrideResponse(BasepakStatusOverrideBase):
     id: str
     appliedAt: Optional[str] = None
     isActive: bool = True
+
+
+# ── Basepack Lifecycle Date Models ──────────────────────────────
+
+
+class BasepakLifecycleDateBase(BaseModel):
+    bpCode: str
+    activationDate: Optional[str] = None
+    inactiveDate: Optional[str] = None
+    delistDate: Optional[str] = None
+
+
+class InsertBasepakLifecycleDate(BasepakLifecycleDateBase):
+    pass
+
+
+class BasepakLifecycleDateResponse(BasepakLifecycleDateBase):
+    updatedAt: Optional[str] = None
 
 
 # ── DOH & MSTN Models ───────────────────────────────────────────

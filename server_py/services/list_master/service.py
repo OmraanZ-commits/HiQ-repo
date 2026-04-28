@@ -43,3 +43,10 @@ class ListMasterService:
 
     def merge_geo_depots(self, entry_id: str, added_geos: list, added_depots: list) -> Optional[dict]:
         return self.storage.merge_geo_depots(entry_id, added_geos, added_depots)
+
+    def merge_channels(self, entry_id: str, added_channels: list) -> Optional[dict]:
+        return self.storage.merge_channels(entry_id, added_channels)
+
+    def update_sourcing(self, entry_id: str, sourcing_mode: str,
+                        centralized_geos: list, centralized_depots: list) -> Optional[dict]:
+        return self.storage.update_sourcing(entry_id, sourcing_mode, centralized_geos, centralized_depots)

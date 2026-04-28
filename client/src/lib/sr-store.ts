@@ -125,233 +125,151 @@ export function formatNow(): string {
   });
 }
 
-// ─── Module-level store ───────────────────────────────────────────────────────
+// ─── Backend ↔ Frontend Mappers ────────────────────────────────────────────
 
-const SEED_APPROVERS_APPROVED = [
-  { role: "Network Planner",      label: "Network Planner",      subLabel: "Network Review",         assignedTo: "Meera Nair",   status: "approved" as const, actedAt: "12 Jan 2026, 10:15 AM" },
-  { role: "Supply Planner",       label: "Supply Planner",       subLabel: "Production Activities",  assignedTo: "Rohan Das",    status: "approved" as const, actedAt: "13 Jan 2026, 02:30 PM" },
-  { role: "Distribution Planner", label: "Distribution Planner", subLabel: "Logistics Activities",   assignedTo: "Anita Rao",    status: "approved" as const, actedAt: "14 Jan 2026, 11:00 AM" },
-  { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval",         assignedTo: "Suresh Kumar", status: "approved" as const, actedAt: "15 Jan 2026, 09:45 AM" },
-];
-
-const SEED_REQUESTS: ServiceRequest[] = [
-  // ── BP-1800 Lakme: Status Change → Active Pack (Approved) ─────────────────
-  {
-    id:              "SR-SEED-001",
-    srType:          "basepack-status-change",
-    basepackId:      "BP-1800",
-    basepackCode:    "BP-1800",
-    basepackName:    "Lakme 9to5 Weightless Mousse Foundation 25ml",
-    targetStatus:    "Active Pack",
-    brand:           "Lakme",
-    bg:              "Beauty and Wellness",
-    raisedBy:        "Meera Nair",
-    raisedAt:        "12 Jan 2026, 09:30 AM",
-    overallStatus:   "approved",
-    approvers: SEED_APPROVERS_APPROVED,
-    mstnCoverage:    92,
-    criteriaMetAtRaise: true,
-  },
-
-  // ── BP-1800 Lakme: Geo Extension, CBU-50018001 (Pending — 1/4 done) ───────
-  {
-    id:              "SR-SEED-002",
-    srType:          "geo-extension",
-    basepackId:      "BP-1800",
-    basepackCode:    "BP-1800",
-    basepackName:    "Lakme 9to5 Weightless Mousse Foundation 25ml",
-    cbuId:           "CBU-50018001",
-    cbuCode:         "CBU-50018001",
-    cbuDescription:  "Lakme 9to5 Weightless Mousse Foundation Ivory 25ml",
-    addedGeos:       ["HYDERABAD-A", "HYDERABAD-B"],
-    addedDepots:     ["HYD-01"],
-    justification:   "Expanding to Hyderabad cluster per Q2 distribution plan.",
-    brand:           "Lakme",
-    bg:              "Beauty and Wellness",
-    raisedBy:        "Meera Nair",
-    raisedAt:        "03 Apr 2026, 11:15 AM",
-    overallStatus:   "pending",
-    approvers: [
-      { role: "Network Planner",      label: "Network Planner",      subLabel: "Network Review",        assignedTo: "Meera Nair",   status: "approved",  actedAt: "04 Apr 2026, 09:30 AM", approvalComment: "Hyderabad expansion approved per Q2 plan" },
-      { role: "Supply Planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: "Rohan Das",    status: "pending" },
-      { role: "Distribution Planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: "Anita Rao",    status: "waiting" },
-      { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: "Suresh Kumar", status: "waiting" },
-    ],
-  },
-
-  // ── BP-1700 Pepsodent: Status Change → Active Pack (Approved) ────────────
-  {
-    id:              "SR-SEED-003",
-    srType:          "basepack-status-change",
-    basepackId:      "BP-1700",
-    basepackCode:    "BP-1700",
-    basepackName:    "Pepsodent Germi Check Toothpaste 150g",
-    targetStatus:    "Active Pack",
-    brand:           "Pepsodent",
-    bg:              "Personal Care",
-    raisedBy:        "Vikram Singh",
-    raisedAt:        "20 Nov 2025, 10:00 AM",
-    overallStatus:   "approved",
-    approvers: [
-      { role: "Network Planner",      label: "Network Planner",      subLabel: "Network Review",        assignedTo: "Vikram Singh", status: "approved", actedAt: "20 Nov 2025, 02:00 PM" },
-      { role: "Supply Planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: "Rohan Das",    status: "approved", actedAt: "21 Nov 2025, 10:30 AM" },
-      { role: "Distribution Planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: "Anita Rao",    status: "approved", actedAt: "22 Nov 2025, 09:00 AM" },
-      { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: "Suresh Kumar", status: "approved", actedAt: "24 Nov 2025, 11:45 AM" },
-    ],
-    mstnCoverage:    88,
-    criteriaMetAtRaise: true,
-  },
-
-  // ── BP-1700 Pepsodent: Channel Extension, CBU-50017001 — Ecom + KA (Approved)
-  {
-    id:              "SR-SEED-004",
-    srType:          "channel-extension",
-    basepackId:      "BP-1700",
-    basepackCode:    "BP-1700",
-    basepackName:    "Pepsodent Germi Check Toothpaste 150g",
-    cbuId:           "CBU-50017001",
-    cbuCode:         "CBU-50017001",
-    cbuDescription:  "Pepsodent Germi Check Toothpaste GT Pack 150g",
-    addedChannels:   ["Ecom", "KA"],
-    justification:   "Listing on Ecom and Key Accounts as part of D2C push.",
-    brand:           "Pepsodent",
-    bg:              "Personal Care",
-    raisedBy:        "Vikram Singh",
-    raisedAt:        "05 Feb 2026, 02:45 PM",
-    overallStatus:   "approved",
-    approvers: [
-      { role: "Network Planner",      label: "Network Planner",      subLabel: "Network Review",        assignedTo: "Vikram Singh", status: "approved", actedAt: "06 Feb 2026, 09:00 AM", approvalComment: "Ecom listing aligned with brand strategy" },
-      { role: "Supply Planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: "Rohan Das",    status: "approved", actedAt: "07 Feb 2026, 11:30 AM" },
-      { role: "Distribution Planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: "Anita Rao",    status: "approved", actedAt: "08 Feb 2026, 03:00 PM" },
-      { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: "Suresh Kumar", status: "approved", actedAt: "10 Feb 2026, 10:15 AM" },
-    ],
-  },
-
-  // ── BP-700 Brooke Bond: Status Change → Active Pack (Rejected at step 1) ──
-  {
-    id:              "SR-SEED-005",
-    srType:          "basepack-status-change",
-    basepackId:      "BP-700",
-    basepackCode:    "BP-700",
-    basepackName:    "Brooke Bond Red Label 500g",
-    targetStatus:    "Active Pack",
-    brand:           "Brooke Bond",
-    bg:              "Foods",
-    raisedBy:        "Arun Mehta",
-    raisedAt:        "15 Mar 2026, 09:00 AM",
-    overallStatus:   "rejected",
-    approvers: [
-      { role: "Network Planner",      label: "Network Planner",      subLabel: "Network Review",        assignedTo: "Arun Mehta",   status: "rejected", actedAt: "15 Mar 2026, 04:00 PM", rejectionReason: "Insufficient MSTN coverage (< 80%)" },
-      { role: "Supply Planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: "Rohan Das",    status: "waiting" },
-      { role: "Distribution Planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: "Anita Rao",    status: "waiting" },
-      { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: "Suresh Kumar", status: "waiting" },
-    ],
-    mstnCoverage:    65,
-    criteriaMetAtRaise: false,
-  },
-
-  // ── BP-700 Brooke Bond: Geo Extension, CBU-50007890 (Approved) ───────────
-  {
-    id:              "SR-SEED-006",
-    srType:          "geo-extension",
-    basepackId:      "BP-700",
-    basepackCode:    "BP-700",
-    basepackName:    "Brooke Bond Red Label 500g",
-    cbuId:           "CBU-50007890",
-    cbuCode:         "CBU-50007890",
-    cbuDescription:  "Brooke Bond Red Label Natural Care Tea 500g",
-    addedGeos:       ["PUNE-A", "PUNE-B", "NASHIK-A"],
-    addedDepots:     ["PUNE-01", "NAS-01"],
-    justification:   "West Maharashtra expansion as per NSM directive.",
-    brand:           "Brooke Bond",
-    bg:              "Foods",
-    raisedBy:        "Arun Mehta",
-    raisedAt:        "08 Jan 2026, 03:30 PM",
-    overallStatus:   "approved",
-    approvers: [
-      { role: "Network Planner",      label: "Network Planner",      subLabel: "Network Review",        assignedTo: "Arun Mehta",   status: "approved", actedAt: "09 Jan 2026, 10:00 AM" },
-      { role: "Supply Planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: "Rohan Das",    status: "approved", actedAt: "10 Jan 2026, 02:00 PM" },
-      { role: "Distribution Planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: "Anita Rao",    status: "approved", actedAt: "12 Jan 2026, 09:30 AM" },
-      { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: "Suresh Kumar", status: "approved", actedAt: "13 Jan 2026, 11:15 AM" },
-    ],
-  },
-
-  // ── BP-800 Closeup: Sourcing Amendment, CBU-50008901 (Pending — 0/1 done) ─
-  {
-    id:              "SR-SEED-007",
-    srType:          "sourcing-amendment",
-    basepackId:      "BP-800",
-    basepackCode:    "BP-800",
-    basepackName:    "Closeup Ever Fresh Gel 150g",
-    cbuId:           "CBU-50008901",
-    cbuCode:         "CBU-50008901",
-    cbuDescription:  "Closeup Ever Fresh Red Hot Gel Toothpaste 150g",
-    sourcingMode:    "centralized",
-    centralizedGeos: ["DELHI-A", "DELHI-B", "MUMBAI-A"],
-    centralizedDepots: ["DEL-01", "MUM-02"],
-    justification:   "Centralised sourcing for cost efficiency in North+West clusters.",
-    brand:           "Closeup",
-    bg:              "Personal Care",
-    raisedBy:        "Deepa Krishnan",
-    raisedAt:        "21 Apr 2026, 04:00 PM",
-    overallStatus:   "pending",
-    approvers: [
-      { role: "Network Planner", label: "Network Planner", subLabel: "Network Review", assignedTo: "Deepa Krishnan", status: "pending" },
-    ],
-  },
-
-  // ── BP-800 Closeup: Geo Extension, CBU-50008902 (Pending — 0/4 done) ─────
-  {
-    id:              "SR-SEED-008",
-    srType:          "geo-extension",
-    basepackId:      "BP-800",
-    basepackCode:    "BP-800",
-    basepackName:    "Closeup Ever Fresh Gel 150g",
-    cbuId:           "CBU-50008902",
-    cbuCode:         "CBU-50008902",
-    cbuDescription:  "Closeup Ever Fresh Gel Whitening Toothpaste 150g",
-    addedGeos:       ["BANGALORE-A", "BANGALORE-B"],
-    addedDepots:     ["BLR-01"],
-    justification:   "South India expansion — Bangalore cluster prioritisation.",
-    brand:           "Closeup",
-    bg:              "Personal Care",
-    raisedBy:        "Deepa Krishnan",
-    raisedAt:        "25 Apr 2026, 11:30 AM",
-    overallStatus:   "pending",
-    approvers: [
-      { role: "Network Planner",      label: "Network Planner",      subLabel: "Network Review",        assignedTo: "Deepa Krishnan", status: "pending" },
-      { role: "Supply Planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: "Rohan Das",      status: "waiting" },
-      { role: "Distribution Planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: "Anita Rao",      status: "waiting" },
-      { role: "NCSM",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: "Suresh Kumar",   status: "waiting" },
-    ],
-  },
-];
-
-function applyDateFromSr(dates: Record<string, BpDates>, sr: ServiceRequest) {
-  if (sr.srType !== "basepack-status-change" || !sr.basepackId || !sr.targetStatus) return;
-  const effectiveDate = [...sr.approvers].reverse().find(a => a.actedAt)?.actedAt;
-  if (!effectiveDate) return;
-  const current = dates[sr.basepackId] ?? {};
-  if (sr.targetStatus === "Active Pack")                                         current.activationDate = effectiveDate;
-  else if (sr.targetStatus === "Inactive Pack")                                  current.inactiveDate   = effectiveDate;
-  else if (sr.targetStatus === "Delisted Packs" || sr.targetStatus === "Stock Base Delisted") current.delistDate = effectiveDate;
-  dates[sr.basepackId] = current;
+function _formatDate(iso: string | null | undefined): string {
+  if (!iso) return formatNow();
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
 }
 
-let _requests: ServiceRequest[] = [...SEED_REQUESTS];
+function _mapApproverFromBackend(a: any): ApproverStep {
+  return {
+    role: a.label || a.role || "",
+    label: a.label || "",
+    subLabel: a.subLabel || "",
+    assignedTo: a.assignedTo,
+    status: a.status as ApproverStep["status"],
+    actedAt: a.actionedAt ? _formatDate(a.actionedAt) : undefined,
+    rejectionReason: a.rejectionReason ?? undefined,
+    approvalComment: a.approvalComment ?? undefined,
+  };
+}
+
+function _mapApproverToBackend(a: ApproverStep): any {
+  return {
+    label: a.label,
+    subLabel: a.subLabel,
+    assignedTo: a.assignedTo,
+    status: a.status,
+    actionedAt: a.actedAt ?? null,
+    rejectionReason: a.rejectionReason ?? null,
+  };
+}
+
+export function mapBackendSrToFrontend(sr: any): ServiceRequest {
+  const bpCode = sr.basepackCode || sr.basepakCode || "";
+  return {
+    id: sr.id,
+    srType: sr.srType as SrType,
+    basepackId: bpCode,
+    basepackCode: bpCode,
+    basepackName: sr.basepackName || sr.basepakName || "",
+    targetStatus: sr.targetStatus || sr.requestedValue || undefined,
+    mstnCoverage: sr.mstnCoverageAtRaise ?? undefined,
+    criteriaMetAtRaise: sr.criteriaMetAtRaise ?? undefined,
+    materials: sr.materials ?? [],
+    cbuId: sr.cbuId ?? undefined,
+    cbuCode: sr.cbuCode ?? undefined,
+    cbuDescription: sr.cbuDescription ?? undefined,
+    currentValue: sr.currentValue ?? undefined,
+    requestedValue: sr.requestedValue ?? undefined,
+    justification: sr.businessJustification ?? undefined,
+    addedGeos: sr.addedGeos ?? [],
+    addedDepots: sr.addedDepots ?? [],
+    addedChannels: sr.addedChannels ?? [],
+    sourcingMode: (sr.sourcingMode ?? undefined) as ServiceRequest["sourcingMode"],
+    centralizedGeos: sr.centralizedGeo ?? [],
+    centralizedDepots: sr.centralizedDepots ?? [],
+    brand: sr.brand || "",
+    bg: sr.businessGroup || "",
+    raisedBy: sr.raisedBy || "",
+    raisedAt: _formatDate(sr.createdAt),
+    approvers: (sr.approvers ?? []).map(_mapApproverFromBackend),
+    overallStatus: (sr.status ?? "pending") as ServiceRequest["overallStatus"],
+  };
+}
+
+function _mapFrontendSrToBackend(sr: ServiceRequest): any {
+  return {
+    srType: sr.srType,
+    raisedBy: sr.raisedBy,
+    businessGroup: sr.bg,
+    brand: sr.brand,
+    basepackCode: sr.basepackCode,
+    basepackName: sr.basepackName,
+    targetStatus: sr.targetStatus,
+    requestedValue: sr.targetStatus ?? sr.requestedValue,
+    currentValue: sr.currentValue,
+    businessJustification: sr.justification,
+    criteriaMetAtRaise: sr.criteriaMetAtRaise,
+    mstnCoverageAtRaise: sr.mstnCoverage,
+    cbuId: sr.cbuId,
+    cbuCode: sr.cbuCode,
+    cbuDescription: sr.cbuDescription,
+    addedGeos: sr.addedGeos ?? [],
+    addedDepots: sr.addedDepots ?? [],
+    addedChannels: sr.addedChannels ?? [],
+    sourcingMode: sr.sourcingMode,
+    centralizedGeo: sr.centralizedGeos ?? [],
+    centralizedDepots: sr.centralizedDepots ?? [],
+    approvers: (sr.approvers ?? []).map(_mapApproverToBackend),
+  };
+}
+
+// ─── Module-level store ────────────────────────────────────────────────────
+
+let _requests: ServiceRequest[] = [];
 let _bpStatusOverrides: Record<string, string> = {};
 let _channelOverrides: Record<string, string[]> = {};
 let _sourcingOverrides: Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }> = {};
-let _bpDates: Record<string, BpDates> = (() => {
-  const d: Record<string, BpDates> = {};
-  SEED_REQUESTS.filter(r => r.overallStatus === "approved").forEach(sr => applyDateFromSr(d, sr));
-  return d;
-})();
+let _bpDates: Record<string, BpDates> = {};
+let _initialised = false;
 const _listeners = new Set<() => void>();
 
 function notify() {
   _listeners.forEach(fn => fn());
 }
+
+// ─── Backend Hydration ────────────────────────────────────────────────────────
+
+async function _loadFromBackend(): Promise<void> {
+  try {
+    const [srsRaw, bpStatusRaw, bpDatesRaw] = await Promise.all([
+      fetch("/api/service-requests").then(r => r.ok ? r.json() : []),
+      fetch("/api/basepack-status").then(r => r.ok ? r.json() : {}),
+      fetch("/api/paid-bible/basepack-dates").then(r => r.ok ? r.json() : []),
+    ]);
+
+    _requests = Array.isArray(srsRaw) ? srsRaw.map(mapBackendSrToFrontend) : [];
+    _bpStatusOverrides = typeof bpStatusRaw === "object" && !Array.isArray(bpStatusRaw) ? (bpStatusRaw as Record<string, string>) : {};
+
+    if (Array.isArray(bpDatesRaw)) {
+      _bpDates = {};
+      for (const d of bpDatesRaw) {
+        _bpDates[d.bpCode] = {
+          activationDate: d.activationDate ?? undefined,
+          inactiveDate: d.inactiveDate ?? undefined,
+          delistDate: d.delistDate ?? undefined,
+        };
+      }
+    }
+
+    _initialised = true;
+    notify();
+  } catch {
+    _initialised = true;
+    notify();
+  }
+}
+
+// ─── Public Getters ──────────────────────────────────────────────────────────
 
 export function getRequests(): ServiceRequest[] {
   return _requests;
@@ -373,16 +291,36 @@ export function getSourcingOverrides(): Record<string, { mode: "decentralized" |
   return _sourcingOverrides;
 }
 
+export function getBpDates(): Record<string, BpDates> { return _bpDates; }
+
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
 export function addRequest(req: ServiceRequest): void {
+  // Optimistically add to local state
   _requests = [req, ..._requests];
-  if (req.srType === "basepack-status-change" && req.basepackId) {
-    _bpStatusOverrides = { ..._bpStatusOverrides, [req.basepackId]: "Draft" };
-  }
   notify();
+
+  // Persist to backend
+  const payload = _mapFrontendSrToBackend(req);
+  apiRequest("POST", "/api/service-requests", payload)
+    .then((savedSr: any) => {
+      // Replace the optimistic entry with the backend-assigned record
+      _requests = _requests.map(r =>
+        r.id === req.id ? mapBackendSrToFrontend(savedSr) : r
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
+      notify();
+    })
+    .catch(() => {
+      // Keep the optimistic entry on failure; data will reconcile on next reload
+    });
 }
 
 export function approveStep(requestId: string, stepIndex: number, comment?: string): void {
   const now = formatNow();
+  let fullyApprovedSr: ServiceRequest | null = null;
+
+  // Optimistic local update
   _requests = _requests.map(sr => {
     if (sr.id !== requestId) return sr;
     const approvers = sr.approvers.map((a, i) => {
@@ -391,55 +329,74 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
       return a;
     });
     const allApproved = approvers.every(a => a.status === "approved");
-    if (allApproved && sr.srType === "basepack-status-change" && sr.basepackId && sr.targetStatus) {
-      _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: sr.targetStatus };
-      const d: Record<string, BpDates> = { ..._bpDates };
-      applyDateFromSr(d, { ...sr, approvers });
-      _bpDates = d;
+
+    if (allApproved) {
+      // Apply local overrides immediately for responsive UI
+      if (sr.srType === "basepack-status-change" && sr.basepackId && sr.targetStatus) {
+        _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: sr.targetStatus };
+        const d: Record<string, BpDates> = { ..._bpDates };
+        _applyDateFromSr(d, { ...sr, approvers });
+        _bpDates = d;
+      }
+      if (sr.srType === "channel-extension" && sr.cbuId && sr.addedChannels?.length) {
+        const prev = _channelOverrides[sr.cbuId] ?? [];
+        const merged = Array.from(new Set([...prev, ...sr.addedChannels]));
+        _channelOverrides = { ..._channelOverrides, [sr.cbuId]: merged };
+      }
+      if (sr.srType === "sourcing-amendment" && sr.cbuId && sr.sourcingMode) {
+        _sourcingOverrides = {
+          ..._sourcingOverrides,
+          [sr.cbuId]: {
+            mode: sr.sourcingMode,
+            centralizedGeos: sr.centralizedGeos ?? [],
+            centralizedDepots: sr.centralizedDepots ?? [],
+          },
+        };
+      }
+      fullyApprovedSr = { ...sr, approvers, overallStatus: "approved" };
     }
-    if (allApproved && sr.srType === "geo-extension" && sr.cbuId && (sr.addedGeos?.length || sr.addedDepots?.length)) {
-      apiRequest("POST", `/api/network-entries/${sr.cbuId}/geo-extension`, {
-        addedGeos: sr.addedGeos ?? [],
-        addedDepots: sr.addedDepots ?? [],
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
-        addNotification({
-          type: "geo-extension-applied",
-          srId: sr.id,
-          cbuId: sr.cbuId!,
-          cbuCode: sr.cbuCode ?? sr.cbuId!,
-          cbuDescription: sr.cbuDescription ?? "",
-          raisedBy: sr.raisedBy,
-          addedGeos: sr.addedGeos ?? [],
-          addedDepots: sr.addedDepots ?? [],
-          approvers,
-        });
-      }).catch(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
-      });
-    }
-    if (allApproved && sr.srType === "channel-extension" && sr.cbuId && sr.addedChannels?.length) {
-      const prev = _channelOverrides[sr.cbuId] ?? [];
-      const merged = [...new Set([...prev, ...sr.addedChannels])];
-      _channelOverrides = { ..._channelOverrides, [sr.cbuId]: merged };
-    }
-    if (allApproved && sr.srType === "sourcing-amendment" && sr.cbuId && sr.sourcingMode) {
-      _sourcingOverrides = {
-        ..._sourcingOverrides,
-        [sr.cbuId]: {
-          mode: sr.sourcingMode,
-          centralizedGeos: sr.centralizedGeos ?? [],
-          centralizedDepots: sr.centralizedDepots ?? [],
-        },
-      };
-    }
+
     return { ...sr, approvers, overallStatus: allApproved ? "approved" as const : "pending" as const };
   });
+
   notify();
+
+  // Persist approval to backend via saga
+  apiRequest("POST", `/api/saga/sr-approve/${requestId}`, {
+    stepIndex,
+    actionedBy: comment ? `${comment.slice(0, 20)}` : "Portal User",
+  }).then(() => {
+    // Refresh backend state after saga completes
+    queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/basepack-status"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/paid-bible/basepack-dates"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+
+    if (fullyApprovedSr) {
+      const fsr = fullyApprovedSr as ServiceRequest;
+      if (fsr.srType === "geo-extension" && fsr.cbuId && (fsr.addedGeos?.length || fsr.addedDepots?.length)) {
+        addNotification({
+          type: "geo-extension-applied",
+          srId: fsr.id,
+          cbuId: fsr.cbuId!,
+          cbuCode: fsr.cbuCode ?? fsr.cbuId!,
+          cbuDescription: fsr.cbuDescription ?? "",
+          raisedBy: fsr.raisedBy,
+          addedGeos: fsr.addedGeos ?? [],
+          addedDepots: fsr.addedDepots ?? [],
+          approvers: fsr.approvers,
+        });
+      }
+    }
+  }).catch(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+  });
 }
 
 export function rejectStep(requestId: string, stepIndex: number, reason: string): void {
   const now = formatNow();
+
+  // Optimistic local update
   _requests = _requests.map(sr => {
     if (sr.id !== requestId) return sr;
     const approvers = sr.approvers.map((a, i) => {
@@ -452,7 +409,20 @@ export function rejectStep(requestId: string, stepIndex: number, reason: string)
     }
     return { ...sr, approvers, overallStatus: "rejected" as const };
   });
+
   notify();
+
+  // Persist rejection to backend via saga
+  apiRequest("POST", `/api/saga/sr-reject/${requestId}`, {
+    stepIndex,
+    actionedBy: "Portal User",
+    reason,
+  }).then(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/basepack-status"] });
+  }).catch(() => {
+    // Optimistic state remains
+  });
 }
 
 export function setBpStatusOverride(bpId: string, status: string): void {
@@ -460,29 +430,49 @@ export function setBpStatusOverride(bpId: string, status: string): void {
   notify();
 }
 
+// ─── Subscription ─────────────────────────────────────────────────────────────
+
 export function subscribe(cb: () => void): () => void {
   _listeners.add(cb);
   return () => _listeners.delete(cb);
 }
 
-export function getBpDates(): Record<string, BpDates> { return _bpDates; }
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+
+function _applyDateFromSr(dates: Record<string, BpDates>, sr: ServiceRequest) {
+  if (sr.srType !== "basepack-status-change" || !sr.basepackId || !sr.targetStatus) return;
+  const effectiveDate = [...sr.approvers].reverse().find(a => a.actedAt)?.actedAt;
+  if (!effectiveDate) return;
+  const current = dates[sr.basepackId] ?? {};
+  if (sr.targetStatus === "Active Pack")                                                  current.activationDate = effectiveDate;
+  else if (sr.targetStatus === "Inactive Pack")                                           current.inactiveDate   = effectiveDate;
+  else if (sr.targetStatus === "Delisted Packs" || sr.targetStatus === "Stock Base Delisted") current.delistDate = effectiveDate;
+  dates[sr.basepackId] = current;
+}
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useSrStore() {
   const [requests, setRequests] = useState<ServiceRequest[]>(getRequests);
-  const [bpStatusOverrides, setBpStatusOverrides] = useState<Record<string, string>>(getBpStatusOverrides);
+  const [bpStatusOverrides, setBpStatusOverridesState] = useState<Record<string, string>>(getBpStatusOverrides);
   const [channelOverrides, setChannelOverrides] = useState<Record<string, string[]>>(getChannelOverrides);
   const [sourcingOverrides, setSourcingOverrides] = useState<Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }>>(getSourcingOverrides);
-  const [bpDates, setBpDates] = useState<Record<string, BpDates>>(getBpDates);
+  const [bpDates, setBpDatesState] = useState<Record<string, BpDates>>(getBpDates);
+
   useEffect(() => {
+    // Load backend state on mount if not already done
+    if (!_initialised) {
+      _loadFromBackend();
+    }
+
     return subscribe(() => {
       setRequests([...getRequests()]);
-      setBpStatusOverrides({ ...getBpStatusOverrides() });
+      setBpStatusOverridesState({ ...getBpStatusOverrides() });
       setChannelOverrides({ ...getChannelOverrides() });
       setSourcingOverrides({ ...getSourcingOverrides() });
-      setBpDates({ ...getBpDates() });
+      setBpDatesState({ ...getBpDates() });
     });
   }, []);
+
   return { requests, bpStatusOverrides, channelOverrides, sourcingOverrides, bpDates };
 }

@@ -46,8 +46,16 @@ from server_py.services.mstn_doh.router import router as mstn_doh_router, set_se
 
 from server_py.saga.router import router as saga_router, init_saga_services
 
+from server_py.services.paid_bible.storage import PaidBibleStorage
+from server_py.services.paid_bible.service import PaidBibleService
+from server_py.services.paid_bible.router import (
+    router as paid_bible_router,
+    set_service as set_paid_bible_service,
+)
+
 from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS
 from server_py.seed_users import USER_SEEDS
+from server_py.seed_service_requests import SR_SEEDS
 
 app = FastAPI(title="Unilever Network Visibility API", version="1.0.0", redirect_slashes=False)
 
@@ -69,6 +77,7 @@ app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(sr_router, prefix="/api/service-requests", tags=["Service Requests"])
 app.include_router(bp_status_router, prefix="/api/basepack-status", tags=["Basepack Status"])
 app.include_router(mstn_doh_router, prefix="/api/mstn-doh", tags=["MSTN & DOH"])
+app.include_router(paid_bible_router, prefix="/api/paid-bible", tags=["Paid Bible"])
 
 
 @app.on_event("startup")
@@ -113,6 +122,12 @@ async def startup():
     mstn_doh_service.set_list_storage(list_storage)
     set_mstn_doh_service(mstn_doh_service)
 
+    paid_bible_storage = PaidBibleStorage()
+    paid_bible_service = PaidBibleService(paid_bible_storage, sr_service=sr_service)
+    set_paid_bible_service(paid_bible_service)
+
+    sr_service.seed_requests(SR_SEEDS)
+
     state_service = get_state_service()
     lifecycle_service = get_lifecycle_service()
 
@@ -124,6 +139,7 @@ async def startup():
             ref_service,
             sr_service=sr_service,
             bp_status_service=bp_status_service,
+            paid_bible_service=paid_bible_service,
         )
 
 
@@ -141,6 +157,7 @@ async def health():
             "service-requests",
             "basepack-status",
             "mstn-doh",
+            "paid-bible",
         ],
     }
 

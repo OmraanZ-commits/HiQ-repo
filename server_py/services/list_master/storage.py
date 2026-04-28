@@ -98,6 +98,43 @@ class ListMasterStorage:
         finally:
             db.close()
 
+    def merge_channels(self, entry_id: str, added_channels: list) -> Optional[dict]:
+        """Merge new channels into the CBU record without duplication."""
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return None
+            existing = list(row.channel or [])
+            merged = existing + [c for c in added_channels if c not in existing]
+            row.channel = merged
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
+    def update_sourcing(self, entry_id: str, sourcing_mode: str,
+                        centralized_geos: list, centralized_depots: list) -> Optional[dict]:
+        """Update sourcing mode and optional centralized scope for a CBU."""
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return None
+            row.sourcing_mode = sourcing_mode
+            row.centralized_geos = centralized_geos or []
+            row.centralized_depots = centralized_depots or []
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
     def merge_geo_depots(self, entry_id: str, added_geos: list, added_depots: list) -> Optional[dict]:
         """Merge new geographies and depots into the CBU record without duplication."""
         db = SessionLocal()

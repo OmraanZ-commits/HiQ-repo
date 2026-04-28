@@ -82,6 +82,10 @@ class ServiceRequestService:
 
         return self.storage.update_approvers(sr_id, approvers, overall_status)
 
+    def seed_requests(self, seeds: list) -> None:
+        """Insert seed SRs if they don't already exist (idempotent by id)."""
+        self.storage.seed_requests(seeds)
+
     def reject_step(self, sr_id: str, req: RejectStepRequest) -> dict:
         sr = self.storage.get_by_id(sr_id)
         if not sr:

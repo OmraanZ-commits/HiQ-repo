@@ -6,14 +6,21 @@ from server_py.db import SessionLocal, ServiceRequestModel
 
 
 def _row_to_dict(row: ServiceRequestModel) -> dict:
+    bp_code = row.basepack_code
     return {
         "id": str(row.id),
         "srType": row.sr_type,
         "status": row.status,
         "raisedBy": row.raised_by,
         "businessGroup": row.business_group,
-        "basepakCode": row.basepack_code,
+        "brand": row.brand,
+        # canonical names (camelCase without typo)
+        "basepackCode": bp_code,
+        "basepackName": row.basepack_name,
+        # legacy names kept for backward compatibility
+        "basepakCode": bp_code,
         "basepakName": row.basepack_name,
+        "targetStatus": getattr(row, "target_status", None),
         "businessJustification": row.business_justification,
         "materials": row.materials or [],
         "approvers": row.approvers or [],
@@ -67,14 +74,17 @@ class ServiceRequestStorage:
         db = SessionLocal()
         try:
             now = datetime.now(timezone.utc)
+            bp_code = data.get("basepackCode") or data.get("basepakCode")
+            bp_name = data.get("basepackName") or data.get("basepakName")
             row = ServiceRequestModel(
                 id=uuid.uuid4(),
                 sr_type=data["srType"],
                 status="pending",
                 raised_by=data["raisedBy"],
                 business_group=data.get("businessGroup"),
-                basepack_code=data.get("basepakCode"),
-                basepack_name=data.get("basepakName"),
+                brand=data.get("brand"),
+                basepack_code=bp_code,
+                basepack_name=bp_name,
                 business_justification=data.get("businessJustification"),
                 materials=data.get("materials", []),
                 approvers=data.get("approvers", []),
@@ -91,6 +101,7 @@ class ServiceRequestStorage:
                 sourcing_mode=data.get("sourcingMode"),
                 centralized_geo=data.get("centralizedGeo", []),
                 centralized_depots=data.get("centralizedDepots", []),
+                target_status=data.get("targetStatus"),
                 created_at=now,
                 updated_at=now,
             )
@@ -98,6 +109,73 @@ class ServiceRequestStorage:
             db.commit()
             db.refresh(row)
             return _row_to_dict(row)
+        finally:
+            db.close()
+
+    def seed_requests(self, seeds: list) -> None:
+        """Idempotent: insert seed SRs by their pre-assigned string id."""
+        db = SessionLocal()
+        try:
+            for seed in seeds:
+                seed_id = seed.get("id")
+                if not seed_id:
+                    continue
+                try:
+                    existing = db.query(ServiceRequestModel).filter(
+                        ServiceRequestModel.id == uuid.UUID(seed_id) if "-" in seed_id else True
+                    ).first()
+                except Exception:
+                    existing = None
+
+                if existing:
+                    continue
+
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                bp_code = seed.get("basepackCode") or seed.get("basepakCode")
+                bp_name = seed.get("basepackName") or seed.get("basepakName")
+
+                id_val = seed_id
+                try:
+                    id_val = uuid.UUID(seed_id)
+                except Exception:
+                    id_val = uuid.uuid5(uuid.NAMESPACE_DNS, seed_id)
+
+                row = ServiceRequestModel(
+                    id=id_val,
+                    sr_type=seed["srType"],
+                    status=seed.get("status", "pending"),
+                    raised_by=seed["raisedBy"],
+                    business_group=seed.get("businessGroup"),
+                    brand=seed.get("brand"),
+                    basepack_code=bp_code,
+                    basepack_name=bp_name,
+                    business_justification=seed.get("businessJustification"),
+                    materials=seed.get("materials", []),
+                    approvers=seed.get("approvers", []),
+                    rejection_reason=seed.get("rejectionReason"),
+                    criteria_met_at_raise=seed.get("criteriaMetAtRaise"),
+                    mstn_coverage_at_raise=seed.get("mstnCoverageAtRaise"),
+                    cbu_id=seed.get("cbuId"),
+                    cbu_code=seed.get("cbuCode"),
+                    cbu_description=seed.get("cbuDescription"),
+                    current_value=seed.get("currentValue"),
+                    requested_value=seed.get("requestedValue"),
+                    added_geos=seed.get("addedGeos", []),
+                    added_depots=seed.get("addedDepots", []),
+                    added_channels=seed.get("addedChannels", []),
+                    sourcing_mode=seed.get("sourcingMode"),
+                    centralized_geo=seed.get("centralizedGeo", []),
+                    centralized_depots=seed.get("centralizedDepots", []),
+                    target_status=seed.get("targetStatus"),
+                    created_at=now,
+                    updated_at=now,
+                )
+                try:
+                    db.add(row)
+                    db.commit()
+                except Exception:
+                    db.rollback()
         finally:
             db.close()
 

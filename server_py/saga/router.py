@@ -21,6 +21,7 @@ _lifecycle_service: LifecycleService | None = None
 _ref_service: ReferenceDataService | None = None
 _sr_service: ServiceRequestService | None = None
 _bp_status_service: BasepakStatusService | None = None
+_paid_bible_service = None
 
 
 def init_saga_services(
@@ -30,15 +31,17 @@ def init_saga_services(
     ref_service: ReferenceDataService | None = None,
     sr_service: ServiceRequestService | None = None,
     bp_status_service: BasepakStatusService | None = None,
+    paid_bible_service=None,
 ):
     global _state_service, _list_service, _lifecycle_service, _ref_service
-    global _sr_service, _bp_status_service
+    global _sr_service, _bp_status_service, _paid_bible_service
     _state_service = state_service
     _list_service = list_service
     _lifecycle_service = lifecycle_service
     _ref_service = ref_service
     _sr_service = sr_service
     _bp_status_service = bp_status_service
+    _paid_bible_service = paid_bible_service
 
 
 class TransitionSagaRequest(BaseModel):
@@ -191,6 +194,7 @@ async def execute_sr_approve(sr_id: str, req: SrApproveRequest):
         sr_service=_sr_service,
         bp_status_service=_bp_status_service,
         list_master_service=_list_service,
+        paid_bible_service=_paid_bible_service,
     )
     result = saga.approve(step_index=req.stepIndex, actioned_by=req.actionedBy)
 
@@ -209,6 +213,8 @@ async def execute_sr_reject(sr_id: str, req: SrRejectRequest):
         sr_id=sr_id,
         sr_service=_sr_service,
         bp_status_service=_bp_status_service,
+        list_master_service=_list_service,
+        paid_bible_service=_paid_bible_service,
     )
     result = saga.reject(
         step_index=req.stepIndex,
