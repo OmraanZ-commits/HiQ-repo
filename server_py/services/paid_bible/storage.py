@@ -91,12 +91,23 @@ class PaidBibleStorage:
             db.close()
 
     def get_entries_by_bp_code(self, bp_code: str) -> List[dict]:
-        """Returns all CBU rows for a specific basepack code."""
+        """
+        Returns all CBU rows for a specific basepack code.
+        Mirrors the list aggregation fallback: if a row has basepack=NULL, it is grouped
+        by its own id (cast to text) in the list view, so we match that fallback here too.
+        """
+        from sqlalchemy import or_, cast, Text
         db = SessionLocal()
         try:
             rows = (
                 db.query(NetworkEntryModel)
-                .filter(NetworkEntryModel.basepack == bp_code)
+                .filter(
+                    or_(
+                        NetworkEntryModel.basepack == bp_code,
+                        # Fallback: rows with no basepack are grouped by their own id in list view
+                        (NetworkEntryModel.basepack.is_(None) & (cast(NetworkEntryModel.id, Text) == bp_code)),
+                    )
+                )
                 .order_by(NetworkEntryModel.cbu_code)
                 .all()
             )
