@@ -1144,6 +1144,9 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                               {(() => {
                                 const dates = bpDates[bp.id];
                                 const fmtDate = (val?: string) => val ? val.split(",")[0] : "—";
+                                const effStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
+                                const isInactive = effStatus === "Inactive Pack";
+                                const isDelisted = effStatus === "Delisted Packs" || effStatus === "Stock Base Delisted";
                                 return (
                                   <div className="flex items-center gap-5 mb-4 px-3 py-2 rounded-md bg-muted/40 border border-border/50 w-fit text-xs">
                                     <div className="flex items-center gap-1.5">
@@ -1153,22 +1156,30 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                                         {fmtDate(dates?.activationDate)}
                                       </span>
                                     </div>
-                                    <div className="w-px h-3.5 bg-border" />
-                                    <div className="flex items-center gap-1.5">
-                                      <CalendarX className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                      <span className="text-muted-foreground">Inactive Date:</span>
-                                      <span data-testid={`dates-inactive-${bp.id}`} className={dates?.inactiveDate ? "font-semibold text-amber-700" : "text-muted-foreground"}>
-                                        {fmtDate(dates?.inactiveDate)}
-                                      </span>
-                                    </div>
-                                    <div className="w-px h-3.5 bg-border" />
-                                    <div className="flex items-center gap-1.5">
-                                      <Archive className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-                                      <span className="text-muted-foreground">Delist Date:</span>
-                                      <span data-testid={`dates-delist-${bp.id}`} className={dates?.delistDate ? "font-semibold text-rose-700" : "text-muted-foreground"}>
-                                        {fmtDate(dates?.delistDate)}
-                                      </span>
-                                    </div>
+                                    {isInactive && (
+                                      <>
+                                        <div className="w-px h-3.5 bg-border" />
+                                        <div className="flex items-center gap-1.5">
+                                          <CalendarX className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                          <span className="text-muted-foreground">Inactive Date:</span>
+                                          <span data-testid={`dates-inactive-${bp.id}`} className={dates?.inactiveDate ? "font-semibold text-amber-700" : "text-muted-foreground"}>
+                                            {fmtDate(dates?.inactiveDate)}
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
+                                    {isDelisted && (
+                                      <>
+                                        <div className="w-px h-3.5 bg-border" />
+                                        <div className="flex items-center gap-1.5">
+                                          <Archive className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                                          <span className="text-muted-foreground">Delist Date:</span>
+                                          <span data-testid={`dates-delist-${bp.id}`} className={dates?.delistDate ? "font-semibold text-rose-700" : "text-muted-foreground"}>
+                                            {fmtDate(dates?.delistDate)}
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 );
                               })()}
