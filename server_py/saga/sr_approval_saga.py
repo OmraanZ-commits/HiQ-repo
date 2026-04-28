@@ -147,22 +147,20 @@ class SrApprovalSaga:
             except Exception as exc:
                 self._log_step("apply_lifecycle_date", "failed", error=str(exc))
 
-            # Determine previous status for history entry
+            # Write status history — this is part of the approval contract.
+            # If writing fails, the saga is marked failed so the caller can retry or investigate.
             prev_status = sr.get("currentValue") or "Draft"
-            try:
-                self.paid_bible_service.add_status_history_entry(
-                    bp_code=bp_id,
-                    from_status=prev_status,
-                    to_status=target_status,
-                    effective_date=effective_date,
-                    sr_id=self.sr_id,
-                    actioned_by=actioned_by,
-                    notes=f"Approved via SR {self.sr_id}",
-                )
-                self._log_step("write_status_history", "completed",
-                               result={"bpId": bp_id, "from": prev_status, "to": target_status})
-            except Exception as exc:
-                self._log_step("write_status_history", "failed", error=str(exc))
+            self.paid_bible_service.add_status_history_entry(
+                bp_code=bp_id,
+                from_status=prev_status,
+                to_status=target_status,
+                effective_date=effective_date,
+                sr_id=self.sr_id,
+                actioned_by=actioned_by,
+                notes=f"Approved via SR {self.sr_id}",
+            )
+            self._log_step("write_status_history", "completed",
+                           result={"bpId": bp_id, "from": prev_status, "to": target_status})
 
     # ── Effect: geo-extension ─────────────────────────────────────────────────
 

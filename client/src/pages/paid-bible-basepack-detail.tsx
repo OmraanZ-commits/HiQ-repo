@@ -7,12 +7,78 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  ArrowLeft, CheckCircle2, XCircle, Clock, Package, User, Globe,
+  ArrowLeft, Package, User, Globe,
   Waypoints, Shuffle, ArrowRightLeft, GitCommit, CalendarCheck,
-  CalendarX, Archive, Activity, AlertTriangle, TrendingUp, ExternalLink,
+  CalendarX, Archive, Activity, AlertTriangle, ExternalLink,
   History, ChevronRight, AlertCircle,
 } from "lucide-react";
 import { SrStatusBadge } from "@/components/sr-detail-components";
+
+// ─── Domain Interfaces ────────────────────────────────────────────────────────
+
+interface CbuRecord {
+  id: string;
+  cbuCode?: string;
+  materialDescription?: string;
+  networkStatus?: string;
+  geography?: string[];
+  depots?: string[] | string;
+  depot?: string[] | string;
+  channel?: string[];
+  mstnPercentage?: number;
+  slobRisk?: boolean;
+  priceActive?: boolean;
+}
+
+interface ApproverRecord {
+  status: "waiting" | "pending" | "approved" | "rejected";
+}
+
+interface LinkedSr {
+  id: string;
+  srType: string;
+  status: "pending" | "approved" | "rejected";
+  targetStatus?: string;
+  requestedValue?: string;
+  cbuCode?: string;
+  cbuId?: string;
+  raisedBy: string;
+  approvers?: ApproverRecord[];
+}
+
+interface BasepakProfile {
+  basepackCode: string;
+  basepackName: string;
+  brand?: string;
+  bg?: string;
+  salesCategory?: string;
+  format?: string;
+  networkPlanner?: string;
+  derivedStatus: string;
+  effectiveStatus: string;
+  hasOverride: boolean;
+  mstnCoverage?: number;
+  slobRisk: boolean;
+  priceInactiveTrigger: boolean;
+  activationDate?: string;
+  inactiveDate?: string;
+  delistDate?: string;
+  cbuCount: number;
+  cbus: CbuRecord[];
+  linkedSrs: LinkedSr[];
+}
+
+interface StatusHistoryEntry {
+  id: string;
+  bpCode: string;
+  fromStatus: string;
+  toStatus: string;
+  effectiveDate?: string;
+  srId?: string;
+  actionedBy?: string;
+  notes?: string;
+  createdAt?: string;
+}
 
 // ─── Shared Badge Components ──────────────────────────────────────────────────
 
@@ -127,7 +193,7 @@ function LifecycleDatesStrip({ activationDate, inactiveDate, delistDate }: { act
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ profile }: { profile: any }) {
+function OverviewTab({ profile }: { profile: BasepakProfile }) {
   const mstnPct = profile.mstnCoverage ?? 0;
   const mstnStatus = mstnPct >= 80 ? "Cleared" : "Not Cleared";
   return (
@@ -198,7 +264,7 @@ function OverviewTab({ profile }: { profile: any }) {
 
 // ─── CBUs Tab ─────────────────────────────────────────────────────────────────
 
-function CbusTab({ cbus }: { cbus: any[] }) {
+function CbusTab({ cbus }: { cbus: CbuRecord[] }) {
   if (!cbus.length) {
     return <p className="text-sm text-muted-foreground py-8 text-center">No CBU records found for this basepack.</p>;
   }
@@ -217,7 +283,7 @@ function CbusTab({ cbus }: { cbus: any[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {cbus.map((cbu: any) => {
+          {cbus.map((cbu) => {
             const geos = cbu.geography ?? [];
             const depots = cbu.depots ?? cbu.depot ?? [];
             const channels = cbu.channel ?? [];
@@ -279,12 +345,12 @@ const SR_TYPE_LABELS: Record<string, string> = {
   "sourcing-amendment":     "Sourcing Amendments",
 };
 
-function SrRows({ srs, navigate }: { srs: any[]; navigate: (p: string) => void }) {
+function SrRows({ srs, navigate }: { srs: LinkedSr[]; navigate: (p: string) => void }) {
   return (
     <>
-      {srs.map((sr: any) => {
+      {srs.map((sr) => {
         const approvers = sr.approvers ?? [];
-        const doneCount = approvers.filter((a: any) => a.status === "approved").length;
+        const doneCount = approvers.filter((a) => a.status === "approved").length;
         const total = approvers.length;
         const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
         return (
@@ -328,7 +394,7 @@ function SrRows({ srs, navigate }: { srs: any[]; navigate: (p: string) => void }
 
 // ─── Service Requests Tab ─────────────────────────────────────────────────────
 
-function ServiceRequestsTab({ srs }: { srs: any[] }) {
+function ServiceRequestsTab({ srs }: { srs: LinkedSr[] }) {
   const [, navigate] = useLocation();
   if (!srs.length) {
     return (
@@ -340,14 +406,15 @@ function ServiceRequestsTab({ srs }: { srs: any[] }) {
   }
 
   // Group SRs by type
-  const grouped: Record<string, any[]> = {};
+  const grouped: Record<string, LinkedSr[]> = {};
   for (const sr of srs) {
     const t = sr.srType ?? "other";
     if (!grouped[t]) grouped[t] = [];
     grouped[t].push(sr);
   }
 
-  const groupOrder = [...SR_TYPE_ORDER.filter(t => grouped[t]), ...Object.keys(grouped).filter(t => !SR_TYPE_ORDER.includes(t as any))];
+  const srTypeOrderSet: ReadonlySet<string> = new Set(SR_TYPE_ORDER);
+  const groupOrder = [...SR_TYPE_ORDER.filter((t) => grouped[t]), ...Object.keys(grouped).filter((t) => !srTypeOrderSet.has(t))];
 
   return (
     <div className="space-y-6">
@@ -384,7 +451,7 @@ function ServiceRequestsTab({ srs }: { srs: any[] }) {
 
 // ─── Status History Tab ───────────────────────────────────────────────────────
 
-function StatusHistoryTab({ history }: { history: any[] }) {
+function StatusHistoryTab({ history }: { history: StatusHistoryEntry[] }) {
   const [, navigate] = useLocation();
   if (!history.length) {
     return (
@@ -398,7 +465,7 @@ function StatusHistoryTab({ history }: { history: any[] }) {
   return (
     <div className="space-y-0 relative">
       <div className="absolute left-[22px] top-6 bottom-6 w-px bg-border" />
-      {history.map((entry: any, i: number) => (
+      {history.map((entry) => (
         <div key={entry.id} className="flex gap-4 pb-6" data-testid={`history-entry-${entry.id}`}>
           <div className="relative z-10 flex-shrink-0 w-11 h-11 rounded-full bg-[#1f36c7]/10 border-2 border-[#1f36c7]/30 flex items-center justify-center">
             <ArrowRightLeft className="h-4 w-4 text-[#1f36c7]" />
@@ -450,18 +517,18 @@ export default function BasepakDetailPage() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
 
-  const { data: profile, isLoading: profileLoading } = useQuery<any>({
+  const { data: profile, isLoading: profileLoading } = useQuery<BasepakProfile>({
     queryKey: ["/api/paid-bible/basepacks", bpCode],
     queryFn: () => fetch(`/api/paid-bible/basepacks/${bpCode}`).then(r => {
       if (!r.ok) throw new Error("Not found");
-      return r.json();
+      return r.json() as Promise<BasepakProfile>;
     }),
     enabled: !!bpCode,
   });
 
-  const { data: history = [], isLoading: historyLoading } = useQuery<any[]>({
+  const { data: history = [], isLoading: historyLoading } = useQuery<StatusHistoryEntry[]>({
     queryKey: ["/api/paid-bible/basepacks", bpCode, "history"],
-    queryFn: () => fetch(`/api/paid-bible/basepacks/${bpCode}/history`).then(r => r.json()),
+    queryFn: () => fetch(`/api/paid-bible/basepacks/${bpCode}/history`).then(r => r.json() as Promise<StatusHistoryEntry[]>),
     enabled: !!bpCode,
   });
 
