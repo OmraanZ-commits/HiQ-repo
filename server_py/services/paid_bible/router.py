@@ -38,7 +38,7 @@ def list_basepacks():
     return _service.get_basepacks()
 
 
-@router.get("/basepacks/{bp_code}/profile")
+@router.get("/basepacks/{bp_code}")
 def get_basepack_profile(bp_code: str):
     """
     Full profile for a single basepack:

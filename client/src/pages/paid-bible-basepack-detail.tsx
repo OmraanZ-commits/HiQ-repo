@@ -211,6 +211,7 @@ function CbusTab({ cbus }: { cbus: any[] }) {
             <TableHead className="text-xs py-2.5">Description</TableHead>
             <TableHead className="text-xs py-2.5">Network Status</TableHead>
             <TableHead className="text-xs py-2.5">Clusters</TableHead>
+            <TableHead className="text-xs py-2.5">Depots</TableHead>
             <TableHead className="text-xs py-2.5">Channels</TableHead>
             <TableHead className="text-xs py-2.5 text-right">MSTN %</TableHead>
           </TableRow>
@@ -218,6 +219,7 @@ function CbusTab({ cbus }: { cbus: any[] }) {
         <TableBody>
           {cbus.map((cbu: any) => {
             const geos = cbu.geography ?? [];
+            const depots = cbu.depots ?? cbu.depot ?? [];
             const channels = cbu.channel ?? [];
             return (
               <TableRow key={cbu.id} data-testid={`cbu-row-${cbu.id}`} className="text-xs">
@@ -232,6 +234,13 @@ function CbusTab({ cbus }: { cbus: any[] }) {
                 </TableCell>
                 <TableCell className="py-2.5 max-w-32 truncate text-muted-foreground" title={geos.join(", ")}>
                   {geos.length > 0 ? geos.slice(0, 2).join(", ") + (geos.length > 2 ? ` +${geos.length - 2}` : "") : "—"}
+                </TableCell>
+                <TableCell className="py-2.5 max-w-32 truncate text-muted-foreground" title={Array.isArray(depots) ? depots.join(", ") : depots}>
+                  {Array.isArray(depots) && depots.length > 0
+                    ? depots.slice(0, 2).join(", ") + (depots.length > 2 ? ` +${depots.length - 2}` : "")
+                    : typeof depots === "string" && depots
+                    ? depots
+                    : "—"}
                 </TableCell>
                 <TableCell className="py-2.5">
                   <div className="flex flex-wrap gap-1">
@@ -262,6 +271,61 @@ function CbusTab({ cbus }: { cbus: any[] }) {
   );
 }
 
+const SR_TYPE_ORDER = ["basepack-status-change", "geo-extension", "channel-extension", "sourcing-amendment"] as const;
+const SR_TYPE_LABELS: Record<string, string> = {
+  "basepack-status-change": "Status Changes",
+  "geo-extension":          "Geo Extensions",
+  "channel-extension":      "Channel Extensions",
+  "sourcing-amendment":     "Sourcing Amendments",
+};
+
+function SrRows({ srs, navigate }: { srs: any[]; navigate: (p: string) => void }) {
+  return (
+    <>
+      {srs.map((sr: any) => {
+        const approvers = sr.approvers ?? [];
+        const doneCount = approvers.filter((a: any) => a.status === "approved").length;
+        const total = approvers.length;
+        const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+        return (
+          <TableRow
+            key={sr.id}
+            data-testid={`sr-row-${sr.id}`}
+            className="text-xs cursor-pointer hover:bg-muted/30"
+            onClick={() => navigate(`/paid-bible/requests/${sr.id}`)}
+          >
+            <TableCell className="py-2.5 max-w-48">
+              {sr.srType === "basepack-status-change" ? (
+                <span className="text-muted-foreground">{sr.targetStatus ?? sr.requestedValue ?? "Status change"}</span>
+              ) : (
+                <span className="font-mono text-blue-600">{sr.cbuCode ?? sr.cbuId ?? "—"}</span>
+              )}
+            </TableCell>
+            <TableCell className="py-2.5">
+              <SrStatusBadge status={sr.status} />
+            </TableCell>
+            <TableCell className="py-2.5 text-muted-foreground">{sr.raisedBy}</TableCell>
+            <TableCell className="py-2.5">
+              <div className="flex items-center gap-1.5">
+                <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${sr.status === "approved" ? "bg-emerald-500" : sr.status === "rejected" ? "bg-red-400" : "bg-blue-500"}`}
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+                <span className="text-muted-foreground">{doneCount}/{total}</span>
+              </div>
+            </TableCell>
+            <TableCell className="py-2.5">
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
+}
+
 // ─── Service Requests Tab ─────────────────────────────────────────────────────
 
 function ServiceRequestsTab({ srs }: { srs: any[] }) {
@@ -274,67 +338,46 @@ function ServiceRequestsTab({ srs }: { srs: any[] }) {
       </div>
     );
   }
+
+  // Group SRs by type
+  const grouped: Record<string, any[]> = {};
+  for (const sr of srs) {
+    const t = sr.srType ?? "other";
+    if (!grouped[t]) grouped[t] = [];
+    grouped[t].push(sr);
+  }
+
+  const groupOrder = [...SR_TYPE_ORDER.filter(t => grouped[t]), ...Object.keys(grouped).filter(t => !SR_TYPE_ORDER.includes(t as any))];
+
   return (
-    <div className="rounded-md border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/50">
-            <TableHead className="text-xs py-2.5">SR Type</TableHead>
-            <TableHead className="text-xs py-2.5">CBU / Details</TableHead>
-            <TableHead className="text-xs py-2.5">Status</TableHead>
-            <TableHead className="text-xs py-2.5">Raised By</TableHead>
-            <TableHead className="text-xs py-2.5">Progress</TableHead>
-            <TableHead className="text-xs py-2.5"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {srs.map((sr: any) => {
-            const approvers = sr.approvers ?? [];
-            const doneCount = approvers.filter((a: any) => a.status === "approved").length;
-            const total = approvers.length;
-            const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
-            return (
-              <TableRow
-                key={sr.id}
-                data-testid={`sr-row-${sr.id}`}
-                className="text-xs cursor-pointer hover:bg-muted/30"
-                onClick={() => navigate(`/paid-bible/requests/${sr.id}`)}
-              >
-                <TableCell className="py-2.5">
-                  <SrTypeBadge srType={sr.srType} />
-                </TableCell>
-                <TableCell className="py-2.5 max-w-48">
-                  {sr.srType === "basepack-status-change" ? (
-                    <span className="text-muted-foreground">{sr.targetStatus ?? sr.requestedValue ?? "Status change"}</span>
-                  ) : (
-                    <span className="font-mono text-blue-600">{sr.cbuCode ?? sr.cbuId ?? "—"}</span>
-                  )}
-                </TableCell>
-                <TableCell className="py-2.5">
-                  <SrStatusBadge status={sr.status} />
-                </TableCell>
-                <TableCell className="py-2.5 text-muted-foreground">
-                  {sr.raisedBy}
-                </TableCell>
-                <TableCell className="py-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${sr.status === "approved" ? "bg-emerald-500" : sr.status === "rejected" ? "bg-red-400" : "bg-blue-500"}`}
-                        style={{ width: `${progressPct}%` }}
-                      />
-                    </div>
-                    <span className="text-muted-foreground">{doneCount}/{total}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-2.5">
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+    <div className="space-y-6">
+      {groupOrder.map(type => (
+        <div key={type}>
+          <div className="flex items-center gap-2 mb-2">
+            <SrTypeBadge srType={type} />
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {SR_TYPE_LABELS[type] ?? type}
+            </span>
+            <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full">{grouped[type].length}</span>
+          </div>
+          <div className="rounded-md border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="text-xs py-2.5">Details</TableHead>
+                  <TableHead className="text-xs py-2.5">Status</TableHead>
+                  <TableHead className="text-xs py-2.5">Raised By</TableHead>
+                  <TableHead className="text-xs py-2.5">Progress</TableHead>
+                  <TableHead className="text-xs py-2.5"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <SrRows srs={grouped[type]} navigate={navigate} />
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -408,8 +451,8 @@ export default function BasepakDetailPage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
 
   const { data: profile, isLoading: profileLoading } = useQuery<any>({
-    queryKey: ["/api/paid-bible/basepacks", bpCode, "profile"],
-    queryFn: () => fetch(`/api/paid-bible/basepacks/${bpCode}/profile`).then(r => {
+    queryKey: ["/api/paid-bible/basepacks", bpCode],
+    queryFn: () => fetch(`/api/paid-bible/basepacks/${bpCode}`).then(r => {
       if (!r.ok) throw new Error("Not found");
       return r.json();
     }),
