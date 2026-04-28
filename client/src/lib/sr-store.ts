@@ -52,6 +52,12 @@ export interface MaterialCriteria {
   lastUpdated: string;
 }
 
+export interface BpDates {
+  activationDate?: string;
+  inactiveDate?: string;
+  delistDate?: string;
+}
+
 export interface ApproverStep {
   role: string;
   label: string;
@@ -321,10 +327,26 @@ const SEED_REQUESTS: ServiceRequest[] = [
   },
 ];
 
+function applyDateFromSr(dates: Record<string, BpDates>, sr: ServiceRequest) {
+  if (sr.srType !== "basepack-status-change" || !sr.basepackId || !sr.targetStatus) return;
+  const effectiveDate = [...sr.approvers].reverse().find(a => a.actedAt)?.actedAt;
+  if (!effectiveDate) return;
+  const current = dates[sr.basepackId] ?? {};
+  if (sr.targetStatus === "Active Pack")                                         current.activationDate = effectiveDate;
+  else if (sr.targetStatus === "Inactive Pack")                                  current.inactiveDate   = effectiveDate;
+  else if (sr.targetStatus === "Delisted Packs" || sr.targetStatus === "Stock Base Delisted") current.delistDate = effectiveDate;
+  dates[sr.basepackId] = current;
+}
+
 let _requests: ServiceRequest[] = [...SEED_REQUESTS];
 let _bpStatusOverrides: Record<string, string> = {};
 let _channelOverrides: Record<string, string[]> = {};
 let _sourcingOverrides: Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }> = {};
+let _bpDates: Record<string, BpDates> = (() => {
+  const d: Record<string, BpDates> = {};
+  SEED_REQUESTS.filter(r => r.overallStatus === "approved").forEach(sr => applyDateFromSr(d, sr));
+  return d;
+})();
 const _listeners = new Set<() => void>();
 
 function notify() {
@@ -371,6 +393,9 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
     const allApproved = approvers.every(a => a.status === "approved");
     if (allApproved && sr.srType === "basepack-status-change" && sr.basepackId && sr.targetStatus) {
       _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: sr.targetStatus };
+      const d: Record<string, BpDates> = { ..._bpDates };
+      applyDateFromSr(d, { ...sr, approvers });
+      _bpDates = d;
     }
     if (allApproved && sr.srType === "geo-extension" && sr.cbuId && (sr.addedGeos?.length || sr.addedDepots?.length)) {
       apiRequest("POST", `/api/network-entries/${sr.cbuId}/geo-extension`, {
@@ -440,6 +465,8 @@ export function subscribe(cb: () => void): () => void {
   return () => _listeners.delete(cb);
 }
 
+export function getBpDates(): Record<string, BpDates> { return _bpDates; }
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useSrStore() {
@@ -447,13 +474,15 @@ export function useSrStore() {
   const [bpStatusOverrides, setBpStatusOverrides] = useState<Record<string, string>>(getBpStatusOverrides);
   const [channelOverrides, setChannelOverrides] = useState<Record<string, string[]>>(getChannelOverrides);
   const [sourcingOverrides, setSourcingOverrides] = useState<Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }>>(getSourcingOverrides);
+  const [bpDates, setBpDates] = useState<Record<string, BpDates>>(getBpDates);
   useEffect(() => {
     return subscribe(() => {
       setRequests([...getRequests()]);
       setBpStatusOverrides({ ...getBpStatusOverrides() });
       setChannelOverrides({ ...getChannelOverrides() });
       setSourcingOverrides({ ...getSourcingOverrides() });
+      setBpDates({ ...getBpDates() });
     });
   }, []);
-  return { requests, bpStatusOverrides, channelOverrides, sourcingOverrides };
+  return { requests, bpStatusOverrides, channelOverrides, sourcingOverrides, bpDates };
 }

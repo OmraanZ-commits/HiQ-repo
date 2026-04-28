@@ -5,7 +5,7 @@ import type { PortalUser } from "@/lib/users-data";
 import { useSrStore, addRequest, setBpStatusOverride, formatNow, SR_TYPE_META, CBU_SR_TYPES } from "@/lib/sr-store";
 import { getNetworkChangeTypeName } from "@/lib/constants";
 import { formatDateDisplay } from "@/lib/date-utils";
-import type { ServiceRequest, MaterialCriteria, ApproverStep, SrType } from "@/lib/sr-store";
+import type { ServiceRequest, MaterialCriteria, ApproverStep, SrType, BpDates } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +28,7 @@ import {
   ShieldCheck, ShieldAlert, Send, ListChecks,
   TrendingUp, TrendingDown, ArrowUp, ArrowDown, Activity, AlertCircle, RotateCcw,
   History, GitCommit, ArrowRightLeft, Globe, Waypoints, Shuffle,
+  CalendarCheck, CalendarX, Archive,
 } from "lucide-react";
 import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 
@@ -626,9 +627,10 @@ interface OverviewTabProps {
   localBpStatus: Record<string, string>;
   onRequestActivation: (bp: PbBasepack) => void;
   serviceRequests: ServiceRequest[];
+  bpDates: Record<string, BpDates>;
 }
 
-function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: OverviewTabProps) {
+function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDates }: OverviewTabProps) {
   const [, navigate] = useLocation();
 
   const { data: networkEntries = [], isLoading } = useQuery<NetworkEntry[]>({
@@ -1138,6 +1140,39 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                         <TableRow key={`${bp.id}-exp`} data-testid={`bp-expanded-${bp.id}`}>
                           <TableCell colSpan={10} className="p-0 bg-muted/20">
                             <div className="px-10 py-5 border-l-4 border-l-[#1f36c7]/40">
+                              {/* Key Dates strip */}
+                              {(() => {
+                                const dates = bpDates[bp.id];
+                                const fmtDate = (val?: string) => val ? val.split(",")[0] : "—";
+                                return (
+                                  <div className="flex items-center gap-5 mb-4 px-3 py-2 rounded-md bg-muted/40 border border-border/50 w-fit text-xs">
+                                    <div className="flex items-center gap-1.5">
+                                      <CalendarCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                      <span className="text-muted-foreground">Activation Date:</span>
+                                      <span data-testid={`dates-activation-${bp.id}`} className={dates?.activationDate ? "font-semibold text-emerald-700" : "text-muted-foreground"}>
+                                        {fmtDate(dates?.activationDate)}
+                                      </span>
+                                    </div>
+                                    <div className="w-px h-3.5 bg-border" />
+                                    <div className="flex items-center gap-1.5">
+                                      <CalendarX className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                      <span className="text-muted-foreground">Inactive Date:</span>
+                                      <span data-testid={`dates-inactive-${bp.id}`} className={dates?.inactiveDate ? "font-semibold text-amber-700" : "text-muted-foreground"}>
+                                        {fmtDate(dates?.inactiveDate)}
+                                      </span>
+                                    </div>
+                                    <div className="w-px h-3.5 bg-border" />
+                                    <div className="flex items-center gap-1.5">
+                                      <Archive className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                                      <span className="text-muted-foreground">Delist Date:</span>
+                                      <span data-testid={`dates-delist-${bp.id}`} className={dates?.delistDate ? "font-semibold text-rose-700" : "text-muted-foreground"}>
+                                        {fmtDate(dates?.delistDate)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+
                               {/* Tab bar */}
                               <div className="flex items-center gap-1 mb-4" onClick={e => e.stopPropagation()}>
                                 <button
@@ -1807,7 +1842,7 @@ export default function PaidBiblePage() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const moc = getCurrentMoc();
 
-  const { requests: serviceRequests, bpStatusOverrides } = useSrStore();
+  const { requests: serviceRequests, bpStatusOverrides, bpDates } = useSrStore();
   const [activationTarget, setActivationTarget] = useState<PbBasepack | null>(null);
 
   const { data: users = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
@@ -1866,6 +1901,7 @@ export default function PaidBiblePage() {
               localBpStatus={bpStatusOverrides}
               onRequestActivation={handleRequestActivation}
               serviceRequests={serviceRequests}
+              bpDates={bpDates}
             />
           )}
           {activeTab === "network-updates"  && <NetworkUpdatesTab />}
