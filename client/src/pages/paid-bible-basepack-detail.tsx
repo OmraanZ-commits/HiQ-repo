@@ -519,16 +519,22 @@ export default function BasepakDetailPage() {
 
   const { data: profile, isLoading: profileLoading } = useQuery<BasepakProfile>({
     queryKey: ["/api/paid-bible/basepacks", bpCode],
-    queryFn: () => fetch(`/api/paid-bible/basepacks/${bpCode}`).then(r => {
-      if (!r.ok) throw new Error("Not found");
+    queryFn: async () => {
+      const r = await fetch(`/api/paid-bible/basepacks/${bpCode}`);
+      if (!r.ok) throw new Error(`Profile fetch failed: ${r.status}`);
       return r.json() as Promise<BasepakProfile>;
-    }),
+    },
     enabled: !!bpCode,
+    retry: false,
   });
 
   const { data: history = [], isLoading: historyLoading } = useQuery<StatusHistoryEntry[]>({
     queryKey: ["/api/paid-bible/basepacks", bpCode, "history"],
-    queryFn: () => fetch(`/api/paid-bible/basepacks/${bpCode}/history`).then(r => r.json() as Promise<StatusHistoryEntry[]>),
+    queryFn: async () => {
+      const r = await fetch(`/api/paid-bible/basepacks/${bpCode}/history`);
+      if (!r.ok) return [] as StatusHistoryEntry[];
+      return r.json() as Promise<StatusHistoryEntry[]>;
+    },
     enabled: !!bpCode,
   });
 
