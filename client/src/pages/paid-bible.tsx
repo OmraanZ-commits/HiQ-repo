@@ -27,6 +27,7 @@ import {
   Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, Eye,
   ShieldCheck, ShieldAlert, Send, ListChecks,
   TrendingUp, TrendingDown, ArrowUp, ArrowDown, Activity, AlertCircle, RotateCcw,
+  History, GitCommit, ArrowRightLeft, Globe, Waypoints, Shuffle,
 } from "lucide-react";
 import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 
@@ -456,6 +457,169 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
   );
 }
 
+// ─── Basepack History Panel ───────────────────────────────────────────────────
+
+function srTypeIcon(srType: string) {
+  if (srType === "basepack-status-change") return <ArrowRightLeft className="h-3.5 w-3.5" />;
+  if (srType === "geo-extension")          return <Globe className="h-3.5 w-3.5" />;
+  if (srType === "channel-extension")      return <Waypoints className="h-3.5 w-3.5" />;
+  if (srType === "sourcing-amendment")     return <Shuffle className="h-3.5 w-3.5" />;
+  return <GitCommit className="h-3.5 w-3.5" />;
+}
+
+function srTypeColor(srType: string): string {
+  if (srType === "basepack-status-change") return "bg-blue-100 text-blue-700 border-blue-200";
+  if (srType === "geo-extension")          return "bg-emerald-100 text-emerald-700 border-emerald-200";
+  if (srType === "channel-extension")      return "bg-violet-100 text-violet-700 border-violet-200";
+  if (srType === "sourcing-amendment")     return "bg-amber-100 text-amber-700 border-amber-200";
+  return "bg-slate-100 text-slate-600 border-slate-200";
+}
+
+function srTypeDotColor(srType: string): string {
+  if (srType === "basepack-status-change") return "bg-blue-500 border-blue-200";
+  if (srType === "geo-extension")          return "bg-emerald-500 border-emerald-200";
+  if (srType === "channel-extension")      return "bg-violet-500 border-violet-200";
+  if (srType === "sourcing-amendment")     return "bg-amber-500 border-amber-200";
+  return "bg-slate-400 border-slate-200";
+}
+
+function srSummary(sr: ServiceRequest): string {
+  if (sr.srType === "basepack-status-change") {
+    return sr.targetStatus ? `Status change requested → ${sr.targetStatus}` : "Basepack activation requested";
+  }
+  if (sr.srType === "geo-extension") {
+    const geos  = sr.addedGeos?.length ?? 0;
+    const depot = sr.addedDepots?.length ?? 0;
+    const cbu   = sr.cbuCode ?? sr.cbuId ?? "CBU";
+    return `${cbu} — ${geos > 0 ? `${geos} geograph${geos === 1 ? "y" : "ies"}` : ""}${geos > 0 && depot > 0 ? " + " : ""}${depot > 0 ? `${depot} depot${depot === 1 ? "" : "s"}` : ""} added`;
+  }
+  if (sr.srType === "channel-extension") {
+    const n   = sr.addedChannels?.length ?? 0;
+    const cbu = sr.cbuCode ?? sr.cbuId ?? "CBU";
+    return `${cbu} — ${n} channel${n === 1 ? "" : "s"} added`;
+  }
+  if (sr.srType === "sourcing-amendment") {
+    const cbu = sr.cbuCode ?? sr.cbuId ?? "CBU";
+    return `${cbu} — sourcing mode changed to ${sr.sourcingMode ?? "updated"}`;
+  }
+  return "Change recorded";
+}
+
+function BasepackHistoryPanel({ bp, allRequests, navigate }: {
+  bp: PbBasepack;
+  allRequests: ServiceRequest[];
+  navigate: (path: string) => void;
+}) {
+  const cbuIds   = new Set(bp.materials.map(m => m.id));
+  const cbuCodes = new Set(bp.materials.map(m => m.code));
+
+  const relatedSrs = allRequests.filter(r => {
+    if (r.srType === "basepack-status-change" && r.basepackId === bp.id) return true;
+    if (CBU_SR_TYPES.includes(r.srType) && (cbuIds.has(r.cbuId ?? "") || cbuCodes.has(r.cbuCode ?? ""))) return true;
+    return false;
+  });
+
+  if (relatedSrs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+        <History className="h-8 w-8 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground font-medium">No history yet</p>
+        <p className="text-xs text-muted-foreground/70">Service requests raised for this basepack will appear here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-0" data-testid={`history-panel-${bp.id}`}>
+      {relatedSrs.map((sr, idx) => {
+        const isLast     = idx === relatedSrs.length - 1;
+        const dotCls     = srTypeDotColor(sr.srType);
+        const badgeCls   = srTypeColor(sr.srType);
+        const statusCls  = sr.overallStatus === "approved"
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : sr.overallStatus === "rejected"
+            ? "bg-red-50 text-red-700 border-red-200"
+            : "bg-amber-50 text-amber-700 border-amber-200";
+        const statusIcon = sr.overallStatus === "approved"
+          ? <CheckCircle2 className="h-3 w-3" />
+          : sr.overallStatus === "rejected"
+            ? <XCircle className="h-3 w-3" />
+            : <Clock className="h-3 w-3" />;
+        const doneSteps  = sr.approvers.filter(a => a.status === "approved").length;
+        const totalSteps = sr.approvers.length;
+
+        return (
+          <div key={sr.id} className="flex gap-4">
+            {/* Timeline column */}
+            <div className="flex flex-col items-center w-6 flex-shrink-0">
+              <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 mt-0.5 ${dotCls}`} />
+              {!isLast && <div className="w-px flex-1 bg-border mt-1 mb-1 min-h-[20px]" />}
+            </div>
+
+            {/* Content */}
+            <div className={`flex-1 min-w-0 pb-5 ${isLast ? "pb-2" : "pb-5"}`}>
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  {/* Type badge + summary */}
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${badgeCls}`}>
+                      {srTypeIcon(sr.srType)}
+                      {SR_TYPE_META[sr.srType as keyof typeof SR_TYPE_META]?.label ?? sr.srType}
+                    </span>
+                    <span className="text-sm font-medium text-foreground">{srSummary(sr)}</span>
+                  </div>
+                  {/* Meta line */}
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                    <span>{sr.raisedAt}</span>
+                    <span>·</span>
+                    <span>By {sr.raisedBy}</span>
+                    {sr.srType !== "basepack-status-change" && sr.cbuCode && (
+                      <>
+                        <span>·</span>
+                        <span className="font-mono text-blue-600">{sr.cbuCode}</span>
+                      </>
+                    )}
+                    <span>·</span>
+                    <span>{doneSteps}/{totalSteps} steps approved</span>
+                  </div>
+                </div>
+                {/* Status + link */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold capitalize ${statusCls}`}>
+                    {statusIcon} {sr.overallStatus}
+                  </span>
+                  <button
+                    onClick={() => navigate(`/paid-bible/requests/${sr.id}`)}
+                    className="text-[11px] text-[#1f36c7] hover:underline font-medium"
+                    data-testid={`link-history-sr-${sr.id}`}
+                  >
+                    View SR →
+                  </button>
+                </div>
+              </div>
+
+              {/* Approval progress bar */}
+              {totalSteps > 0 && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex gap-0.5">
+                    {sr.approvers.map((a, i) => (
+                      <div
+                        key={i}
+                        className={`h-1 w-8 rounded-full ${a.status === "approved" ? "bg-emerald-500" : a.status === "rejected" ? "bg-red-400" : a.status === "pending" ? "bg-amber-400" : "bg-slate-200"}`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{doneSteps}/{totalSteps}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Part 1: Overview ────────────────────────────────────────────────────────
 
 interface OverviewTabProps {
@@ -481,6 +645,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
   const [bgFilter, setBgFilter]             = useState("all");
   const [showFilters, setShowFilters]       = useState(false);
   const [expandedId, setExpandedId]         = useState<string | null>(null);
+  const [expandedTab, setExpandedTab]       = useState<"materials" | "history">("materials");
   const [editingId, setEditingId]           = useState<string | null>(null);
   const [pendingStatus, setPendingStatus]   = useState<string>("");
 
@@ -617,7 +782,10 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
 
   const [triggerDialog, setTriggerDialog] = useState<string | null>(null);
 
-  const toggleExpand = (id: string) => setExpandedId(p => p === id ? null : id);
+  const toggleExpand = (id: string) => {
+    if (expandedId !== id) setExpandedTab("materials");
+    setExpandedId(p => p === id ? null : id);
+  };
 
   const startEdit = (bp: PbBasepack, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -969,12 +1137,31 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                       {isExpanded && (
                         <TableRow key={`${bp.id}-exp`} data-testid={`bp-expanded-${bp.id}`}>
                           <TableCell colSpan={10} className="p-0 bg-muted/20">
-                            <div className="px-10 py-6 border-l-4 border-l-[#1f36c7]/40">
-                              <p className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                                <BookOpen className="h-4 w-4 text-[#1f36c7]" />
-                                CBU / Material Details
-                                <span className="font-normal text-muted-foreground text-xs">— {bp.basepakName} · {bp.basepackCode}</span>
-                              </p>
+                            <div className="px-10 py-5 border-l-4 border-l-[#1f36c7]/40">
+                              {/* Tab bar */}
+                              <div className="flex items-center gap-1 mb-4" onClick={e => e.stopPropagation()}>
+                                <button
+                                  onClick={() => setExpandedTab("materials")}
+                                  data-testid={`tab-materials-${bp.id}`}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${expandedTab === "materials" ? "bg-[#1f36c7]/10 text-[#1f36c7]" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+                                >
+                                  <BookOpen className="h-3.5 w-3.5" /> Materials
+                                </button>
+                                <button
+                                  onClick={() => setExpandedTab("history")}
+                                  data-testid={`tab-history-${bp.id}`}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${expandedTab === "history" ? "bg-[#1f36c7]/10 text-[#1f36c7]" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+                                >
+                                  <History className="h-3.5 w-3.5" /> History
+                                </button>
+                                <span className="ml-2 text-xs text-muted-foreground">— {bp.basepakName} · {bp.basepackCode}</span>
+                              </div>
+
+                              {expandedTab === "history" && (
+                                <BasepackHistoryPanel bp={bp} allRequests={serviceRequests} navigate={navigate} />
+                              )}
+
+                              {expandedTab === "materials" && (
                               <div className="rounded-lg border overflow-hidden bg-white shadow-sm">
                                 <Table>
                                   <TableHeader>
@@ -1036,6 +1223,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests }: Ov
                                   </TableBody>
                                 </Table>
                               </div>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
