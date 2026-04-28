@@ -319,14 +319,14 @@ function NotificationRow({
         {/* Main row */}
         <div
           className={cn(
-            "flex items-start gap-3 px-4 py-3",
+            "flex items-center gap-3 px-4 py-3",
             hasDetail && "cursor-pointer hover:bg-muted/30 transition-colors"
           )}
           onClick={() => hasDetail && setExpanded(v => !v)}
           data-testid={`button-expand-${n.id}`}
         >
           {/* Unread dot */}
-          <div className="mt-2.5 shrink-0">
+          <div className="shrink-0">
             {!n.read
               ? <div className="w-2 h-2 rounded-full bg-primary" data-testid={`dot-unread-${n.id}`} />
               : <div className="w-2 h-2 rounded-full bg-transparent" />
@@ -335,27 +335,28 @@ function NotificationRow({
 
           <TypeIcon n={n} />
 
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-              <span className="text-sm font-semibold leading-tight" data-testid={`text-notification-title-${n.id}`}>
-                {n.type === "geo-extension-applied" ? "Geo Extension Applied"
-                 : n.type === "lifecycle"           ? (n as LifecycleNotification).eventLabel
-                 : n.type === "assignment"          ? ((n as AssignmentNotification).action === "assigned" ? "Assigned to you" : "Removed from you")
-                 : n.type === "finance-email"       ? `Finance Email ${(n as FinanceEmailNotification).success ? "Confirmed" : "Failed"}`
-                 : n.type === "bulk-digest"         ? `Bulk: ${(n as BulkDigestNotification).cbuCount} CBUs ${(n as BulkDigestNotification).action === "assigned" ? "assigned" : "removed"}`
-                 : "Notification"}
-              </span>
-              <span className={cn("text-[10px] border rounded-full px-1.5 py-0.5 font-medium", typeBadgeClass(n.type))}>
-                {categoryLabel(n.type)}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground truncate" data-testid={`text-summary-${n.id}`}>
+          {/* Title + badge + summary — all on one line */}
+          <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
+            <span className="text-sm font-semibold whitespace-nowrap shrink-0" data-testid={`text-notification-title-${n.id}`}>
+              {n.type === "geo-extension-applied" ? "Geo Extension Applied"
+               : n.type === "lifecycle"           ? (n as LifecycleNotification).eventLabel
+               : n.type === "assignment"          ? ((n as AssignmentNotification).action === "assigned" ? "Assigned to you" : "Removed from you")
+               : n.type === "finance-email"       ? `Finance Email ${(n as FinanceEmailNotification).success ? "Confirmed" : "Failed"}`
+               : n.type === "bulk-digest"         ? `Bulk: ${(n as BulkDigestNotification).cbuCount} CBUs ${(n as BulkDigestNotification).action === "assigned" ? "assigned" : "removed"}`
+               : "Notification"}
+            </span>
+            <span className={cn("text-[10px] border rounded-full px-1.5 py-0.5 font-medium shrink-0", typeBadgeClass(n.type))}>
+              {categoryLabel(n.type)}
+            </span>
+            <span className="text-muted-foreground text-xs shrink-0">·</span>
+            <span className="text-xs text-muted-foreground truncate" data-testid={`text-summary-${n.id}`}>
               {summaryLine(n)}
-            </p>
+            </span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 ml-1">
-            <span className="text-[11px] text-muted-foreground whitespace-nowrap" data-testid={`text-time-${n.id}`}>
+          {/* Right: time + read btn + chevron — fixed width, always aligned */}
+          <div className="flex items-center gap-2 shrink-0 ml-2">
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap w-14 text-right" data-testid={`text-time-${n.id}`}>
               {relativeTime(n.timestamp)}
             </span>
             {showReadBtn && (
