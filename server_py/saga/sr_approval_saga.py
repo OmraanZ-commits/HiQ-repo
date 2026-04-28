@@ -133,23 +133,21 @@ class SrApprovalSaga:
         self._log_step("apply_bp_override", "completed",
                        result={"bpId": bp_id, "status": target_status})
 
-        # Write lifecycle date + status history
+        # Write lifecycle date AND status history together.
+        # Both are mandatory side effects of a fully-approved status-change SR.
+        # If either fails the exception propagates up and marks the saga as failed.
         if self.paid_bible_service:
             effective_date = _now_iso()
-            try:
-                self.paid_bible_service.apply_status_change_dates(
-                    bp_code=bp_id,
-                    target_status=target_status,
-                    effective_date=effective_date,
-                )
-                self._log_step("apply_lifecycle_date", "completed",
-                               result={"bpId": bp_id, "targetStatus": target_status})
-            except Exception as exc:
-                self._log_step("apply_lifecycle_date", "failed", error=str(exc))
-
-            # Write status history — this is part of the approval contract.
-            # If writing fails, the saga is marked failed so the caller can retry or investigate.
             prev_status = sr.get("currentValue") or "Draft"
+
+            self.paid_bible_service.apply_status_change_dates(
+                bp_code=bp_id,
+                target_status=target_status,
+                effective_date=effective_date,
+            )
+            self._log_step("apply_lifecycle_date", "completed",
+                           result={"bpId": bp_id, "targetStatus": target_status})
+
             self.paid_bible_service.add_status_history_entry(
                 bp_code=bp_id,
                 from_status=prev_status,

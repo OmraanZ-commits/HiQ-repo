@@ -93,8 +93,9 @@ class PaidBibleStorage:
     def get_entries_by_bp_code(self, bp_code: str) -> List[dict]:
         """
         Returns all CBU rows for a specific basepack code.
-        Mirrors the list aggregation fallback: if a row has basepack=NULL, it is grouped
-        by its own id (cast to text) in the list view, so we match that fallback here too.
+        Mirrors the list-aggregation key derivation exactly:
+          list key = entry.basepack or entry.cbu_code or entry.id
+        so the detail view resolves the same rows as the list row that was clicked.
         """
         from sqlalchemy import or_, cast, Text
         db = SessionLocal()
@@ -103,9 +104,13 @@ class PaidBibleStorage:
                 db.query(NetworkEntryModel)
                 .filter(
                     or_(
+                        # Primary: rows whose basepack column matches
                         NetworkEntryModel.basepack == bp_code,
-                        # Fallback: rows with no basepack are grouped by their own id in list view
-                        (NetworkEntryModel.basepack.is_(None) & (cast(NetworkEntryModel.id, Text) == bp_code)),
+                        # Fallback 1: rows with null basepack grouped by cbu_code
+                        (NetworkEntryModel.basepack.is_(None) & (NetworkEntryModel.cbu_code == bp_code)),
+                        # Fallback 2: rows with null basepack/cbu_code grouped by id (as text)
+                        (NetworkEntryModel.basepack.is_(None) & NetworkEntryModel.cbu_code.is_(None)
+                         & (cast(NetworkEntryModel.id, Text) == bp_code)),
                     )
                 )
                 .order_by(NetworkEntryModel.cbu_code)
