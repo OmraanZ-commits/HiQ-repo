@@ -106,6 +106,11 @@ export function addNotification(n: NewNotification): void {
   notify();
 }
 
+export function markRead(id: string): void {
+  _notifications = _notifications.map(n => n.id === id ? { ...n, read: true } : n);
+  notify();
+}
+
 export function markAllRead(): void {
   _notifications = _notifications.map(n => ({ ...n, read: true }));
   notify();

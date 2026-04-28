@@ -1,416 +1,248 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Bell, CheckCircle2, MapPin, Warehouse, User, XCircle, Clock, Hash,
   Activity, UserCheck, UserX, Mail, Layers, AlertTriangle,
+  ChevronDown, ChevronUp, Search, X, CheckCheck, Inbox,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useNotificationStore, markAllRead } from "@/lib/notification-store";
+import {
+  useNotificationStore, markRead, markAllRead,
+} from "@/lib/notification-store";
 import type {
-  GeoExtensionNotification,
-  LifecycleNotification,
-  AssignmentNotification,
-  FinanceEmailNotification,
-  BulkDigestNotification,
-  AppNotification,
+  GeoExtensionNotification, LifecycleNotification, AssignmentNotification,
+  FinanceEmailNotification, BulkDigestNotification, AppNotification,
 } from "@/lib/notification-store";
 import type { ApproverStep } from "@/lib/sr-store";
 import type { NetworkEntry } from "@shared/schema";
+import { cn } from "@/lib/utils";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function relativeTime(ts: number): string {
-  const diffMs = Date.now() - ts;
-  const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 60) return "just now";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? "s" : ""} ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? "s" : ""} ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay} day${diffDay !== 1 ? "s" : ""} ago`;
+  const diff = Date.now() - ts;
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
+
+// ─── Category config ─────────────────────────────────────────────────────────
+
+type Category = "all" | AppNotification["type"];
+
+const CATEGORIES: { id: Category; label: string; icon: typeof Bell }[] = [
+  { id: "all",                    label: "All",            icon: Bell },
+  { id: "lifecycle",              label: "Lifecycle",      icon: Activity },
+  { id: "geo-extension-applied",  label: "Geo Extension",  icon: MapPin },
+  { id: "assignment",             label: "Assignment",     icon: UserCheck },
+  { id: "finance-email",          label: "Finance",        icon: Mail },
+  { id: "bulk-digest",            label: "Bulk",           icon: Layers },
+];
+
+function categoryLabel(type: AppNotification["type"]): string {
+  return CATEGORIES.find(c => c.id === type)?.label ?? type;
+}
+
+function typeBadgeClass(type: AppNotification["type"]): string {
+  switch (type) {
+    case "lifecycle":             return "bg-blue-100 text-blue-700 border-blue-300";
+    case "geo-extension-applied": return "bg-emerald-100 text-emerald-700 border-emerald-300";
+    case "assignment":            return "bg-violet-100 text-violet-700 border-violet-300";
+    case "finance-email":         return "bg-amber-100 text-amber-700 border-amber-300";
+    case "bulk-digest":           return "bg-indigo-100 text-indigo-700 border-indigo-300";
+    default:                      return "bg-muted text-muted-foreground";
+  }
+}
+
+function typeIconColor(type: AppNotification["type"]): string {
+  switch (type) {
+    case "lifecycle":             return "bg-blue-50 border-blue-200 text-blue-600";
+    case "geo-extension-applied": return "bg-emerald-50 border-emerald-200 text-emerald-600";
+    case "assignment":            return "bg-violet-50 border-violet-200 text-violet-600";
+    case "finance-email":         return "bg-amber-50 border-amber-200 text-amber-600";
+    case "bulk-digest":           return "bg-indigo-50 border-indigo-200 text-indigo-600";
+    default:                      return "bg-muted border-border text-muted-foreground";
+  }
+}
+
+function TypeIcon({ n }: { n: AppNotification }) {
+  const cls = cn("w-8 h-8 rounded-full border flex items-center justify-center shrink-0", typeIconColor(n.type));
+  switch (n.type) {
+    case "lifecycle":             return <div className={cls}><Activity className="h-4 w-4" /></div>;
+    case "geo-extension-applied": return <div className={cls}><MapPin className="h-4 w-4" /></div>;
+    case "assignment":
+      return <div className={cls}>{(n as AssignmentNotification).action === "assigned"
+        ? <UserCheck className="h-4 w-4" />
+        : <UserX className="h-4 w-4" />}
+      </div>;
+    case "finance-email":         return <div className={cls}><Mail className="h-4 w-4" /></div>;
+    case "bulk-digest":           return <div className={cls}><Layers className="h-4 w-4" /></div>;
+    default:                      return <div className={cls}><Bell className="h-4 w-4" /></div>;
+  }
+}
+
+// ─── Summary line for each type ───────────────────────────────────────────────
+
+function summaryLine(n: AppNotification): string {
+  switch (n.type) {
+    case "geo-extension-applied":
+      return `${n.cbuDescription || n.cbuCode} — ${n.addedGeos.length} geo(s) added`;
+    case "lifecycle":
+      return `${n.eventLabel} · ${n.materialCode}`;
+    case "assignment":
+      return `${n.action === "assigned" ? "Assigned" : "Removed"}: ${n.cbuCode}`;
+    case "finance-email":
+      return `${n.success ? "Sent" : "Failed"} · SR ${n.srId}`;
+    case "bulk-digest":
+      return `${n.cbuCount} CBUs ${n.action === "assigned" ? "assigned to you" : "removed from you"} · ${n.bulkOperationId}`;
+    default:
+      return "";
+  }
+}
+
+// ─── Search match ─────────────────────────────────────────────────────────────
+
+function matchesSearch(n: AppNotification, q: string): boolean {
+  if (!q.trim()) return true;
+  const lq = q.toLowerCase();
+  const haystack = [summaryLine(n), n.type].join(" ").toLowerCase();
+  if (haystack.includes(lq)) return true;
+  if (n.type === "geo-extension-applied") return n.cbuCode.toLowerCase().includes(lq) || n.srId.toLowerCase().includes(lq);
+  if (n.type === "lifecycle") return n.networkId.toLowerCase().includes(lq) || n.materialCode.toLowerCase().includes(lq);
+  if (n.type === "assignment") return n.cbuCode.toLowerCase().includes(lq);
+  if (n.type === "finance-email") return n.srId.toLowerCase().includes(lq) || n.networkId.toLowerCase().includes(lq);
+  if (n.type === "bulk-digest") return n.bulkOperationId.toLowerCase().includes(lq);
+  return false;
+}
+
+// ─── Expanded detail panels ───────────────────────────────────────────────────
 
 function ApproverRow({ approver, index }: { approver: ApproverStep; index: number }) {
   const isApproved = approver.status === "approved";
   const isRejected = approver.status === "rejected";
   const isPending  = approver.status === "pending";
-  const isWaiting  = approver.status === "waiting";
 
   return (
-    <div
-      className="flex items-start gap-2.5 py-2 border-b border-border/50 last:border-0"
-      data-testid={`approver-row-${index}`}
-    >
+    <div className="flex items-start gap-2.5 py-2 border-b border-border/50 last:border-0" data-testid={`approver-row-${index}`}>
       <div className="mt-0.5 shrink-0">
         {isApproved && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
         {isRejected && <XCircle className="h-3.5 w-3.5 text-red-500" />}
-        {(isPending || isWaiting) && <Clock className="h-3.5 w-3.5 text-muted-foreground/50" />}
+        {(isPending || approver.status === "waiting") && <Clock className="h-3.5 w-3.5 text-muted-foreground/50" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium text-foreground truncate">
-            {approver.assignedTo || approver.label}
-          </span>
-          <span
-            className={`text-[10px] font-semibold uppercase tracking-wide shrink-0 ${
-              isApproved ? "text-emerald-600"
-              : isRejected ? "text-red-500"
-              : "text-muted-foreground/60"
-            }`}
-            data-testid={`approver-status-${index}`}
-          >
+          <span className="text-xs font-medium text-foreground truncate">{approver.assignedTo || approver.label}</span>
+          <span className={`text-[10px] font-semibold uppercase tracking-wide shrink-0 ${
+            isApproved ? "text-emerald-600" : isRejected ? "text-red-500" : "text-muted-foreground/60"
+          }`} data-testid={`approver-status-${index}`}>
             {isApproved ? "Approved" : isRejected ? "Rejected" : isPending ? "Pending" : "Waiting"}
           </span>
         </div>
         <p className="text-[10px] text-muted-foreground">{approver.label}</p>
         {isRejected && approver.rejectionReason && (
-          <p
-            className="mt-1 text-[10px] text-red-500 bg-red-50 rounded px-1.5 py-0.5"
-            data-testid={`rejection-reason-${index}`}
-          >
-            {approver.rejectionReason}
-          </p>
+          <p className="mt-1 text-[10px] text-red-500 bg-red-50 rounded px-1.5 py-0.5">{approver.rejectionReason}</p>
         )}
-        {approver.actedAt && (
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5">{approver.actedAt}</p>
-        )}
+        {approver.actedAt && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{approver.actedAt}</p>}
       </div>
     </div>
   );
 }
 
-// ─── Geo Extension Card ───────────────────────────────────────────────────────
-
-function GeoExtensionCard({ n }: { n: GeoExtensionNotification }) {
+function GeoExtDetail({ n }: { n: GeoExtensionNotification }) {
   return (
-    <div
-      className="bg-card border border-border rounded-xl shadow-sm overflow-hidden"
-      data-testid={`notification-card-${n.id}`}
-    >
-      <div className="px-5 pt-4 pb-3 flex items-start gap-3 border-b border-border/50">
-        <div className="mt-0.5 shrink-0">
-          <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          </div>
+    <div className="grid grid-cols-[1fr_auto] divide-x divide-border/50 border-t border-border/50 bg-muted/20">
+      <div className="px-5 py-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <User className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Raised by: <span className="font-medium text-foreground">{n.raisedBy}</span></span>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-0.5">
-            <span className="text-sm font-semibold text-foreground" data-testid={`text-notification-title-${n.id}`}>
-              Geo Extension Applied
-            </span>
-            <span className="text-xs text-muted-foreground" data-testid={`text-notification-time-${n.id}`}>
-              {relativeTime(n.timestamp)}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground truncate" data-testid={`text-cbu-description-${n.id}`}>
-            {n.cbuDescription}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0 ml-2 flex-wrap justify-end">
-          <Badge variant="outline" className="text-[10px] font-mono gap-1" data-testid={`badge-sr-id-${n.id}`}>
-            <Hash className="h-2.5 w-2.5" />
-            {n.srId}
-          </Badge>
-          <Badge variant="outline" className="text-[10px] font-mono" data-testid={`badge-cbu-code-${n.id}`}>
-            {n.cbuCode}
-          </Badge>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[1fr_auto] divide-x divide-border/50">
-        <div className="px-5 py-4 space-y-4">
-          <div className="flex items-center gap-2" data-testid={`text-raised-by-${n.id}`}>
-            <User className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              Raised by: <span className="font-medium text-foreground">{n.raisedBy}</span>
-            </span>
-          </div>
-          {n.addedGeos.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <MapPin className="h-3 w-3 text-emerald-600" />
-                <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">
-                  Added Geographies
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {n.addedGeos.map(g => (
-                  <Badge
-                    key={g}
-                    className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-[10px] font-normal"
-                    data-testid={`badge-geo-${n.id}-${g.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    {g}
-                  </Badge>
-                ))}
-              </div>
+        {n.addedGeos.length > 0 && (
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <MapPin className="h-3 w-3 text-emerald-600" />
+              <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Added Geographies</span>
             </div>
-          )}
-          {n.addedDepots.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Warehouse className="h-3 w-3 text-slate-500" />
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
-                  Added Depots
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {n.addedDepots.map(d => (
-                  <Badge
-                    key={d}
-                    variant="outline"
-                    className="text-[10px] font-mono"
-                    data-testid={`badge-depot-${n.id}-${d.toLowerCase()}`}
-                  >
-                    {d}
-                  </Badge>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1">
+              {n.addedGeos.map(g => (
+                <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-[10px] font-normal">{g}</Badge>
+              ))}
             </div>
-          )}
-        </div>
-        {n.approvers.length > 0 && (
-          <div className="px-5 py-4 w-64 shrink-0">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Approval Chain
-            </p>
-            <div>
-              {n.approvers.map((a, i) => (
-                <ApproverRow key={i} approver={a} index={i} />
+          </div>
+        )}
+        {n.addedDepots.length > 0 && (
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Warehouse className="h-3 w-3 text-slate-500" />
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Added Depots</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {n.addedDepots.map(d => (
+                <Badge key={d} variant="outline" className="text-[10px] font-mono">{d}</Badge>
               ))}
             </div>
           </div>
         )}
       </div>
+      {n.approvers.length > 0 && (
+        <div className="px-5 py-4 w-64 shrink-0">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Approval Chain</p>
+          {n.approvers.map((a, i) => <ApproverRow key={i} approver={a} index={i} />)}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Lifecycle Card ───────────────────────────────────────────────────────────
-
-function LifecycleCard({ n }: { n: LifecycleNotification }) {
+function FinanceDetail({ n }: { n: FinanceEmailNotification }) {
   return (
-    <div
-      className="bg-card border border-border rounded-xl shadow-sm overflow-hidden"
-      data-testid={`notification-card-${n.id}`}
-    >
-      <div className="px-5 py-4 flex items-start gap-3">
-        <div className="mt-0.5 shrink-0">
-          <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
-            <Activity className="h-4 w-4 text-blue-600" />
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-            <span className="text-sm font-semibold text-foreground" data-testid={`text-notification-title-${n.id}`}>
-              {n.eventLabel}
-            </span>
-            <Badge className="bg-blue-100 text-blue-700 border border-blue-300 text-[10px]">
-              Lifecycle
-            </Badge>
-            <span className="text-xs text-muted-foreground" data-testid={`text-notification-time-${n.id}`}>
-              {relativeTime(n.timestamp)}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
-            <Badge variant="outline" className="text-[10px] font-mono gap-1" data-testid={`badge-network-id-${n.id}`}>
-              <Hash className="h-2.5 w-2.5" />
-              {n.networkId}
-            </Badge>
-            <Badge variant="outline" className="text-[10px] font-mono" data-testid={`badge-material-code-${n.id}`}>
-              {n.materialCode}
-            </Badge>
-          </div>
-        </div>
+    <div className="px-5 py-3 border-t border-border/50 bg-muted/20">
+      <div className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
+        n.success ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+                  : "bg-red-50 border border-red-200 text-red-700"
+      }`}>
+        {n.success
+          ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-600" />
+          : <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-500" />}
+        <span>{n.message}</span>
       </div>
     </div>
   );
 }
-
-// ─── Assignment Card ──────────────────────────────────────────────────────────
-
-function AssignmentCard({ n }: { n: AssignmentNotification }) {
-  const isAssigned = n.action === "assigned";
-  return (
-    <div
-      className="bg-card border border-border rounded-xl shadow-sm overflow-hidden"
-      data-testid={`notification-card-${n.id}`}
-    >
-      <div className="px-5 py-4 flex items-start gap-3">
-        <div className="mt-0.5 shrink-0">
-          <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${
-            isAssigned ? "bg-violet-50 border-violet-200" : "bg-orange-50 border-orange-200"
-          }`}>
-            {isAssigned
-              ? <UserCheck className="h-4 w-4 text-violet-600" />
-              : <UserX className="h-4 w-4 text-orange-500" />
-            }
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-            <span className="text-sm font-semibold text-foreground" data-testid={`text-notification-title-${n.id}`}>
-              {isAssigned ? "Assigned to you" : "Removed from you"}
-            </span>
-            <Badge className={`text-[10px] border ${
-              isAssigned
-                ? "bg-violet-100 text-violet-700 border-violet-300"
-                : "bg-orange-100 text-orange-700 border-orange-300"
-            }`}>
-              Assignment
-            </Badge>
-            <span className="text-xs text-muted-foreground" data-testid={`text-notification-time-${n.id}`}>
-              {relativeTime(n.timestamp)}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className="text-[10px] font-mono" data-testid={`badge-cbu-id-${n.id}`}>
-              {n.cbuCode}
-            </Badge>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Finance Email Card ───────────────────────────────────────────────────────
-
-function FinanceEmailCard({ n }: { n: FinanceEmailNotification }) {
-  return (
-    <div
-      className="bg-card border border-border rounded-xl shadow-sm overflow-hidden"
-      data-testid={`notification-card-${n.id}`}
-    >
-      <div className="px-5 py-4 flex items-start gap-3">
-        <div className="mt-0.5 shrink-0">
-          <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${
-            n.success ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
-          }`}>
-            <Mail className={`h-4 w-4 ${n.success ? "text-emerald-600" : "text-red-500"}`} />
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-            <span className="text-sm font-semibold text-foreground" data-testid={`text-notification-title-${n.id}`}>
-              Finance Email {n.success ? "Confirmed" : "Failed"}
-            </span>
-            <Badge className={`text-[10px] border ${
-              n.success
-                ? "bg-emerald-100 text-emerald-700 border-emerald-300"
-                : "bg-red-100 text-red-700 border-red-300"
-            }`}>
-              Finance
-            </Badge>
-            <span className="text-xs text-muted-foreground" data-testid={`text-notification-time-${n.id}`}>
-              {relativeTime(n.timestamp)}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 mt-1 mb-2">
-            <Badge variant="outline" className="text-[10px] font-mono gap-1" data-testid={`badge-network-id-${n.id}`}>
-              <Hash className="h-2.5 w-2.5" />
-              {n.networkId}
-            </Badge>
-            <Badge variant="outline" className="text-[10px] font-mono" data-testid={`badge-sr-id-${n.id}`}>
-              {n.srId}
-            </Badge>
-          </div>
-          <div
-            className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
-              n.success
-                ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
-                : "bg-red-50 border border-red-200 text-red-700"
-            }`}
-            data-testid={`finance-status-message-${n.id}`}
-          >
-            {n.success
-              ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-600" />
-              : <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-500" />
-            }
-            <span>{n.message}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Bulk Digest Card ─────────────────────────────────────────────────────────
 
 function BulkDigestCbuTable({ cbuCount }: { cbuCount: number }) {
-  const { data: entries = [], isLoading } = useQuery<NetworkEntry[]>({
-    queryKey: ["/api/network-entries"],
-  });
-
+  const { data: entries = [], isLoading } = useQuery<NetworkEntry[]>({ queryKey: ["/api/network-entries"] });
   const cbusToShow = entries.slice(0, cbuCount);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-10 text-muted-foreground text-sm">
-        Loading CBUs…
-      </div>
-    );
-  }
-
-  if (cbusToShow.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-10 text-muted-foreground text-sm">
-        No CBU data available.
-      </div>
-    );
-  }
-
+  if (isLoading) return <p className="py-6 text-center text-sm text-muted-foreground">Loading CBUs…</p>;
+  if (!cbusToShow.length) return <p className="py-6 text-center text-sm text-muted-foreground">No CBU data available.</p>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs border-collapse" data-testid="table-bulk-cbus">
         <thead>
           <tr className="border-b border-border bg-muted/40">
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">CBU Code</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">Material Description</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">Brand</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">BG</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">Type of Network</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">CBU Created Date</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">Status</th>
+            {["CBU Code","Description","Brand","BG","Network Type","Status"].map(h => (
+              <th key={h} className="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {cbusToShow.map((entry, i) => (
-            <tr
-              key={entry.id}
-              className="border-b border-border/50 hover:bg-muted/30 transition-colors"
-              data-testid={`row-bulk-cbu-${entry.id}`}
-            >
-              <td className="px-3 py-2 font-mono text-foreground whitespace-nowrap" data-testid={`text-cbu-code-${entry.id}`}>
-                {entry.cbuCode ?? "—"}
-              </td>
-              <td className="px-3 py-2 text-foreground max-w-[200px] truncate" data-testid={`text-material-desc-${entry.id}`}>
-                {entry.materialDescription ?? "—"}
-              </td>
-              <td className="px-3 py-2 text-foreground whitespace-nowrap" data-testid={`text-brand-${entry.id}`}>
-                {entry.brand ?? "—"}
-              </td>
-              <td className="px-3 py-2 text-foreground whitespace-nowrap" data-testid={`text-bg-${entry.id}`}>
-                {entry.bg ?? "—"}
-              </td>
-              <td className="px-3 py-2 text-foreground whitespace-nowrap" data-testid={`text-network-type-${entry.id}`}>
-                {entry.typeOfNetwork ?? "—"}
-              </td>
-              <td className="px-3 py-2 text-foreground whitespace-nowrap" data-testid={`text-cbu-created-date-${entry.id}`}>
-                {entry.cbuCreatedDate ?? "—"}
-              </td>
-              <td className="px-3 py-2 whitespace-nowrap" data-testid={`text-status-${entry.id}`}>
-                <Badge variant="outline" className="text-[10px]">
-                  {entry.networkStatus ?? "—"}
-                </Badge>
-              </td>
+          {cbusToShow.map(e => (
+            <tr key={e.id} className="border-b border-border/50 hover:bg-muted/30" data-testid={`row-bulk-cbu-${e.id}`}>
+              <td className="px-3 py-2 font-mono">{e.cbuCode ?? "—"}</td>
+              <td className="px-3 py-2 max-w-[180px] truncate">{e.materialDescription ?? "—"}</td>
+              <td className="px-3 py-2 whitespace-nowrap">{e.brand ?? "—"}</td>
+              <td className="px-3 py-2 whitespace-nowrap">{e.bg ?? "—"}</td>
+              <td className="px-3 py-2 whitespace-nowrap">{e.typeOfNetwork ?? "—"}</td>
+              <td className="px-3 py-2"><Badge variant="outline" className="text-[10px]">{e.networkStatus ?? "—"}</Badge></td>
             </tr>
           ))}
         </tbody>
@@ -419,102 +251,160 @@ function BulkDigestCbuTable({ cbuCount }: { cbuCount: number }) {
   );
 }
 
-function BulkDigestCard({ n }: { n: BulkDigestNotification }) {
-  const [open, setOpen] = useState(false);
+// ─── Notification Row (compact + expandable) ──────────────────────────────────
+
+function NotificationRow({
+  n, showReadBtn,
+}: {
+  n: AppNotification;
+  showReadBtn: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  const hasDetail =
+    n.type === "geo-extension-applied" ||
+    n.type === "finance-email" ||
+    n.type === "bulk-digest";
+
+  function handleMarkRead(e: React.MouseEvent) {
+    e.stopPropagation();
+    markRead(n.id);
+  }
 
   return (
     <>
       <div
-        className="bg-card border border-border rounded-xl shadow-sm overflow-hidden"
-        data-testid={`notification-card-${n.id}`}
+        className={cn(
+          "rounded-lg border transition-colors",
+          !n.read ? "bg-card border-primary/20 shadow-sm" : "bg-muted/20 border-border",
+        )}
+        data-testid={`notification-row-${n.id}`}
       >
-        <div className="px-5 py-4 flex items-start gap-3">
-          <div className="mt-0.5 shrink-0">
-            <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center">
-              <Layers className="h-4 w-4 text-indigo-600" />
-            </div>
+        {/* Main row */}
+        <div
+          className={cn(
+            "flex items-start gap-3 px-4 py-3",
+            hasDetail && "cursor-pointer hover:bg-muted/30 transition-colors"
+          )}
+          onClick={() => hasDetail && setExpanded(v => !v)}
+          data-testid={`button-expand-${n.id}`}
+        >
+          {/* Unread dot */}
+          <div className="mt-2.5 shrink-0">
+            {!n.read
+              ? <div className="w-2 h-2 rounded-full bg-primary" data-testid={`dot-unread-${n.id}`} />
+              : <div className="w-2 h-2 rounded-full bg-transparent" />
+            }
           </div>
+
+          <TypeIcon n={n} />
+
           <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-              <span className="text-sm font-semibold text-foreground" data-testid={`text-notification-title-${n.id}`}>
-                {n.cbuCount} CBUs {n.action === "assigned" ? "assigned to you" : "removed from you"}
+            <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+              <span className="text-sm font-semibold leading-tight" data-testid={`text-notification-title-${n.id}`}>
+                {n.type === "geo-extension-applied" ? "Geo Extension Applied"
+                 : n.type === "lifecycle"           ? (n as LifecycleNotification).eventLabel
+                 : n.type === "assignment"          ? ((n as AssignmentNotification).action === "assigned" ? "Assigned to you" : "Removed from you")
+                 : n.type === "finance-email"       ? `Finance Email ${(n as FinanceEmailNotification).success ? "Confirmed" : "Failed"}`
+                 : n.type === "bulk-digest"         ? `Bulk: ${(n as BulkDigestNotification).cbuCount} CBUs ${(n as BulkDigestNotification).action === "assigned" ? "assigned" : "removed"}`
+                 : "Notification"}
               </span>
-              <Badge className="bg-indigo-100 text-indigo-700 border border-indigo-300 text-[10px]">
-                Bulk Digest
-              </Badge>
-              <span className="text-xs text-muted-foreground" data-testid={`text-notification-time-${n.id}`}>
-                {relativeTime(n.timestamp)}
+              <span className={cn("text-[10px] border rounded-full px-1.5 py-0.5 font-medium", typeBadgeClass(n.type))}>
+                {categoryLabel(n.type)}
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-2 mt-1 mb-3">
-              <Badge variant="outline" className="text-[10px] font-mono" data-testid={`badge-bulk-op-id-${n.id}`}>
-                {n.bulkOperationId}
-              </Badge>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() => setOpen(true)}
-              data-testid={`button-view-impacted-cbus-${n.id}`}
-            >
-              <Layers className="h-3 w-3 mr-1.5" />
-              View impacted CBUs
-            </Button>
+            <p className="text-xs text-muted-foreground truncate" data-testid={`text-summary-${n.id}`}>
+              {summaryLine(n)}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 ml-1">
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap" data-testid={`text-time-${n.id}`}>
+              {relativeTime(n.timestamp)}
+            </span>
+            {showReadBtn && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-primary gap-1"
+                onClick={handleMarkRead}
+                data-testid={`button-mark-read-${n.id}`}
+              >
+                <CheckCheck className="h-3 w-3" />
+                Read
+              </Button>
+            )}
+            {hasDetail && (
+              <span className="text-muted-foreground">
+                {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </span>
+            )}
           </div>
         </div>
+
+        {/* Expanded detail */}
+        {expanded && (
+          <>
+            {n.type === "geo-extension-applied" && <GeoExtDetail n={n as GeoExtensionNotification} />}
+            {n.type === "finance-email" && <FinanceDetail n={n as FinanceEmailNotification} />}
+            {n.type === "bulk-digest" && (
+              <div className="border-t border-border/50 bg-muted/20 px-5 py-4">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  onClick={(e) => { e.stopPropagation(); setBulkOpen(true); }}
+                  data-testid={`button-view-impacted-cbus-${n.id}`}
+                >
+                  <Layers className="h-3 w-3" />
+                  View impacted CBUs
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          className="max-w-4xl w-full p-0 gap-0 overflow-hidden"
-          data-testid={`dialog-bulk-cbus-${n.id}`}
-        >
-          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
-            <DialogTitle className="flex items-center gap-2 text-base" data-testid={`dialog-title-${n.id}`}>
-              <Layers className="h-4 w-4 text-indigo-600" />
-              Bulk Operation: {n.bulkOperationId}
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              {n.cbuCount} CBUs {n.action === "assigned" ? "assigned to you" : "removed from you"}
-            </p>
-          </DialogHeader>
-          <div className="overflow-y-auto max-h-[60vh]">
-            <BulkDigestCbuTable cbuCount={n.cbuCount} />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {n.type === "bulk-digest" && (
+        <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+          <DialogContent className="max-w-4xl w-full p-0 gap-0 overflow-hidden" data-testid={`dialog-bulk-cbus-${n.id}`}>
+            <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Layers className="h-4 w-4 text-indigo-600" />
+                Bulk Operation: {(n as BulkDigestNotification).bulkOperationId}
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                {(n as BulkDigestNotification).cbuCount} CBUs {(n as BulkDigestNotification).action === "assigned" ? "assigned to you" : "removed from you"}
+              </p>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[60vh]">
+              <BulkDigestCbuTable cbuCount={(n as BulkDigestNotification).cbuCount} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
 
-// ─── Category Section ─────────────────────────────────────────────────────────
+// ─── Empty State ──────────────────────────────────────────────────────────────
 
-function CategorySection({
-  title,
-  icon,
-  children,
-  count,
-  testId,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  count: number;
-  testId: string;
-}) {
-  if (count === 0) return null;
+function EmptyState({ tab, hasFilters }: { tab: "inbox" | "read"; hasFilters: boolean }) {
   return (
-    <section data-testid={testId}>
-      <div className="flex items-center gap-2 mb-3">
-        {icon}
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        <Badge variant="secondary" className="text-[10px]">{count}</Badge>
-      </div>
-      <div className="flex flex-col gap-3">
-        {children}
-      </div>
-    </section>
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      {tab === "inbox"
+        ? <Inbox className="h-10 w-10 text-muted-foreground/40 mb-3" />
+        : <CheckCheck className="h-10 w-10 text-muted-foreground/40 mb-3" />}
+      <p className="text-sm font-medium text-muted-foreground">
+        {hasFilters
+          ? "No notifications match your filters"
+          : tab === "inbox" ? "You're all caught up" : "No read notifications yet"}
+      </p>
+      {hasFilters && (
+        <p className="text-xs text-muted-foreground/70 mt-1">Try clearing filters or switching categories</p>
+      )}
+    </div>
   );
 }
 
@@ -522,94 +412,165 @@ function CategorySection({
 
 export default function NotificationsPage() {
   const { notifications } = useNotificationStore();
+  const [tab, setTab]               = useState<"inbox" | "read">("inbox");
+  const [category, setCategory]     = useState<Category>("all");
+  const [search, setSearch]         = useState("");
 
-  useEffect(() => {
-    markAllRead();
-  }, []);
+  const unread = notifications.filter(n => !n.read);
+  const read   = notifications.filter(n =>  n.read);
 
-  const lifecycle   = notifications.filter((n): n is LifecycleNotification    => n.type === "lifecycle");
-  const assignment  = notifications.filter((n): n is AssignmentNotification   => n.type === "assignment");
-  const finance     = notifications.filter((n): n is FinanceEmailNotification  => n.type === "finance-email");
-  const bulkDigest  = notifications.filter((n): n is BulkDigestNotification   => n.type === "bulk-digest");
-  const geoExt      = notifications.filter((n): n is GeoExtensionNotification => n.type === "geo-extension-applied");
+  const base   = tab === "inbox" ? unread : read;
 
-  const hasAny = notifications.length > 0;
+  const filtered = useMemo(() => {
+    return base.filter(n => {
+      if (category !== "all" && n.type !== category) return false;
+      if (!matchesSearch(n, search)) return false;
+      return true;
+    });
+  }, [base, category, search]);
+
+  const hasFilters = category !== "all" || search.trim() !== "";
+
+  // Category counts in the current tab's base
+  const categoryCounts = useMemo(() => {
+    const counts: Partial<Record<Category, number>> = { all: base.length };
+    for (const n of base) {
+      counts[n.type as Category] = (counts[n.type as Category] ?? 0) + 1;
+    }
+    return counts;
+  }, [base]);
 
   return (
     <div className="min-h-screen bg-background">
       <UnileverHeader />
-      <main className="max-w-[900px] mx-auto px-6 py-8">
-        <div className="flex items-center gap-3 mb-8">
-          <Bell className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold" data-testid="text-page-title">Notifications</h1>
-          {hasAny && (
-            <Badge variant="secondary" className="text-xs" data-testid="badge-notification-count">
-              {notifications.length}
-            </Badge>
+
+      <main className="max-w-[860px] mx-auto px-6 py-8 space-y-5">
+
+        {/* Page header */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-[#1f36c7] to-[#00b0d7] p-2 rounded-md">
+              <Bell className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold leading-tight" data-testid="text-page-title">Notifications</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {unread.length > 0
+                  ? `${unread.length} unread notification${unread.length !== 1 ? "s" : ""}`
+                  : "All caught up"}
+              </p>
+            </div>
+          </div>
+          {unread.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-8"
+              onClick={markAllRead}
+              data-testid="button-mark-all-read"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              Mark all as read
+            </Button>
           )}
         </div>
 
-        {!hasAny ? (
-          <div
-            className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3"
-            data-testid="empty-state-notifications"
-          >
-            <Bell className="h-10 w-10 opacity-20" />
-            <p className="text-sm font-medium">No notifications yet</p>
-            <p className="text-xs text-center max-w-[280px]">
-              Lifecycle, assignment, finance, and geo extension alerts will appear here.
-            </p>
+        {/* Tabs */}
+        <div className="flex items-center gap-0 border-b border-border">
+          {([["inbox", "Inbox", unread.length], ["read", "Read", read.length]] as const).map(([id, label, count]) => (
+            <button
+              key={id}
+              onClick={() => { setTab(id); setCategory("all"); setSearch(""); }}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                tab === id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+              data-testid={`tab-${id}`}
+            >
+              {label}
+              {count > 0 && (
+                <span className={cn(
+                  "inline-flex items-center justify-center h-4.5 min-w-[1.1rem] px-1 rounded-full text-[10px] font-bold",
+                  tab === id ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Filter bar */}
+        <div className="space-y-3">
+          {/* Category chips */}
+          <div className="flex flex-wrap gap-2" data-testid="category-filter-bar">
+            {CATEGORIES.map(cat => {
+              const cnt = categoryCounts[cat.id] ?? 0;
+              const active = category === cat.id;
+              if (cat.id !== "all" && cnt === 0) return null;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategory(cat.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                    active
+                      ? "bg-primary text-white border-primary"
+                      : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                  )}
+                  data-testid={`filter-category-${cat.id}`}
+                >
+                  {cat.id !== "all" && <cat.icon className="h-3 w-3" />}
+                  {cat.label}
+                  <span className={cn("ml-0.5", active ? "text-white/80" : "text-muted-foreground/70")}>
+                    {cnt}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        ) : (
-          <div className="flex flex-col gap-8" data-testid="list-notifications">
 
-            <CategorySection
-              title="Lifecycle"
-              icon={<Activity className="h-4 w-4 text-blue-600" />}
-              count={lifecycle.length}
-              testId="section-lifecycle"
-            >
-              {lifecycle.map(n => <LifecycleCard key={n.id} n={n} />)}
-            </CategorySection>
-
-            <CategorySection
-              title="Assignment"
-              icon={<UserCheck className="h-4 w-4 text-violet-600" />}
-              count={assignment.length}
-              testId="section-assignment"
-            >
-              {assignment.map(n => <AssignmentCard key={n.id} n={n} />)}
-            </CategorySection>
-
-            <CategorySection
-              title="Finance"
-              icon={<Mail className="h-4 w-4 text-emerald-600" />}
-              count={finance.length}
-              testId="section-finance"
-            >
-              {finance.map(n => <FinanceEmailCard key={n.id} n={n} />)}
-            </CategorySection>
-
-            <CategorySection
-              title="Bulk Digest"
-              icon={<Layers className="h-4 w-4 text-indigo-600" />}
-              count={bulkDigest.length}
-              testId="section-bulk-digest"
-            >
-              {bulkDigest.map(n => <BulkDigestCard key={n.id} n={n} />)}
-            </CategorySection>
-
-            <CategorySection
-              title="Geo Extensions"
-              icon={<MapPin className="h-4 w-4 text-emerald-600" />}
-              count={geoExt.length}
-              testId="section-geo-extensions"
-            >
-              {geoExt.map(n => <GeoExtensionCard key={n.id} n={n} />)}
-            </CategorySection>
-
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by CBU, SR ID, material code…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full h-8 rounded-md border bg-background pl-8 pr-8 text-xs focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
+              data-testid="input-notification-search"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                data-testid="button-clear-search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
+        </div>
+
+        {/* Results count */}
+        {hasFilters && filtered.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Showing {filtered.length} of {base.length} {tab === "inbox" ? "unread" : "read"} notifications
+          </p>
         )}
+
+        {/* Notification list */}
+        <div className="flex flex-col gap-2">
+          {filtered.length === 0
+            ? <EmptyState tab={tab} hasFilters={hasFilters} />
+            : filtered.map(n => (
+                <NotificationRow key={n.id} n={n} showReadBtn={tab === "inbox"} />
+              ))
+          }
+        </div>
       </main>
     </div>
   );
