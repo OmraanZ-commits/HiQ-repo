@@ -275,6 +275,20 @@ class BasepakLifecycleDateModel(Base):
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+class BasepakStatusHistoryModel(Base):
+    __tablename__ = "basepack_status_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    bp_code = Column(String, nullable=False, index=True)
+    from_status = Column(String, nullable=False)
+    to_status = Column(String, nullable=False)
+    effective_date = Column(String, nullable=True)
+    sr_id = Column(String, nullable=True)
+    actioned_by = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
 def create_tables():
     Base.metadata.create_all(bind=engine)
 
@@ -342,6 +356,22 @@ def run_migrations():
         ))
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS centralized_depots JSONB"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS basepack_status_history (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                bp_code VARCHAR NOT NULL,
+                from_status VARCHAR NOT NULL,
+                to_status VARCHAR NOT NULL,
+                effective_date VARCHAR,
+                sr_id VARCHAR,
+                actioned_by VARCHAR,
+                notes TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_bsh_bp_code ON basepack_status_history (bp_code)"
         ))
         conn.commit()
 

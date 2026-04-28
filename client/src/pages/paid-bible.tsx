@@ -1061,9 +1061,9 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                       <TableRow
                         data-testid={`bp-row-${bp.id}`}
                         className={`cursor-pointer transition-colors ${isExpanded ? "bg-[#1f36c7]/5 border-l-2 border-l-[#1f36c7]" : "hover:bg-muted/40"}`}
-                        onClick={() => !isEditing && toggleExpand(bp.id)}
+                        onClick={() => !isEditing && navigate(`/paid-bible/basepacks/${bp.id}`)}
                       >
-                        <TableCell className="py-3 pl-4">
+                        <TableCell className="py-3 pl-4" onClick={e => { e.stopPropagation(); !isEditing && toggleExpand(bp.id); }}>
                           {isExpanded ? <ChevronDown className="h-4 w-4 text-[#1f36c7]" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                         </TableCell>
 

@@ -11,6 +11,7 @@ import AdminCenterPage from "@/pages/admin-center";
 import MyQueuePage from "@/pages/my-queue";
 import NotificationsPage from "@/pages/notifications";
 import PaidBiblePage from "@/pages/paid-bible";
+import BasepakDetailPage from "@/pages/paid-bible-basepack-detail";
 import ServiceRequestDetailPage from "@/pages/service-request-detail";
 import AmendmentDetailPage from "@/pages/amendment-detail";
 
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/" component={HomePage} />
       <Route path="/network" component={Dashboard} />
       <Route path="/paid-bible" component={PaidBiblePage} />
+      <Route path="/paid-bible/basepacks/:bpCode" component={BasepakDetailPage} />
       <Route path="/paid-bible/requests/:id" component={ServiceRequestDetailPage} />
       <Route path="/paid-bible/amendments/:id" component={AmendmentDetailPage} />
       <Route path="/edit/:id" component={EditEntry} />

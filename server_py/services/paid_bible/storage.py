@@ -3,6 +3,7 @@ Paid Bible Storage
 Handles DB queries for the Paid Bible module:
 - Aggregated basepack views (from network_entries + overrides + lifecycle dates)
 - Basepack lifecycle dates CRUD
+- Basepack status history (append-only log)
 """
 import uuid
 from datetime import datetime, timezone
@@ -13,6 +14,7 @@ from server_py.db import (
     NetworkEntryModel,
     BasepakStatusOverrideModel,
     BasepakLifecycleDateModel,
+    BasepakStatusHistoryModel,
     db_row_to_api,
 )
 
@@ -63,6 +65,20 @@ def _lifecycle_row_to_dict(row: BasepakLifecycleDateModel) -> dict:
     }
 
 
+def _history_row_to_dict(row: BasepakStatusHistoryModel) -> dict:
+    return {
+        "id": str(row.id),
+        "bpCode": row.bp_code,
+        "fromStatus": row.from_status,
+        "toStatus": row.to_status,
+        "effectiveDate": row.effective_date,
+        "srId": row.sr_id,
+        "actionedBy": row.actioned_by,
+        "notes": row.notes,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
 class PaidBibleStorage:
     # ── Basepacks ─────────────────────────────────────────────────────────────
 
@@ -70,6 +86,20 @@ class PaidBibleStorage:
         db = SessionLocal()
         try:
             rows = db.query(NetworkEntryModel).order_by(NetworkEntryModel.basepack).all()
+            return [db_row_to_api(r) for r in rows]
+        finally:
+            db.close()
+
+    def get_entries_by_bp_code(self, bp_code: str) -> List[dict]:
+        """Returns all CBU rows for a specific basepack code."""
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(NetworkEntryModel)
+                .filter(NetworkEntryModel.basepack == bp_code)
+                .order_by(NetworkEntryModel.cbu_code)
+                .all()
+            )
             return [db_row_to_api(r) for r in rows]
         finally:
             db.close()
@@ -84,6 +114,8 @@ class PaidBibleStorage:
             return {r.bp_id: r.status for r in rows}
         finally:
             db.close()
+
+    # ── Lifecycle Dates ───────────────────────────────────────────────────────
 
     def get_all_lifecycle_dates(self) -> List[dict]:
         """Return all lifecycle date records as a dict keyed by bp_code."""
@@ -148,5 +180,51 @@ class PaidBibleStorage:
             db.commit()
             db.refresh(row)
             return _lifecycle_row_to_dict(row)
+        finally:
+            db.close()
+
+    # ── Status History ────────────────────────────────────────────────────────
+
+    def get_status_history(self, bp_code: str) -> List[dict]:
+        """Returns all status history entries for a basepack, newest first."""
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(BasepakStatusHistoryModel)
+                .filter(BasepakStatusHistoryModel.bp_code == bp_code)
+                .order_by(BasepakStatusHistoryModel.created_at.desc())
+                .all()
+            )
+            return [_history_row_to_dict(r) for r in rows]
+        finally:
+            db.close()
+
+    def add_status_history_entry(
+        self,
+        bp_code: str,
+        from_status: str,
+        to_status: str,
+        effective_date: Optional[str] = None,
+        sr_id: Optional[str] = None,
+        actioned_by: Optional[str] = None,
+        notes: Optional[str] = None,
+    ) -> dict:
+        """Appends an immutable status history entry for a basepack."""
+        db = SessionLocal()
+        try:
+            row = BasepakStatusHistoryModel(
+                bp_code=bp_code,
+                from_status=from_status,
+                to_status=to_status,
+                effective_date=effective_date,
+                sr_id=sr_id,
+                actioned_by=actioned_by,
+                notes=notes,
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            return _history_row_to_dict(row)
         finally:
             db.close()

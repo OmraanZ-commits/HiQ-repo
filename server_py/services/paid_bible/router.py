@@ -30,15 +30,37 @@ def get_service():
 def list_basepacks():
     """
     Returns all basepacks as aggregated records from network_entries.
-    Each record includes:
-    - Derived status (from CBU statuses + bp_status_overrides)
-    - MSTN coverage, SLOB risk, price-inactive trigger
-    - Key lifecycle dates (activation / inactive / delist)
-    - Full list of constituent CBUs
+    Each record includes derived status, MSTN coverage, SLOB risk,
+    price-inactive trigger, lifecycle dates and full list of CBUs.
     """
     if not _service:
         raise HTTPException(status_code=503, detail="PaidBibleService not initialised")
     return _service.get_basepacks()
+
+
+@router.get("/basepacks/{bp_code}/profile")
+def get_basepack_profile(bp_code: str):
+    """
+    Full profile for a single basepack:
+    metadata + CBUs + linked SRs + lifecycle dates + derived/effective status.
+    """
+    if not _service:
+        raise HTTPException(status_code=503, detail="PaidBibleService not initialised")
+    profile = _service.get_basepack_profile(bp_code)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Basepack {bp_code} not found")
+    return profile
+
+
+@router.get("/basepacks/{bp_code}/history")
+def get_basepack_history(bp_code: str):
+    """
+    Immutable append-only status-change history for a basepack.
+    Ordered newest first.
+    """
+    if not _service:
+        raise HTTPException(status_code=503, detail="PaidBibleService not initialised")
+    return _service.get_status_history(bp_code)
 
 
 @router.get("/basepacks/{bp_code}/cbus")
@@ -124,8 +146,7 @@ def upsert_basepack_date(bp_code: str, body: BasepakLifecycleDateBase):
 def list_paid_bible_srs(sr_type: Optional[str] = None, status: Optional[str] = None):
     """
     Convenience endpoint: returns service requests relevant to the Paid Bible module.
-    Delegates to the main /api/service-requests endpoint but provides a clean
-    Paid Bible-scoped URL for frontend consumption.
+    Delegates to the main /api/service-requests endpoint.
     """
     if not _service:
         raise HTTPException(status_code=503, detail="PaidBibleService not initialised")

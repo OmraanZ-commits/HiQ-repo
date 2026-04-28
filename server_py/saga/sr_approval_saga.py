@@ -133,7 +133,7 @@ class SrApprovalSaga:
         self._log_step("apply_bp_override", "completed",
                        result={"bpId": bp_id, "status": target_status})
 
-        # Write lifecycle date
+        # Write lifecycle date + status history
         if self.paid_bible_service:
             effective_date = _now_iso()
             try:
@@ -146,6 +146,23 @@ class SrApprovalSaga:
                                result={"bpId": bp_id, "targetStatus": target_status})
             except Exception as exc:
                 self._log_step("apply_lifecycle_date", "failed", error=str(exc))
+
+            # Determine previous status for history entry
+            prev_status = sr.get("currentValue") or "Draft"
+            try:
+                self.paid_bible_service.add_status_history_entry(
+                    bp_code=bp_id,
+                    from_status=prev_status,
+                    to_status=target_status,
+                    effective_date=effective_date,
+                    sr_id=self.sr_id,
+                    actioned_by=actioned_by,
+                    notes=f"Approved via SR {self.sr_id}",
+                )
+                self._log_step("write_status_history", "completed",
+                               result={"bpId": bp_id, "from": prev_status, "to": target_status})
+            except Exception as exc:
+                self._log_step("write_status_history", "failed", error=str(exc))
 
     # ── Effect: geo-extension ─────────────────────────────────────────────────
 
