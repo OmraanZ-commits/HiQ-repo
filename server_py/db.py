@@ -290,6 +290,24 @@ class BasepakStatusHistoryModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+class RefDataAuditLogModel(Base):
+    __tablename__ = "ref_data_audit_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_type = Column(String, nullable=False)          # "channel" | "cluster" | "depot" | "network_change_type"
+    entity_id = Column(String, nullable=False, index=True)
+    entity_code = Column(String, nullable=True)
+    action = Column(String, nullable=False)               # "create" | "update_status"
+    changed_by_name = Column(String, nullable=False)
+    changed_by_user_id = Column(String, nullable=True)
+    old_status = Column(String, nullable=True)            # "Active" | "Inactive"
+    new_status = Column(String, nullable=True)
+    attachment_filename = Column(String, nullable=True)
+    attachment_url = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
 def create_tables():
     Base.metadata.create_all(bind=engine)
 
@@ -390,6 +408,26 @@ def run_migrations():
         """))
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_bsh_bp_code ON basepack_status_history (bp_code)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ref_data_audit_log (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                entity_type VARCHAR NOT NULL,
+                entity_id VARCHAR NOT NULL,
+                entity_code VARCHAR,
+                action VARCHAR NOT NULL,
+                changed_by_name VARCHAR NOT NULL,
+                changed_by_user_id VARCHAR,
+                old_status VARCHAR,
+                new_status VARCHAR,
+                attachment_filename VARCHAR,
+                attachment_url VARCHAR,
+                notes TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_rdal_entity ON ref_data_audit_log (entity_type, entity_id)"
         ))
         conn.commit()
 

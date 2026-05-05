@@ -8,6 +8,8 @@ from server_py.db import (
     ClustersMasterModel,
     DepotsMasterModel,
     NetworkChangeTypeMasterModel,
+    RefDataAuditLogModel,
+    UserModel,
 )
 
 
@@ -59,8 +61,91 @@ def _network_change_type_row_to_api(row: NetworkChangeTypeMasterModel) -> dict:
     }
 
 
+def _audit_row_to_api(row: RefDataAuditLogModel) -> dict:
+    return {
+        "id": str(row.id),
+        "entityType": row.entity_type,
+        "entityId": row.entity_id,
+        "entityCode": row.entity_code,
+        "action": row.action,
+        "changedByName": row.changed_by_name,
+        "changedByUserId": row.changed_by_user_id,
+        "oldStatus": row.old_status,
+        "newStatus": row.new_status,
+        "attachmentFilename": row.attachment_filename,
+        "attachmentUrl": row.attachment_url,
+        "notes": row.notes,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
 class ReferenceDataStorage:
     """Persistence layer for Channel, Cluster & Depot master tables."""
+
+    # ── Users (read-only lookup) ─────────────────────────────────
+
+    def get_user_by_id(self, user_id: str) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(UserModel).filter(UserModel.id == user_id).first()
+            if not row:
+                return None
+            return {"id": str(row.id), "name": row.name, "role": row.role, "isActive": row.is_active}
+        finally:
+            db.close()
+
+    # ── Audit Log ────────────────────────────────────────────────
+
+    def create_audit_entry(
+        self,
+        entity_type: str,
+        entity_id: str,
+        entity_code: Optional[str],
+        action: str,
+        changed_by_name: str,
+        changed_by_user_id: Optional[str],
+        old_status: Optional[str],
+        new_status: Optional[str],
+        attachment_filename: Optional[str],
+        attachment_url: Optional[str],
+        notes: Optional[str],
+    ) -> dict:
+        db = SessionLocal()
+        try:
+            entry = RefDataAuditLogModel(
+                id=uuid.uuid4(),
+                entity_type=entity_type,
+                entity_id=entity_id,
+                entity_code=entity_code,
+                action=action,
+                changed_by_name=changed_by_name,
+                changed_by_user_id=changed_by_user_id,
+                old_status=old_status,
+                new_status=new_status,
+                attachment_filename=attachment_filename,
+                attachment_url=attachment_url,
+                notes=notes,
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(entry)
+            db.commit()
+            db.refresh(entry)
+            return _audit_row_to_api(entry)
+        finally:
+            db.close()
+
+    def get_audit_log(self, entity_type: Optional[str] = None, entity_id: Optional[str] = None, limit: int = 200) -> List[dict]:
+        db = SessionLocal()
+        try:
+            q = db.query(RefDataAuditLogModel)
+            if entity_type:
+                q = q.filter(RefDataAuditLogModel.entity_type == entity_type)
+            if entity_id:
+                q = q.filter(RefDataAuditLogModel.entity_id == entity_id)
+            rows = q.order_by(RefDataAuditLogModel.created_at.desc()).limit(limit).all()
+            return [_audit_row_to_api(r) for r in rows]
+        finally:
+            db.close()
 
     # ── Channels ────────────────────────────────────────────────
 
@@ -109,6 +194,19 @@ class ReferenceDataStorage:
             for api_key, db_col in field_map.items():
                 if api_key in data and data[api_key] is not None:
                     setattr(row, db_col, data[api_key])
+            db.commit()
+            db.refresh(row)
+            return _channel_row_to_api(row)
+        finally:
+            db.close()
+
+    def update_channel_status(self, channel_id: str, new_is_active: bool) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(ChannelsMasterModel).filter(ChannelsMasterModel.id == channel_id).first()
+            if not row:
+                return None
+            row.is_active = new_is_active
             db.commit()
             db.refresh(row)
             return _channel_row_to_api(row)
@@ -204,6 +302,19 @@ class ReferenceDataStorage:
         finally:
             db.close()
 
+    def update_cluster_status(self, cluster_id: str, new_is_active: bool) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(ClustersMasterModel).filter(ClustersMasterModel.id == cluster_id).first()
+            if not row:
+                return None
+            row.is_active = new_is_active
+            db.commit()
+            db.refresh(row)
+            return _cluster_row_to_api(row)
+        finally:
+            db.close()
+
     def delete_cluster(self, cluster_id: str) -> bool:
         db = SessionLocal()
         try:
@@ -289,6 +400,19 @@ class ReferenceDataStorage:
         finally:
             db.close()
 
+    def update_depot_status(self, depot_id: str, new_is_active: bool) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(DepotsMasterModel).filter(DepotsMasterModel.id == depot_id).first()
+            if not row:
+                return None
+            row.is_active = new_is_active
+            db.commit()
+            db.refresh(row)
+            return _depot_row_to_api(row)
+        finally:
+            db.close()
+
     def delete_depot(self, depot_id: str) -> bool:
         db = SessionLocal()
         try:
@@ -365,6 +489,19 @@ class ReferenceDataStorage:
             for api_key, db_col in field_map.items():
                 if api_key in data and data[api_key] is not None:
                     setattr(row, db_col, data[api_key])
+            db.commit()
+            db.refresh(row)
+            return _network_change_type_row_to_api(row)
+        finally:
+            db.close()
+
+    def update_network_change_type_status(self, type_id: str, new_is_active: bool) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkChangeTypeMasterModel).filter(NetworkChangeTypeMasterModel.id == type_id).first()
+            if not row:
+                return None
+            row.is_active = new_is_active
             db.commit()
             db.refresh(row)
             return _network_change_type_row_to_api(row)

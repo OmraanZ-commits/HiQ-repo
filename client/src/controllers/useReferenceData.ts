@@ -42,9 +42,32 @@ export interface NetworkChangeTypeMaster {
   createdAt: string | null;
 }
 
+export interface RefDataAuditEntry {
+  id: string;
+  entityType: string;
+  entityId: string;
+  entityCode: string | null;
+  action: string;
+  changedByName: string;
+  changedByUserId: string | null;
+  oldStatus: string | null;
+  newStatus: string | null;
+  attachmentFilename: string | null;
+  attachmentUrl: string | null;
+  notes: string | null;
+  createdAt: string | null;
+}
+
+export interface StatusUpdatePayload {
+  status: "Active" | "Inactive";
+  attachmentFilename: string;
+  attachmentUrl?: string;
+  changedByUserId: string;
+  notes?: string;
+}
+
 export type GeographyDepotMap = Record<string, string[]>;
 
-// Channel definition interface matching the static data structure
 export interface ChannelDef {
   code: string;
   type: "Core" | "Traditional" | "Modern Trade";
@@ -72,27 +95,39 @@ interface SagaReferenceDataResponse {
   }>;
 }
 
+const REFDATA_KEYS = {
+  channels: ["/api/reference-data/channels"],
+  clusters: ["/api/reference-data/clusters"],
+  depots: ["/api/reference-data/depots"],
+  networkChangeTypes: ["/api/reference-data/network-change-types"],
+  geographyDepotMap: ["/api/reference-data/geography-depot-map"],
+  auditLog: ["/api/reference-data/audit-log"],
+};
+
+function invalidateAll() {
+  Object.values(REFDATA_KEYS).forEach((key) =>
+    queryClient.invalidateQueries({ queryKey: key })
+  );
+}
+
 /**
- * Controller hook that fetches reference data via the saga endpoint.
- * Saga orchestrator coordinates fetching channels → clusters → depots
- * with automatic compensation on failure.
+ * Controller hook that fetches reference data via the saga endpoint
+ * and exposes status-update mutations.
  */
 export function useReferenceData() {
   const { toast } = useToast();
 
-  // Trigger saga via POST to load all reference data
   const sagaMutation = useMutation<SagaReferenceDataResponse, Error, void>({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/saga/reference-data");
       return res.json();
     },
     onSuccess: (data) => {
-      // Cache the individual lists so they can be consumed independently
-      queryClient.setQueryData(["/api/reference-data/channels"], data.data.channels);
-      queryClient.setQueryData(["/api/reference-data/clusters"], data.data.clusters);
-      queryClient.setQueryData(["/api/reference-data/depots"], data.data.depots);
-      queryClient.setQueryData(["/api/reference-data/network-change-types"], data.data.networkChangeTypes);
-      queryClient.setQueryData(["/api/reference-data/geography-depot-map"], data.data.geographyDepotMap);
+      queryClient.setQueryData(REFDATA_KEYS.channels, data.data.channels);
+      queryClient.setQueryData(REFDATA_KEYS.clusters, data.data.clusters);
+      queryClient.setQueryData(REFDATA_KEYS.depots, data.data.depots);
+      queryClient.setQueryData(REFDATA_KEYS.networkChangeTypes, data.data.networkChangeTypes);
+      queryClient.setQueryData(REFDATA_KEYS.geographyDepotMap, data.data.geographyDepotMap);
       queryClient.setQueryData(["/api/reference-data"], data.data);
     },
     onError: (err: Error) => {
@@ -100,57 +135,74 @@ export function useReferenceData() {
     },
   });
 
-  // Direct REST queries (used as cache readers after saga populates)
-  const channelsQuery = useQuery<ChannelMaster[]>({
-    queryKey: ["/api/reference-data/channels"],
-    staleTime: Infinity,
+  // ── Status update mutations ──────────────────────────────────
+
+  function makeStatusMutationFn(entityPath: string) {
+    return async ({ id, payload }: { id: string; payload: StatusUpdatePayload }) => {
+      await apiRequest("PATCH", `/api/reference-data/${entityPath}/${id}/status`, payload);
+    };
+  }
+
+  const updateChannelStatus = useMutation<unknown, Error, { id: string; payload: StatusUpdatePayload }>({
+    mutationFn: makeStatusMutationFn("channels"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.channels });
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.auditLog });
+    },
+    onError: (err: Error) => toast({ title: "Status Update Failed", description: err.message, variant: "destructive" }),
   });
 
-  const clustersQuery = useQuery<ClusterMaster[]>({
-    queryKey: ["/api/reference-data/clusters"],
-    staleTime: Infinity,
+  const updateClusterStatus = useMutation<unknown, Error, { id: string; payload: StatusUpdatePayload }>({
+    mutationFn: makeStatusMutationFn("clusters"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.clusters });
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.auditLog });
+    },
+    onError: (err: Error) => toast({ title: "Status Update Failed", description: err.message, variant: "destructive" }),
   });
 
-  const depotsQuery = useQuery<DepotMaster[]>({
-    queryKey: ["/api/reference-data/depots"],
-    staleTime: Infinity,
+  const updateDepotStatus = useMutation<unknown, Error, { id: string; payload: StatusUpdatePayload }>({
+    mutationFn: makeStatusMutationFn("depots"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.depots });
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.auditLog });
+    },
+    onError: (err: Error) => toast({ title: "Status Update Failed", description: err.message, variant: "destructive" }),
   });
 
-  const networkChangeTypesQuery = useQuery<NetworkChangeTypeMaster[]>({
-    queryKey: ["/api/reference-data/network-change-types"],
-    staleTime: Infinity,
+  const updateNetworkChangeTypeStatus = useMutation<unknown, Error, { id: string; payload: StatusUpdatePayload }>({
+    mutationFn: makeStatusMutationFn("network-change-types"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.networkChangeTypes });
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.auditLog });
+    },
+    onError: (err: Error) => toast({ title: "Status Update Failed", description: err.message, variant: "destructive" }),
   });
 
-  const geographyDepotMapQuery = useQuery<GeographyDepotMap>({
-    queryKey: ["/api/reference-data/geography-depot-map"],
-    staleTime: Infinity,
-  });
+  // ── Queries ──────────────────────────────────────────────────
+
+  const channelsQuery = useQuery<ChannelMaster[]>({ queryKey: REFDATA_KEYS.channels, staleTime: Infinity });
+  const clustersQuery = useQuery<ClusterMaster[]>({ queryKey: REFDATA_KEYS.clusters, staleTime: Infinity });
+  const depotsQuery = useQuery<DepotMaster[]>({ queryKey: REFDATA_KEYS.depots, staleTime: Infinity });
+  const networkChangeTypesQuery = useQuery<NetworkChangeTypeMaster[]>({ queryKey: REFDATA_KEYS.networkChangeTypes, staleTime: Infinity });
+  const geographyDepotMapQuery = useQuery<GeographyDepotMap>({ queryKey: REFDATA_KEYS.geographyDepotMap, staleTime: Infinity });
+  const auditLogQuery = useQuery<RefDataAuditEntry[]>({ queryKey: REFDATA_KEYS.auditLog, staleTime: 0 });
 
   const channels = channelsQuery.data ?? [];
   const clusters = clustersQuery.data ?? [];
   const depots = depotsQuery.data ?? [];
   const networkChangeTypes = networkChangeTypesQuery.data ?? [];
   const geographyDepotMap = geographyDepotMapQuery.data ?? {};
+  const auditLog = auditLogQuery.data ?? [];
 
-  // Derive channel structures from API data
-  // TOP_CHANNELS: Core and Traditional channels (not MT parent)
   const topChannels: ChannelDef[] = channels
     .filter(c => c.isActive && !c.parentCode && c.code !== "MT")
-    .map(c => ({
-      code: c.code,
-      type: c.type as "Core" | "Traditional" | "Modern Trade",
-    }));
+    .map(c => ({ code: c.code, type: c.type as "Core" | "Traditional" | "Modern Trade" }));
 
-  // MT_SUB_CHANNELS: Channels with MT as parent
   const mtSubChannels: ChannelDef[] = channels
     .filter(c => c.isActive && c.parentCode === "MT")
-    .map(c => ({
-      code: c.code,
-      type: c.type as "Core" | "Traditional" | "Modern Trade",
-      parent: c.parentCode || undefined,
-    }));
+    .map(c => ({ code: c.code, type: c.type as "Core" | "Traditional" | "Modern Trade", parent: c.parentCode || undefined }));
 
-  // LEAF_CHANNELS: All selectable channels (topChannels + mtSubChannels)
   const leafChannels: ChannelDef[] = [...topChannels, ...mtSubChannels];
 
   const isLoading =
@@ -158,8 +210,7 @@ export function useReferenceData() {
     channelsQuery.isLoading ||
     clustersQuery.isLoading ||
     depotsQuery.isLoading ||
-    networkChangeTypesQuery.isLoading ||
-    geographyDepotMapQuery.isLoading;
+    networkChangeTypesQuery.isLoading;
 
   return {
     channels,
@@ -167,14 +218,19 @@ export function useReferenceData() {
     depots,
     networkChangeTypes,
     geographyDepotMap,
-    // Derived channel structures for UI components
+    auditLog,
     topChannels,
     mtSubChannels,
     leafChannels,
     isLoading,
+    isAuditLogLoading: auditLogQuery.isLoading,
     sagaStatus: sagaMutation.data?.status ?? null,
     sagaSteps: sagaMutation.data?.steps ?? [],
     fetchViaSaga: () => sagaMutation.mutate(),
     isSagaPending: sagaMutation.isPending,
+    updateChannelStatus,
+    updateClusterStatus,
+    updateDepotStatus,
+    updateNetworkChangeTypeStatus,
   };
 }

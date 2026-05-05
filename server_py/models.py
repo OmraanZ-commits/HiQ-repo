@@ -253,6 +253,14 @@ class UpdateNetworkChangeTypeMaster(BaseModel):
     isActive: Optional[bool] = None
 
 
+class RefDataStatusUpdateRequest(BaseModel):
+    status: str                             # "Active" | "Inactive"
+    attachmentFilename: str
+    attachmentUrl: Optional[str] = None
+    changedByUserId: str
+    notes: Optional[str] = None
+
+
 # ── Paid Bible Models ───────────────────────────────────────────
 
 SR_TYPES = ["basepack-status-change", "geo-extension", "channel-extension", "sourcing-amendment"]
