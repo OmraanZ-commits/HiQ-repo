@@ -261,6 +261,30 @@ class RefDataStatusUpdateRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class _RefDataAuditMixin(BaseModel):
+    """Mixin fields required on every audited reference-data mutation."""
+    attachmentFilename: str
+    attachmentUrl: Optional[str] = None
+    changedByUserId: str
+    notes: Optional[str] = None
+
+
+class CreateChannelWithAuditRequest(ChannelsMasterBase, _RefDataAuditMixin):
+    pass
+
+
+class CreateClusterWithAuditRequest(ClustersMasterBase, _RefDataAuditMixin):
+    pass
+
+
+class CreateDepotWithAuditRequest(DepotsMasterBase, _RefDataAuditMixin):
+    pass
+
+
+class CreateNetworkChangeTypeWithAuditRequest(NetworkChangeTypeMasterBase, _RefDataAuditMixin):
+    pass
+
+
 # ── Paid Bible Models ───────────────────────────────────────────
 
 SR_TYPES = ["basepack-status-change", "geo-extension", "channel-extension", "sourcing-amendment"]

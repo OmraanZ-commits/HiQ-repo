@@ -104,7 +104,14 @@ const REFDATA_KEYS = {
   auditLog: ["/api/reference-data/audit-log"],
 };
 
-export interface CreateChannelPayload {
+interface _AuditFields {
+  attachmentFilename: string;
+  attachmentUrl?: string;
+  changedByUserId: string;
+  notes?: string;
+}
+
+export interface CreateChannelPayload extends _AuditFields {
   code: string;
   name?: string;
   type: string;
@@ -112,7 +119,7 @@ export interface CreateChannelPayload {
   isActive: boolean;
 }
 
-export interface CreateClusterPayload {
+export interface CreateClusterPayload extends _AuditFields {
   name: string;
   region: string;
   depotCount?: number;
@@ -120,14 +127,14 @@ export interface CreateClusterPayload {
   isActive: boolean;
 }
 
-export interface CreateDepotPayload {
+export interface CreateDepotPayload extends _AuditFields {
   code: string;
   name?: string;
   clusterId?: string;
   isActive: boolean;
 }
 
-export interface CreateNetworkChangeTypePayload {
+export interface CreateNetworkChangeTypePayload extends _AuditFields {
   code: string;
   name: string;
   category?: string;
@@ -216,7 +223,10 @@ export function useReferenceData() {
       const res = await apiRequest("POST", "/api/reference-data/channels", payload);
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.channels }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.channels });
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.auditLog });
+    },
     onError: (err: Error) => toast({ title: "Failed to Create Channel", description: err.message, variant: "destructive" }),
   });
 
@@ -225,7 +235,10 @@ export function useReferenceData() {
       const res = await apiRequest("POST", "/api/reference-data/clusters", payload);
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.clusters }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.clusters });
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.auditLog });
+    },
     onError: (err: Error) => toast({ title: "Failed to Create Cluster", description: err.message, variant: "destructive" }),
   });
 
@@ -234,7 +247,10 @@ export function useReferenceData() {
       const res = await apiRequest("POST", "/api/reference-data/depots", payload);
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.depots }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.depots });
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.auditLog });
+    },
     onError: (err: Error) => toast({ title: "Failed to Create Depot", description: err.message, variant: "destructive" }),
   });
 
@@ -243,7 +259,10 @@ export function useReferenceData() {
       const res = await apiRequest("POST", "/api/reference-data/network-change-types", payload);
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.networkChangeTypes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.networkChangeTypes });
+      queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.auditLog });
+    },
     onError: (err: Error) => toast({ title: "Failed to Create Change Type", description: err.message, variant: "destructive" }),
   });
 

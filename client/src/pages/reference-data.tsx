@@ -256,24 +256,60 @@ function EditStatusButton({ entityId, entityLabel, entityCode, currentStatus, is
   );
 }
 
+// ── Shared attachment field ───────────────────────────────────────────────────
+
+function AttachmentField({ file, fileRef, testId, onChange }: {
+  file: File | null;
+  fileRef: React.RefObject<HTMLInputElement>;
+  testId: string;
+  onChange: (f: File | null) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label>Approved Email Attachment <span className="text-destructive">*</span></Label>
+      <div
+        className={`flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors ${file ? "border-emerald-400 bg-emerald-50" : "border-dashed"}`}
+        onClick={() => fileRef.current?.click()}
+      >
+        <Paperclip className={`h-4 w-4 shrink-0 ${file ? "text-emerald-600" : "text-muted-foreground"}`} />
+        <span className={`text-sm truncate ${file ? "text-emerald-700 font-medium" : "text-muted-foreground"}`}>
+          {file ? file.name : "Click to attach approved email (PDF/EML/MSG)"}
+        </span>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf,.eml,.msg,.png,.jpg,.jpeg"
+        data-testid={testId}
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}
+        tabIndex={-1}
+      />
+      {!file && <p className="text-xs text-amber-600">Attachment is mandatory — submit blocked without it.</p>}
+    </div>
+  );
+}
+
 // ── Add Channel dialog ────────────────────────────────────────────────────────
 
 interface AddChannelDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   channels: ChannelMaster[];
+  actingUserId: string;
   onSubmit: (payload: CreateChannelPayload) => Promise<void>;
 }
 
-function AddChannelDialog({ open, onOpenChange, channels, onSubmit }: AddChannelDialogProps) {
-  const blank = () => ({ code: "", name: "", type: "", parentCode: "", isActive: true } as const);
-  const [form, setForm] = useState<{ code: string; name: string; type: string; parentCode: string; isActive: boolean }>(blank);
+function AddChannelDialog({ open, onOpenChange, channels, actingUserId, onSubmit }: AddChannelDialogProps) {
+  const blank = () => ({ code: "", name: "", type: "", parentCode: "", isActive: true });
+  const [form, setForm] = useState<{ code: string; name: string; type: string; parentCode: string; isActive: boolean }>(blank());
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (open) { setForm(blank()); setSaving(false); } }, [open]);
+  useEffect(() => { if (open) { setForm(blank()); setFile(null); setSaving(false); } }, [open]);
 
-  const canSave = form.code.trim().length > 0 && form.type.length > 0 && !saving;
-
+  const canSave = form.code.trim().length > 0 && form.type.length > 0 && !!file && !saving;
   const topLevelChannels = channels.filter((c) => !c.parentCode);
 
   async function handleSave() {
@@ -286,6 +322,9 @@ function AddChannelDialog({ open, onOpenChange, channels, onSubmit }: AddChannel
         type: form.type,
         parentCode: form.parentCode || undefined,
         isActive: form.isActive,
+        attachmentFilename: file!.name,
+        attachmentUrl: `upload://${file!.name}`,
+        changedByUserId: actingUserId,
       });
       onOpenChange(false);
     } catch {
@@ -300,7 +339,7 @@ function AddChannelDialog({ open, onOpenChange, channels, onSubmit }: AddChannel
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Plus className="h-4 w-4" />Add Channel</DialogTitle>
-          <DialogDescription>Enter the details for the new channel record.</DialogDescription>
+          <DialogDescription>Enter the details for the new channel record. An approved-email attachment is required.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-4">
@@ -352,6 +391,7 @@ function AddChannelDialog({ open, onOpenChange, channels, onSubmit }: AddChannel
               </SelectContent>
             </Select>
           </div>
+          <AttachmentField file={file} fileRef={fileRef} testId="input-attachment-channel" onChange={setFile} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
@@ -370,17 +410,20 @@ function AddChannelDialog({ open, onOpenChange, channels, onSubmit }: AddChannel
 interface AddClusterDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  actingUserId: string;
   onSubmit: (payload: CreateClusterPayload) => Promise<void>;
 }
 
-function AddClusterDialog({ open, onOpenChange, onSubmit }: AddClusterDialogProps) {
+function AddClusterDialog({ open, onOpenChange, actingUserId, onSubmit }: AddClusterDialogProps) {
   const blank = () => ({ name: "", region: "", depotCount: "", stateIds: "", isActive: true });
   const [form, setForm] = useState(blank());
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (open) { setForm(blank()); setSaving(false); } }, [open]);
+  useEffect(() => { if (open) { setForm(blank()); setFile(null); setSaving(false); } }, [open]);
 
-  const canSave = form.name.trim().length > 0 && form.region.length > 0 && !saving;
+  const canSave = form.name.trim().length > 0 && form.region.length > 0 && !!file && !saving;
 
   async function handleSave() {
     if (!canSave) return;
@@ -393,6 +436,9 @@ function AddClusterDialog({ open, onOpenChange, onSubmit }: AddClusterDialogProp
         depotCount: form.depotCount ? parseInt(form.depotCount) : undefined,
         stateIds: stateList.length ? stateList : undefined,
         isActive: form.isActive,
+        attachmentFilename: file!.name,
+        attachmentUrl: `upload://${file!.name}`,
+        changedByUserId: actingUserId,
       });
       onOpenChange(false);
     } catch {
@@ -407,7 +453,7 @@ function AddClusterDialog({ open, onOpenChange, onSubmit }: AddClusterDialogProp
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Plus className="h-4 w-4" />Add Cluster</DialogTitle>
-          <DialogDescription>Enter the details for the new cluster record.</DialogDescription>
+          <DialogDescription>Enter the details for the new cluster record. An approved-email attachment is required.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
@@ -451,6 +497,7 @@ function AddClusterDialog({ open, onOpenChange, onSubmit }: AddClusterDialogProp
             <Input id="cl-states" placeholder="e.g. MH, GJ, RJ" value={form.stateIds} onChange={(e) => setForm({ ...form, stateIds: e.target.value })} data-testid="input-cluster-states" />
             <p className="text-xs text-muted-foreground">Enter state abbreviations separated by commas</p>
           </div>
+          <AttachmentField file={file} fileRef={fileRef} testId="input-attachment-cluster" onChange={setFile} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
@@ -470,17 +517,21 @@ interface AddDepotDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   clusters: ClusterMaster[];
+  actingUserId: string;
   onSubmit: (payload: CreateDepotPayload) => Promise<void>;
 }
 
-function AddDepotDialog({ open, onOpenChange, clusters, onSubmit }: AddDepotDialogProps) {
+function AddDepotDialog({ open, onOpenChange, clusters, actingUserId, onSubmit }: AddDepotDialogProps) {
   const blank = () => ({ code: "", name: "", clusterId: "", isActive: true });
   const [form, setForm] = useState(blank());
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (open) { setForm(blank()); setSaving(false); } }, [open]);
+  useEffect(() => { if (open) { setForm(blank()); setFile(null); setSaving(false); } }, [open]);
 
-  const canSave = form.code.trim().length > 0 && !saving;
+  const canSave = form.code.trim().length > 0 && !!file && !saving;
+  const activeCluster = clusters.filter((c) => c.isActive);
 
   async function handleSave() {
     if (!canSave) return;
@@ -491,6 +542,9 @@ function AddDepotDialog({ open, onOpenChange, clusters, onSubmit }: AddDepotDial
         name: form.name.trim() || undefined,
         clusterId: form.clusterId || undefined,
         isActive: form.isActive,
+        attachmentFilename: file!.name,
+        attachmentUrl: `upload://${file!.name}`,
+        changedByUserId: actingUserId,
       });
       onOpenChange(false);
     } catch {
@@ -500,14 +554,12 @@ function AddDepotDialog({ open, onOpenChange, clusters, onSubmit }: AddDepotDial
     }
   }
 
-  const activeCluster = clusters.filter((c) => c.isActive);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Plus className="h-4 w-4" />Add Depot</DialogTitle>
-          <DialogDescription>Enter the details for the new depot record.</DialogDescription>
+          <DialogDescription>Enter the details for the new depot record. An approved-email attachment is required.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-4">
@@ -546,6 +598,7 @@ function AddDepotDialog({ open, onOpenChange, clusters, onSubmit }: AddDepotDial
               </SelectContent>
             </Select>
           </div>
+          <AttachmentField file={file} fileRef={fileRef} testId="input-attachment-depot" onChange={setFile} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
@@ -564,17 +617,20 @@ function AddDepotDialog({ open, onOpenChange, clusters, onSubmit }: AddDepotDial
 interface AddNetworkChangeTypeDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  actingUserId: string;
   onSubmit: (payload: CreateNetworkChangeTypePayload) => Promise<void>;
 }
 
-function AddNetworkChangeTypeDialog({ open, onOpenChange, onSubmit }: AddNetworkChangeTypeDialogProps) {
+function AddNetworkChangeTypeDialog({ open, onOpenChange, actingUserId, onSubmit }: AddNetworkChangeTypeDialogProps) {
   const blank = () => ({ code: "", name: "", category: "", isActive: true });
   const [form, setForm] = useState(blank());
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (open) { setForm(blank()); setSaving(false); } }, [open]);
+  useEffect(() => { if (open) { setForm(blank()); setFile(null); setSaving(false); } }, [open]);
 
-  const canSave = form.code.trim().length > 0 && form.name.trim().length > 0 && !saving;
+  const canSave = form.code.trim().length > 0 && form.name.trim().length > 0 && !!file && !saving;
 
   async function handleSave() {
     if (!canSave) return;
@@ -585,6 +641,9 @@ function AddNetworkChangeTypeDialog({ open, onOpenChange, onSubmit }: AddNetwork
         name: form.name.trim(),
         category: form.category || undefined,
         isActive: form.isActive,
+        attachmentFilename: file!.name,
+        attachmentUrl: `upload://${file!.name}`,
+        changedByUserId: actingUserId,
       });
       onOpenChange(false);
     } catch {
@@ -599,7 +658,7 @@ function AddNetworkChangeTypeDialog({ open, onOpenChange, onSubmit }: AddNetwork
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Plus className="h-4 w-4" />Add Network Change Type</DialogTitle>
-          <DialogDescription>Enter the details for the new network change type record.</DialogDescription>
+          <DialogDescription>Enter the details for the new network change type record. An approved-email attachment is required.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-4">
@@ -639,6 +698,7 @@ function AddNetworkChangeTypeDialog({ open, onOpenChange, onSubmit }: AddNetwork
               </SelectContent>
             </Select>
           </div>
+          <AttachmentField file={file} fileRef={fileRef} testId="input-attachment-nct" onChange={setFile} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
@@ -864,7 +924,7 @@ function AuditLogTable({ data }: { data: RefDataAuditEntry[] }) {
     return (
       <div className="flex flex-col items-center gap-2 py-12 text-center">
         <ClipboardList className="h-8 w-8 text-muted-foreground/50" />
-        <p className="text-sm text-muted-foreground">No audit entries yet. Status changes will appear here.</p>
+        <p className="text-sm text-muted-foreground">No audit entries yet. Record additions and status changes will appear here.</p>
       </div>
     );
   }
@@ -1099,22 +1159,26 @@ export function ReferenceDataContent() {
         open={addChannelOpen}
         onOpenChange={setAddChannelOpen}
         channels={channels}
+        actingUserId={actingUserId}
         onSubmit={handleCreateChannel}
       />
       <AddClusterDialog
         open={addClusterOpen}
         onOpenChange={setAddClusterOpen}
+        actingUserId={actingUserId}
         onSubmit={handleCreateCluster}
       />
       <AddDepotDialog
         open={addDepotOpen}
         onOpenChange={setAddDepotOpen}
         clusters={clusters}
+        actingUserId={actingUserId}
         onSubmit={handleCreateDepot}
       />
       <AddNetworkChangeTypeDialog
         open={addNctOpen}
         onOpenChange={setAddNctOpen}
+        actingUserId={actingUserId}
         onSubmit={handleCreateNct}
       />
     </div>

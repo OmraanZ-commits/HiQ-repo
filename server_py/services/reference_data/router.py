@@ -8,6 +8,10 @@ from server_py.models import (
     InsertDepotsMaster, UpdateDepotsMaster,
     InsertNetworkChangeTypeMaster, UpdateNetworkChangeTypeMaster,
     RefDataStatusUpdateRequest,
+    CreateChannelWithAuditRequest,
+    CreateClusterWithAuditRequest,
+    CreateDepotWithAuditRequest,
+    CreateNetworkChangeTypeWithAuditRequest,
 )
 from server_py.services.reference_data.service import ReferenceDataService
 from server_py.services.reference_data.storage import ReferenceDataStorage
@@ -62,8 +66,8 @@ async def get_channel(channel_id: str):
 
 
 @router.post("/channels", status_code=201)
-async def create_channel(data: InsertChannelsMaster):
-    return _svc().create_channel(data)
+async def create_channel(data: CreateChannelWithAuditRequest):
+    return _svc().create_channel_with_audit(data)
 
 
 @router.patch("/channels/{channel_id}/status")
@@ -101,8 +105,8 @@ async def get_cluster(cluster_id: str):
 
 
 @router.post("/clusters", status_code=201)
-async def create_cluster(data: InsertClustersMaster):
-    return _svc().create_cluster(data)
+async def create_cluster(data: CreateClusterWithAuditRequest):
+    return _svc().create_cluster_with_audit(data)
 
 
 @router.patch("/clusters/{cluster_id}/status")
@@ -140,8 +144,8 @@ async def get_depot(depot_id: str):
 
 
 @router.post("/depots", status_code=201)
-async def create_depot(data: InsertDepotsMaster):
-    return _svc().create_depot(data)
+async def create_depot(data: CreateDepotWithAuditRequest):
+    return _svc().create_depot_with_audit(data)
 
 
 @router.patch("/depots/{depot_id}/status")
@@ -179,8 +183,8 @@ async def get_network_change_type(type_id: str):
 
 
 @router.post("/network-change-types", status_code=201)
-async def create_network_change_type(data: InsertNetworkChangeTypeMaster):
-    return _svc().create_network_change_type(data)
+async def create_network_change_type(data: CreateNetworkChangeTypeWithAuditRequest):
+    return _svc().create_network_change_type_with_audit(data)
 
 
 @router.patch("/network-change-types/{type_id}/status")

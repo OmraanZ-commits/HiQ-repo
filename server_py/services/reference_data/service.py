@@ -8,10 +8,15 @@ from server_py.models import (
     InsertDepotsMaster, UpdateDepotsMaster,
     InsertNetworkChangeTypeMaster, UpdateNetworkChangeTypeMaster,
     RefDataStatusUpdateRequest,
+    CreateChannelWithAuditRequest,
+    CreateClusterWithAuditRequest,
+    CreateDepotWithAuditRequest,
+    CreateNetworkChangeTypeWithAuditRequest,
 )
 from server_py.services.reference_data.storage import ReferenceDataStorage
 
 VALID_STATUSES = {"Active", "Inactive"}
+_AUDIT_EXCLUDE = {"attachmentFilename", "attachmentUrl", "changedByUserId", "notes"}
 
 
 class ReferenceDataService:
@@ -20,20 +25,23 @@ class ReferenceDataService:
     def __init__(self, storage: ReferenceDataStorage):
         self.storage = storage
 
-    # ── Validation helpers ───────────────────────────────────────
+    # ── Shared validation helpers ────────────────────────────────
 
-    def _validate_status_update(self, data: RefDataStatusUpdateRequest) -> dict:
-        """Validate admin role, status enum, and attachment presence. Returns acting user dict."""
-        if data.status not in VALID_STATUSES:
-            raise HTTPException(status_code=422, detail=f"status must be one of: {', '.join(VALID_STATUSES)}")
-        if not data.attachmentFilename or not data.attachmentFilename.strip():
+    def _validate_admin_and_attachment(self, user_id: str, filename: str) -> dict:
+        """Verify the user exists, has Admin role, and attachment is present. Returns user dict."""
+        if not filename or not filename.strip():
             raise HTTPException(status_code=422, detail="attachmentFilename is required (approved email attachment)")
-        user = self.storage.get_user_by_id(data.changedByUserId)
+        user = self.storage.get_user_by_id(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="changedByUserId not found")
         if user["role"] != "Admin":
-            raise HTTPException(status_code=403, detail="Only Admin-role users can modify reference data status")
+            raise HTTPException(status_code=403, detail="Only Admin-role users can modify reference data")
         return user
+
+    def _validate_status_update(self, data: RefDataStatusUpdateRequest) -> dict:
+        if data.status not in VALID_STATUSES:
+            raise HTTPException(status_code=422, detail=f"status must be one of: {', '.join(VALID_STATUSES)}")
+        return self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
 
     # ── Channels ────────────────────────────────────────────────
 
@@ -46,6 +54,25 @@ class ReferenceDataService:
     def create_channel(self, data: InsertChannelsMaster) -> dict:
         return self.storage.create_channel(data.model_dump())
 
+    def create_channel_with_audit(self, data: CreateChannelWithAuditRequest) -> dict:
+        user = self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
+        entity_data = {k: v for k, v in data.model_dump().items() if k not in _AUDIT_EXCLUDE}
+        created = self.storage.create_channel(entity_data)
+        self.storage.create_audit_entry(
+            entity_type="channel",
+            entity_id=created["id"],
+            entity_code=created.get("code"),
+            action="create",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=None,
+            new_status="Active" if data.isActive else "Inactive",
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return created
+
     def update_channel(self, channel_id: str, data: UpdateChannelsMaster) -> Optional[dict]:
         return self.storage.update_channel(channel_id, data.model_dump(exclude_unset=True))
 
@@ -55,8 +82,7 @@ class ReferenceDataService:
         if not existing:
             raise HTTPException(status_code=404, detail="Channel not found")
         old_status = "Active" if existing["isActive"] else "Inactive"
-        new_is_active = data.status == "Active"
-        updated = self.storage.update_channel_status(channel_id, new_is_active)
+        updated = self.storage.update_channel_status(channel_id, data.status == "Active")
         self.storage.create_audit_entry(
             entity_type="channel",
             entity_id=channel_id,
@@ -85,6 +111,25 @@ class ReferenceDataService:
 
     def create_cluster(self, data: InsertClustersMaster) -> dict:
         return self.storage.create_cluster(data.model_dump())
+
+    def create_cluster_with_audit(self, data: CreateClusterWithAuditRequest) -> dict:
+        user = self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
+        entity_data = {k: v for k, v in data.model_dump().items() if k not in _AUDIT_EXCLUDE}
+        created = self.storage.create_cluster(entity_data)
+        self.storage.create_audit_entry(
+            entity_type="cluster",
+            entity_id=created["id"],
+            entity_code=created.get("name"),
+            action="create",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=None,
+            new_status="Active" if data.isActive else "Inactive",
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return created
 
     def update_cluster(self, cluster_id: str, data: UpdateClustersMaster) -> Optional[dict]:
         return self.storage.update_cluster(cluster_id, data.model_dump(exclude_unset=True))
@@ -125,6 +170,25 @@ class ReferenceDataService:
     def create_depot(self, data: InsertDepotsMaster) -> dict:
         return self.storage.create_depot(data.model_dump())
 
+    def create_depot_with_audit(self, data: CreateDepotWithAuditRequest) -> dict:
+        user = self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
+        entity_data = {k: v for k, v in data.model_dump().items() if k not in _AUDIT_EXCLUDE}
+        created = self.storage.create_depot(entity_data)
+        self.storage.create_audit_entry(
+            entity_type="depot",
+            entity_id=created["id"],
+            entity_code=created.get("code"),
+            action="create",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=None,
+            new_status="Active" if data.isActive else "Inactive",
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return created
+
     def update_depot(self, depot_id: str, data: UpdateDepotsMaster) -> Optional[dict]:
         return self.storage.update_depot(depot_id, data.model_dump(exclude_unset=True))
 
@@ -164,6 +228,25 @@ class ReferenceDataService:
     def create_network_change_type(self, data: InsertNetworkChangeTypeMaster) -> dict:
         return self.storage.create_network_change_type(data.model_dump())
 
+    def create_network_change_type_with_audit(self, data: CreateNetworkChangeTypeWithAuditRequest) -> dict:
+        user = self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
+        entity_data = {k: v for k, v in data.model_dump().items() if k not in _AUDIT_EXCLUDE}
+        created = self.storage.create_network_change_type(entity_data)
+        self.storage.create_audit_entry(
+            entity_type="network_change_type",
+            entity_id=created["id"],
+            entity_code=created.get("code"),
+            action="create",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=None,
+            new_status="Active" if data.isActive else "Inactive",
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return created
+
     def update_network_change_type(self, type_id: str, data: UpdateNetworkChangeTypeMaster) -> Optional[dict]:
         return self.storage.update_network_change_type(type_id, data.model_dump(exclude_unset=True))
 
@@ -192,7 +275,7 @@ class ReferenceDataService:
     def delete_network_change_type(self, type_id: str) -> bool:
         return self.storage.delete_network_change_type(type_id)
 
-    # ── Seed ────────────────────────────────────────────────
+    # ── Seed (no audit — internal operation) ─────────────────────
 
     def seed_all(
         self,
@@ -207,22 +290,20 @@ class ReferenceDataService:
         if network_change_types:
             self.storage.seed_network_change_types(network_change_types)
 
-    # ── Geography-Depot Mapping ────────────────────────────────
+    # ── Geography-Depot Mapping ───────────────────────────────────
 
     def get_geography_depot_map(self) -> dict:
-        """Return the geography to depot mapping from seed data."""
         from server_py.seed_reference_data import GEOGRAPHY_DEPOT_MAP
         return GEOGRAPHY_DEPOT_MAP
 
-    # ── Audit Log ─────────────────────────────────────────────
+    # ── Audit Log ─────────────────────────────────────────────────
 
     def get_audit_log(self, entity_type: Optional[str] = None) -> List[dict]:
         return self.storage.get_audit_log(entity_type=entity_type)
 
-    # ── Aggregate (used by saga) ──────────────────────────────
+    # ── Aggregate ─────────────────────────────────────────────────
 
     def get_all_reference_data(self) -> dict:
-        """Return channels, clusters, depots, network change types and geography-depot map in a single call."""
         return {
             "channels": self.get_all_channels(),
             "clusters": self.get_all_clusters(),
