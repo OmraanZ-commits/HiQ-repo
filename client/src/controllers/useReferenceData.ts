@@ -104,6 +104,36 @@ const REFDATA_KEYS = {
   auditLog: ["/api/reference-data/audit-log"],
 };
 
+export interface CreateChannelPayload {
+  code: string;
+  name?: string;
+  type: string;
+  parentCode?: string;
+  isActive: boolean;
+}
+
+export interface CreateClusterPayload {
+  name: string;
+  region: string;
+  depotCount?: number;
+  stateIds?: string[];
+  isActive: boolean;
+}
+
+export interface CreateDepotPayload {
+  code: string;
+  name?: string;
+  clusterId?: string;
+  isActive: boolean;
+}
+
+export interface CreateNetworkChangeTypePayload {
+  code: string;
+  name: string;
+  category?: string;
+  isActive: boolean;
+}
+
 function invalidateAll() {
   Object.values(REFDATA_KEYS).forEach((key) =>
     queryClient.invalidateQueries({ queryKey: key })
@@ -179,6 +209,44 @@ export function useReferenceData() {
     onError: (err: Error) => toast({ title: "Status Update Failed", description: err.message, variant: "destructive" }),
   });
 
+  // ── Create mutations ─────────────────────────────────────────
+
+  const createChannel = useMutation<ChannelMaster, Error, CreateChannelPayload>({
+    mutationFn: async (payload) => {
+      const res = await apiRequest("POST", "/api/reference-data/channels", payload);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.channels }),
+    onError: (err: Error) => toast({ title: "Failed to Create Channel", description: err.message, variant: "destructive" }),
+  });
+
+  const createCluster = useMutation<ClusterMaster, Error, CreateClusterPayload>({
+    mutationFn: async (payload) => {
+      const res = await apiRequest("POST", "/api/reference-data/clusters", payload);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.clusters }),
+    onError: (err: Error) => toast({ title: "Failed to Create Cluster", description: err.message, variant: "destructive" }),
+  });
+
+  const createDepot = useMutation<DepotMaster, Error, CreateDepotPayload>({
+    mutationFn: async (payload) => {
+      const res = await apiRequest("POST", "/api/reference-data/depots", payload);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.depots }),
+    onError: (err: Error) => toast({ title: "Failed to Create Depot", description: err.message, variant: "destructive" }),
+  });
+
+  const createNetworkChangeType = useMutation<NetworkChangeTypeMaster, Error, CreateNetworkChangeTypePayload>({
+    mutationFn: async (payload) => {
+      const res = await apiRequest("POST", "/api/reference-data/network-change-types", payload);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: REFDATA_KEYS.networkChangeTypes }),
+    onError: (err: Error) => toast({ title: "Failed to Create Change Type", description: err.message, variant: "destructive" }),
+  });
+
   // ── Queries ──────────────────────────────────────────────────
 
   const channelsQuery = useQuery<ChannelMaster[]>({ queryKey: REFDATA_KEYS.channels, staleTime: Infinity });
@@ -232,5 +300,9 @@ export function useReferenceData() {
     updateClusterStatus,
     updateDepotStatus,
     updateNetworkChangeTypeStatus,
+    createChannel,
+    createCluster,
+    createDepot,
+    createNetworkChangeType,
   };
 }
