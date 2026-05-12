@@ -193,6 +193,15 @@ export function CbuDetailSection({ cbus, pendingSrs = [] }: { cbus: CbuSectionRe
 
                 {/* Status + summary chips — pushed right */}
                 <div className="flex items-center gap-2.5 ml-auto shrink-0 flex-wrap justify-end">
+                  {pendingSrs.some(sr => sr.cbuCode === cbu.cbuCode && sr.overallStatus === "pending") && (
+                    <span
+                      title="Pending amendment(s)"
+                      data-testid={`icon-pending-amendment-${cbu.id}`}
+                      className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-100 border border-amber-300"
+                    >
+                      <Clock className="h-3 w-3 text-amber-600" />
+                    </span>
+                  )}
                   {cbu.networkStatus && <NwStatusPill status={cbu.networkStatus} />}
 
                   <span
@@ -230,46 +239,6 @@ export function CbuDetailSection({ cbus, pendingSrs = [] }: { cbus: CbuSectionRe
               {/* ── Expanded panel ── */}
               {isOpen && (
                 <div className="px-5 pb-6 pt-4 bg-slate-50/40 border-t border-slate-100 space-y-5">
-
-                  {/* Pending Amendments */}
-                  {(() => {
-                    const matches = pendingSrs.filter(
-                      sr => sr.cbuCode === cbu.cbuCode && sr.overallStatus === "pending"
-                    );
-                    if (!matches.length) return null;
-                    return (
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <Clock className="h-3 w-3 text-amber-500" />
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">
-                            Pending Amendments ({matches.length})
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-amber-200 bg-amber-50/60 overflow-hidden divide-y divide-amber-100">
-                          {matches.map(sr => (
-                            <div key={sr.id} className="flex items-center gap-3 px-3 py-2.5">
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 ${SR_TYPE_COLOR[sr.srType] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}
-                                data-testid={`pending-sr-type-${sr.id}`}
-                              >
-                                {SR_TYPE_LABEL[sr.srType] ?? sr.srType}
-                              </span>
-                              <Link
-                                href={`/paid-bible/requests/${sr.id}`}
-                                className="font-mono text-[11px] text-[#1f36c7] hover:underline truncate flex-1"
-                                data-testid={`pending-sr-link-${sr.id}`}
-                              >
-                                {sr.id}
-                              </Link>
-                              <Badge className="bg-amber-100 text-amber-700 border border-amber-300 text-[10px] px-1.5 py-0 shrink-0 font-normal">
-                                Pending
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
 
                   {/* MSTN by Depot */}
                   <div>
