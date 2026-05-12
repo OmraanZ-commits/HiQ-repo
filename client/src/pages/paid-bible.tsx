@@ -1048,7 +1048,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
       (bpStatusFilter === "all" || effStatus === bpStatusFilter) &&
       (channelFilter  === "all" || b.channels.includes(channelFilter)) &&
       (locationFilter === "all" || b.clusters.includes(locationFilter)) &&
-      (mstnFilter     === "all" || b.mstnStatus === mstnFilter) &&
+      (mstnFilter === "all" || b.materials.some(m => m.mstnClear === mstnFilter)) &&
       (bgFilter       === "all" || b.bg === bgFilter) &&
       (!materialSearch || b.materials.some(m =>
         m.code.toLowerCase().includes(materialSearch.toLowerCase()) ||
@@ -1059,7 +1059,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
 
   const ACTIVE_BP_STATUSES = new Set(["Active Pack", "Seasonal Pack"]);
   const total       = allBasepacks.length;
-  const mstnYes     = allBasepacks.filter(b => b.mstnStatus === "Yes").length;
+  const mstnYes     = allBasepacks.filter(b => b.materials.some(m => m.mstnClear === "Yes") && !b.materials.some(m => m.mstnClear === "No")).length;
   const drafts      = allBasepacks.filter(b => (localBpStatus[b.id] ?? b.bpStatus) === "Draft").length;
   const activeCount = allBasepacks.filter(b => ACTIVE_BP_STATUSES.has(normalizeBpStatus(localBpStatus[b.id] ?? b.bpStatus))).length;
 
@@ -1386,13 +1386,13 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                 </Select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-medium">MSTN Status</label>
+                <label className="text-xs text-muted-foreground font-medium">MSTN Clearance</label>
                 <Select value={mstnFilter} onValueChange={setMstnFilter}>
-                  <SelectTrigger className="w-32" data-testid="select-mstn"><SelectValue placeholder="All" /></SelectTrigger>
+                  <SelectTrigger className="w-40" data-testid="select-mstn"><SelectValue placeholder="All" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="Yes">Yes</SelectItem>
-                    <SelectItem value="No">No</SelectItem>
+                    <SelectItem value="Yes">Cleared (CBU)</SelectItem>
+                    <SelectItem value="No">Not Cleared (CBU)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1476,7 +1476,16 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                           <ChannelsCell channels={bp.channels} />
                         </TableCell>
 
-                        <TableCell className="py-3"><MstnBadge status={bp.mstnStatus} /></TableCell>
+                        <TableCell className="py-3">
+                          {(() => {
+                            const cbuClear: "Yes" | "No" | null =
+                              bp.materials.some(m => m.mstnClear === "No")  ? "No"  :
+                              bp.materials.some(m => m.mstnClear === "Yes") ? "Yes" : null;
+                            return cbuClear != null
+                              ? <MstnBadge status={cbuClear} />
+                              : <span className="text-xs text-muted-foreground">—</span>;
+                          })()}
+                        </TableCell>
 
                         <TableCell className="py-3" onClick={e => e.stopPropagation()}>
                           {isEditing ? (
