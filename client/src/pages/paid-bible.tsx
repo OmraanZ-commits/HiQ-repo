@@ -254,6 +254,156 @@ const TRIGGER_DEFS = [
 ] as const;
 
 
+// ─── Materials Sub-Table ──────────────────────────────────────────────────────
+
+function MaterialsSubTable({
+  bpId,
+  materials,
+  navigate,
+}: {
+  bpId: string;
+  materials: PbMaterial[];
+  navigate: (path: string) => void;
+}) {
+  const [expandedMat, setExpandedMat] = useState<string | null>(null);
+
+  return (
+    <div className="rounded-lg border overflow-hidden bg-white shadow-sm">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50">
+            <TableHead className="text-xs font-semibold py-3 px-2 w-7" />
+            <TableHead className="text-xs font-semibold py-3 px-4">CBU Code</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4">Description</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 min-w-[160px]">NW Status</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">NW Change Date</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">MSTN Clear</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Predecessor CBU DOH</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 w-16" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {materials.map((m, idx) => {
+            const depotEntries = Object.entries(m.mstnByDepot ?? {});
+            const hasDepots = depotEntries.length > 0;
+            const isExpanded = expandedMat === m.id;
+            return (
+              <Fragment key={m.id}>
+                <TableRow
+                  data-testid={`mat-row-${bpId}-${idx}`}
+                  className={`hover:bg-muted/30 ${hasDepots ? "cursor-pointer" : ""} ${isExpanded ? "bg-muted/20" : ""}`}
+                  onClick={() => hasDepots && setExpandedMat(isExpanded ? null : m.id)}
+                >
+                  <TableCell className="py-3 px-2 w-7">
+                    {hasDepots
+                      ? isExpanded
+                        ? <ChevronDown className="h-3.5 w-3.5 text-[#1f36c7]" />
+                        : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      : null}
+                  </TableCell>
+                  <TableCell className="text-sm font-mono font-semibold text-blue-600 py-3 px-4 whitespace-nowrap">{m.code}</TableCell>
+                  <TableCell className="text-sm py-3 px-4 max-w-56 truncate" title={m.description}>{m.description}</TableCell>
+                  <TableCell className="py-3 px-4"><NwStatusBadge status={m.networkStatus} /></TableCell>
+                  <TableCell className="py-3 px-4"><MatStatusBadge status={m.matStatus} /></TableCell>
+                  <TableCell className="text-sm py-3 px-4 text-muted-foreground whitespace-nowrap">{m.typeOfNetwork}</TableCell>
+                  <TableCell className="py-3 px-4 whitespace-nowrap">
+                    {m.mstnPct != null ? (
+                      <span className={`text-sm font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>
+                        {m.mstnPct}%
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-3 px-4 whitespace-nowrap" data-testid={`nw-change-date-${m.id}`}>
+                    {m.typeOfNetworkCode === "NEW_LAUNCH" && m.networkChangeDate
+                      ? <span className="text-sm font-medium">{formatDateDisplay(m.networkChangeDate)}</span>
+                      : <span className="text-sm text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="py-3 px-4" data-testid={`mstn-clear-${m.id}`}>
+                    {m.typeOfNetworkCode === "NEW_LAUNCH"
+                      ? <MstnBadge status={m.mstnClear!} />
+                      : <span className="text-sm text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="py-3 px-4 whitespace-nowrap text-center">
+                    {m.predecessorDoh != null ? (
+                      <span className="inline-flex items-center justify-center gap-1.5">
+                        <span className="text-sm text-muted-foreground">{m.predecessorDoh}</span>
+                        {m.slobRisk && (
+                          <span title="SLOB Risk" aria-label="SLOB Risk" data-testid={`icon-slob-risk-${m.id}`}>
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 cursor-help" />
+                          </span>
+                        )}
+                      </span>
+                    ) : <span className="text-sm text-muted-foreground">-</span>}
+                  </TableCell>
+                  <TableCell className="py-3 px-4">
+                    <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
+                      {m.priceActive ? "Yes" : "No"}
+                    </span>
+                  </TableCell>
+                  <TableCell className={`text-sm font-medium py-3 px-4 whitespace-nowrap ${m.priceEnd === "-" ? "text-muted-foreground" : "text-slate-700"}`}>
+                    {m.priceEnd}
+                  </TableCell>
+                  <TableCell className="py-3 px-4" onClick={e => e.stopPropagation()}>
+                    <Button
+                      size="sm" variant="ghost"
+                      className="h-7 text-xs text-[#1f36c7] hover:text-[#1f36c7] hover:bg-[#1f36c7]/10 px-2"
+                      onClick={() => navigate(`/edit/${m.id}?source=paid-bible&cbuStatus=${encodeURIComponent(m.matStatus || "")}`)}
+                      data-testid={`btn-view-cbu-${m.id}`}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+
+                {isExpanded && hasDepots && (
+                  <TableRow data-testid={`mat-depot-breakdown-${m.id}`}>
+                    <TableCell colSpan={13} className="p-0 bg-slate-50/80 border-t border-dashed">
+                      <div className="px-6 py-3.5">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
+                          DC-wise MSTN levels
+                        </p>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                          {depotEntries
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([depot, pct]) => (
+                              <div
+                                key={depot}
+                                className={`flex flex-col gap-1 rounded-md px-2.5 py-2 border ${pct >= 80 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}
+                                data-testid={`mat-depot-${m.id}-${depot}`}
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-mono text-xs font-medium text-slate-700 truncate">{depot}</span>
+                                  <span className={`text-xs font-bold flex-shrink-0 ${pct >= 80 ? "text-emerald-700" : "text-red-600"}`}>{pct}%</span>
+                                </div>
+                                <div className="h-1 rounded-full bg-white/60 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : "bg-red-400"}`}
+                                    style={{ width: `${Math.min(pct, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 // ─── Badge Components ─────────────────────────────────────────────────────────
 
 function MatStatusBadge({ status }: { status: string }) {
@@ -804,11 +954,11 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
           const ns = e.networkStatus ?? "Draft";
           const atThreshold = MSTN_THRESHOLD_STATUSES.has(ns);
 
-          const mstnPct: number | null = atThreshold
-            ? (e.mstnPercentage != null
-                ? e.mstnPercentage
-                : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10)
-            : null;
+          const mstnPct: number | null = e.mstnPercentage != null
+            ? e.mstnPercentage
+            : atThreshold
+              ? ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10
+              : null;
 
           const priceExpired = e.endDate ? new Date(e.endDate) < new Date() : false;
           const matStatus = deriveMatStatus(ns, e.endDate);
@@ -1321,82 +1471,11 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                               )}
 
                               {expandedTab === "materials" && (
-                              <div className="rounded-lg border overflow-hidden bg-white shadow-sm">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow className="bg-muted/50">
-                                      <TableHead className="text-xs font-semibold py-3 px-4">CBU Code</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">Description</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 min-w-[160px]">NW Status</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">NW Change Date</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">MSTN Clear</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Predecessor CBU DOH</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
-                                      <TableHead className="text-xs font-semibold py-3 px-4 w-16"></TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {bp.materials.map((m, idx) => (
-                                      <TableRow key={m.id} data-testid={`mat-row-${bp.id}-${idx}`} className="hover:bg-muted/30">
-                                        <TableCell className="text-sm font-mono font-semibold text-blue-600 py-3 px-4 whitespace-nowrap">{m.code}</TableCell>
-                                        <TableCell className="text-sm py-3 px-4 max-w-56 truncate" title={m.description}>{m.description}</TableCell>
-                                        <TableCell className="py-3 px-4"><NwStatusBadge status={m.networkStatus} /></TableCell>
-                                        <TableCell className="py-3 px-4"><MatStatusBadge status={m.matStatus} /></TableCell>
-                                        <TableCell className="text-sm py-3 px-4 text-muted-foreground whitespace-nowrap">{m.typeOfNetwork}</TableCell>
-                                        <TableCell className="py-3 px-4 whitespace-nowrap">
-                                          {m.mstnPct != null ? (
-                                            <span className={`text-sm font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>
-                                              {m.mstnPct}%
-                                            </span>
-                                          ) : (
-                                            <span className="text-sm text-muted-foreground">—</span>
-                                          )}
-                                        </TableCell>
-
-                                        <TableCell className="py-3 px-4 whitespace-nowrap" data-testid={`nw-change-date-${m.id}`}>
-                                          {m.typeOfNetworkCode === "NEW_LAUNCH" && m.networkChangeDate
-                                            ? <span className="text-sm font-medium">{formatDateDisplay(m.networkChangeDate)}</span>
-                                            : <span className="text-sm text-muted-foreground">—</span>}
-                                        </TableCell>
-
-                                        <TableCell className="py-3 px-4" data-testid={`mstn-clear-${m.id}`}>
-                                          {m.typeOfNetworkCode === "NEW_LAUNCH"
-                                            ? <MstnBadge status={m.mstnClear!} />
-                                            : <span className="text-sm text-muted-foreground">—</span>}
-                                        </TableCell>
-
-                                        <TableCell className="py-3 px-4 whitespace-nowrap text-center">
-                                          {m.predecessorDoh != null ? (
-                                            <span className="inline-flex items-center justify-center gap-1.5">
-                                              <span className="text-sm text-muted-foreground">{m.predecessorDoh}</span>
-                                              {m.slobRisk && (
-                                                <span title="SLOB Risk" aria-label="SLOB Risk" data-testid={`icon-slob-risk-${m.id}`}>
-                                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 cursor-help" />
-                                                </span>
-                                              )}
-                                            </span>
-                                          ) : <span className="text-sm text-muted-foreground">-</span>}
-                                        </TableCell>
-                                        <TableCell className="py-3 px-4">
-                                          <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>{m.priceActive ? "Yes" : "No"}</span>
-                                        </TableCell>
-                                        <TableCell className={`text-sm font-medium py-3 px-4 whitespace-nowrap ${m.priceEnd === "-" ? "text-muted-foreground" : "text-slate-700"}`}>
-                                          {m.priceEnd}
-                                        </TableCell>
-                                        <TableCell className="py-3 px-4">
-                                          <Button size="sm" variant="ghost" className="h-7 text-xs text-[#1f36c7] hover:text-[#1f36c7] hover:bg-[#1f36c7]/10 px-2" onClick={() => navigate(`/edit/${m.id}?source=paid-bible&cbuStatus=${encodeURIComponent(m.matStatus || "")}`)} data-testid={`btn-view-cbu-${m.id}`}>
-                                            <Eye className="h-3.5 w-3.5" />
-                                          </Button>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </div>
+                                <MaterialsSubTable
+                                  bpId={bp.id}
+                                  materials={bp.materials}
+                                  navigate={navigate}
+                                />
                               )}
                             </div>
                           </TableCell>
