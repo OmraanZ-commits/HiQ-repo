@@ -307,6 +307,10 @@ SEEDS = [
             "PUNJAB-HARYANA-HILLS": ["GT", "RD", "MT", "MT Retail"],
             "MUMBAI-PUNE": ["GT", "RD", "KA", "MT", "MT Retail", "Ecom", "Qcom"],
         },
+        mstnPercentage=26,
+        mstnByDepot={"DLGH": 18, "VABH": 22, "PATH": 31, "KOPH": 25, "RJ2H": 20, "INDH": 33, "JPRH": 28, "MMDH": 29},
+        slobRisk=True,
+        predecessorDoh=22,
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2025-08-10",
