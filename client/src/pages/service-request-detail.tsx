@@ -415,7 +415,14 @@ export default function ServiceRequestDetailPage() {
             {/* ── CBU Detail section ── */}
             {relevantCbus.length > 0 && (
               <div className="pt-2">
-                <CbuDetailSection cbus={relevantCbus} />
+                <CbuDetailSection
+                  cbus={relevantCbus}
+                  pendingSrs={requests.filter(r =>
+                    (CBU_SR_TYPES as readonly string[]).includes(r.srType) &&
+                    r.overallStatus === "pending" &&
+                    r.cbuCode === request.cbuCode
+                  )}
+                />
               </div>
             )}
 

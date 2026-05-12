@@ -259,7 +259,7 @@ export function CbuDetailSection({ cbus, pendingSrs = [] }: { cbus: CbuSectionRe
                                 className="font-mono text-[11px] text-[#1f36c7] hover:underline truncate flex-1"
                                 data-testid={`pending-sr-link-${sr.id}`}
                               >
-                                {sr.id.slice(0, 8)}…
+                                {sr.id}
                               </Link>
                               <Badge className="bg-amber-100 text-amber-700 border border-amber-300 text-[10px] px-1.5 py-0 shrink-0 font-normal">
                                 Pending

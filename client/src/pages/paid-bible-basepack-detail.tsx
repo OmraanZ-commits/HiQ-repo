@@ -13,8 +13,9 @@ import {
   History, ChevronRight, ChevronDown, AlertCircle, BarChart2,
   TrendingUp, ShieldCheck, Zap, Tag,
 } from "lucide-react";
-import { CbuDetailSection } from "@/components/basepack-cbu-sections";
+import { CbuDetailSection, type PendingSrRef } from "@/components/basepack-cbu-sections";
 import { SrStatusBadge } from "@/components/sr-detail-components";
+import { useSrStore, CBU_SR_TYPES } from "@/lib/sr-store";
 
 // ─── Domain Interfaces ────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ function KpiCard({ item }: { item: KpiItem }) {
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ profile }: { profile: BasepakProfile }) {
+function OverviewTab({ profile, pendingSrs }: { profile: BasepakProfile; pendingSrs: PendingSrRef[] }) {
   const mstnPct = profile.mstnCoverage ?? 0;
 
   const kpis: KpiItem[] = [
@@ -280,7 +281,7 @@ function OverviewTab({ profile }: { profile: BasepakProfile }) {
       )}
 
       {/* CBU Detail — MSTN by Depot + Price Lots */}
-      <CbuDetailSection cbus={profile.cbus ?? []} pendingSrs={profile.linkedSrs} />
+      <CbuDetailSection cbus={profile.cbus ?? []} pendingSrs={pendingSrs} />
     </div>
   );
 }
@@ -587,6 +588,7 @@ export default function BasepakDetailPage() {
   const { bpCode } = useParams<{ bpCode: string }>();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const { requests: allSrRequests } = useSrStore();
 
   const { data: profile, isLoading: profileLoading } = useQuery<BasepakProfile>({
     queryKey: ["/api/paid-bible/basepacks", bpCode],
@@ -746,7 +748,7 @@ export default function BasepakDetailPage() {
             </div>
 
             {/* ── Tab Content ── */}
-            {activeTab === "overview"         && <OverviewTab profile={profile} />}
+            {activeTab === "overview"         && <OverviewTab profile={profile} pendingSrs={allSrRequests.filter(r => (CBU_SR_TYPES as readonly string[]).includes(r.srType) && r.overallStatus === "pending" && r.basepackCode === bpCode)} />}
             {activeTab === "cbus"             && <CbusTab cbus={profile.cbus ?? []} />}
             {activeTab === "service-requests" && <ServiceRequestsTab srs={profile.linkedSrs ?? []} />}
             {activeTab === "history"          && (
