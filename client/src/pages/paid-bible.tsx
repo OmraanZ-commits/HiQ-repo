@@ -25,7 +25,7 @@ import {
   Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock,
   Search, Filter, ChevronRight, ChevronDown, FileText,
   Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, Eye,
-  ShieldCheck, ShieldAlert, Send, ListChecks,
+  ShieldCheck, ShieldAlert, Send, ListChecks, BadgeCheck, BadgeX,
   TrendingUp, TrendingDown, ArrowUp, ArrowDown, Activity, AlertCircle, RotateCcw,
   History, GitCommit, ArrowRightLeft, Globe, Waypoints, Shuffle,
   CalendarCheck, CalendarX, Archive,
@@ -455,25 +455,23 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
 
         {/* Criteria Summary Card */}
         <div className="mt-2">
-          <div className={`rounded-xl border px-5 py-4 flex items-center gap-4 ${mstnPassed ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
-            <div className={`flex-shrink-0 rounded-full p-2.5 ${mstnPassed ? "bg-emerald-100" : "bg-red-100"}`}>
-              {mstnPassed
-                ? <ShieldCheck className="h-6 w-6 text-emerald-600" />
-                : <ShieldAlert className="h-6 w-6 text-red-500" />
-              }
-            </div>
+          <div className={`rounded-lg border-l-4 bg-slate-50 border border-slate-200 px-4 py-3.5 flex items-center gap-3.5 ${mstnPassed ? "border-l-emerald-500" : "border-l-red-500"}`}>
+            {mstnPassed
+              ? <BadgeCheck className="h-6 w-6 text-emerald-600 flex-shrink-0" />
+              : <BadgeX className="h-6 w-6 text-red-500 flex-shrink-0" />
+            }
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-semibold leading-snug ${mstnPassed ? "text-emerald-800" : "text-red-700"}`}>
+              <p className="text-sm font-semibold text-slate-800 leading-snug">
                 {mstnPassed ? "MSTN Check cleared for all CBUs" : "MSTN clearance criteria not met for all CBUs"}
               </p>
               {checkMocLabel && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Initiated in <span className="font-medium text-foreground">{checkMocLabel}</span>
+                  Initiated in <span className="font-medium text-slate-700">{checkMocLabel}</span>
                 </p>
               )}
             </div>
             {checkMocLabel && (
-              <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${mstnPassed ? "bg-emerald-100 border-emerald-300 text-emerald-700" : "bg-red-100 border-red-300 text-red-600"}`}>
+              <span className="flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 border border-slate-300 text-slate-600">
                 {checkMocLabel}
               </span>
             )}
@@ -481,10 +479,10 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
         </div>
 
         {/* Verdict Banner */}
-        <div className={`rounded-lg p-3 flex items-center gap-2.5 ${criteriaMet ? "bg-emerald-50 border border-emerald-200" : "bg-amber-50 border border-amber-200"}`}>
+        <div className="rounded-lg p-3 flex items-center gap-2.5 bg-slate-50 border border-slate-200">
           {criteriaMet
-            ? <><ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" /><p className="text-sm font-medium text-emerald-800">All criteria met — NCSM approval only required.</p></>
-            : <><AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" /><p className="text-sm font-medium text-amber-800">Criteria not fully met — all 4 approvals required (Network Planner → Supply Planner → Distribution Planner → NCSM).</p></>
+            ? <><CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" /><p className="text-sm font-medium text-slate-700">All criteria met — NCSM approval only required.</p></>
+            : <><AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" /><p className="text-sm font-medium text-slate-700">Criteria not fully met — all 4 approvals required (Network Planner → Supply Planner → Distribution Planner → NCSM).</p></>
           }
         </div>
 
