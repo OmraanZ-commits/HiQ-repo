@@ -985,7 +985,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
             mstnPct,
             networkChangeDate: e.networkChangeDate ?? null,
             mstnByDepot:       (e as any).mstnByDepot ?? {},
-            mstnClear: (e.typeOfNetwork === "NEW_LAUNCH" || (e.typeOfNetwork ?? "").startsWith("RL_"))
+            mstnClear: e.typeOfNetwork === "NEW_LAUNCH"
               ? computeMstnClear([{ mstnByDepot: (e as any).mstnByDepot ?? {} }])
               : null,
           };
