@@ -738,6 +738,8 @@ SEEDS = [
             "RAJASTHAN": ["GT"],
             "MADHYA PRADESH": ["GT", "Ecom"],
         },
+        mstnPercentage=54,
+        mstnByDepot={"DLGH": 45, "VABH": 62, "RJ2H": 38, "INDH": 71},
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2026-02-05",

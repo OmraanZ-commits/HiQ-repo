@@ -1064,6 +1064,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
   }, [allBasepacks]);
 
   const [triggerDialog, setTriggerDialog] = useState<string | null>(null);
+  const [expandedMstnCbu, setExpandedMstnCbu] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
     if (expandedId !== id) setExpandedTab("materials");
@@ -1150,8 +1151,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
         </div>
       </div>
 
-      {/* Trigger detail dialog */}
-      {TRIGGER_DEFS.map(t => {
+      {/* Trigger detail dialog — price-inactive & slob-risk */}
+      {TRIGGER_DEFS.filter(t => t.id !== "mstn-check").map(t => {
         const cbus = triggerCbus[t.id];
         return (
           <Dialog key={t.id} open={triggerDialog === t.id} onOpenChange={o => !o && setTriggerDialog(null)}>
@@ -1177,12 +1178,6 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                         <TableHead className="text-xs font-semibold text-center">Successor DOH</TableHead>
                         <TableHead className="text-xs font-semibold text-center">Last Updated</TableHead>
                       </>}
-                      {t.id === "mstn-check" && <>
-                        <TableHead className="text-xs font-semibold">NW Status</TableHead>
-                        <TableHead className="text-xs font-semibold text-center">MSTN %</TableHead>
-                        <TableHead className="text-xs font-semibold">NW Change Date</TableHead>
-                        <TableHead className="text-xs font-semibold text-center">MSTN Clear</TableHead>
-                      </>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1203,20 +1198,6 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                             {new Date(m.dohSnapshotDate ?? Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                           </TableCell>
                         </>}
-                        {t.id === "mstn-check" && <>
-                          <TableCell className="text-xs text-muted-foreground">{m.networkStatus}</TableCell>
-                          <TableCell className="text-xs text-center">
-                            {m.mstnPct != null
-                              ? <span className={`font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>{m.mstnPct}%</span>
-                              : <span className="text-muted-foreground">—</span>}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {m.networkChangeDate ? formatDateDisplay(m.networkChangeDate) : "—"}
-                          </TableCell>
-                          <TableCell className="text-xs text-center">
-                            {m.mstnClear ? <MstnBadge status={m.mstnClear} /> : <span className="text-muted-foreground">—</span>}
-                          </TableCell>
-                        </>}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1226,6 +1207,107 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
           </Dialog>
         );
       })}
+
+      {/* MSTN Clearance Pending dialog — with per-CBU DC-level bar chart expand */}
+      {(() => {
+        const mstnDef = TRIGGER_DEFS.find(t => t.id === "mstn-check")!;
+        const cbus = triggerCbus["mstn-check"];
+        return (
+          <Dialog open={triggerDialog === "mstn-check"} onOpenChange={o => { if (!o) { setTriggerDialog(null); setExpandedMstnCbu(null); } }}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{mstnDef.name}</DialogTitle>
+                <DialogDescription>{mstnDef.rule}</DialogDescription>
+              </DialogHeader>
+              <div className="overflow-auto max-h-[60vh]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-7" />
+                      <TableHead className="text-xs font-semibold">CBU Code</TableHead>
+                      <TableHead className="text-xs font-semibold">Description</TableHead>
+                      <TableHead className="text-xs font-semibold">Mat. Status</TableHead>
+                      <TableHead className="text-xs font-semibold">NW Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-center">MSTN %</TableHead>
+                      <TableHead className="text-xs font-semibold">NW Change Date</TableHead>
+                      <TableHead className="text-xs font-semibold text-center">MSTN Clear</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cbus.map(m => {
+                      const depotEntries = Object.entries(m.mstnByDepot ?? {})
+                        .sort(([, a], [, b]) => a - b);
+                      const hasDepots = depotEntries.length > 0;
+                      const isExpanded = expandedMstnCbu === m.id;
+                      return (
+                        <Fragment key={m.id}>
+                          <TableRow
+                            className={`${hasDepots ? "cursor-pointer hover:bg-muted/30" : ""} ${isExpanded ? "bg-muted/20" : ""}`}
+                            onClick={() => hasDepots && setExpandedMstnCbu(isExpanded ? null : m.id)}
+                          >
+                            <TableCell className="w-7 py-3 px-2">
+                              {hasDepots
+                                ? isExpanded
+                                  ? <ChevronDown className="h-3.5 w-3.5 text-blue-500" />
+                                  : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                : null}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono font-semibold text-blue-600">{m.code}</TableCell>
+                            <TableCell className="text-xs max-w-48 truncate" title={m.description}>{m.description}</TableCell>
+                            <TableCell className="text-xs"><MatStatusBadge status={m.matStatus} /></TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{m.networkStatus}</TableCell>
+                            <TableCell className="text-xs text-center">
+                              {m.mstnPct != null
+                                ? <span className={`font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>{m.mstnPct}%</span>
+                                : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {m.networkChangeDate ? formatDateDisplay(m.networkChangeDate) : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs text-center">
+                              {m.mstnClear ? <MstnBadge status={m.mstnClear} /> : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && hasDepots && (
+                            <TableRow className="bg-muted/10 hover:bg-muted/10">
+                              <TableCell colSpan={8} className="px-6 py-4">
+                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                                  DC-wise MSTN — {m.code}
+                                </p>
+                                <div className="space-y-2">
+                                  {depotEntries.map(([depot, pct]) => (
+                                    <div key={depot} className="flex items-center gap-3">
+                                      <span className="text-[11px] font-mono text-muted-foreground w-12 shrink-0 text-right">{depot}</span>
+                                      <div className="flex-1 h-5 bg-muted/40 rounded-full overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-500"}`}
+                                          style={{ width: `${Math.min(pct, 100)}%` }}
+                                        />
+                                      </div>
+                                      <span className={`text-[11px] font-semibold w-10 shrink-0 ${pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-red-500"}`}>
+                                        {pct}%
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="flex items-center gap-4 mt-3 pt-2 border-t text-[10px] text-muted-foreground">
+                                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />≥ 80% cleared</span>
+                                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />50–79% partial</span>
+                                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />{"< 50% critical"}</span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       {/* Search + Filter bar */}
       <Card>
