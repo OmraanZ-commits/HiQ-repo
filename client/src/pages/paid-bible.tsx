@@ -759,10 +759,24 @@ function srSummary(sr: ServiceRequest): string {
     return sr.targetStatus ? `Status change requested → ${sr.targetStatus}` : "Basepack activation requested";
   }
   if (sr.srType === "geo-extension") {
-    const geos  = sr.addedGeos?.length ?? 0;
-    const depot = sr.addedDepots?.length ?? 0;
-    const cbu   = sr.cbuCode ?? sr.cbuId ?? "CBU";
-    return `${cbu} — ${geos > 0 ? `${geos} geograph${geos === 1 ? "y" : "ies"}` : ""}${geos > 0 && depot > 0 ? " + " : ""}${depot > 0 ? `${depot} depot${depot === 1 ? "" : "s"}` : ""} added`;
+    const geos   = sr.addedGeos?.length ?? 0;
+    const depot  = sr.addedDepots?.length ?? 0;
+    const rmvGeo = sr.removedGeos?.length ?? 0;
+    const rmvDep = sr.removedDepots?.length ?? 0;
+    const cbu    = sr.cbuCode ?? sr.cbuId ?? "CBU";
+    const addPart = [
+      geos > 0  ? `${geos} geo${geos === 1 ? "" : "s"}`     : "",
+      depot > 0 ? `${depot} depot${depot === 1 ? "" : "s"}` : "",
+    ].filter(Boolean).join(" + ");
+    const rmvPart = [
+      rmvGeo > 0 ? `${rmvGeo} geo${rmvGeo === 1 ? "" : "s"}`    : "",
+      rmvDep > 0 ? `${rmvDep} depot${rmvDep === 1 ? "" : "s"}`  : "",
+    ].filter(Boolean).join(" + ");
+    const parts = [
+      addPart ? `${addPart} added`   : "",
+      rmvPart ? `${rmvPart} removed` : "",
+    ].filter(Boolean).join("; ");
+    return `${cbu} — ${parts || "geo change"}`;
   }
   if (sr.srType === "channel-extension") {
     const n   = sr.addedChannels?.length ?? 0;

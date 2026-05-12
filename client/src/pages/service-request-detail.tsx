@@ -244,13 +244,22 @@ export default function ServiceRequestDetailPage() {
                             <span>Depots Removed</span>
                           </div>
                           <div className="divide-y divide-red-100">
-                            {(request.removedGeos?.length ?? 0) > 0
-                              ? request.removedGeos!.map(geo => {
-                                  const refDepots    = geoDepotMap?.[geo] ?? [];
-                                  const allRemoved   = request.removedDepots ?? [];
-                                  const matched = allRemoved.filter(d => refDepots.includes(d));
-                                  const depots  = matched.length > 0 ? matched : allRemoved;
-                                  return (
+                            {(() => {
+                              const allRemovedDepots = request.removedDepots ?? [];
+                              const removedGeoList   = request.removedGeos ?? [];
+                              // For each removed geo, find which removed depots belong to it
+                              const geoDepotPairs = removedGeoList.map(geo => {
+                                const refDepots = geoDepotMap?.[geo] ?? [];
+                                const matched   = allRemovedDepots.filter(d => refDepots.includes(d));
+                                return { geo, depots: matched };
+                              });
+                              // Depots not covered by any removed geo (retained-geo depot removals)
+                              const coveredDepots  = new Set(geoDepotPairs.flatMap(p => p.depots));
+                              const unmatchedDepots = allRemovedDepots.filter(d => !coveredDepots.has(d));
+                              return (
+                                <>
+                                  {/* Per-geo rows (whole geo removed) */}
+                                  {geoDepotPairs.map(({ geo, depots }) => (
                                     <div
                                       key={geo}
                                       className="grid grid-cols-[1fr_1fr] items-center px-5 py-3"
@@ -270,20 +279,24 @@ export default function ServiceRequestDetailPage() {
                                         )}
                                       </div>
                                     </div>
-                                  );
-                                })
-                              : (
-                                /* Depot-only removal: no full geo removed, show flat depot list */
-                                <div className="grid grid-cols-[1fr_1fr] items-start px-5 py-3" data-testid="geo-depot-only-removal-row">
-                                  <span className="text-xs text-muted-foreground italic">Depot-level only</span>
-                                  <div className="flex flex-wrap gap-1.5" data-testid="removed-depots-flat">
-                                    {(request.removedDepots ?? []).map(d => (
-                                      <Badge key={d} className="text-xs font-mono bg-red-50 text-red-600 border-red-200 line-through" data-testid={`badge-removed-depot-${d}`}>{d}</Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )
-                            }
+                                  ))}
+                                  {/* Depot-only row: depots removed from retained geos */}
+                                  {unmatchedDepots.length > 0 && (
+                                    <div
+                                      className="grid grid-cols-[1fr_1fr] items-start px-5 py-3"
+                                      data-testid="geo-depot-only-removal-row"
+                                    >
+                                      <span className="text-xs text-muted-foreground italic">Depot-level only</span>
+                                      <div className="flex flex-wrap gap-1.5" data-testid="removed-depots-flat">
+                                        {unmatchedDepots.map(d => (
+                                          <Badge key={d} className="text-xs font-mono bg-red-50 text-red-600 border-red-200 line-through" data-testid={`badge-removed-depot-${d}`}>{d}</Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       )}
