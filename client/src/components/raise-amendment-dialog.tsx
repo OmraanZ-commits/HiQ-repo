@@ -257,6 +257,7 @@ function GeoEditor({
 
   return (
     <div className="space-y-3">
+      <SelectionLegend showRemoving={rmvGeoCount > 0 || rmvDepotCount > 0} />
       {/* Header counters */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
@@ -472,7 +473,7 @@ function ChannelEditor({ leafChannels, currentChannels, addedChannels, setAddedC
 
   return (
     <div className="space-y-4">
-      <SelectionLegend showRemoving={rmvGeoCount > 0 || rmvDepotCount > 0} />
+      <SelectionLegend />
       {groups.map(g => (
         <div key={g.label}>
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
