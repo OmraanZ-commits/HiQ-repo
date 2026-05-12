@@ -954,11 +954,11 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
           const ns = e.networkStatus ?? "Draft";
           const atThreshold = MSTN_THRESHOLD_STATUSES.has(ns);
 
-          const mstnPct: number | null = e.mstnPercentage != null
-            ? e.mstnPercentage
-            : atThreshold
-              ? ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10
-              : null;
+          const mstnPct: number | null = atThreshold
+            ? (e.mstnPercentage != null
+                ? e.mstnPercentage
+                : ((e.cbuCode || "X").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 60) + 10)
+            : null;
 
           const priceExpired = e.endDate ? new Date(e.endDate) < new Date() : false;
           const matStatus = deriveMatStatus(ns, e.endDate);
