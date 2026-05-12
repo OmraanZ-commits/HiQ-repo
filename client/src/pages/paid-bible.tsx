@@ -1280,7 +1280,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                                   {depotEntries.map(([depot, pct]) => (
                                     <div key={depot} className="flex items-center gap-3">
                                       <span className="text-[11px] font-mono text-muted-foreground w-12 shrink-0 text-right">{depot}</span>
-                                      <div className="flex-1 h-5 bg-muted/40 rounded-full overflow-hidden">
+                                      <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
                                         <div
                                           className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-500"}`}
                                           style={{ width: `${Math.min(pct, 100)}%` }}
