@@ -199,6 +199,36 @@ class PaidBibleStorage:
         finally:
             db.close()
 
+    def overwrite_activation_date(self, bp_code: str, date: str) -> dict:
+        """
+        Unconditionally overwrites the activation_date for a basepack.
+        Called every time a basepack-status-change SR targeting 'Active Pack'
+        reaches fully-approved status — regardless of any prior value.
+        """
+        db = SessionLocal()
+        try:
+            row = db.query(BasepakLifecycleDateModel).filter(
+                BasepakLifecycleDateModel.bp_code == bp_code
+            ).first()
+            now = datetime.now(timezone.utc)
+            if row:
+                row.activation_date = date
+                row.updated_at = now
+            else:
+                row = BasepakLifecycleDateModel(
+                    bp_code=bp_code,
+                    activation_date=date,
+                    inactive_date=None,
+                    delist_date=None,
+                    updated_at=now,
+                )
+                db.add(row)
+            db.commit()
+            db.refresh(row)
+            return _lifecycle_row_to_dict(row)
+        finally:
+            db.close()
+
     # ── Status History ────────────────────────────────────────────────────────
 
     def get_status_history(self, bp_code: str) -> List[dict]:

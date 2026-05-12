@@ -258,18 +258,18 @@ class PaidBibleService:
         )
 
     def apply_status_change_dates(self, bp_code: str, target_status: str, effective_date: str) -> dict:
-        activation_date = None
+        if target_status == "Active Pack":
+            # Always overwrite — every re-activation must stamp the new date.
+            return self.storage.overwrite_activation_date(bp_code, effective_date)
+
         inactive_date = None
         delist_date = None
-
-        if target_status == "Active Pack":
-            activation_date = effective_date
-        elif target_status == "Inactive Pack":
+        if target_status == "Inactive Pack":
             inactive_date = effective_date
         elif target_status in ("Delisted Packs", "Stock Base Delisted"):
             delist_date = effective_date
 
-        return self.upsert_lifecycle_date(bp_code, activation_date, inactive_date, delist_date)
+        return self.upsert_lifecycle_date(bp_code, None, inactive_date, delist_date)
 
     # ── Status History ────────────────────────────────────────────────────────
 

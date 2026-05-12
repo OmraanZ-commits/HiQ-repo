@@ -263,6 +263,23 @@ async function _loadFromBackend(): Promise<void> {
       }
     }
 
+    // Derive lifecycle dates from approved SRs for basepacks that have no
+    // DB-persisted date yet (e.g. pre-seeded or legacy approved SRs).
+    // Apply in chronological order so the most recent SR's date wins.
+    const approvedStatusSrs = _requests
+      .filter(r => r.srType === "basepack-status-change" && r.overallStatus === "approved" && r.basepackId && r.targetStatus)
+      .sort((a, b) => a.raisedAt.localeCompare(b.raisedAt));
+
+    for (const sr of approvedStatusSrs) {
+      const d: BpDates = { ..._bpDates[sr.basepackId] };
+      const lastActedAt = [...sr.approvers].reverse().find(a => a.actedAt)?.actedAt;
+      if (!lastActedAt) continue;
+      if (sr.targetStatus === "Active Pack") d.activationDate = lastActedAt;
+      else if (sr.targetStatus === "Inactive Pack") d.inactiveDate = lastActedAt;
+      else if (sr.targetStatus === "Delisted Packs" || sr.targetStatus === "Stock Base Delisted") d.delistDate = lastActedAt;
+      _bpDates[sr.basepackId] = d;
+    }
+
     _initialised = true;
     notify();
   } catch {
