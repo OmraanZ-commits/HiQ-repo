@@ -96,6 +96,8 @@ export interface ServiceRequest {
   addedGeos?: string[];
   addedDepots?: string[];
   addedChannels?: string[];
+  removedGeos?: string[];
+  removedDepots?: string[];
   sourcingMode?: "decentralized" | "centralized";
   centralizedGeos?: string[];
   centralizedDepots?: string[];
@@ -186,6 +188,8 @@ export function mapBackendSrToFrontend(sr: any): ServiceRequest {
     addedGeos: sr.addedGeos ?? [],
     addedDepots: sr.addedDepots ?? [],
     addedChannels: sr.addedChannels ?? [],
+    removedGeos: sr.removedGeos ?? [],
+    removedDepots: sr.removedDepots ?? [],
     sourcingMode: (sr.sourcingMode ?? undefined) as ServiceRequest["sourcingMode"],
     centralizedGeos: sr.centralizedGeo ?? [],
     centralizedDepots: sr.centralizedDepots ?? [],
@@ -218,6 +222,8 @@ function _mapFrontendSrToBackend(sr: ServiceRequest): any {
     addedGeos: sr.addedGeos ?? [],
     addedDepots: sr.addedDepots ?? [],
     addedChannels: sr.addedChannels ?? [],
+    removedGeos: sr.removedGeos ?? [],
+    removedDepots: sr.removedDepots ?? [],
     sourcingMode: sr.sourcingMode,
     centralizedGeo: sr.centralizedGeos ?? [],
     centralizedDepots: sr.centralizedDepots ?? [],

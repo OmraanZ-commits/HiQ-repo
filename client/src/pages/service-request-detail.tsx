@@ -197,53 +197,83 @@ export default function ServiceRequestDetailPage() {
                     Change Details
                   </h2>
 
-                  {request.srType === "geo-extension" && (request.addedGeos?.length ?? 0) > 0 ? (
-                    /* Geo-extension: one row per geography, showing matched depots inline */
-                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden" data-testid="section-geo-extension">
-                      {/* Header */}
-                      <div className="grid grid-cols-[1fr_1fr] px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                        <span>Geography</span>
-                        <span>Depots</span>
-                      </div>
-                      {/* One row per added geography */}
-                      <div className="divide-y divide-slate-100">
-                        {request.addedGeos!.map(geo => {
-                          const refDepots   = geoDepotMap?.[geo] ?? [];
-                          const addedDepots = request.addedDepots ?? [];
-                          // Depots belonging to this geo that are part of the SR
-                          const matched = addedDepots.filter(d => refDepots.includes(d));
-                          // Fallback: if reference map not yet loaded, show all SR depots
-                          const depots = matched.length > 0 ? matched : addedDepots;
-                          return (
-                            <div
-                              key={geo}
-                              className="grid grid-cols-[1fr_1fr] items-center px-5 py-3"
-                              data-testid={`geo-row-${geo}`}
-                            >
-                              <Badge
-                                className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal w-fit"
-                                data-testid={`badge-geo-${geo}`}
-                              >
-                                {geo}
-                              </Badge>
-                              <div className="flex flex-wrap gap-1.5" data-testid={`depots-for-${geo}`}>
-                                {depots.length > 0 ? depots.map(d => (
+                  {request.srType === "geo-extension" && ((request.addedGeos?.length ?? 0) > 0 || (request.removedGeos?.length ?? 0) > 0) ? (
+                    /* Geo-extension: additions + removals */
+                    <div className="space-y-3">
+                      {(request.addedGeos?.length ?? 0) > 0 && (
+                        <div className="rounded-xl border bg-white shadow-sm overflow-hidden" data-testid="section-geo-extension">
+                          <div className="grid grid-cols-[1fr_1fr] px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                            <span>Adding Geography</span>
+                            <span>Depots</span>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {request.addedGeos!.map(geo => {
+                              const refDepots   = geoDepotMap?.[geo] ?? [];
+                              const addedDepots = request.addedDepots ?? [];
+                              const matched = addedDepots.filter(d => refDepots.includes(d));
+                              const depots = matched.length > 0 ? matched : addedDepots;
+                              return (
+                                <div
+                                  key={geo}
+                                  className="grid grid-cols-[1fr_1fr] items-center px-5 py-3"
+                                  data-testid={`geo-row-${geo}`}
+                                >
                                   <Badge
-                                    key={d}
-                                    variant="outline"
-                                    className="text-xs font-mono"
-                                    data-testid={`badge-depot-${d}`}
+                                    className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal w-fit"
+                                    data-testid={`badge-geo-${geo}`}
                                   >
-                                    {d}
+                                    {geo}
                                   </Badge>
-                                )) : (
-                                  <span className="text-xs text-muted-foreground italic">—</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                                  <div className="flex flex-wrap gap-1.5" data-testid={`depots-for-${geo}`}>
+                                    {depots.length > 0 ? depots.map(d => (
+                                      <Badge key={d} variant="outline" className="text-xs font-mono" data-testid={`badge-depot-${d}`}>{d}</Badge>
+                                    )) : (
+                                      <span className="text-xs text-muted-foreground italic">—</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {(request.removedGeos?.length ?? 0) > 0 && (
+                        <div className="rounded-xl border border-red-200 bg-red-50/40 shadow-sm overflow-hidden" data-testid="section-geo-removals">
+                          <div className="grid grid-cols-[1fr_1fr] px-5 py-2.5 bg-red-100/60 border-b border-red-200 text-[10px] font-semibold text-red-700 uppercase tracking-widest">
+                            <span>Removing Geography</span>
+                            <span>Depots Removed</span>
+                          </div>
+                          <div className="divide-y divide-red-100">
+                            {request.removedGeos!.map(geo => {
+                              const refDepots    = geoDepotMap?.[geo] ?? [];
+                              const removedDepots = request.removedDepots ?? [];
+                              const matched = removedDepots.filter(d => refDepots.includes(d));
+                              const depots = matched.length > 0 ? matched : removedDepots;
+                              return (
+                                <div
+                                  key={geo}
+                                  className="grid grid-cols-[1fr_1fr] items-center px-5 py-3"
+                                  data-testid={`geo-removal-row-${geo}`}
+                                >
+                                  <Badge
+                                    className="bg-red-100 text-red-700 border border-red-300 text-xs font-normal w-fit line-through"
+                                    data-testid={`badge-removed-geo-${geo}`}
+                                  >
+                                    {geo}
+                                  </Badge>
+                                  <div className="flex flex-wrap gap-1.5" data-testid={`removed-depots-for-${geo}`}>
+                                    {depots.length > 0 ? depots.map(d => (
+                                      <Badge key={d} className="text-xs font-mono bg-red-50 text-red-600 border-red-200 line-through" data-testid={`badge-removed-depot-${d}`}>{d}</Badge>
+                                    )) : (
+                                      <span className="text-xs text-muted-foreground italic">—</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : request.srType === "channel-extension" && (request.addedChannels?.length ?? 0) > 0 ? (
                     /* Structured channel-extension view */
