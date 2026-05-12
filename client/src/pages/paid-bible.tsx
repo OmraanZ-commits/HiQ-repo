@@ -1301,8 +1301,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">MSTN</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Basepack Status</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">BG</TableHead>
-                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Network Planner</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 w-20 shadow-[0_1px_0_0_hsl(var(--border))]">CBUs</TableHead>
+                  <TableHead className="w-10 sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1386,16 +1386,20 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                         </TableCell>
 
                         <TableCell className="py-3">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-[#1f36c7]/10 flex items-center justify-center flex-shrink-0">
-                              <User className="h-3 w-3 text-[#1f36c7]" />
-                            </div>
-                            <span className="text-xs">{bp.networkPlanner}</span>
-                          </div>
+                          <span className="text-xs text-muted-foreground">{bp.materials.length} CBU{bp.materials.length !== 1 ? "s" : ""}</span>
                         </TableCell>
 
-                        <TableCell className="py-3">
-                          <span className="text-xs text-muted-foreground">{bp.materials.length} CBU{bp.materials.length !== 1 ? "s" : ""}</span>
+                        <TableCell className="py-3 pr-4 text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-muted-foreground hover:text-[#1f36c7] hover:bg-[#1f36c7]/10"
+                            onClick={e => { e.stopPropagation(); navigate(`/paid-bible/basepacks/${bp.id}`); }}
+                            data-testid={`button-view-bp-${bp.id}`}
+                            title="View basepack detail"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
                         </TableCell>
                       </TableRow>
 
