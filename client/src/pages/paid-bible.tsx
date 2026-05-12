@@ -532,19 +532,21 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
                               <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
                                 DC-wise MSTN levels
                               </p>
-                              <div className="grid grid-cols-3 gap-1.5">
-                                {depotEntries
-                                  .sort((a, b) => b[1] - a[1])
-                                  .map(([depot, pct]) => (
-                                    <div
-                                      key={depot}
-                                      className={`flex items-center justify-between rounded px-2.5 py-1.5 text-xs border ${pct >= 80 ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-600"}`}
-                                    >
-                                      <span className="font-mono font-medium">{depot}</span>
-                                      <span className="font-bold">{pct}%</span>
-                                    </div>
-                                  ))
-                                }
+                              <div className="max-h-[180px] overflow-y-auto pr-1">
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {depotEntries
+                                    .sort((a, b) => b[1] - a[1])
+                                    .map(([depot, pct]) => (
+                                      <div
+                                        key={depot}
+                                        className={`flex items-center justify-between rounded px-2.5 py-1.5 text-xs border ${pct >= 80 ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-600"}`}
+                                      >
+                                        <span className="font-mono font-medium">{depot}</span>
+                                        <span className="font-bold">{pct}%</span>
+                                      </div>
+                                    ))
+                                  }
+                                </div>
                               </div>
                             </div>
                           </TableCell>
