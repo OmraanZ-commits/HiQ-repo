@@ -688,7 +688,7 @@ function SummaryView({
           <div className="space-y-3 text-sm">
             <div>
               <p className="text-xs text-muted-foreground mb-1">
-                Existing Geographies {removedGeos.length === 0 ? "(no change)" : "(retained)"}
+                Existing Geographies {removedGeos.length === 0 && removedDepots.length === 0 ? "(no change)" : "(retained)"}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {keptGeos.length > 0
@@ -698,16 +698,18 @@ function SummaryView({
                   : <span className="text-xs text-muted-foreground italic">None</span>}
               </div>
             </div>
-            {removedGeos.length > 0 && (
+            {(removedGeos.length > 0 || removedDepots.length > 0) && (
               <div>
-                <p className="text-xs text-red-600 font-medium mb-1">Removing Geographies</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {removedGeos.map(g => (
-                    <Badge key={g} className="bg-red-100 text-red-700 border border-red-300 text-xs font-normal line-through">{g}</Badge>
-                  ))}
-                </div>
+                <p className="text-xs text-red-600 font-medium mb-1">Removing</p>
+                {removedGeos.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {removedGeos.map(g => (
+                      <Badge key={g} className="bg-red-100 text-red-700 border border-red-300 text-xs font-normal line-through">{g}</Badge>
+                    ))}
+                  </div>
+                )}
                 {removedDepots.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  <div className="flex flex-wrap gap-1.5 mt-1">
                     {removedDepots.map(d => (
                       <Badge key={d} className="bg-red-50 text-red-600 border border-red-200 text-xs font-mono font-normal line-through">{d}</Badge>
                     ))}
@@ -913,7 +915,7 @@ export function RaiseAmendmentDialog({
       return centralizedGeo.length > 0 && centralizedDepots.length > 0;
     }
     return false;
-  }, [amendmentType, addedGeos, removedGeos, addedChannels, newMode, centralizedGeo, centralizedDepots]);
+  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, newMode, centralizedGeo, centralizedDepots]);
 
   const reset = () => {
     setStep("type");
