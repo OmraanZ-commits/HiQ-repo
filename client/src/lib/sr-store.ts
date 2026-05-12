@@ -430,6 +430,16 @@ export function rejectStep(requestId: string, stepIndex: number, reason: string)
 export function setBpStatusOverride(bpId: string, status: string): void {
   _bpStatusOverrides = { ..._bpStatusOverrides, [bpId]: status };
   notify();
+
+  apiRequest("PUT", `/api/basepack-status/${bpId}`, {
+    bpId,
+    status,
+    appliedBy: "Portal User",
+  }).then(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/basepack-status"] });
+  }).catch(() => {
+    // optimistic state remains; will reconcile on next load
+  });
 }
 
 // ─── Subscription ─────────────────────────────────────────────────────────────
