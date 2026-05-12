@@ -40,7 +40,7 @@ export interface CbuSectionRecord {
 export interface PendingSrRef {
   id: string;
   srType: string;
-  status: string;
+  overallStatus: string;
   cbuCode?: string;
 }
 
@@ -234,7 +234,7 @@ export function CbuDetailSection({ cbus, pendingSrs = [] }: { cbus: CbuSectionRe
                   {/* Pending Amendments */}
                   {(() => {
                     const matches = pendingSrs.filter(
-                      sr => sr.cbuCode === cbu.cbuCode && sr.status === "pending"
+                      sr => sr.cbuCode === cbu.cbuCode && sr.overallStatus === "pending"
                     );
                     if (!matches.length) return null;
                     return (
