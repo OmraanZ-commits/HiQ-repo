@@ -432,7 +432,7 @@ function GeoEditor({
         </div>
       </div>
 
-      {newGeoCount === 0 && rmvDepotCount === 0 && (
+      {newGeoCount === 0 && rmvGeoCount === 0 && rmvDepotCount === 0 && (
         <p className="text-xs text-muted-foreground text-center py-1">
           Check a geography to add it; uncheck a current geography or click its depot chips to request removal.
         </p>
@@ -947,8 +947,9 @@ export function RaiseAmendmentDialog({
       const finalGeos  = [...keptGeos, ...addedGeos];
       const geoStr     = finalGeos.join(", ") || "None";
       const addStr     = addedDepots.length > 0 ? `; Adding Depots: ${addedDepots.join(", ")}` : "";
-      const rmvStr     = removedGeos.length > 0 ? `; Removing: ${removedGeos.join(", ")}` : "";
-      requestedValue   = geoStr + addStr + rmvStr;
+      const rmvGeoStr  = removedGeos.length > 0 ? `; Removing Geo: ${removedGeos.join(", ")}` : "";
+      const rmvDepStr  = removedDepots.length > 0 ? `; Removing Depots: ${removedDepots.join(", ")}` : "";
+      requestedValue   = geoStr + addStr + rmvGeoStr + rmvDepStr;
 
     } else if (amendmentType === "channel-extension") {
       currentValue     = currentChannels.join(", ") || "None";
