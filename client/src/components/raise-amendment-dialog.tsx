@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Map as MapIcon, Radio, PackageSearch, AlertTriangle,
-  ChevronRight, ChevronLeft, CheckCircle2,
+  ChevronRight, ChevronLeft, CheckCircle2, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PortalUser } from "@/lib/users-data";
@@ -710,6 +710,12 @@ function SummaryView({
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+export interface PendingAmendmentRef {
+  id: string;
+  srType: string;
+  overallStatus: string;
+}
+
 export interface RaiseAmendmentDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -730,6 +736,7 @@ export interface RaiseAmendmentDialogProps {
   clusters: ClusterInfo[];
   leafChannels: ChannelDef[];
   geographyDepotMap: Record<string, string[]>;
+  pendingSrs?: PendingAmendmentRef[];
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -741,9 +748,15 @@ export function RaiseAmendmentDialog({
   users, onSuccess,
   currentGeo, currentDepots, currentChannels,
   clusters, leafChannels, geographyDepotMap,
+  pendingSrs = [],
 }: RaiseAmendmentDialogProps) {
   const [step,          setStep]          = useState<Step>("type");
   const [amendmentType, setAmendmentType] = useState<SrType | "">("");
+
+  const duplicateSr = useMemo(() => {
+    if (!amendmentType) return null;
+    return pendingSrs.find(sr => sr.srType === amendmentType && sr.overallStatus === "pending") ?? null;
+  }, [amendmentType, pendingSrs]);
 
   const [addedGeos,     setAddedGeos]     = useState<string[]>([]);
   const [addedDepots,   setAddedDepots]   = useState<string[]>([]);
@@ -952,6 +965,34 @@ export function RaiseAmendmentDialog({
                   )}
                 </button>
               ))}
+
+              {/* Duplicate warning banner */}
+              {duplicateSr && (
+                <div
+                  className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm"
+                  data-testid="banner-duplicate-amendment"
+                >
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-amber-800">
+                      A {SR_TYPE_META[amendmentType as SrType]?.label ?? amendmentType} request is already pending for this CBU.
+                    </p>
+                    <p className="text-amber-700 mt-0.5">
+                      SR <span className="font-mono font-semibold">{duplicateSr.id}</span> is awaiting approval.
+                      Submitting another may create a duplicate.
+                    </p>
+                    <a
+                      href={`/paid-bible/requests/${duplicateSr.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 mt-1.5 text-amber-700 underline underline-offset-2 hover:text-amber-900 text-xs font-medium"
+                      data-testid="link-view-existing-sr"
+                    >
+                      View existing SR <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

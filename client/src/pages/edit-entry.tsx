@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PortalUser } from "@/lib/users-data";
@@ -109,8 +109,16 @@ export default function EditEntry() {
 
   const [showAmendmentDialog, setShowAmendmentDialog] = useState(false);
   const { data: portalUsers = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
-  const { channelOverrides, sourcingOverrides } = useSrStore();
+  const { channelOverrides, sourcingOverrides, requests: allRequests } = useSrStore();
   const handleRaiseAmendment = () => setShowAmendmentDialog(true);
+
+  const cbuPendingSrs = useMemo(() => {
+    if (!entry) return [];
+    return allRequests.filter(r =>
+      r.overallStatus === "pending" &&
+      (r.cbuId === entry.id || r.cbuCode === entry.cbuCode),
+    );
+  }, [allRequests, entry?.id, entry?.cbuCode]);
 
   const handleAmendmentSuccess = () => {
     toast({
@@ -1512,6 +1520,7 @@ export default function EditEntry() {
             clusters={CLUSTERS}
             leafChannels={LEAF_CHANNELS}
             geographyDepotMap={GEOGRAPHY_DEPOT_MAP}
+            pendingSrs={cbuPendingSrs}
           />
         )}
       </main>
