@@ -170,40 +170,63 @@ function GeoEditor({
     [clusters],
   );
 
-  const currentGeoDepots = (geo: string) =>
+  const curGeoDepots = (geo: string) =>
     (geographyDepotMap[geo] || []).filter(d => currentDepots.includes(d));
 
-  const toggleGeo = (name: string) => {
-    if (currentGeo.includes(name)) {
-      const geoDepots = currentGeoDepots(name);
-      if (removedGeos.includes(name)) {
-        setRemovedGeos(removedGeos.filter(g => g !== name));
-        setRemovedDepots(removedDepots.filter(d => !geoDepots.includes(d)));
-      } else {
-        setRemovedGeos([...removedGeos, name]);
-        const next = [...removedDepots];
-        geoDepots.forEach(d => { if (!next.includes(d)) next.push(d); });
-        setRemovedDepots(next);
-      }
-      return;
-    }
-    const isAdding = !addedGeos.includes(name);
-    setAddedGeos(isAdding ? [...addedGeos, name] : addedGeos.filter(g => g !== name));
-    if (!isAdding) {
-      const geoDepots = geographyDepotMap[name] || [];
-      setAddedDepots(addedDepots.filter(d => !geoDepots.includes(d)));
+  // Checkbox click on an existing geo: toggle all-depots removal
+  const toggleExistingGeo = (name: string) => {
+    const geoDepots = curGeoDepots(name);
+    if (removedGeos.includes(name)) {
+      // Cancel removal — restore geo and all its depots
+      setRemovedGeos(removedGeos.filter(g => g !== name));
+      setRemovedDepots(removedDepots.filter(d => !geoDepots.includes(d)));
+    } else {
+      // Mark for removal — remove geo + all its current depots
+      setRemovedGeos([...removedGeos, name]);
+      const next = [...removedDepots];
+      geoDepots.forEach(d => { if (!next.includes(d)) next.push(d); });
+      setRemovedDepots(next);
     }
   };
 
+  // Checkbox click on a new (added) geo: remove from added list
+  const toggleNewGeo = (name: string) => {
+    setAddedGeos(addedGeos.filter(g => g !== name));
+    const geoDepots = geographyDepotMap[name] || [];
+    setAddedDepots(addedDepots.filter(d => !geoDepots.includes(d)));
+  };
+
+  // Checkbox click on an available geo: add it
+  const toggleAvailableGeo = (name: string) => {
+    setAddedGeos([...addedGeos, name]);
+  };
+
+  const toggleGeo = (name: string) => {
+    if (currentGeo.includes(name))  { toggleExistingGeo(name); return; }
+    if (addedGeos.includes(name))   { toggleNewGeo(name);      return; }
+    toggleAvailableGeo(name);
+  };
+
+  // Click on a current depot chip: toggle individual removal with cascade
   const toggleRemovedDepot = (geo: string, depot: string) => {
     if (removedDepots.includes(depot)) {
+      // Un-remove this depot
       const next = removedDepots.filter(d => d !== depot);
       setRemovedDepots(next);
-      const geoDepots = currentGeoDepots(geo);
-      const stillRemoving = geoDepots.some(d => next.includes(d));
-      if (!stillRemoving) setRemovedGeos(removedGeos.filter(g => g !== geo));
+      // Cascade up: if no depots of this geo are being removed, un-remove the geo too
+      const geoDepots = curGeoDepots(geo);
+      if (!geoDepots.some(d => next.includes(d))) {
+        setRemovedGeos(removedGeos.filter(g => g !== geo));
+      }
     } else {
-      setRemovedDepots([...removedDepots, depot]);
+      // Mark for removal
+      const next = [...removedDepots, depot];
+      setRemovedDepots(next);
+      // Cascade down: if ALL current depots of this geo are now removed, mark geo as removing
+      const geoDepots = curGeoDepots(geo);
+      if (geoDepots.length > 0 && geoDepots.every(d => next.includes(d))) {
+        if (!removedGeos.includes(geo)) setRemovedGeos([...removedGeos, geo]);
+      }
     }
   };
 
@@ -220,16 +243,16 @@ function GeoEditor({
     if (allSelected) {
       setAddedDepots(addedDepots.filter(d => !geoDepots.includes(d)));
     } else {
-      const newDepots = [...addedDepots];
-      geoDepots.forEach(d => { if (!newDepots.includes(d)) newDepots.push(d); });
-      setAddedDepots(newDepots);
+      const next = [...addedDepots];
+      geoDepots.forEach(d => { if (!next.includes(d)) next.push(d); });
+      setAddedDepots(next);
     }
   };
 
-  const newGeoCount     = addedGeos.length;
-  const newDepotCount   = addedDepots.length;
-  const rmvGeoCount     = removedGeos.length;
-  const rmvDepotCount   = removedDepots.length;
+  const newGeoCount   = addedGeos.length;
+  const newDepotCount = addedDepots.length;
+  const rmvDepotCount = removedDepots.length;
+  const rmvGeoCount   = removedGeos.length;
 
   return (
     <div className="space-y-3">
@@ -247,10 +270,12 @@ function GeoEditor({
             <span className="text-muted-foreground">(adding)</span>
           </span>
         )}
-        {rmvGeoCount > 0 && (
+        {rmvDepotCount > 0 && (
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />
-            <span className="font-medium text-red-600">−{rmvGeoCount} geo · −{rmvDepotCount} depots</span>
+            <span className="font-medium text-red-600">
+              {rmvGeoCount > 0 ? `−${rmvGeoCount} geo · ` : ""}−{rmvDepotCount} depots
+            </span>
             <span className="text-muted-foreground">(removing)</span>
           </span>
         )}
@@ -268,11 +293,13 @@ function GeoEditor({
           </thead>
           <tbody>
             {sorted.map((cluster, idx) => {
-              const isExisting  = currentGeo.includes(cluster.name);
-              const isNew       = addedGeos.includes(cluster.name);
-              const isRemoving  = removedGeos.includes(cluster.name);
-              const geoDepots   = geographyDepotMap[cluster.name] || [];
-              const curDepots   = currentGeoDepots(cluster.name);
+              const isExisting = currentGeo.includes(cluster.name);
+              const isNew      = addedGeos.includes(cluster.name);
+              const isRemoving = removedGeos.includes(cluster.name);
+              const geoDepots  = geographyDepotMap[cluster.name] || [];
+              const cDepots    = curGeoDepots(cluster.name);
+              const hasAnyRemovedDepots = cDepots.some(d => removedDepots.includes(d));
+              const anyRemoval = isRemoving || hasAnyRemovedDepots;
               const allNewDepotsSelected = geoDepots.length > 0 && geoDepots.every(d => addedDepots.includes(d));
 
               return (
@@ -280,73 +307,70 @@ function GeoEditor({
                   key={cluster.name}
                   className={cn(
                     idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                    isRemoving && "bg-red-50/60",
+                    anyRemoval && "bg-red-50/60",
                   )}
                 >
                   {/* Geography column */}
                   <td className="py-2 px-3 border-r align-middle whitespace-nowrap">
                     <label className={cn(
                       "flex items-center gap-2 text-xs font-medium rounded px-1 py-0.5 cursor-pointer",
-                      isRemoving  && "text-red-700 bg-red-50",
-                      isNew       && "bg-emerald-50 text-emerald-800",
-                      !isNew && !isExisting && !isRemoving && "hover:bg-muted/50",
+                      isRemoving           && "text-red-700 bg-red-50",
+                      hasAnyRemovedDepots && !isRemoving && "text-red-500",
+                      isNew                && "bg-emerald-50 text-emerald-800",
+                      !isNew && !isExisting && !anyRemoval && "hover:bg-muted/50",
                     )}>
                       <Checkbox
-                        checked={isExisting || isNew}
+                        checked={(isExisting && !isRemoving) || isNew}
                         onCheckedChange={() => toggleGeo(cluster.name)}
                         className={cn(
                           isNew      && "data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500",
-                          isRemoving && "data-[state=checked]:bg-red-400 data-[state=checked]:border-red-400",
+                          isRemoving && "border-red-400",
                         )}
                         data-testid={`checkbox-geo-${cluster.name.toLowerCase().replace(/[\s-]+/g, "-")}`}
                       />
                       <span className={cn(isRemoving && "line-through")}>{cluster.name}</span>
-                      {isExisting && !isRemoving && (
+                      {isExisting && !anyRemoval && (
                         <span className="ml-auto text-[10px] text-primary font-semibold">current</span>
                       )}
                       {isRemoving && (
                         <span className="ml-auto text-[10px] text-red-600 font-semibold">removing</span>
+                      )}
+                      {hasAnyRemovedDepots && !isRemoving && (
+                        <span className="ml-auto text-[10px] text-red-500 font-semibold">partial</span>
                       )}
                     </label>
                   </td>
 
                   {/* Depots column */}
                   <td className="py-2 px-3">
-                    {isRemoving ? (
-                      /* Removing geo — show current depots as toggleable removal chips */
+                    {isExisting ? (
+                      /* Existing geo (removing or not) — interactive depot chips for individual removal */
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        {curDepots.length === 0
+                        {cDepots.length === 0
                           ? <span className="text-[11px] text-muted-foreground italic">—</span>
-                          : curDepots.map(depot => {
-                            const depotRemoving = removedDepots.includes(depot);
-                            return (
-                              <button
-                                key={depot}
-                                type="button"
-                                onClick={() => toggleRemovedDepot(cluster.name, depot)}
-                                title={depotRemoving ? "Click to keep this depot" : "Click to remove this depot"}
-                                className={cn(
-                                  "text-[11px] font-mono px-1.5 py-0.5 rounded border transition-all",
-                                  depotRemoving
-                                    ? "bg-red-100 text-red-600 border-red-300 line-through hover:bg-red-200"
-                                    : "bg-white text-muted-foreground border-border hover:border-red-300 hover:bg-red-50",
-                                )}
-                                data-testid={`chip-depot-remove-${depot.toLowerCase()}`}
-                              >
-                                {depot}
-                              </button>
-                            );
-                          })}
-                        <span className="text-[10px] text-red-500 italic ml-1">click to keep/remove</span>
-                      </div>
-                    ) : isExisting ? (
-                      /* Existing geo (not removing) — show current depots read-only */
-                      <div className="flex flex-wrap gap-x-3 gap-y-1">
-                        {curDepots.length === 0
-                          ? <span className="text-[11px] text-muted-foreground italic">—</span>
-                          : curDepots.map(depot => (
-                            <span key={depot} className="text-[11px] font-mono text-muted-foreground">{depot}</span>
-                          ))}
+                          : <>
+                            {cDepots.map(depot => {
+                              const depotRemoving = removedDepots.includes(depot);
+                              return (
+                                <button
+                                  key={depot}
+                                  type="button"
+                                  onClick={() => toggleRemovedDepot(cluster.name, depot)}
+                                  title={depotRemoving ? "Click to keep this depot" : "Click to mark for removal"}
+                                  className={cn(
+                                    "text-[11px] font-mono px-1.5 py-0.5 rounded border transition-all",
+                                    depotRemoving
+                                      ? "bg-red-100 text-red-600 border-red-300 line-through hover:bg-red-200"
+                                      : "bg-white text-muted-foreground border-border hover:border-red-300 hover:bg-red-50",
+                                  )}
+                                  data-testid={`chip-depot-remove-${depot.toLowerCase()}`}
+                                >
+                                  {depot}
+                                </button>
+                              );
+                            })}
+                            <span className="text-[10px] text-muted-foreground/50 italic">click to remove</span>
+                          </>}
                       </div>
                     ) : isNew ? (
                       /* New geo — selectable depots */
@@ -406,9 +430,9 @@ function GeoEditor({
         </div>
       </div>
 
-      {newGeoCount === 0 && rmvGeoCount === 0 && (
+      {newGeoCount === 0 && rmvDepotCount === 0 && (
         <p className="text-xs text-muted-foreground text-center py-1">
-          Check a geography to add it; uncheck a current geography to request its removal.
+          Check a geography to add it; uncheck a current geography or click its depot chips to request removal.
         </p>
       )}
     </div>
@@ -882,7 +906,7 @@ export function RaiseAmendmentDialog({
   const currentStepIdx = STEPS.indexOf(step);
 
   const hasChanges = useMemo(() => {
-    if (amendmentType === "geo-extension")     return addedGeos.length > 0 || removedGeos.length > 0;
+    if (amendmentType === "geo-extension")     return addedGeos.length > 0 || removedGeos.length > 0 || removedDepots.length > 0;
     if (amendmentType === "channel-extension") return addedChannels.length > 0;
     if (amendmentType === "sourcing-amendment") {
       if (newMode === "decentralized") return false;
