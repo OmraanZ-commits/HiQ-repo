@@ -57,7 +57,6 @@ export function NwStatusPill({ status }: { status: string }) {
 
 export function fmtDateStr(val?: string | null): string {
   if (!val) return "—";
-  if (val === "9999-12-31") return "—";
   const d = new Date(val);
   if (isNaN(d.getTime())) return val;
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
