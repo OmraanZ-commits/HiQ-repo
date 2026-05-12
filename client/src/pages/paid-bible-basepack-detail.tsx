@@ -11,7 +11,8 @@ import {
   Waypoints, Shuffle, ArrowRightLeft, GitCommit, CalendarCheck,
   CalendarX, Archive, Activity, AlertTriangle, ExternalLink,
   History, ChevronRight, ChevronDown, AlertCircle, BarChart2,
-  TrendingUp, ShieldCheck, Zap, Tag,
+  TrendingUp, ShieldCheck, Zap, Tag, CircleDollarSign,
+  CheckCircle2, XCircle,
 } from "lucide-react";
 import { SrStatusBadge } from "@/components/sr-detail-components";
 
@@ -30,6 +31,9 @@ interface CbuRecord {
   mstnByDepot?: Record<string, number>;
   slobRisk?: boolean;
   priceActive?: boolean;
+  startDate?: string;
+  endDate?: string;
+  priceUpdatedAt?: string;
 }
 
 interface ApproverRecord {
@@ -274,6 +278,12 @@ function OverviewTab({ profile }: { profile: BasepakProfile }) {
           )}
         </div>
       )}
+
+      {/* CBU + MSTN by Depot */}
+      <CbuMstnSection cbus={profile.cbus ?? []} />
+
+      {/* Pricing Information */}
+      <CbuPricingSection cbus={profile.cbus ?? []} />
     </div>
   );
 }
@@ -310,6 +320,136 @@ function DepotMstnBreakdown({ mstnByDepot, depots }: { mstnByDepot: Record<strin
     </div>
   );
 }
+
+// ─── CBU & MSTN Overview Section ─────────────────────────────────────────────
+
+function CbuMstnSection({ cbus }: { cbus: CbuRecord[] }) {
+  if (!cbus.length) return null;
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
+        <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-slate-700">CBU Overview & MSTN by Depot</h3>
+        <span className="ml-auto text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">{cbus.length} CBU{cbus.length !== 1 ? "s" : ""}</span>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {cbus.map(cbu => {
+          const depots: string[] = Array.isArray(cbu.depots ?? cbu.depot)
+            ? (cbu.depots ?? cbu.depot) as string[]
+            : [];
+          const mstnByDepot = cbu.mstnByDepot ?? {};
+          const depotEntries = depots
+            .filter(d => mstnByDepot[d] != null)
+            .map(d => ({ depot: d, pct: mstnByDepot[d] }));
+          return (
+            <div key={cbu.id} className="px-5 py-4">
+              <div className="flex items-center gap-3 mb-3 flex-wrap">
+                <span className="font-mono text-sm font-semibold text-[#1f36c7]">
+                  {cbu.cbuCode || cbu.id?.slice(0, 8)}
+                </span>
+                <span className="text-xs text-muted-foreground truncate max-w-xs" title={cbu.materialDescription}>
+                  {cbu.materialDescription || "—"}
+                </span>
+                <NwStatusBadge status={cbu.networkStatus ?? "Draft"} />
+                {cbu.mstnPercentage != null && (
+                  <span className={`ml-auto text-sm font-bold tabular-nums ${cbu.mstnPercentage >= 80 ? "text-emerald-600" : "text-amber-600"}`}>
+                    {cbu.mstnPercentage}%
+                    <span className="text-xs font-normal text-muted-foreground ml-1">overall</span>
+                  </span>
+                )}
+              </div>
+              {depotEntries.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {depotEntries.map(({ depot, pct }) => (
+                    <div key={depot} className="flex flex-col gap-1" data-testid={`overview-depot-mstn-${cbu.id}-${depot}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[11px] font-medium text-slate-600">{depot}</span>
+                        <span className={`text-[11px] font-bold ${pct >= 80 ? "text-emerald-600" : "text-amber-600"}`}>{pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : "bg-amber-400"}`}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No depot-level MSTN data available</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── CBU Pricing Section ──────────────────────────────────────────────────────
+
+function fmtDateStr(val?: string | null): string {
+  if (!val) return "—";
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function CbuPricingSection({ cbus }: { cbus: CbuRecord[] }) {
+  if (!cbus.length) return null;
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
+        <CircleDollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-slate-700">Pricing Information by CBU</h3>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+            <TableHead className="text-xs py-3 font-semibold text-slate-600">CBU Code</TableHead>
+            <TableHead className="text-xs py-3 font-semibold text-slate-600">Description</TableHead>
+            <TableHead className="text-xs py-3 font-semibold text-slate-600">Price Active</TableHead>
+            <TableHead className="text-xs py-3 font-semibold text-slate-600">Price End Date</TableHead>
+            <TableHead className="text-xs py-3 font-semibold text-slate-600">Last Updated</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {cbus.map(cbu => (
+            <TableRow key={cbu.id} data-testid={`pricing-row-${cbu.id}`} className="text-xs border-b border-slate-100 last:border-0 hover:bg-slate-50/40">
+              <TableCell className="font-mono font-semibold text-[#1f36c7] py-3">
+                {cbu.cbuCode || cbu.id?.slice(0, 8)}
+              </TableCell>
+              <TableCell className="py-3 max-w-52 truncate text-slate-600" title={cbu.materialDescription}>
+                {cbu.materialDescription || "—"}
+              </TableCell>
+              <TableCell className="py-3">
+                {cbu.priceActive == null ? (
+                  <span className="text-muted-foreground">—</span>
+                ) : cbu.priceActive ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Yes
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
+                    <XCircle className="h-3.5 w-3.5" /> No
+                  </span>
+                )}
+              </TableCell>
+              <TableCell className="py-3 font-medium text-slate-700">
+                {fmtDateStr(cbu.endDate)}
+              </TableCell>
+              <TableCell className="py-3 text-muted-foreground">
+                {fmtDateStr(cbu.priceUpdatedAt)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// ─── CBUs Tab ─────────────────────────────────────────────────────────────────
 
 function CbusTab({ cbus }: { cbus: CbuRecord[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
