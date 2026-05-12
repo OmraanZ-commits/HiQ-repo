@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, ListChecks, CheckCircle2, XCircle, LayoutDashboard, GitBranch, FileEdit,
 } from "lucide-react";
@@ -12,6 +13,8 @@ import {
 import { UnileverHeader } from "@/components/unilever-header";
 import { SrStatusBadge, ApproverChain } from "@/components/sr-detail-components";
 import { useSrStore, approveStep, rejectStep, SR_TYPE_META, CBU_SR_TYPES } from "@/lib/sr-store";
+import { CbuMstnSection, CbuPricingSection } from "@/components/basepack-cbu-sections";
+import type { CbuSectionRecord } from "@/components/basepack-cbu-sections";
 
 function FieldCell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -52,6 +55,22 @@ export default function ServiceRequestDetailPage() {
   const pendingApprovals = request.approvers.filter(a => a.status === "pending").length;
   const pendingApprover = request.approvers.find(a => a.status === "pending");
   const pendingWith     = pendingApprover?.label ?? "—";
+
+  const bpCode = request.basepackCode;
+  const { data: bpProfile } = useQuery<{ cbus: CbuSectionRecord[] }>({
+    queryKey: ["/api/paid-bible/basepacks", bpCode],
+    queryFn: async () => {
+      const r = await fetch(`/api/paid-bible/basepacks/${bpCode}`);
+      if (!r.ok) throw new Error("failed");
+      return r.json();
+    },
+    enabled: !!bpCode,
+  });
+
+  const allCbus: CbuSectionRecord[] = bpProfile?.cbus ?? [];
+  const relevantCbus = isCbu && request.cbuCode
+    ? allCbus.filter(c => c.cbuCode === request.cbuCode)
+    : allCbus;
 
   const pageTitle  = isCbu ? (request.cbuDescription || request.cbuCode || "—") : request.basepackName;
   const pageSubtitle = isCbu ? request.cbuCode : request.basepackCode;
@@ -369,6 +388,17 @@ export default function ServiceRequestDetailPage() {
                 )}
               </>
             )}
+            {/* ── CBU MSTN + Pricing sections ── */}
+            {relevantCbus.length > 0 && (
+              <div className="space-y-4 pt-2">
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  CBU Detail
+                </h2>
+                <CbuMstnSection cbus={relevantCbus} />
+                <CbuPricingSection cbus={relevantCbus} />
+              </div>
+            )}
+
           </TabsContent>
 
           {/* ── Approval Chain tab ───────────────────────────────────────── */}
