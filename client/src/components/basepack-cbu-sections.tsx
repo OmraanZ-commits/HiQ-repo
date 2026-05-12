@@ -58,6 +58,16 @@ export const SR_TYPE_COLOR: Record<string, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const PRICE_ACTIVE_STATUSES = new Set([
+  "Active", "FTR Approved", "Stock Movement Initiated", "Network transition complete",
+]);
+
+function computePriceActive(cbu: CbuSectionRecord): boolean | null {
+  if (!cbu.networkStatus) return cbu.priceActive ?? null;
+  const priceExpired = cbu.endDate ? new Date(cbu.endDate) < new Date() : false;
+  return priceExpired ? false : PRICE_ACTIVE_STATUSES.has(cbu.networkStatus);
+}
+
 export function NwStatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
     "Draft":                       "bg-slate-100 text-slate-600",
@@ -218,8 +228,10 @@ export function CbuDetailSection({ cbus, pendingSrs = [] }: { cbus: CbuSectionRe
                     <span className="font-normal text-muted-foreground"> MSTN</span>
                   </span>
 
-                  {cbu.priceActive != null && (
-                    cbu.priceActive ? (
+                  {(() => {
+                    const pa = computePriceActive(cbu);
+                    if (pa == null) return null;
+                    return pa ? (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
                         <CheckCircle2 className="h-3.5 w-3.5" /> Price Active
                       </span>
@@ -227,8 +239,8 @@ export function CbuDetailSection({ cbus, pendingSrs = [] }: { cbus: CbuSectionRe
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
                         <XCircle className="h-3.5 w-3.5" /> Price Inactive
                       </span>
-                    )
-                  )}
+                    );
+                  })()}
 
                   <ChevronDown
                     className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
