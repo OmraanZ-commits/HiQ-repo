@@ -207,23 +207,24 @@ function GeoEditor({
     toggleAvailableGeo(name);
   };
 
-  // Click on a current depot chip: toggle individual removal with cascade
+  // Click on a current depot chip: toggle individual removal with cascade.
+  // Invariant: geo is in removedGeos IFF all its current depots are in removedDepots.
   const toggleRemovedDepot = (geo: string, depot: string) => {
+    const geoDepots = curGeoDepots(geo);
     if (removedDepots.includes(depot)) {
       // Un-remove this depot
       const next = removedDepots.filter(d => d !== depot);
       setRemovedDepots(next);
-      // Cascade up: if no depots of this geo are being removed, un-remove the geo too
-      const geoDepots = curGeoDepots(geo);
-      if (!geoDepots.some(d => next.includes(d))) {
+      // Cascade up: geo must leave removedGeos whenever any of its depots is kept
+      const allStillRemoved = geoDepots.every(d => next.includes(d));
+      if (!allStillRemoved) {
         setRemovedGeos(removedGeos.filter(g => g !== geo));
       }
     } else {
       // Mark for removal
       const next = [...removedDepots, depot];
       setRemovedDepots(next);
-      // Cascade down: if ALL current depots of this geo are now removed, mark geo as removing
-      const geoDepots = curGeoDepots(geo);
+      // Cascade down: add geo to removedGeos only when ALL its current depots are removed
       if (geoDepots.length > 0 && geoDepots.every(d => next.includes(d))) {
         if (!removedGeos.includes(geo)) setRemovedGeos([...removedGeos, geo]);
       }
@@ -270,11 +271,12 @@ function GeoEditor({
             <span className="text-muted-foreground">(adding)</span>
           </span>
         )}
-        {rmvDepotCount > 0 && (
+        {(rmvGeoCount > 0 || rmvDepotCount > 0) && (
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />
             <span className="font-medium text-red-600">
-              {rmvGeoCount > 0 ? `−${rmvGeoCount} geo · ` : ""}−{rmvDepotCount} depots
+              {rmvGeoCount > 0 ? `−${rmvGeoCount} geo · ` : ""}
+              {rmvDepotCount > 0 ? `−${rmvDepotCount} depots` : ""}
             </span>
             <span className="text-muted-foreground">(removing)</span>
           </span>
