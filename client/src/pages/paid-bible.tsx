@@ -921,11 +921,13 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
   const [editingId, setEditingId]           = useState<string | null>(null);
   const [pendingStatus, setPendingStatus]   = useState<string>("");
 
-  const pendingActivationBpIds = useMemo(
-    () => new Set(
+  // Map basepackId → targetStatus for SRs that are still pending approval.
+  // The clock is only shown when the pending target hasn't already been reached.
+  const pendingActivationBpMap = useMemo(
+    () => new Map(
       serviceRequests
         .filter(r => r.overallStatus === "pending" && r.srType === "basepack-status-change")
-        .map(r => r.basepackId)
+        .map(r => [r.basepackId, r.targetStatus ?? ""])
     ),
     [serviceRequests],
   );
@@ -1483,7 +1485,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                           ) : (
                             <div className="flex items-center gap-1.5 group">
                               <BpStatusBadge status={effStatus} />
-                              {pendingActivationBpIds.has(bp.id) && (
+                              {pendingActivationBpMap.has(bp.id) && normalizeBpStatus(pendingActivationBpMap.get(bp.id)!) !== effStatus && (
                                 <span title="Status change request pending approval" data-testid={`badge-activation-in-progress-${bp.id}`}>
                                   <Clock className="h-3.5 w-3.5 text-amber-500" />
                                 </span>
