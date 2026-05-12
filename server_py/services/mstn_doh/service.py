@@ -4,6 +4,7 @@ from typing import Optional, List
 from server_py.models import (
     DohIngestRequest,
     MstnCheckRequest,
+    ClearanceCheckRequest,
     MSTN_CHECK_STATUSES,
     SLOB_RISK_THRESHOLD_DAYS,
 )
@@ -13,6 +14,34 @@ from server_py.services.mstn_doh.storage import MstnDohStorage
 _MSTN_THRESHOLD = 80
 _WINDOW_START_DAY = 8
 _WINDOW_END_DAY = 11
+
+
+# ── MOC helpers ──────────────────────────────────────────────────────────────
+# MOC X = end-month X (1-based).  Runs from day 21 of month X-1 to day 20 of X.
+# MOC 1 = Dec 21 – Jan 20,  MOC 2 = Jan 21 – Feb 20, …  MOC 12 = Nov 21 – Dec 20.
+
+def _get_moc_for_date(d: date) -> tuple[int, date]:
+    """Return (moc_number, moc_start_date) for the given date."""
+    if d.day >= 21:
+        # Starts this month's 21st, ends next month's 20th
+        next_month_0 = d.month % 12          # 0-based index of next month
+        moc = next_month_0 + 1               # 1-based MOC number
+        start = date(d.year, d.month, 21)
+    else:
+        # Started prev month's 21st, ends this month's 20th
+        moc = d.month
+        if d.month == 1:
+            start = date(d.year - 1, 12, 21)
+        else:
+            start = date(d.year, d.month - 1, 21)
+    return moc, start
+
+
+def _prev_moc_start(moc_start: date) -> date:
+    """Return the start date of the MOC immediately before the given MOC start."""
+    if moc_start.month == 1:
+        return date(moc_start.year - 1, 12, 21)
+    return date(moc_start.year, moc_start.month - 1, 21)
 
 
 def _current_month_str() -> str:
@@ -145,4 +174,73 @@ class MstnDohService:
             "windowEnd": _WINDOW_END_DAY,
             "currentDay": current_day,
             "checkMonth": check_month,
+        }
+
+    # ── Clearance Check ─────────────────────────────────────────────────────
+
+    def clearance_check(self, req: ClearanceCheckRequest) -> dict:
+        """
+        Evaluate MSTN clearance for a basepack's materials.
+        Returns mstnCoverage (%), criteriaMet, per-material breakdown, and
+        the MOC label in which the check was initiated (new-launch CBUs only).
+        """
+        mats = req.materials
+        total = len(mats) or 1
+
+        def is_cleared(m) -> bool:
+            return m.mstnPct is not None and m.mstnPct >= _MSTN_THRESHOLD
+
+        cleared = sum(1 for m in mats if is_cleared(m))
+        mstn_coverage = round((cleared / total) * 100)
+        criteria_met = mstn_coverage >= 100
+
+        # MOC in which the check is initiated = MOC before the network-change-date MOC
+        check_moc_label = None
+        first_ncd = next(
+            (m.networkChangeDate for m in mats
+             if m.networkChangeDate and m.typeOfNetworkCode == "NEW_LAUNCH"),
+            None,
+        )
+        if first_ncd:
+            try:
+                ncd_date = date.fromisoformat(first_ncd)
+                _, ncd_moc_start = _get_moc_for_date(ncd_date)
+                p_start = _prev_moc_start(ncd_moc_start)
+                p_moc, _ = _get_moc_for_date(p_start)
+                check_moc_label = f"MOC {p_moc}"
+            except (ValueError, TypeError):
+                pass
+
+        materials_out = []
+        for m in mats:
+            last_updated = (m.priceStart if m.priceStart and m.priceStart != "-" else "—") or "—"
+            materials_out.append({
+                "code": m.code,
+                "description": m.description or "",
+                "mstnCleared": is_cleared(m),
+                "lastUpdated": last_updated,
+                "mstnByDepot": m.mstnByDepot or {},
+                "networkChangeDate": m.networkChangeDate,
+            })
+
+        return {
+            "mstnCoverage": mstn_coverage,
+            "criteriaMet": criteria_met,
+            "checkMocLabel": check_moc_label,
+            "materials": materials_out,
+        }
+
+    # ── MOC Info ────────────────────────────────────────────────────────────
+
+    def moc_info(self, date_str: str) -> dict:
+        """Return MOC number, start date, previous MOC number and its start date."""
+        d = date.fromisoformat(date_str)
+        moc, start = _get_moc_for_date(d)
+        p_start = _prev_moc_start(start)
+        p_moc, _ = _get_moc_for_date(p_start)
+        return {
+            "moc": moc,
+            "startDate": start.isoformat(),
+            "prevMoc": p_moc,
+            "prevMocStart": p_start.isoformat(),
         }

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
-from server_py.models import DohIngestRequest, MstnCheckRequest
+from server_py.models import DohIngestRequest, MstnCheckRequest, ClearanceCheckRequest
 from server_py.services.mstn_doh.service import MstnDohService
 
 router = APIRouter()
@@ -76,3 +76,23 @@ async def resolve_alert(alert_id: str):
     success = svc.resolve_alert(alert_id)
     if not success:
         raise HTTPException(status_code=404, detail={"service": "mstn-doh", "message": "Alert not found"})
+
+
+@router.post("/clearance-check")
+async def clearance_check(req: ClearanceCheckRequest):
+    """
+    Evaluate MSTN clearance criteria for a basepack's materials.
+    Returns mstnCoverage, criteriaMet, checkMocLabel, and per-material breakdown.
+    """
+    svc = _require_service()
+    return svc.clearance_check(req)
+
+
+@router.get("/moc-info")
+async def moc_info(date: str = Query(..., description="ISO date string YYYY-MM-DD")):
+    """Return MOC number, start date, previous MOC and its start date for the given date."""
+    svc = _require_service()
+    try:
+        return svc.moc_info(date)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid date format: {date}. Expected YYYY-MM-DD.")

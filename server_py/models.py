@@ -458,3 +458,17 @@ class WindowStatusResponse(BaseModel):
     windowEnd: int    # day of month
     currentDay: int
     checkMonth: str
+
+
+class ClearanceCheckMaterial(BaseModel):
+    code: str
+    description: Optional[str] = ""
+    mstnPct: Optional[float] = None
+    mstnByDepot: Optional[Dict[str, float]] = Field(default_factory=dict)
+    networkChangeDate: Optional[str] = None
+    typeOfNetworkCode: Optional[str] = None
+    priceStart: Optional[str] = None
+
+
+class ClearanceCheckRequest(BaseModel):
+    materials: List[ClearanceCheckMaterial]

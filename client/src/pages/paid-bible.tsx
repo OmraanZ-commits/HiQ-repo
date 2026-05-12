@@ -145,36 +145,6 @@ function getCurrentMoc(): { number: number; label: string } {
   return { number: mocNumber, label };
 }
 
-// MOC 1: Dec 21–Jan 20, MOC 2: Jan 21–Feb 20, … MOC 12: Nov 21–Dec 20.
-// MOC number = the end-month's 1-based index.
-function getMocForDate(d: Date): { moc: number; startDate: Date } {
-  const day   = d.getDate();
-  const month = d.getMonth(); // 0-indexed
-  const year  = d.getFullYear();
-  if (day >= 21) {
-    // MOC starts this month's 21st, ends next month's 20th
-    return {
-      moc:       ((month + 1) % 12) + 1,
-      startDate: new Date(year, month, 21),
-    };
-  } else {
-    // MOC started prev month's 21st, ends this month's 20th
-    const sm = month === 0 ? 11 : month - 1;
-    const sy = month === 0 ? year - 1 : year;
-    return {
-      moc:       month + 1,
-      startDate: new Date(sy, sm, 21),
-    };
-  }
-}
-
-// Return the start date of the MOC immediately before the given MOC start date.
-function prevMocStartDate(mocStart: Date): Date {
-  const m = mocStart.getMonth();
-  const y = mocStart.getFullYear();
-  return new Date(m === 0 ? y - 1 : y, m === 0 ? 11 : m - 1, 21);
-}
-
 // Compute MSTN Clear for a set of new-launch CBU entries.
 // Rule: 70% of distinct DCs must have ≥ 80% MSTN.
 // Uses the current mstnByDepot snapshot (best available value per depot across all CBUs).
@@ -211,41 +181,6 @@ function deriveMatStatus(ns: string | null | undefined, endDate: string | null |
   return "OK";
 }
 
-function checkCriteria(bp: PbBasepack): {
-  mstnCoverage: number;
-  criteriaMet: boolean;
-  materials: MaterialCriteria[];
-  checkMocLabel: string | null;
-} {
-  const total   = bp.materials.length || 1;
-  const isMstnCleared = (m: PbMaterial) => m.mstnPct != null && m.mstnPct >= 80;
-  const cleared = bp.materials.filter(isMstnCleared).length;
-  const mstnCoverage = Math.round((cleared / total) * 100);
-  const criteriaMet  = mstnCoverage >= 100;
-
-  // MOC in which the MSTN clearance check was initiated =
-  // the MOC immediately BEFORE the network change date's MOC (new-launch CBUs only)
-  let checkMocLabel: string | null = null;
-  const firstNcd = bp.materials.find(
-    m => m.networkChangeDate && m.typeOfNetworkCode === "NEW_LAUNCH"
-  )?.networkChangeDate;
-  if (firstNcd) {
-    const { startDate: ncdMocStart } = getMocForDate(new Date(firstNcd));
-    const pStart = prevMocStartDate(ncdMocStart);
-    const { moc: pMoc } = getMocForDate(pStart);
-    checkMocLabel = `MOC ${pMoc}`;
-  }
-
-  const materials: MaterialCriteria[] = bp.materials.map(m => ({
-    code:              m.code,
-    description:       m.description,
-    mstnCleared:       isMstnCleared(m),
-    lastUpdated:       m.priceStart && m.priceStart !== "-" ? m.priceStart : "—",
-    mstnByDepot:       m.mstnByDepot,
-    networkChangeDate: m.networkChangeDate ?? null,
-  }));
-  return { mstnCoverage, criteriaMet, materials, checkMocLabel };
-}
 
 function makeTicketId(): string {
   return `SR-${Date.now().toString().slice(-6)}`;
@@ -400,9 +335,36 @@ interface ActivationCheckDialogProps {
 function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: ActivationCheckDialogProps) {
   const [expandedCbu, setExpandedCbu] = useState<string | null>(null);
 
+  const { data: clearance, isLoading: clearanceLoading } = useQuery({
+    queryKey: ["/api/mstn-doh/clearance-check", bp?.id],
+    queryFn: async () => {
+      if (!bp) return null;
+      const res = await fetch("/api/mstn-doh/clearance-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          materials: bp.materials.map(m => ({
+            code: m.code,
+            description: m.description,
+            mstnPct: m.mstnPct,
+            mstnByDepot: m.mstnByDepot,
+            networkChangeDate: m.networkChangeDate,
+            typeOfNetworkCode: m.typeOfNetworkCode,
+            priceStart: m.priceStart,
+          })),
+        }),
+      });
+      return res.json();
+    },
+    enabled: !!bp,
+  });
+
   if (!bp) return null;
 
-  const { mstnCoverage, criteriaMet, materials, checkMocLabel } = checkCriteria(bp);
+  const mstnCoverage: number     = clearance?.mstnCoverage ?? 0;
+  const criteriaMet: boolean     = clearance?.criteriaMet ?? false;
+  const materials: MaterialCriteria[] = clearance?.materials ?? [];
+  const checkMocLabel: string | null  = clearance?.checkMocLabel ?? null;
   const mstnPassed = mstnCoverage >= 100;
 
   const handleCreateRequest = () => {
@@ -417,21 +379,21 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
       status: i === 0 ? "pending" : "waiting",
     }));
     const sr: ServiceRequest = {
-      id:                makeTicketId(),
-      srType:            "basepack-status-change",
-      targetStatus:      "Active Pack",
-      basepackId:        bp.id,
-      basepackCode:      bp.basepackCode,
-      basepackName:      bp.basepakName,
-      brand:             bp.brand,
-      bg:                bp.bg,
-      raisedBy:          bp.paidBibleOwner || "Brand Planner",
-      raisedAt:          formatNow(),
+      id:                 makeTicketId(),
+      srType:             "basepack-status-change",
+      targetStatus:       "Active Pack",
+      basepackId:         bp.id,
+      basepackCode:       bp.basepackCode,
+      basepackName:       bp.basepakName,
+      brand:              bp.brand,
+      bg:                 bp.bg,
+      raisedBy:           bp.paidBibleOwner || "Brand Planner",
+      raisedAt:           formatNow(),
       mstnCoverage,
       criteriaMetAtRaise: criteriaMet,
       materials,
       approvers,
-      overallStatus:     "pending",
+      overallStatus:      "pending",
     };
     onCreateRequest(sr);
     onClose();
@@ -442,9 +404,11 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {criteriaMet
-              ? <ShieldCheck className="h-5 w-5 text-emerald-600" />
-              : <ShieldAlert className="h-5 w-5 text-amber-500" />
+            {clearanceLoading
+              ? <RefreshCw className="h-5 w-5 text-muted-foreground animate-spin" />
+              : criteriaMet
+                ? <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                : <ShieldAlert className="h-5 w-5 text-amber-500" />
             }
             Activation Criteria Check
           </DialogTitle>
@@ -453,7 +417,17 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
           </DialogDescription>
         </DialogHeader>
 
+        {/* Loading skeleton */}
+        {clearanceLoading && (
+          <div className="mt-2 space-y-3">
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-28 w-full rounded-lg" />
+          </div>
+        )}
+
         {/* Criteria Summary Card */}
+        {!clearanceLoading && <>
         <div className="mt-2">
           <div className={`rounded-lg border-l-4 bg-slate-50 border border-slate-200 px-4 py-3.5 flex items-center gap-3.5 ${mstnPassed ? "border-l-emerald-500" : "border-l-red-500"}`}>
             {mstnPassed
@@ -568,6 +542,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
             </Table>
           </div>
         </div>
+        </>}
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} data-testid="button-cancel-activation">
