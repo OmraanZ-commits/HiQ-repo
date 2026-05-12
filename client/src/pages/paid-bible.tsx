@@ -252,7 +252,7 @@ const NEW_LAUNCH_NETWORKS = [
 const TRIGGER_DEFS = [
   { id: "price-inactive", name: "Price Inactive",           rule: "MSTN coverage > 80% but price inactive for respective channel",                                   stakeholder: "Network Planner",       severity: "high"   },
   { id: "slob-risk",      name: "SLOB Risk",                rule: "CBU status is Network Transition Complete AND Predecessor DOH exceeds Successor DOH by more than 5 days", stakeholder: "Availability Planner", severity: "medium" },
-  { id: "mstn-check",     name: "MSTN Check — Current MOC", rule: "New launch packs with MSTN clearance check scheduled for Days 8–11 of current MOC",              stakeholder: "Paid Bible Owner",      severity: "info"   },
+  { id: "mstn-check",     name: "MSTN Clearance Pending — MOC", rule: "New launch packs due for MSTN clearance check (Days 8–11 of current MOC) where clearance is not yet achieved",              stakeholder: "Paid Bible Owner",      severity: "info"   },
 ] as const;
 
 
@@ -1059,7 +1059,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
     return {
       "price-inactive": flat.filter(m => m.mstnPct != null && m.mstnPct >= 80 && !m.priceActive),
       "slob-risk":      flat.filter(m => m.slobRisk),
-      "mstn-check":     flat.filter(m => m.typeOfNetworkCode === "NEW_LAUNCH" && MSTN_ACTIVE_STATUSES.has(m.networkStatus)),
+      "mstn-check":     flat.filter(m => m.typeOfNetworkCode === "NEW_LAUNCH" && MSTN_ACTIVE_STATUSES.has(m.networkStatus) && m.mstnClear !== "Yes"),
     };
   }, [allBasepacks]);
 
