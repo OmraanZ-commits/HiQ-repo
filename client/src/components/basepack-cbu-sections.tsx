@@ -176,15 +176,19 @@ export function CbuDetailSection({ cbus }: { cbus: CbuSectionRecord[] }) {
                 <div className="flex items-center gap-2.5 ml-auto shrink-0 flex-wrap justify-end">
                   {cbu.networkStatus && <NwStatusPill status={cbu.networkStatus} />}
 
-                  {cbu.mstnPercentage != null && (
-                    <span
-                      className={`text-xs font-bold tabular-nums ${cbu.mstnPercentage >= 80 ? "text-emerald-600" : "text-amber-600"}`}
-                      data-testid={`cbu-mstn-pct-${cbu.id}`}
-                    >
-                      {cbu.mstnPercentage}%
-                      <span className="font-normal text-muted-foreground"> MSTN</span>
-                    </span>
-                  )}
+                  <span
+                    className={`text-xs font-bold tabular-nums ${
+                      cbu.mstnPercentage == null
+                        ? "text-muted-foreground"
+                        : cbu.mstnPercentage >= 80
+                          ? "text-emerald-600"
+                          : "text-amber-600"
+                    }`}
+                    data-testid={`cbu-mstn-pct-${cbu.id}`}
+                  >
+                    {cbu.mstnPercentage != null ? `${cbu.mstnPercentage}%` : "—"}
+                    <span className="font-normal text-muted-foreground"> MSTN</span>
+                  </span>
 
                   {cbu.priceActive != null && (
                     cbu.priceActive ? (
