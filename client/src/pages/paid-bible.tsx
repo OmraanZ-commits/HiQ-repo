@@ -321,13 +321,13 @@ function MaterialsSubTable({
                     )}
                   </TableCell>
                   <TableCell className="py-3 px-4 whitespace-nowrap" data-testid={`nw-change-date-${m.id}`}>
-                    {m.typeOfNetworkCode === "NEW_LAUNCH" && m.networkChangeDate
+                    {m.networkChangeDate
                       ? <span className="text-sm font-medium">{formatDateDisplay(m.networkChangeDate)}</span>
                       : <span className="text-sm text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="py-3 px-4" data-testid={`mstn-clear-${m.id}`}>
-                    {m.typeOfNetworkCode === "NEW_LAUNCH"
-                      ? <MstnBadge status={m.mstnClear!} />
+                    {m.mstnClear != null
+                      ? <MstnBadge status={m.mstnClear} />
                       : <span className="text-sm text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="py-3 px-4 whitespace-nowrap text-center">
@@ -985,7 +985,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
             mstnPct,
             networkChangeDate: e.networkChangeDate ?? null,
             mstnByDepot:       (e as any).mstnByDepot ?? {},
-            mstnClear: e.typeOfNetwork === "NEW_LAUNCH"
+            mstnClear: (e.typeOfNetwork === "NEW_LAUNCH" || (e.typeOfNetwork ?? "").startsWith("RL_"))
               ? computeMstnClear([{ mstnByDepot: (e as any).mstnByDepot ?? {} }])
               : null,
           };
