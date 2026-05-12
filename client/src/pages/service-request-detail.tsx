@@ -44,6 +44,11 @@ export default function ServiceRequestDetailPage() {
     enabled: !!bpCode,
   });
 
+  const { data: geoDepotMap } = useQuery<Record<string, string[]>>({
+    queryKey: ["/api/reference-data/geography-depot-map"],
+    enabled: request?.srType === "geo-extension",
+  });
+
   if (!request) {
     return (
       <div className="min-h-screen bg-background">
@@ -193,34 +198,52 @@ export default function ServiceRequestDetailPage() {
                   </h2>
 
                   {request.srType === "geo-extension" && (request.addedGeos?.length ?? 0) > 0 ? (
-                    /* Structured geo-extension view */
-                    <div className="rounded-xl border bg-white shadow-sm divide-y divide-border/60">
-                      <div className="px-5 py-4 space-y-1.5">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          Adding Geographies
-                        </p>
-                        <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-added-geos">
-                          {request.addedGeos!.map(g => (
-                            <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal" data-testid={`badge-geo-${g}`}>
-                              {g}
-                            </Badge>
-                          ))}
-                        </div>
+                    /* Geo-extension: one row per geography, showing matched depots inline */
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden" data-testid="section-geo-extension">
+                      {/* Header */}
+                      <div className="grid grid-cols-[1fr_1fr] px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                        <span>Geography</span>
+                        <span>Depots</span>
                       </div>
-                      {(request.addedDepots?.length ?? 0) > 0 && (
-                        <div className="px-5 py-4 space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Adding Depots
-                          </p>
-                          <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-added-depots">
-                            {request.addedDepots!.map(d => (
-                              <Badge key={d} variant="outline" className="text-xs font-mono" data-testid={`badge-depot-${d}`}>
-                                {d}
+                      {/* One row per added geography */}
+                      <div className="divide-y divide-slate-100">
+                        {request.addedGeos!.map(geo => {
+                          const refDepots   = geoDepotMap?.[geo] ?? [];
+                          const addedDepots = request.addedDepots ?? [];
+                          // Depots belonging to this geo that are part of the SR
+                          const matched = addedDepots.filter(d => refDepots.includes(d));
+                          // Fallback: if reference map not yet loaded, show all SR depots
+                          const depots = matched.length > 0 ? matched : addedDepots;
+                          return (
+                            <div
+                              key={geo}
+                              className="grid grid-cols-[1fr_1fr] items-center px-5 py-3"
+                              data-testid={`geo-row-${geo}`}
+                            >
+                              <Badge
+                                className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal w-fit"
+                                data-testid={`badge-geo-${geo}`}
+                              >
+                                {geo}
                               </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                              <div className="flex flex-wrap gap-1.5" data-testid={`depots-for-${geo}`}>
+                                {depots.length > 0 ? depots.map(d => (
+                                  <Badge
+                                    key={d}
+                                    variant="outline"
+                                    className="text-xs font-mono"
+                                    data-testid={`badge-depot-${d}`}
+                                  >
+                                    {d}
+                                  </Badge>
+                                )) : (
+                                  <span className="text-xs text-muted-foreground italic">—</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : request.srType === "channel-extension" && (request.addedChannels?.length ?? 0) > 0 ? (
                     /* Structured channel-extension view */
