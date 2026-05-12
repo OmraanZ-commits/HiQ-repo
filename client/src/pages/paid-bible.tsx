@@ -1320,7 +1320,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                       <TableRow
                         data-testid={`bp-row-${bp.id}`}
                         className={`cursor-pointer transition-colors ${isExpanded ? "bg-[#1f36c7]/5 border-l-2 border-l-[#1f36c7]" : "hover:bg-muted/40"}`}
-                        onClick={() => !isEditing && navigate(`/paid-bible/basepacks/${bp.id}`)}
+                        onClick={() => !isEditing && toggleExpand(bp.id)}
                       >
                         <TableCell className="py-3 pl-4" onClick={e => { e.stopPropagation(); !isEditing && toggleExpand(bp.id); }}>
                           {isExpanded ? <ChevronDown className="h-4 w-4 text-[#1f36c7]" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
@@ -1406,7 +1406,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                       {isExpanded && (
                         <TableRow key={`${bp.id}-exp`} data-testid={`bp-expanded-${bp.id}`}>
                           <TableCell colSpan={10} className="p-0 bg-muted/20">
-                            <div className="px-10 py-5 border-l-4 border-l-[#1f36c7]/40">
+                            <div className="px-10 py-5 border-l-4 border-l-[#1f36c7]/40 overflow-x-auto">
                               {/* Key Dates strip */}
                               {(() => {
                                 const dates = bpDates[bp.id];
