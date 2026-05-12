@@ -462,9 +462,6 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
                 : <XCircle className="h-4 w-4 text-red-500" />
               }
             </div>
-            <p className={`text-2xl font-bold ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
-              {mstnCoverage}%
-            </p>
             <p className={`text-xs mt-0.5 font-medium ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
               {mstnPassed ? "MSTN cleared for all CBUs" : "MSTN clearance criteria not met for all CBUs"}
             </p>
