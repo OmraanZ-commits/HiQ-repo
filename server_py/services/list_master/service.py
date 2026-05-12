@@ -44,6 +44,9 @@ class ListMasterService:
     def merge_geo_depots(self, entry_id: str, added_geos: list, added_depots: list) -> Optional[dict]:
         return self.storage.merge_geo_depots(entry_id, added_geos, added_depots)
 
+    def remove_geo_depots(self, entry_id: str, removed_geos: list, removed_depots: list) -> Optional[dict]:
+        return self.storage.remove_geo_depots(entry_id, removed_geos, removed_depots)
+
     def merge_channels(self, entry_id: str, added_channels: list) -> Optional[dict]:
         return self.storage.merge_channels(entry_id, added_channels)
 

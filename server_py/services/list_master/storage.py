@@ -156,6 +156,25 @@ class ListMasterStorage:
         finally:
             db.close()
 
+    def remove_geo_depots(self, entry_id: str, removed_geos: list, removed_depots: list) -> Optional[dict]:
+        """Remove specified geographies and depots from the CBU record."""
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return None
+            removed_geos_set = set(removed_geos)
+            removed_depots_set = set(removed_depots)
+            row.geography = [g for g in (row.geography or []) if g not in removed_geos_set]
+            row.depot = [d for d in (row.depot or []) if d not in removed_depots_set]
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
     def delete(self, entry_id: str) -> bool:
         db = SessionLocal()
         try:

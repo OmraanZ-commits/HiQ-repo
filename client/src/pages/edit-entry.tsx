@@ -109,7 +109,7 @@ export default function EditEntry() {
 
   const [showAmendmentDialog, setShowAmendmentDialog] = useState(false);
   const { data: portalUsers = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
-  const { channelOverrides, sourcingOverrides, requests: allRequests } = useSrStore();
+  const { channelOverrides, sourcingOverrides, geoRemovalOverrides, requests: allRequests } = useSrStore();
   const handleRaiseAmendment = () => setShowAmendmentDialog(true);
 
   const cbuPendingSrs = useMemo(() => {
@@ -234,6 +234,15 @@ export default function EditEntry() {
         ])
       )
     : channelMapping;
+
+  // Apply approved geo-extension removal overrides
+  const inMemGeoRemoval = entry ? (geoRemovalOverrides[entry.id] ?? { removedGeos: [], removedDepots: [] }) : { removedGeos: [], removedDepots: [] };
+  const effectiveGeo = inMemGeoRemoval.removedGeos.length > 0
+    ? selectedGeo.filter(g => !inMemGeoRemoval.removedGeos.includes(g))
+    : selectedGeo;
+  const effectiveDepots = inMemGeoRemoval.removedDepots.length > 0
+    ? selectedDepots.filter(d => !inMemGeoRemoval.removedDepots.includes(d))
+    : selectedDepots;
 
   // Apply approved sourcing-amendment overrides
   const inMemSourcingOverride = entry ? (sourcingOverrides[entry.id] ?? null) : null;
@@ -1514,8 +1523,8 @@ export default function EditEntry() {
             }
             users={portalUsers}
             onSuccess={handleAmendmentSuccess}
-            currentGeo={selectedGeo}
-            currentDepots={selectedDepots}
+            currentGeo={effectiveGeo}
+            currentDepots={effectiveDepots}
             currentChannels={effectiveChannels}
             clusters={CLUSTERS}
             leafChannels={LEAF_CHANNELS}

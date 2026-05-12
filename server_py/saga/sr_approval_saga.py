@@ -166,15 +166,17 @@ class SrApprovalSaga:
         cbu_id = sr.get("cbuId")
         added_geos = sr.get("addedGeos") or []
         added_depots = sr.get("addedDepots") or []
+        removed_geos = sr.get("removedGeos") or []
+        removed_depots = sr.get("removedDepots") or []
 
         if not cbu_id:
             self._log_step("apply_geo_extension", "skipped",
                            result={"reason": "No cbuId on SR"})
             return
 
-        if not added_geos and not added_depots:
+        if not added_geos and not added_depots and not removed_geos and not removed_depots:
             self._log_step("apply_geo_extension", "skipped",
-                           result={"reason": "No geos or depots to add"})
+                           result={"reason": "No geos or depots to add or remove"})
             return
 
         if not self.list_master_service:
@@ -182,19 +184,39 @@ class SrApprovalSaga:
                            result={"reason": "ListMasterService not available"})
             return
 
-        result = self.list_master_service.merge_geo_depots(cbu_id, added_geos, added_depots)
-        if not result:
-            raise LookupError(f"CBU {cbu_id} not found when applying geo extension")
+        if added_geos or added_depots:
+            result = self.list_master_service.merge_geo_depots(cbu_id, added_geos, added_depots)
+            if not result:
+                raise LookupError(f"CBU {cbu_id} not found when applying geo extension (add)")
+            self._log_step("apply_geo_extension_add", "completed", result={
+                "cbuId": cbu_id,
+                "addedGeos": added_geos,
+                "addedDepots": added_depots,
+            })
+
+        if removed_geos or removed_depots:
+            result = self.list_master_service.remove_geo_depots(cbu_id, removed_geos, removed_depots)
+            if not result:
+                raise LookupError(f"CBU {cbu_id} not found when applying geo extension (remove)")
+            self._log_step("apply_geo_extension_remove", "completed", result={
+                "cbuId": cbu_id,
+                "removedGeos": removed_geos,
+                "removedDepots": removed_depots,
+            })
 
         self._applied_geo_extension = {
             "cbuId": cbu_id,
             "addedGeos": added_geos,
             "addedDepots": added_depots,
+            "removedGeos": removed_geos,
+            "removedDepots": removed_depots,
         }
         self._log_step("apply_geo_extension", "completed", result={
             "cbuId": cbu_id,
             "addedGeos": added_geos,
             "addedDepots": added_depots,
+            "removedGeos": removed_geos,
+            "removedDepots": removed_depots,
         })
 
     # ── Effect: channel-extension ─────────────────────────────────────────────
