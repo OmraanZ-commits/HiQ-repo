@@ -454,21 +454,27 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
 
         {/* Criteria Summary Card */}
         <div className="mt-2">
-          <div className={`rounded-lg border p-4 ${mstnPassed ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
-            <div className="flex items-center justify-end mb-1">
+          <div className={`rounded-xl border px-5 py-4 flex items-center gap-4 ${mstnPassed ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
+            <div className={`flex-shrink-0 rounded-full p-2.5 ${mstnPassed ? "bg-emerald-100" : "bg-red-100"}`}>
               {mstnPassed
-                ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                : <XCircle className="h-4 w-4 text-red-500" />
+                ? <ShieldCheck className="h-6 w-6 text-emerald-600" />
+                : <ShieldAlert className="h-6 w-6 text-red-500" />
               }
             </div>
-            <p className={`text-base font-semibold ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
-              {mstnPassed ? "MSTN Check cleared for all CBUs" : "MSTN clearance criteria not met for all CBUs"}
-            </p>
-            {checkMocLabel && (
-              <p className="text-xs mt-1 text-muted-foreground flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
-                MSTN check initiated in <span className="font-semibold ml-1">{checkMocLabel}</span>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold leading-snug ${mstnPassed ? "text-emerald-800" : "text-red-700"}`}>
+                {mstnPassed ? "MSTN Check cleared for all CBUs" : "MSTN clearance criteria not met for all CBUs"}
               </p>
+              {checkMocLabel && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Initiated in <span className="font-medium text-foreground">{checkMocLabel}</span>
+                </p>
+              )}
+            </div>
+            {checkMocLabel && (
+              <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${mstnPassed ? "bg-emerald-100 border-emerald-300 text-emerald-700" : "bg-red-100 border-red-300 text-red-600"}`}>
+                {checkMocLabel}
+              </span>
             )}
           </div>
         </div>
