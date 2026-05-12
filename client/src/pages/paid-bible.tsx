@@ -233,7 +233,7 @@ function checkCriteria(bp: PbBasepack): {
     const { startDate: ncdMocStart } = getMocForDate(new Date(firstNcd));
     const pStart = prevMocStartDate(ncdMocStart);
     const { moc: pMoc } = getMocForDate(pStart);
-    checkMocLabel = `MOC ${pMoc} · ${MONTH_NAMES[pStart.getMonth()]} ${pStart.getFullYear()}`;
+    checkMocLabel = `MOC ${pMoc}`;
   }
 
   const materials: MaterialCriteria[] = bp.materials.map(m => ({
@@ -463,7 +463,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
               }
             </div>
             <p className={`text-xs mt-0.5 font-medium ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
-              {mstnPassed ? "MSTN cleared for all CBUs" : "MSTN clearance criteria not met for all CBUs"}
+              {mstnPassed ? "MSTN Check cleared for all CBUs" : "MSTN clearance criteria not met for all CBUs"}
             </p>
             {checkMocLabel && (
               <p className="text-xs mt-1 text-muted-foreground flex items-center gap-1">
