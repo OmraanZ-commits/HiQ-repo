@@ -51,6 +51,7 @@ export interface MaterialCriteria {
   mstnCleared: boolean;
   lastUpdated: string;
   mstnByDepot?: Record<string, number>;
+  networkChangeDate?: string | null;
 }
 
 export interface BpDates {

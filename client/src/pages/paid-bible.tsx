@@ -237,11 +237,12 @@ function checkCriteria(bp: PbBasepack): {
   }
 
   const materials: MaterialCriteria[] = bp.materials.map(m => ({
-    code:        m.code,
-    description: m.description,
-    mstnCleared: isMstnCleared(m),
-    lastUpdated: m.priceStart && m.priceStart !== "-" ? m.priceStart : "—",
-    mstnByDepot: m.mstnByDepot,
+    code:              m.code,
+    description:       m.description,
+    mstnCleared:       isMstnCleared(m),
+    lastUpdated:       m.priceStart && m.priceStart !== "-" ? m.priceStart : "—",
+    mstnByDepot:       m.mstnByDepot,
+    networkChangeDate: m.networkChangeDate ?? null,
   }));
   return { mstnCoverage, criteriaMet, materials, checkMocLabel };
 }
@@ -497,6 +498,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
                   <TableHead className="text-xs py-2 w-6" />
                   <TableHead className="text-xs py-2">CBU Code</TableHead>
                   <TableHead className="text-xs py-2">Description</TableHead>
+                  <TableHead className="text-xs py-2 text-center">NW Change Date</TableHead>
                   <TableHead className="text-xs py-2 text-center">MSTN Cleared</TableHead>
                   <TableHead className="text-xs py-2 text-center">Last Updated</TableHead>
                 </TableRow>
@@ -523,6 +525,9 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
                         </TableCell>
                         <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
                         <TableCell className="py-2 max-w-40 truncate text-muted-foreground" title={m.description}>{m.description}</TableCell>
+                        <TableCell className="py-2 text-center text-muted-foreground">
+                          {m.networkChangeDate ? formatDateDisplay(m.networkChangeDate) : "—"}
+                        </TableCell>
                         <TableCell className="py-2 text-center">
                           {m.mstnCleared
                             ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
@@ -533,7 +538,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
                       </TableRow>
                       {isExpanded && (
                         <TableRow data-testid={`criteria-depot-${m.code}`}>
-                          <TableCell colSpan={5} className="p-0 bg-slate-50/80 border-t border-dashed">
+                          <TableCell colSpan={6} className="p-0 bg-slate-50/80 border-t border-dashed">
                             <div className="px-5 py-3">
                               <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
                                 DC-wise MSTN levels
