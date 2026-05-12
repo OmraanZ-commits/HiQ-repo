@@ -455,8 +455,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
         {/* Criteria Summary Card */}
         <div className="mt-2">
           <div className={`rounded-lg border p-4 ${mstnPassed ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-medium text-muted-foreground">MSTN Coverage</p>
+            <div className="flex items-center justify-end mb-1">
               {mstnPassed
                 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 : <XCircle className="h-4 w-4 text-red-500" />
