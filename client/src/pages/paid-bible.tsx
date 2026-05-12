@@ -99,9 +99,11 @@ interface PbMaterial {
   dohSnapshotDate: string | null;
   slobRisk: boolean;
   typeOfNetwork: string;
+  typeOfNetworkCode: string;
   mstnPct: number | null;
   networkChangeDate: string | null;
   mstnByDepot: Record<string, number>;
+  mstnClear: "Yes" | "No" | null;
 }
 
 interface PbBasepack {
@@ -118,9 +120,6 @@ interface PbBasepack {
   networkPlanner: string;
   paidBibleOwner: string;
   materials: PbMaterial[];
-  isNewLaunch: boolean;
-  networkChangeDateRaw: string | null;
-  mstnClear: "Yes" | "No" | null;
 }
 
 // ─── MOC Calculator ──────────────────────────────────────────────────────────
@@ -748,11 +747,6 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
         bpStatus:       deriveBpStatus(statuses),
         networkPlanner: planner,
         paidBibleOwner: PB_OWNER_MAP[planner] || "PB SPOC",
-        isNewLaunch:    entries.every(e => e.typeOfNetwork === "NEW_LAUNCH"),
-        networkChangeDateRaw: entries.find(e => e.networkChangeDate)?.networkChangeDate ?? null,
-        mstnClear: entries.every(e => e.typeOfNetwork === "NEW_LAUNCH")
-          ? computeMstnClear(entries.map(e => ({ mstnByDepot: (e as any).mstnByDepot ?? {} })))
-          : null,
         materials: entries.map(e => {
           const ns = e.networkStatus ?? "Draft";
           const atThreshold = MSTN_THRESHOLD_STATUSES.has(ns);
@@ -781,12 +775,16 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
             successorDoh:     e.successorDoh     ?? null,
             dohSnapshotDate:  e.dohSnapshotDate  ?? null,
             slobRisk:         e.slobRisk         ?? false,
-            typeOfNetwork: getNetworkChangeTypeName(e.typeOfNetwork),
-            priceStart:    MSTN_ACTIVE_STATUSES.has(ns) ? "01-Apr-24" : "-",
-            priceEnd:      e.endDate ? formatDateDisplay(e.endDate) : "-",
+            typeOfNetwork:     getNetworkChangeTypeName(e.typeOfNetwork),
+            typeOfNetworkCode: e.typeOfNetwork || "",
+            priceStart:        MSTN_ACTIVE_STATUSES.has(ns) ? "01-Apr-24" : "-",
+            priceEnd:          e.endDate ? formatDateDisplay(e.endDate) : "-",
             mstnPct,
             networkChangeDate: e.networkChangeDate ?? null,
-            mstnByDepot: (e as any).mstnByDepot ?? {},
+            mstnByDepot:       (e as any).mstnByDepot ?? {},
+            mstnClear: e.typeOfNetwork === "NEW_LAUNCH"
+              ? computeMstnClear([{ mstnByDepot: (e as any).mstnByDepot ?? {} }])
+              : null,
           };
         }),
       } as PbBasepack;
@@ -1098,8 +1096,6 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Location / Cluster</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Channels</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">MSTN</TableHead>
-                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))] whitespace-nowrap">NW Change Date</TableHead>
-                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))] whitespace-nowrap">MSTN Clear</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Basepack Status</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">BG</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Network Planner</TableHead>
@@ -1109,7 +1105,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center text-muted-foreground py-16">No basepacks found — try adjusting your filters</TableCell>
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-16">No basepacks found — try adjusting your filters</TableCell>
                   </TableRow>
                 ) : filtered.map(bp => {
                   const effStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
@@ -1148,18 +1144,6 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                         </TableCell>
 
                         <TableCell className="py-3"><MstnBadge status={bp.mstnStatus} /></TableCell>
-
-                        <TableCell className="py-3 whitespace-nowrap" data-testid={`nw-change-date-${bp.id}`}>
-                          {bp.isNewLaunch && bp.networkChangeDateRaw
-                            ? <span className="text-xs font-medium">{formatDateDisplay(bp.networkChangeDateRaw)}</span>
-                            : <span className="text-xs text-muted-foreground">—</span>}
-                        </TableCell>
-
-                        <TableCell className="py-3" data-testid={`mstn-clear-${bp.id}`}>
-                          {bp.isNewLaunch
-                            ? <MstnBadge status={bp.mstnClear!} />
-                            : <span className="text-xs text-muted-foreground">—</span>}
-                        </TableCell>
 
                         <TableCell className="py-3" onClick={e => e.stopPropagation()}>
                           {isEditing ? (
@@ -1294,6 +1278,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">NW Change Date</TableHead>
+                                      <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">MSTN Clear</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Predecessor CBU DOH</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
                                       <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
@@ -1317,6 +1303,19 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                                             <span className="text-sm text-muted-foreground">—</span>
                                           )}
                                         </TableCell>
+
+                                        <TableCell className="py-3 px-4 whitespace-nowrap" data-testid={`nw-change-date-${m.id}`}>
+                                          {m.typeOfNetworkCode === "NEW_LAUNCH" && m.networkChangeDate
+                                            ? <span className="text-sm font-medium">{formatDateDisplay(m.networkChangeDate)}</span>
+                                            : <span className="text-sm text-muted-foreground">—</span>}
+                                        </TableCell>
+
+                                        <TableCell className="py-3 px-4" data-testid={`mstn-clear-${m.id}`}>
+                                          {m.typeOfNetworkCode === "NEW_LAUNCH"
+                                            ? <MstnBadge status={m.mstnClear!} />
+                                            : <span className="text-sm text-muted-foreground">—</span>}
+                                        </TableCell>
+
                                         <TableCell className="py-3 px-4 whitespace-nowrap text-center">
                                           {m.predecessorDoh != null ? (
                                             <span className="inline-flex items-center justify-center gap-1.5">
