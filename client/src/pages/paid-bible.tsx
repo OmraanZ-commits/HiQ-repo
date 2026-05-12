@@ -250,8 +250,9 @@ const NEW_LAUNCH_NETWORKS = [
 
 
 const TRIGGER_DEFS = [
-  { id: "price-inactive", name: "Price Inactive", rule: "MSTN coverage > 80% but price inactive for respective channel", stakeholder: "Network Planner",       severity: "high"   },
-  { id: "slob-risk",      name: "SLOB Risk",      rule: "CBU status is Network Transition Complete AND Predecessor DOH exceeds Successor DOH by more than 5 days", stakeholder: "Availability Planner", severity: "medium" },
+  { id: "price-inactive", name: "Price Inactive",           rule: "MSTN coverage > 80% but price inactive for respective channel",                                   stakeholder: "Network Planner",       severity: "high"   },
+  { id: "slob-risk",      name: "SLOB Risk",                rule: "CBU status is Network Transition Complete AND Predecessor DOH exceeds Successor DOH by more than 5 days", stakeholder: "Availability Planner", severity: "medium" },
+  { id: "mstn-check",     name: "MSTN Check — Current MOC", rule: "New launch packs with MSTN clearance check scheduled for Days 8–11 of current MOC",              stakeholder: "Paid Bible Owner",      severity: "info"   },
 ] as const;
 
 
@@ -1058,6 +1059,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
     return {
       "price-inactive": flat.filter(m => m.mstnPct != null && m.mstnPct >= 80 && !m.priceActive),
       "slob-risk":      flat.filter(m => m.slobRisk),
+      "mstn-check":     flat.filter(m => m.typeOfNetworkCode === "NEW_LAUNCH" && MSTN_ACTIVE_STATUSES.has(m.networkStatus)),
     };
   }, [allBasepacks]);
 
@@ -1128,16 +1130,16 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
           <Zap className="h-4 w-4 text-amber-500" /> Triggers for Improvement
         </h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {TRIGGER_DEFS.map(t => {
             const cbus = triggerCbus[t.id];
             const count = cbus.length;
             return (
-              <Card key={t.id} data-testid={`trigger-card-${t.id}`} onClick={() => count > 0 && setTriggerDialog(t.id)} className={`border-l-4 transition-colors ${t.severity === "high" ? "border-l-red-400" : "border-l-amber-400"} ${count > 0 ? "cursor-pointer hover:bg-muted/40" : "opacity-60"}`}>
+              <Card key={t.id} data-testid={`trigger-card-${t.id}`} onClick={() => count > 0 && setTriggerDialog(t.id)} className={`border-l-4 transition-colors ${t.severity === "high" ? "border-l-red-400" : t.severity === "info" ? "border-l-blue-400" : "border-l-amber-400"} ${count > 0 ? "cursor-pointer hover:bg-muted/40" : "opacity-60"}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-1">
                     <p className="text-sm font-semibold">{t.name}</p>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{count} {count === 1 ? "item" : "items"}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.severity === "high" ? "bg-red-100 text-red-700" : t.severity === "info" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"}`}>{count} {count === 1 ? "item" : "items"}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2">{t.rule}</p>
                   <p className="text-xs text-muted-foreground">Action: <span className="font-medium text-foreground">{t.stakeholder}</span></p>
@@ -1175,6 +1177,12 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                         <TableHead className="text-xs font-semibold text-center">Successor DOH</TableHead>
                         <TableHead className="text-xs font-semibold text-center">Last Updated</TableHead>
                       </>}
+                      {t.id === "mstn-check" && <>
+                        <TableHead className="text-xs font-semibold">NW Status</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">MSTN %</TableHead>
+                        <TableHead className="text-xs font-semibold">NW Change Date</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">MSTN Clear</TableHead>
+                      </>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1193,6 +1201,20 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                           <TableCell className="text-xs text-center text-muted-foreground">{m.successorDoh ?? "—"}</TableCell>
                           <TableCell className="text-xs text-center text-muted-foreground">
                             {new Date(m.dohSnapshotDate ?? Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                          </TableCell>
+                        </>}
+                        {t.id === "mstn-check" && <>
+                          <TableCell className="text-xs text-muted-foreground">{m.networkStatus}</TableCell>
+                          <TableCell className="text-xs text-center">
+                            {m.mstnPct != null
+                              ? <span className={`font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>{m.mstnPct}%</span>
+                              : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {m.networkChangeDate ? formatDateDisplay(m.networkChangeDate) : "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-center">
+                            {m.mstnClear ? <MstnBadge status={m.mstnClear} /> : <span className="text-muted-foreground">—</span>}
                           </TableCell>
                         </>}
                       </TableRow>
