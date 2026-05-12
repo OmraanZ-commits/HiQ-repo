@@ -50,6 +50,7 @@ export interface MaterialCriteria {
   description: string;
   mstnCleared: boolean;
   lastUpdated: string;
+  mstnByDepot?: Record<string, number>;
 }
 
 export interface BpDates {

@@ -215,19 +215,35 @@ function checkCriteria(bp: PbBasepack): {
   mstnCoverage: number;
   criteriaMet: boolean;
   materials: MaterialCriteria[];
+  checkMocLabel: string | null;
 } {
   const total   = bp.materials.length || 1;
   const isMstnCleared = (m: PbMaterial) => m.mstnPct != null && m.mstnPct >= 80;
   const cleared = bp.materials.filter(isMstnCleared).length;
   const mstnCoverage = Math.round((cleared / total) * 100);
   const criteriaMet  = mstnCoverage >= 100;
+
+  // MOC in which the MSTN clearance check was initiated =
+  // the MOC immediately BEFORE the network change date's MOC (new-launch CBUs only)
+  let checkMocLabel: string | null = null;
+  const firstNcd = bp.materials.find(
+    m => m.networkChangeDate && m.typeOfNetworkCode === "NEW_LAUNCH"
+  )?.networkChangeDate;
+  if (firstNcd) {
+    const { startDate: ncdMocStart } = getMocForDate(new Date(firstNcd));
+    const pStart = prevMocStartDate(ncdMocStart);
+    const { moc: pMoc } = getMocForDate(pStart);
+    checkMocLabel = `MOC ${pMoc} · ${MONTH_NAMES[pStart.getMonth()]} ${pStart.getFullYear()}`;
+  }
+
   const materials: MaterialCriteria[] = bp.materials.map(m => ({
     code:        m.code,
     description: m.description,
     mstnCleared: isMstnCleared(m),
     lastUpdated: m.priceStart && m.priceStart !== "-" ? m.priceStart : "—",
+    mstnByDepot: m.mstnByDepot,
   }));
-  return { mstnCoverage, criteriaMet, materials };
+  return { mstnCoverage, criteriaMet, materials, checkMocLabel };
 }
 
 function makeTicketId(): string {
@@ -381,9 +397,11 @@ interface ActivationCheckDialogProps {
 }
 
 function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: ActivationCheckDialogProps) {
+  const [expandedCbu, setExpandedCbu] = useState<string | null>(null);
+
   if (!bp) return null;
 
-  const { mstnCoverage, criteriaMet, materials } = checkCriteria(bp);
+  const { mstnCoverage, criteriaMet, materials, checkMocLabel } = checkCriteria(bp);
   const mstnPassed = mstnCoverage >= 100;
 
   const handleCreateRequest = () => {
@@ -447,7 +465,15 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
             <p className={`text-2xl font-bold ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
               {mstnCoverage}%
             </p>
-            <p className="text-xs mt-0.5 text-muted-foreground">CBU level MSTN should ≥80%</p>
+            <p className={`text-xs mt-0.5 font-medium ${mstnPassed ? "text-emerald-700" : "text-red-600"}`}>
+              {mstnPassed ? "MSTN cleared for all CBUs" : "MSTN clearance criteria not met for all CBUs"}
+            </p>
+            {checkMocLabel && (
+              <p className="text-xs mt-1 text-muted-foreground flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
+                MSTN check initiated in <span className="font-semibold ml-1">{checkMocLabel}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -466,6 +492,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead className="text-xs py-2 w-6" />
                   <TableHead className="text-xs py-2">CBU Code</TableHead>
                   <TableHead className="text-xs py-2">Description</TableHead>
                   <TableHead className="text-xs py-2 text-center">MSTN Cleared</TableHead>
@@ -473,19 +500,63 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {materials.map(m => (
-                  <TableRow key={m.code} className="text-xs">
-                    <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
-                    <TableCell className="py-2 max-w-40 truncate text-muted-foreground" title={m.description}>{m.description}</TableCell>
-                    <TableCell className="py-2 text-center">
-                      {m.mstnCleared
-                        ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
-                        : <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><XCircle className="h-3 w-3" />No</span>
-                      }
-                    </TableCell>
-                    <TableCell className="py-2 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
-                  </TableRow>
-                ))}
+                {materials.map(m => {
+                  const depotEntries = Object.entries(m.mstnByDepot ?? {});
+                  const hasDepots = depotEntries.length > 0;
+                  const isExpanded = expandedCbu === m.code;
+                  return (
+                    <Fragment key={m.code}>
+                      <TableRow
+                        className={`text-xs cursor-pointer hover:bg-muted/30 transition-colors ${isExpanded ? "bg-muted/20" : ""}`}
+                        onClick={() => hasDepots && setExpandedCbu(isExpanded ? null : m.code)}
+                        data-testid={`criteria-row-${m.code}`}
+                      >
+                        <TableCell className="py-2 pl-3">
+                          {hasDepots
+                            ? (isExpanded
+                                ? <ChevronDown className="h-3.5 w-3.5 text-[#1f36c7]" />
+                                : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />)
+                            : <span className="inline-block w-3.5" />
+                          }
+                        </TableCell>
+                        <TableCell className="font-mono font-medium text-blue-600 py-2">{m.code}</TableCell>
+                        <TableCell className="py-2 max-w-40 truncate text-muted-foreground" title={m.description}>{m.description}</TableCell>
+                        <TableCell className="py-2 text-center">
+                          {m.mstnCleared
+                            ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><CheckCircle2 className="h-3 w-3" />Yes</span>
+                            : <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><XCircle className="h-3 w-3" />No</span>
+                          }
+                        </TableCell>
+                        <TableCell className="py-2 text-center text-muted-foreground">{m.lastUpdated}</TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow data-testid={`criteria-depot-${m.code}`}>
+                          <TableCell colSpan={5} className="p-0 bg-slate-50/80 border-t border-dashed">
+                            <div className="px-5 py-3">
+                              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                                DC-wise MSTN levels
+                              </p>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {depotEntries
+                                  .sort((a, b) => b[1] - a[1])
+                                  .map(([depot, pct]) => (
+                                    <div
+                                      key={depot}
+                                      className={`flex items-center justify-between rounded px-2.5 py-1.5 text-xs border ${pct >= 80 ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-600"}`}
+                                    >
+                                      <span className="font-mono font-medium">{depot}</span>
+                                      <span className="font-bold">{pct}%</span>
+                                    </div>
+                                  ))
+                                }
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
