@@ -100,6 +100,8 @@ interface PbMaterial {
   slobRisk: boolean;
   typeOfNetwork: string;
   mstnPct: number | null;
+  networkChangeDate: string | null;
+  mstnByDepot: Record<string, number>;
 }
 
 interface PbBasepack {
@@ -116,6 +118,9 @@ interface PbBasepack {
   networkPlanner: string;
   paidBibleOwner: string;
   materials: PbMaterial[];
+  isNewLaunch: boolean;
+  networkChangeDateRaw: string | null;
+  mstnClear: "Yes" | "No" | null;
 }
 
 // ─── MOC Calculator ──────────────────────────────────────────────────────────
@@ -139,6 +144,52 @@ function getCurrentMoc(): { number: number; label: string } {
   const mocNumber = endMonth;
   const label     = `${MONTH_NAMES[endMonth - 1]} ${endYear}`;
   return { number: mocNumber, label };
+}
+
+// MOC 1: Dec 21–Jan 20, MOC 2: Jan 21–Feb 20, … MOC 12: Nov 21–Dec 20.
+// MOC number = the end-month's 1-based index.
+function getMocForDate(d: Date): { moc: number; startDate: Date } {
+  const day   = d.getDate();
+  const month = d.getMonth(); // 0-indexed
+  const year  = d.getFullYear();
+  if (day >= 21) {
+    // MOC starts this month's 21st, ends next month's 20th
+    return {
+      moc:       ((month + 1) % 12) + 1,
+      startDate: new Date(year, month, 21),
+    };
+  } else {
+    // MOC started prev month's 21st, ends this month's 20th
+    const sm = month === 0 ? 11 : month - 1;
+    const sy = month === 0 ? year - 1 : year;
+    return {
+      moc:       month + 1,
+      startDate: new Date(sy, sm, 21),
+    };
+  }
+}
+
+// Return the start date of the MOC immediately before the given MOC start date.
+function prevMocStartDate(mocStart: Date): Date {
+  const m = mocStart.getMonth();
+  const y = mocStart.getFullYear();
+  return new Date(m === 0 ? y - 1 : y, m === 0 ? 11 : m - 1, 21);
+}
+
+// Compute MSTN Clear for a set of new-launch CBU entries.
+// Rule: 70% of distinct DCs must have ≥ 80% MSTN.
+// Uses the current mstnByDepot snapshot (best available value per depot across all CBUs).
+function computeMstnClear(entries: Array<{ mstnByDepot?: Record<string, number> }>): "Yes" | "No" {
+  const depotBest: Record<string, number> = {};
+  for (const e of entries) {
+    for (const [depot, pct] of Object.entries(e.mstnByDepot ?? {})) {
+      if (depotBest[depot] == null || pct > depotBest[depot]) depotBest[depot] = pct;
+    }
+  }
+  const total = Object.keys(depotBest).length;
+  if (total === 0) return "No";
+  const cleared = Object.values(depotBest).filter(p => p >= 80).length;
+  return cleared / total >= 0.7 ? "Yes" : "No";
 }
 
 // ─── Data Helpers ─────────────────────────────────────────────────────────────
@@ -697,6 +748,11 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
         bpStatus:       deriveBpStatus(statuses),
         networkPlanner: planner,
         paidBibleOwner: PB_OWNER_MAP[planner] || "PB SPOC",
+        isNewLaunch:    entries.every(e => e.typeOfNetwork === "NEW_LAUNCH"),
+        networkChangeDateRaw: entries.find(e => e.networkChangeDate)?.networkChangeDate ?? null,
+        mstnClear: entries.every(e => e.typeOfNetwork === "NEW_LAUNCH")
+          ? computeMstnClear(entries.map(e => ({ mstnByDepot: (e as any).mstnByDepot ?? {} })))
+          : null,
         materials: entries.map(e => {
           const ns = e.networkStatus ?? "Draft";
           const atThreshold = MSTN_THRESHOLD_STATUSES.has(ns);
@@ -729,6 +785,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
             priceStart:    MSTN_ACTIVE_STATUSES.has(ns) ? "01-Apr-24" : "-",
             priceEnd:      e.endDate ? formatDateDisplay(e.endDate) : "-",
             mstnPct,
+            networkChangeDate: e.networkChangeDate ?? null,
+            mstnByDepot: (e as any).mstnByDepot ?? {},
           };
         }),
       } as PbBasepack;
@@ -1040,6 +1098,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Location / Cluster</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Channels</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">MSTN</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))] whitespace-nowrap">NW Change Date</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))] whitespace-nowrap">MSTN Clear</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Basepack Status</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">BG</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Network Planner</TableHead>
@@ -1049,7 +1109,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-16">No basepacks found — try adjusting your filters</TableCell>
+                    <TableCell colSpan={12} className="text-center text-muted-foreground py-16">No basepacks found — try adjusting your filters</TableCell>
                   </TableRow>
                 ) : filtered.map(bp => {
                   const effStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
@@ -1088,6 +1148,18 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                         </TableCell>
 
                         <TableCell className="py-3"><MstnBadge status={bp.mstnStatus} /></TableCell>
+
+                        <TableCell className="py-3 whitespace-nowrap" data-testid={`nw-change-date-${bp.id}`}>
+                          {bp.isNewLaunch && bp.networkChangeDateRaw
+                            ? <span className="text-xs font-medium">{formatDateDisplay(bp.networkChangeDateRaw)}</span>
+                            : <span className="text-xs text-muted-foreground">—</span>}
+                        </TableCell>
+
+                        <TableCell className="py-3" data-testid={`mstn-clear-${bp.id}`}>
+                          {bp.isNewLaunch
+                            ? <MstnBadge status={bp.mstnClear!} />
+                            : <span className="text-xs text-muted-foreground">—</span>}
+                        </TableCell>
 
                         <TableCell className="py-3" onClick={e => e.stopPropagation()}>
                           {isEditing ? (
