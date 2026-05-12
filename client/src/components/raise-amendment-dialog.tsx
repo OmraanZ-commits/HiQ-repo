@@ -472,7 +472,7 @@ function ChannelEditor({ leafChannels, currentChannels, addedChannels, setAddedC
 
   return (
     <div className="space-y-4">
-      <SelectionLegend />
+      <SelectionLegend showRemoving={rmvGeoCount > 0 || rmvDepotCount > 0} />
       {groups.map(g => (
         <div key={g.label}>
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
