@@ -280,7 +280,7 @@ function OverviewTab({ profile }: { profile: BasepakProfile }) {
       )}
 
       {/* CBU Detail — MSTN by Depot + Price Lots */}
-      <CbuDetailSection cbus={profile.cbus ?? []} />
+      <CbuDetailSection cbus={profile.cbus ?? []} pendingSrs={profile.linkedSrs} />
     </div>
   );
 }
