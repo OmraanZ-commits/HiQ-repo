@@ -44,13 +44,13 @@ export interface PendingSrRef {
   cbuCode?: string;
 }
 
-const SR_TYPE_LABEL: Record<string, string> = {
+export const SR_TYPE_LABEL: Record<string, string> = {
   "geo-extension":      "Geo Extension",
   "channel-extension":  "Channel Extension",
   "sourcing-amendment": "Sourcing Amendment",
 };
 
-const SR_TYPE_COLOR: Record<string, string> = {
+export const SR_TYPE_COLOR: Record<string, string> = {
   "geo-extension":      "bg-emerald-100 text-emerald-700 border-emerald-300",
   "channel-extension":  "bg-violet-100 text-violet-700 border-violet-300",
   "sourcing-amendment": "bg-amber-100 text-amber-700 border-amber-300",

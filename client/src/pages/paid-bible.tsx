@@ -1,5 +1,5 @@
 import { useState, Fragment, useMemo } from "react";
-import { useLocation, useSearch } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
 import { useSrStore, addRequest, setBpStatusOverride, formatNow, SR_TYPE_META, CBU_SR_TYPES } from "@/lib/sr-store";
@@ -7,6 +7,7 @@ import { getNetworkChangeTypeName } from "@/lib/constants";
 import { formatDateDisplay } from "@/lib/date-utils";
 import type { ServiceRequest, MaterialCriteria, ApproverStep, SrType, BpDates } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
+import { type PendingSrRef, SR_TYPE_LABEL, SR_TYPE_COLOR } from "@/components/basepack-cbu-sections";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -260,10 +261,12 @@ function MaterialsSubTable({
   bpId,
   materials,
   navigate,
+  pendingSrs = [],
 }: {
   bpId: string;
   materials: PbMaterial[];
   navigate: (path: string) => void;
+  pendingSrs?: PendingSrRef[];
 }) {
   const [expandedMat, setExpandedMat] = useState<string | null>(null);
 
@@ -365,31 +368,65 @@ function MaterialsSubTable({
                 {isExpanded && hasDepots && (
                   <TableRow data-testid={`mat-depot-breakdown-${m.id}`}>
                     <TableCell colSpan={13} className="p-0 bg-slate-50/80 border-t border-dashed">
-                      <div className="px-6 py-3.5">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
-                          DC-wise MSTN levels
-                        </p>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                          {depotEntries
-                            .sort((a, b) => b[1] - a[1])
-                            .map(([depot, pct]) => (
-                              <div
-                                key={depot}
-                                className={`flex flex-col gap-1 rounded-md px-2.5 py-2 border ${pct >= 80 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}
-                                data-testid={`mat-depot-${m.id}-${depot}`}
-                              >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="font-mono text-xs font-medium text-slate-700 truncate">{depot}</span>
-                                  <span className={`text-xs font-bold flex-shrink-0 ${pct >= 80 ? "text-emerald-700" : "text-red-600"}`}>{pct}%</span>
-                                </div>
-                                <div className="h-1 rounded-full bg-white/60 overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : "bg-red-400"}`}
-                                    style={{ width: `${Math.min(pct, 100)}%` }}
-                                  />
-                                </div>
+                      <div className="px-6 py-3.5 space-y-3.5">
+                        {/* Pending Amendments */}
+                        {(() => {
+                          const matches = pendingSrs.filter(sr => sr.cbuCode === m.code && sr.overallStatus === "pending");
+                          if (!matches.length) return null;
+                          return (
+                            <div>
+                              <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> Pending Amendments ({matches.length})
+                              </p>
+                              <div className="flex flex-col gap-1">
+                                {matches.map(sr => (
+                                  <div key={sr.id} className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-1.5 text-xs">
+                                    <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${SR_TYPE_COLOR[sr.srType] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                                      {SR_TYPE_LABEL[sr.srType] ?? sr.srType}
+                                    </span>
+                                    <Link
+                                      href={`/paid-bible/requests/${sr.id}`}
+                                      className="font-mono text-blue-600 hover:underline truncate"
+                                      data-testid={`pending-sr-link-${sr.id}`}
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      {sr.id}
+                                    </Link>
+                                    <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                                      <Clock className="h-2.5 w-2.5" /> Pending
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            </div>
+                          );
+                        })()}
+                        <div>
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
+                            DC-wise MSTN levels
+                          </p>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                            {depotEntries
+                              .sort((a, b) => b[1] - a[1])
+                              .map(([depot, pct]) => (
+                                <div
+                                  key={depot}
+                                  className={`flex flex-col gap-1 rounded-md px-2.5 py-2 border ${pct >= 80 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}
+                                  data-testid={`mat-depot-${m.id}-${depot}`}
+                                >
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="font-mono text-xs font-medium text-slate-700 truncate">{depot}</span>
+                                    <span className={`text-xs font-bold flex-shrink-0 ${pct >= 80 ? "text-emerald-700" : "text-red-600"}`}>{pct}%</span>
+                                  </div>
+                                  <div className="h-1 rounded-full bg-white/60 overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : "bg-red-400"}`}
+                                      style={{ width: `${Math.min(pct, 100)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
@@ -1473,6 +1510,11 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                                   bpId={bp.id}
                                   materials={bp.materials}
                                   navigate={navigate}
+                                  pendingSrs={serviceRequests.filter(r =>
+                                    (CBU_SR_TYPES as readonly string[]).includes(r.srType) &&
+                                    r.overallStatus === "pending" &&
+                                    r.basepackCode === bp.basepackCode
+                                  )}
                                 />
                               )}
                             </div>
