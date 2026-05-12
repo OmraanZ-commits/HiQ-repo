@@ -13,7 +13,7 @@ import {
 import { UnileverHeader } from "@/components/unilever-header";
 import { SrStatusBadge, ApproverChain } from "@/components/sr-detail-components";
 import { useSrStore, approveStep, rejectStep, SR_TYPE_META, CBU_SR_TYPES } from "@/lib/sr-store";
-import { CbuMstnSection, CbuPricingSection } from "@/components/basepack-cbu-sections";
+import { CbuDetailSection } from "@/components/basepack-cbu-sections";
 import type { CbuSectionRecord } from "@/components/basepack-cbu-sections";
 
 function FieldCell({ label, children }: { label: string; children: React.ReactNode }) {
@@ -31,6 +31,18 @@ export default function ServiceRequestDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const { requests } = useSrStore();
   const request = requests.find(r => r.id === id);
+
+  // Hooks must be called unconditionally — before any early return
+  const bpCode = request?.basepackCode;
+  const { data: bpProfile } = useQuery<{ cbus: CbuSectionRecord[] }>({
+    queryKey: ["/api/paid-bible/basepacks", bpCode],
+    queryFn: async () => {
+      const r = await fetch(`/api/paid-bible/basepacks/${bpCode}`);
+      if (!r.ok) throw new Error("failed");
+      return r.json();
+    },
+    enabled: !!bpCode,
+  });
 
   if (!request) {
     return (
@@ -55,17 +67,6 @@ export default function ServiceRequestDetailPage() {
   const pendingApprovals = request.approvers.filter(a => a.status === "pending").length;
   const pendingApprover = request.approvers.find(a => a.status === "pending");
   const pendingWith     = pendingApprover?.label ?? "—";
-
-  const bpCode = request.basepackCode;
-  const { data: bpProfile } = useQuery<{ cbus: CbuSectionRecord[] }>({
-    queryKey: ["/api/paid-bible/basepacks", bpCode],
-    queryFn: async () => {
-      const r = await fetch(`/api/paid-bible/basepacks/${bpCode}`);
-      if (!r.ok) throw new Error("failed");
-      return r.json();
-    },
-    enabled: !!bpCode,
-  });
 
   const allCbus: CbuSectionRecord[] = bpProfile?.cbus ?? [];
   const relevantCbus = isCbu && request.cbuCode
@@ -388,14 +389,10 @@ export default function ServiceRequestDetailPage() {
                 )}
               </>
             )}
-            {/* ── CBU MSTN + Pricing sections ── */}
+            {/* ── CBU Detail section ── */}
             {relevantCbus.length > 0 && (
-              <div className="space-y-4 pt-2">
-                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  CBU Detail
-                </h2>
-                <CbuMstnSection cbus={relevantCbus} />
-                <CbuPricingSection cbus={relevantCbus} />
+              <div className="pt-2">
+                <CbuDetailSection cbus={relevantCbus} />
               </div>
             )}
 

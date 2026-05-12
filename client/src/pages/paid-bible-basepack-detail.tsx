@@ -13,7 +13,7 @@ import {
   History, ChevronRight, ChevronDown, AlertCircle, BarChart2,
   TrendingUp, ShieldCheck, Zap, Tag,
 } from "lucide-react";
-import { CbuMstnSection, CbuPricingSection } from "@/components/basepack-cbu-sections";
+import { CbuDetailSection } from "@/components/basepack-cbu-sections";
 import { SrStatusBadge } from "@/components/sr-detail-components";
 
 // ─── Domain Interfaces ────────────────────────────────────────────────────────
@@ -279,11 +279,8 @@ function OverviewTab({ profile }: { profile: BasepakProfile }) {
         </div>
       )}
 
-      {/* CBU + MSTN by Depot */}
-      <CbuMstnSection cbus={profile.cbus ?? []} />
-
-      {/* Pricing Information */}
-      <CbuPricingSection cbus={profile.cbus ?? []} />
+      {/* CBU Detail — MSTN by Depot + Price Lots */}
+      <CbuDetailSection cbus={profile.cbus ?? []} />
     </div>
   );
 }
