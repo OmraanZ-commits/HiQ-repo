@@ -1337,13 +1337,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                         <TableCell className="text-xs text-muted-foreground py-3 max-w-40 truncate" title={bp.clusters}>{bp.clusters}</TableCell>
 
                         <TableCell className="py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {bp.channels.length > 0
-                              ? bp.channels.slice(0, 3).map(ch => <Badge key={ch} variant="outline" className="text-xs px-1.5 py-0">{ch}</Badge>)
-                              : <span className="text-xs text-muted-foreground">-</span>
-                            }
-                            {bp.channels.length > 3 && <Badge variant="outline" className="text-xs px-1.5 py-0">+{bp.channels.length - 3}</Badge>}
-                          </div>
+                          <ChannelsCell channels={bp.channels} />
                         </TableCell>
 
                         <TableCell className="py-3"><MstnBadge status={bp.mstnStatus} /></TableCell>
