@@ -977,6 +977,284 @@ function MultiSelectFilter({
   );
 }
 
+// ─── Export helpers ──────────────────────────────────────────────────────────
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows
+    .map(r => r.map(cell => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+const BP_EXPORT_FIELDS: { key: string; label: string }[] = [
+  { key: "basepakName",    label: "Basepack Name" },
+  { key: "basepackCode",   label: "Basepack Code" },
+  { key: "salesCategory",  label: "Sales Category" },
+  { key: "brand",          label: "Brand" },
+  { key: "bg",             label: "Business Group" },
+  { key: "clusters",       label: "Location / Cluster" },
+  { key: "channels_str",   label: "Channels" },
+  { key: "bpStatus",       label: "Basepack Status" },
+  { key: "networkPlanner", label: "Network Planner" },
+  { key: "paidBibleOwner", label: "PB Owner" },
+  { key: "mstn_cbu_clear", label: "MSTN Clearance (CBU)" },
+];
+
+const CBU_EXPORT_FIELDS: { key: string; label: string }[] = [
+  { key: "code",              label: "CBU Code" },
+  { key: "description",       label: "Description" },
+  { key: "networkStatus",     label: "NW Status" },
+  { key: "matStatus",         label: "Mat. Status" },
+  { key: "typeOfNetwork",     label: "Type of Network" },
+  { key: "mstnPct",           label: "MSTN %" },
+  { key: "networkChangeDate", label: "NW Change Date" },
+  { key: "mstnClear",         label: "MSTN Clear" },
+  { key: "predecessorDoh",    label: "Predecessor DOH" },
+  { key: "priceActive",       label: "Price Active" },
+  { key: "priceEnd",          label: "Price End" },
+  { key: "mrp",               label: "MRP" },
+  { key: "ean",               label: "EAN" },
+  { key: "grammage",          label: "Grammage" },
+  { key: "slobRisk",          label: "SLOB Risk" },
+];
+
+function ExportDialog({
+  open, onClose, filtered, allBasepacks, localBpStatus,
+}: {
+  open: boolean;
+  onClose: () => void;
+  filtered: PbBasepack[];
+  allBasepacks: PbBasepack[];
+  localBpStatus: Record<string, string>;
+}) {
+  const [scope,          setScope]          = useState<"filtered" | "all" | "selected">("filtered");
+  const [selectedBpIds,  setSelectedBpIds]  = useState<Set<string>>(new Set());
+  const [bpFields,       setBpFields]       = useState<Set<string>>(new Set(BP_EXPORT_FIELDS.map(f => f.key)));
+  const [includeCbu,     setIncludeCbu]     = useState(true);
+  const [cbuFields,      setCbuFields]      = useState<Set<string>>(new Set(CBU_EXPORT_FIELDS.map(f => f.key)));
+
+  const toggleBpField  = (k: string) => setBpFields(p  => { const n = new Set(p);  n.has(k) ? n.delete(k) : n.add(k); return n; });
+  const toggleCbuField = (k: string) => setCbuFields(p => { const n = new Set(p); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  const toggleBp       = (id: string) => setSelectedBpIds(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const sourceBps =
+    scope === "all"      ? allBasepacks :
+    scope === "filtered" ? filtered :
+    allBasepacks.filter(b => selectedBpIds.has(b.id));
+
+  const getBpValue = (bp: PbBasepack, key: string): string => {
+    if (key === "channels_str") return bp.channels.join("; ");
+    if (key === "mstn_cbu_clear") {
+      const no  = bp.materials.some(m => m.mstnClear === "No");
+      const yes = bp.materials.some(m => m.mstnClear === "Yes");
+      return no ? "No" : yes ? "Yes" : "—";
+    }
+    if (key === "bpStatus") return normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
+    return String((bp as any)[key] ?? "");
+  };
+
+  const getCbuValue = (m: PbMaterial, key: string): string => {
+    if (key === "slobRisk")   return m.slobRisk    ? "Yes" : "No";
+    if (key === "priceActive") return m.priceActive ? "Yes" : "No";
+    return String((m as any)[key] ?? "");
+  };
+
+  const doExport = () => {
+    const bpCols  = BP_EXPORT_FIELDS.filter(f => bpFields.has(f.key));
+    const cbuCols = includeCbu ? CBU_EXPORT_FIELDS.filter(f => cbuFields.has(f.key)) : [];
+    const headers = [...bpCols.map(f => f.label), ...cbuCols.map(f => f.label)];
+    const rows: string[][] = [];
+    for (const bp of sourceBps) {
+      if (includeCbu) {
+        const mats = bp.materials.length > 0 ? bp.materials : [null];
+        for (const m of mats) {
+          rows.push([
+            ...bpCols.map(f => getBpValue(bp, f.key)),
+            ...cbuCols.map(f => m ? getCbuValue(m, f.key) : ""),
+          ]);
+        }
+      } else {
+        rows.push(bpCols.map(f => getBpValue(bp, f.key)));
+      }
+    }
+    downloadCsv(`paid-bible-export-${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
+    onClose();
+  };
+
+  const totalRows = includeCbu
+    ? sourceBps.reduce((n, b) => n + Math.max(b.materials.length, 1), 0)
+    : sourceBps.length;
+
+  return (
+    <Dialog open={open} onOpenChange={o => !o && onClose()}>
+      <DialogContent className="max-w-2xl flex flex-col max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Download className="h-4 w-4" /> Export Paid Bible Data
+          </DialogTitle>
+          <DialogDescription>
+            Select which basepacks, basepack attributes, and CBU attributes to include.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+
+          {/* ── 1. Row scope ── */}
+          <div>
+            <p className="text-sm font-semibold mb-2">1. Select rows to export</p>
+            <RadioGroup
+              value={scope}
+              onValueChange={v => setScope(v as "filtered" | "all" | "selected")}
+              className="flex flex-wrap gap-4 mb-3"
+              data-testid="export-scope"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="filtered" id="exp-filtered" />
+                <Label htmlFor="exp-filtered" className="text-sm cursor-pointer font-normal">
+                  All visible <span className="text-muted-foreground">({filtered.length})</span>
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="all" id="exp-all" />
+                <Label htmlFor="exp-all" className="text-sm cursor-pointer font-normal">
+                  All basepacks <span className="text-muted-foreground">({allBasepacks.length})</span>
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="selected" id="exp-selected" />
+                <Label htmlFor="exp-selected" className="text-sm cursor-pointer font-normal">
+                  Choose specific
+                </Label>
+              </div>
+            </RadioGroup>
+
+            {scope === "selected" && (
+              <div className="rounded-md border max-h-44 overflow-y-auto" data-testid="export-bp-list">
+                <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+                  <Checkbox
+                    checked={selectedBpIds.size === allBasepacks.length}
+                    onCheckedChange={checked => setSelectedBpIds(checked ? new Set(allBasepacks.map(b => b.id)) : new Set())}
+                    data-testid="export-select-all-bps"
+                  />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {selectedBpIds.size === 0 ? "Select all" : `${selectedBpIds.size} selected`}
+                  </span>
+                </div>
+                {allBasepacks.map(bp => (
+                  <div
+                    key={bp.id}
+                    className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/40 cursor-pointer border-b last:border-0 select-none"
+                    onClick={() => toggleBp(bp.id)}
+                    data-testid={`export-bp-${bp.id}`}
+                  >
+                    <Checkbox checked={selectedBpIds.has(bp.id)} onCheckedChange={() => toggleBp(bp.id)} className="pointer-events-none" />
+                    <span className="text-sm font-medium truncate flex-1">{bp.basepakName}</span>
+                    <span className="text-xs text-muted-foreground font-mono shrink-0">{bp.basepackCode}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{bp.materials.length} CBUs</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* ── 2. Basepack attributes ── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold">2. Basepack attributes</p>
+              <div className="flex gap-2 text-xs">
+                <button className="text-[#1f36c7] hover:underline" onClick={() => setBpFields(new Set(BP_EXPORT_FIELDS.map(f => f.key)))}>All</button>
+                <span className="text-muted-foreground">/</span>
+                <button className="text-muted-foreground hover:text-foreground hover:underline" onClick={() => setBpFields(new Set())}>None</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-x-2 gap-y-0.5">
+              {BP_EXPORT_FIELDS.map(f => (
+                <div
+                  key={f.key}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => toggleBpField(f.key)}
+                  data-testid={`export-bp-field-${f.key}`}
+                >
+                  <Checkbox checked={bpFields.has(f.key)} onCheckedChange={() => toggleBpField(f.key)} className="pointer-events-none" />
+                  <span className="text-xs">{f.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* ── 3. CBU detail ── */}
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <p className="text-sm font-semibold">3. CBU (material) detail</p>
+              <button
+                data-testid="export-toggle-cbu"
+                onClick={() => setIncludeCbu(v => !v)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${includeCbu ? "bg-[#1f36c7]" : "bg-muted"}`}
+              >
+                <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${includeCbu ? "translate-x-4" : "translate-x-0.5"}`} />
+              </button>
+              <span className="text-xs text-muted-foreground">
+                {includeCbu ? "Included — one row per CBU" : "Excluded — one row per basepack"}
+              </span>
+            </div>
+
+            {includeCbu && (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-muted-foreground">Choose CBU attributes</span>
+                  <div className="flex gap-2 text-xs">
+                    <button className="text-[#1f36c7] hover:underline" onClick={() => setCbuFields(new Set(CBU_EXPORT_FIELDS.map(f => f.key)))}>All</button>
+                    <span className="text-muted-foreground">/</span>
+                    <button className="text-muted-foreground hover:text-foreground hover:underline" onClick={() => setCbuFields(new Set())}>None</button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-x-2 gap-y-0.5">
+                  {CBU_EXPORT_FIELDS.map(f => (
+                    <div
+                      key={f.key}
+                      className="flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => toggleCbuField(f.key)}
+                      data-testid={`export-cbu-field-${f.key}`}
+                    >
+                      <Checkbox checked={cbuFields.has(f.key)} onCheckedChange={() => toggleCbuField(f.key)} className="pointer-events-none" />
+                      <span className="text-xs">{f.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter className="border-t pt-4 mt-2">
+          <div className="flex items-center gap-2 mr-auto text-xs text-muted-foreground">
+            <FileText className="h-3.5 w-3.5" />
+            <span>{totalRows} row{totalRows !== 1 ? "s" : ""} · {bpFields.size + (includeCbu ? cbuFields.size : 0)} columns</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button
+            size="sm"
+            onClick={doExport}
+            disabled={(scope === "selected" && selectedBpIds.size === 0) || bpFields.size === 0}
+            className="gap-1.5 bg-[#1f36c7] hover:bg-[#1f36c7]/90 text-white"
+            data-testid="button-export-download"
+          >
+            <Download className="h-3.5 w-3.5" /> Download CSV
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Part 1: Overview ────────────────────────────────────────────────────────
 
 interface OverviewTabProps {
@@ -1001,6 +1279,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
   const [materialSearch, setMaterialSearch] = useState("");
   const [mstnFilter, setMstnFilter]         = useState<string[]>([]);
   const [bgFilter, setBgFilter]             = useState<string[]>([]);
+  const [exportOpen, setExportOpen]         = useState(false);
   const [showFilters, setShowFilters]       = useState(false);
   const [expandedId, setExpandedId]         = useState<string | null>(null);
   const [expandedTab, setExpandedTab]       = useState<"materials" | "history">("materials");
@@ -1416,7 +1695,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
             </Button>
 
             <div className="ml-auto flex items-center gap-2">
-              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-export"><Download className="h-3.5 w-3.5" /> Export</Button>
+              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-export" onClick={() => setExportOpen(true)}><Download className="h-3.5 w-3.5" /> Export</Button>
               <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-raise-ticket"><Ticket className="h-3.5 w-3.5" /> Raise Ticket</Button>
             </div>
           </div>
@@ -1721,6 +2000,14 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
           )}
         </CardContent>
       </Card>
+
+      <ExportDialog
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        filtered={filtered}
+        allBasepacks={allBasepacks}
+        localBpStatus={localBpStatus}
+      />
     </div>
   );
 }
