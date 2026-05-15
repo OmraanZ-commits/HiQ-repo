@@ -272,7 +272,7 @@ function MaterialsSubTable({
   const [expandedMat, setExpandedMat] = useState<string | null>(null);
 
   return (
-    <div className="rounded-lg border overflow-hidden bg-white shadow-sm">
+    <div className="rounded-lg border overflow-x-auto bg-white shadow-sm">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
