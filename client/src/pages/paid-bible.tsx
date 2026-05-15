@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -905,6 +907,76 @@ function BasepackHistoryPanel({ bp, allRequests, navigate }: {
   );
 }
 
+// ─── MultiSelectFilter ───────────────────────────────────────────────────────
+
+function MultiSelectFilter({
+  options,
+  value,
+  onChange,
+  placeholder = "All",
+  testId,
+  width = "w-44",
+}: {
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange: (vals: string[]) => void;
+  placeholder?: string;
+  testId?: string;
+  width?: string;
+}) {
+  const toggle = (v: string) =>
+    onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v]);
+
+  const displayLabel =
+    value.length === 0
+      ? placeholder
+      : value.length === 1
+      ? (options.find(o => o.value === value[0])?.label ?? value[0])
+      : `${value.length} selected`;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={`${width} h-9 justify-between font-normal text-sm px-3`}
+          data-testid={testId}
+        >
+          <span className={`truncate ${value.length === 0 ? "text-muted-foreground" : ""}`}>{displayLabel}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0 ml-1" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-52 p-2" align="start">
+        <div className="space-y-0.5 max-h-64 overflow-y-auto">
+          {options.map(opt => (
+            <div
+              key={opt.value}
+              className="flex items-center gap-2 rounded-sm px-2 py-1.5 cursor-pointer hover:bg-muted/60 select-none"
+              onClick={() => toggle(opt.value)}
+            >
+              <Checkbox
+                checked={value.includes(opt.value)}
+                onCheckedChange={() => toggle(opt.value)}
+                className="pointer-events-none"
+                data-testid={`${testId ?? "msf"}-opt-${opt.value}`}
+              />
+              <span className="text-sm">{opt.label}</span>
+            </div>
+          ))}
+        </div>
+        {value.length > 0 && (
+          <div className="border-t mt-2 pt-2">
+            <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => onChange([])}>
+              Clear
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // ─── Part 1: Overview ────────────────────────────────────────────────────────
 
 interface OverviewTabProps {
@@ -923,12 +995,12 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
   });
 
   const [searchBp, setSearchBp]             = useState("");
-  const [bpStatusFilter, setBpStatusFilter] = useState("all");
-  const [channelFilter, setChannelFilter]   = useState("all");
-  const [locationFilter, setLocationFilter] = useState("all");
+  const [bpStatusFilter, setBpStatusFilter] = useState<string[]>([]);
+  const [channelFilter, setChannelFilter]   = useState<string[]>([]);
+  const [locationFilter, setLocationFilter] = useState<string[]>([]);
   const [materialSearch, setMaterialSearch] = useState("");
-  const [mstnFilter, setMstnFilter]         = useState("all");
-  const [bgFilter, setBgFilter]             = useState("all");
+  const [mstnFilter, setMstnFilter]         = useState<string[]>([]);
+  const [bgFilter, setBgFilter]             = useState<string[]>([]);
   const [showFilters, setShowFilters]       = useState(false);
   const [expandedId, setExpandedId]         = useState<string | null>(null);
   const [expandedTab, setExpandedTab]       = useState<"materials" | "history">("materials");
@@ -1045,11 +1117,11 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
     const q  = searchBp.toLowerCase();
     return (
       (!q || b.basepakName.toLowerCase().includes(q) || b.basepackCode.includes(q) || b.brand.toLowerCase().includes(q)) &&
-      (bpStatusFilter === "all" || effStatus === bpStatusFilter) &&
-      (channelFilter  === "all" || b.channels.includes(channelFilter)) &&
-      (locationFilter === "all" || b.clusters.includes(locationFilter)) &&
-      (mstnFilter === "all" || b.materials.some(m => m.mstnClear === mstnFilter)) &&
-      (bgFilter       === "all" || b.bg === bgFilter) &&
+      (bpStatusFilter.length === 0 || bpStatusFilter.includes(effStatus)) &&
+      (channelFilter.length  === 0 || channelFilter.some(ch => b.channels.includes(ch))) &&
+      (locationFilter.length === 0 || locationFilter.some(loc => b.clusters.includes(loc))) &&
+      (mstnFilter.length     === 0 || mstnFilter.some(f => b.materials.some(m => m.mstnClear === f))) &&
+      (bgFilter.length       === 0 || bgFilter.includes(b.bg)) &&
       (!materialSearch || b.materials.some(m =>
         m.code.toLowerCase().includes(materialSearch.toLowerCase()) ||
         m.description.toLowerCase().includes(materialSearch.toLowerCase())
@@ -1064,8 +1136,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
   const activeCount = allBasepacks.filter(b => ACTIVE_BP_STATUSES.has(normalizeBpStatus(localBpStatus[b.id] ?? b.bpStatus))).length;
 
   const activeFilterCount = [
-    bpStatusFilter !== "all", channelFilter !== "all",
-    locationFilter !== "all", mstnFilter !== "all", bgFilter !== "all", materialSearch !== "",
+    bpStatusFilter.length > 0, channelFilter.length > 0,
+    locationFilter.length > 0, mstnFilter.length > 0, bgFilter.length > 0, materialSearch !== "",
   ].filter(Boolean).length;
 
   const triggerCbus = useMemo(() => {
@@ -1350,23 +1422,25 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
             <div className="flex items-end gap-3 mt-4 pt-4 border-t flex-wrap" data-testid="filters-panel">
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Basepack Status</label>
-                <Select value={bpStatusFilter} onValueChange={setBpStatusFilter}>
-                  <SelectTrigger className="w-44" data-testid="select-bp-status"><SelectValue placeholder="All Status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    {BP_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={BP_STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
+                  value={bpStatusFilter}
+                  onChange={setBpStatusFilter}
+                  placeholder="All Status"
+                  testId="select-bp-status"
+                  width="w-44"
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Channel</label>
-                <Select value={channelFilter} onValueChange={setChannelFilter}>
-                  <SelectTrigger className="w-36" data-testid="select-channel"><SelectValue placeholder="All Channels" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Channels</SelectItem>
-                    {channelOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={channelOptions.map(c => ({ value: c, label: c }))}
+                  value={channelFilter}
+                  onChange={setChannelFilter}
+                  placeholder="All Channels"
+                  testId="select-channel"
+                  width="w-36"
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Material</label>
@@ -1377,37 +1451,39 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Location (Cluster)</label>
-                <Select value={locationFilter} onValueChange={setLocationFilter}>
-                  <SelectTrigger className="w-48" data-testid="select-location"><SelectValue placeholder="All Locations" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    {locationOptions.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={locationOptions.map(l => ({ value: l, label: l }))}
+                  value={locationFilter}
+                  onChange={setLocationFilter}
+                  placeholder="All Locations"
+                  testId="select-location"
+                  width="w-48"
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">MSTN Clearance</label>
-                <Select value={mstnFilter} onValueChange={setMstnFilter}>
-                  <SelectTrigger className="w-40" data-testid="select-mstn"><SelectValue placeholder="All" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="Yes">Cleared (CBU)</SelectItem>
-                    <SelectItem value="No">Not Cleared (CBU)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={[{ value: "Yes", label: "Cleared (CBU)" }, { value: "No", label: "Not Cleared (CBU)" }]}
+                  value={mstnFilter}
+                  onChange={setMstnFilter}
+                  placeholder="All"
+                  testId="select-mstn"
+                  width="w-40"
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Business Group</label>
-                <Select value={bgFilter} onValueChange={setBgFilter}>
-                  <SelectTrigger className="w-40" data-testid="select-bg"><SelectValue placeholder="All BGs" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All BGs</SelectItem>
-                    {bgOptions.map(bg => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={bgOptions.map(bg => ({ value: bg, label: bg }))}
+                  value={bgFilter}
+                  onChange={setBgFilter}
+                  placeholder="All BGs"
+                  testId="select-bg"
+                  width="w-40"
+                />
               </div>
               {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => { setBpStatusFilter("all"); setChannelFilter("all"); setLocationFilter("all"); setMstnFilter("all"); setBgFilter("all"); setMaterialSearch(""); }} data-testid="button-clear-filters">
+                <Button variant="ghost" size="sm" onClick={() => { setBpStatusFilter([]); setChannelFilter([]); setLocationFilter([]); setMstnFilter([]); setBgFilter([]); setMaterialSearch(""); }} data-testid="button-clear-filters">
                   Clear all
                 </Button>
               )}
