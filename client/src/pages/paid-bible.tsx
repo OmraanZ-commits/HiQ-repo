@@ -1114,9 +1114,12 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
 
   const filtered = useMemo(() => allBasepacks.filter(b => {
     const effStatus = normalizeBpStatus(localBpStatus[b.id] ?? b.bpStatus);
-    const q  = searchBp.toLowerCase();
+    const terms = searchBp.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+    const matchesSearch = terms.length === 0 || terms.some(q =>
+      b.basepakName.toLowerCase().includes(q) || b.basepackCode.toLowerCase().includes(q) || b.brand.toLowerCase().includes(q)
+    );
     return (
-      (!q || b.basepakName.toLowerCase().includes(q) || b.basepackCode.includes(q) || b.brand.toLowerCase().includes(q)) &&
+      matchesSearch &&
       (bpStatusFilter.length === 0 || bpStatusFilter.includes(effStatus)) &&
       (channelFilter.length  === 0 || channelFilter.some(ch => b.channels.includes(ch))) &&
       (locationFilter.length === 0 || locationFilter.some(loc => b.clusters.includes(loc))) &&
