@@ -115,16 +115,6 @@ export default function HomePage() {
                 <p className="text-white/50 text-xs font-medium uppercase tracking-wider mb-3">{mod.subtitle}</p>
                 <p className="text-white/75 text-sm leading-relaxed mb-6">{mod.description}</p>
 
-                {/* Features */}
-                <ul className="space-y-1.5 mb-7">
-                  {mod.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-white/70 text-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/50 flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
               </button>
             );
           })}
