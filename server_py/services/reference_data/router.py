@@ -212,3 +212,11 @@ async def delete_network_change_type(type_id: str):
 async def get_geography_depot_map():
     """Return the geography to depot mapping."""
     return _svc().get_geography_depot_map()
+
+
+# ── Cluster-Region-State Mapping ───────────────────────────────
+
+@router.get("/cluster-region-map")
+async def get_cluster_region_map():
+    """Return the cluster to region code + state mapping."""
+    return _svc().get_cluster_region_map()

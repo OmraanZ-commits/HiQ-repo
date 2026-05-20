@@ -6,6 +6,7 @@ from server_py.db import (
     SessionLocal,
     ChannelsMasterModel,
     ClustersMasterModel,
+    ClusterRegionStateModel,
     DepotsMasterModel,
     NetworkChangeTypeMasterModel,
     RefDataAuditLogModel,
@@ -517,6 +518,45 @@ class ReferenceDataStorage:
             db.delete(row)
             db.commit()
             return True
+        finally:
+            db.close()
+
+    # ── Cluster-Region-State Mapping ────────────────────────────
+
+    def get_cluster_region_map(self) -> List[dict]:
+        db = SessionLocal()
+        try:
+            rows = db.query(ClusterRegionStateModel).order_by(ClusterRegionStateModel.sort_order).all()
+            return [
+                {
+                    "id": str(r.id),
+                    "cluster": r.cluster,
+                    "regionCode": r.region_code,
+                    "state": r.state,
+                    "sortOrder": r.sort_order,
+                    "isActive": r.is_active,
+                }
+                for r in rows
+            ]
+        finally:
+            db.close()
+
+    def seed_cluster_region_states(self, seeds: List[dict]):
+        db = SessionLocal()
+        try:
+            if db.query(ClusterRegionStateModel).count() > 0:
+                return
+            for s in seeds:
+                db.add(ClusterRegionStateModel(
+                    id=uuid.uuid4(),
+                    cluster=s["cluster"],
+                    region_code=s.get("regionCode"),
+                    state=s.get("state"),
+                    sort_order=s.get("sortOrder"),
+                    is_active=True,
+                    created_at=datetime.now(timezone.utc),
+                ))
+            db.commit()
         finally:
             db.close()
 

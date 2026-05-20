@@ -283,12 +283,20 @@ class ReferenceDataService:
         clusters: List[dict],
         depots: List[dict],
         network_change_types: List[dict] = None,
+        cluster_region_states: List[dict] = None,
     ):
         self.storage.seed_channels(channels)
         self.storage.seed_clusters(clusters)
         self.storage.seed_depots(depots)
         if network_change_types:
             self.storage.seed_network_change_types(network_change_types)
+        if cluster_region_states:
+            self.storage.seed_cluster_region_states(cluster_region_states)
+
+    # ── Cluster-Region-State Mapping ─────────────────────────────
+
+    def get_cluster_region_map(self) -> List[dict]:
+        return self.storage.get_cluster_region_map()
 
     # ── Geography-Depot Mapping ───────────────────────────────────
 
@@ -310,4 +318,5 @@ class ReferenceDataService:
             "depots": self.get_all_depots(),
             "networkChangeTypes": self.get_all_network_change_types(),
             "geographyDepotMap": self.get_geography_depot_map(),
+            "clusterRegionMap": self.get_cluster_region_map(),
         }

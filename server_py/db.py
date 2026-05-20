@@ -190,6 +190,18 @@ class NetworkChangeTypeMasterModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+class ClusterRegionStateModel(Base):
+    __tablename__ = "cluster_region_states"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cluster = Column(String, nullable=False)
+    region_code = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    sort_order = Column(Integer, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
 # ── Paid Bible Tables ───────────────────────────────────────────
 
 
@@ -436,6 +448,20 @@ def run_migrations():
         """))
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_rdal_entity ON ref_data_audit_log (entity_type, entity_id)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS cluster_region_states (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                cluster VARCHAR NOT NULL,
+                region_code VARCHAR,
+                state VARCHAR,
+                sort_order INTEGER,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_crs_cluster ON cluster_region_states (cluster)"
         ))
         conn.commit()
 

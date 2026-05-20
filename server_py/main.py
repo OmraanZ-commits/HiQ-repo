@@ -53,7 +53,7 @@ from server_py.services.paid_bible.router import (
     set_service as set_paid_bible_service,
 )
 
-from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS
+from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS, CLUSTER_REGION_STATE_SEEDS
 from server_py.seed_users import USER_SEEDS
 from server_py.seed_service_requests import SR_SEEDS
 
@@ -102,7 +102,7 @@ async def startup():
     ref_storage = ReferenceDataStorage()
     ref_service = ReferenceDataService(ref_storage)
     set_ref_service(ref_service)
-    ref_service.seed_all(CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS)
+    ref_service.seed_all(CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS, CLUSTER_REGION_STATE_SEEDS)
 
     users_storage = UsersStorage()
     users_service = UsersService(users_storage)
