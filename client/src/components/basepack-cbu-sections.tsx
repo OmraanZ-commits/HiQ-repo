@@ -107,7 +107,13 @@ const FALLBACK_LOTS: PriceLot[] = [
     id: "lot-02", priceLot: "02", mrp: 215.00, currency: "INR",
     validFrom: "2024-07-01", validTo: "9999-12-31",
     allIndia: false, channels: [], regionChannelPairs: [],
-    regions: ["Kerala", "Rajasthan", "Tamil Nadu", "Punjab", "Gujarat", "West Bengal"],
+    regions: [
+      "Kerala", "Rajasthan", "pondicherry C mahe", "Tamil Nadu",
+      "Punjab", "Gujarat", "Nagaland", "Megalaya", "Goa",
+      "Mizoram", "Uttar Pradesh (Ghaziabad) B", "Arunachal Pradesh",
+      "Daman und Diu", "Sikkim", "Orissa/Odisha",
+      "Haryana (Gurgoan Faridabad) (B)", "West Bengal", "Jammu und Kashmir",
+    ],
   },
   {
     id: "lot-03", priceLot: "03", mrp: 229.00, currency: "INR",
@@ -119,11 +125,13 @@ const FALLBACK_LOTS: PriceLot[] = [
     id: "lot-04", priceLot: "04", mrp: 245.00, currency: "INR",
     validFrom: "2025-07-01", validTo: "9999-12-31",
     allIndia: false,
-    regions: ["Maharashtra B", "Delhi", "Tamil Nadu", "West Bengal"],
+    regions: [
+      "Mumbai +Pune (maharastra B) (mum CHN DEPOT)", "Delhi", "Tamil Nadu", "West Bengal",
+    ],
     channels: ["GT", "Ecom"],
     regionChannelPairs: [
-      { region: "Maharashtra B", channels: ["GT", "MT Retail"] },
-      { region: "Delhi", channels: ["KA", "Ecom"] },
+      { region: "Mumbai +Pune (maharastra B) (mum CHN DEPOT)", channels: ["GT", "MT Retail"] },
+      { region: "Delhi",      channels: ["KA", "Ecom"] },
       { region: "Tamil Nadu", channels: ["GT", "CSD"] },
       { region: "West Bengal", channels: ["MT Retail"] },
     ],
