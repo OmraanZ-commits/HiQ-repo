@@ -988,8 +988,9 @@ export default function EditEntry() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {selectedGeo.slice(0, 8).map((geo, geoIdx) => {
-                                  const depotCode = selectedDepots[geoIdx % selectedDepots.length];
+                                {selectedGeo.slice(0, 8).map((geo) => {
+                                  const geoDepots = (GEOGRAPHY_DEPOT_MAP[geo] || []).filter(d => selectedDepots.includes(d));
+                                  const depotCode = geoDepots.join(", ") || "—";
                                   const geoChannels = (channelMapping[geo] || []).filter(c => c !== "MT");
                                   return (
                                     <tr key={geo} className="border-b border-border/50">
@@ -1429,8 +1430,9 @@ export default function EditEntry() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {selectedGeo.slice(0, 8).map((geo, geoIdx) => {
-                                  const depotCode = selectedDepots[geoIdx % selectedDepots.length];
+                                {selectedGeo.slice(0, 8).map((geo) => {
+                                  const geoDepots = (GEOGRAPHY_DEPOT_MAP[geo] || []).filter(d => selectedDepots.includes(d));
+                                  const depotCode = geoDepots.join(", ") || "—";
                                   const geoChannels = (channelMapping[geo] || []).filter(c => c !== "MT");
                                   return (
                                     <tr key={geo} className="border-b border-border/50">
