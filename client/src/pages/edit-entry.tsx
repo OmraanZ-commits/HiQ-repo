@@ -971,9 +971,11 @@ export default function EditEntry() {
                     </CardHeader>
                     <CardContent>
                       {(() => {
-                        const allMatrixChannels = Array.from(new Set(
-                          selectedGeo.flatMap(g => (channelMapping[g] || []).filter(c => c !== "MT"))
-                        ));
+                        const _selectedChs = new Set(selectedGeo.flatMap(g => channelMapping[g] || []));
+                        const allMatrixChannels = [
+                          ...TOP_CHANNELS.map(c => c.code),
+                          ...MT_SUB_CHANNELS.map(c => c.code),
+                        ].filter(c => _selectedChs.has(c));
                         return selectedGeo.length > 0 && selectedDepots.length > 0 && allMatrixChannels.length > 0 ? (
                           <div className="overflow-x-auto">
                             <table className="w-full text-xs">
@@ -1409,9 +1411,11 @@ export default function EditEntry() {
                     </CardHeader>
                     <CardContent>
                       {(() => {
-                        const allMatrixChannels = Array.from(new Set(
-                          selectedGeo.flatMap(g => (channelMapping[g] || []).filter(c => c !== "MT"))
-                        ));
+                        const _selectedChs = new Set(selectedGeo.flatMap(g => channelMapping[g] || []));
+                        const allMatrixChannels = [
+                          ...TOP_CHANNELS.map(c => c.code),
+                          ...MT_SUB_CHANNELS.map(c => c.code),
+                        ].filter(c => _selectedChs.has(c));
                         return selectedGeo.length > 0 && selectedDepots.length > 0 && allMatrixChannels.length > 0 ? (
                           <div className="overflow-x-auto">
                             <table className="w-full text-xs">
