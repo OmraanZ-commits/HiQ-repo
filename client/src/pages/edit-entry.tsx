@@ -981,10 +981,9 @@ export default function EditEntry() {
                                 <tr className="border-b">
                                   <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Geography</th>
                                   <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Depot</th>
-                                  {allMatrixChannels.slice(0, 6).map(ch => (
+                                  {allMatrixChannels.map(ch => (
                                     <th key={ch} className="text-center py-2 px-2 text-muted-foreground font-medium">{ch}</th>
                                   ))}
-                                  {allMatrixChannels.length > 6 && <th className="text-center py-2 px-2 text-muted-foreground font-medium">+{allMatrixChannels.length - 6}</th>}
                                 </tr>
                               </thead>
                               <tbody>
@@ -996,7 +995,7 @@ export default function EditEntry() {
                                     <tr key={geo} className="border-b border-border/50">
                                       <td className="py-2 pr-3 font-medium">{geo.length > 22 ? geo.substring(0, 20) + "..." : geo}</td>
                                       <td className="py-2 pr-3 font-mono text-muted-foreground">{depotCode}</td>
-                                      {allMatrixChannels.slice(0, 6).map(ch => (
+                                      {allMatrixChannels.map(ch => (
                                         <td key={ch} className="text-center py-2 px-2">
                                           {geoChannels.includes(ch) ? (
                                             <div className="w-5 h-5 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
@@ -1009,9 +1008,6 @@ export default function EditEntry() {
                                           )}
                                         </td>
                                       ))}
-                                      {allMatrixChannels.length > 6 && (
-                                        <td className="text-center py-2 px-2 text-muted-foreground">...</td>
-                                      )}
                                     </tr>
                                   );
                                 })}
@@ -1423,10 +1419,9 @@ export default function EditEntry() {
                                 <tr className="border-b">
                                   <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Geography</th>
                                   <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Depot</th>
-                                  {allMatrixChannels.slice(0, 6).map(ch => (
+                                  {allMatrixChannels.map(ch => (
                                     <th key={ch} className="text-center py-2 px-2 text-muted-foreground font-medium">{ch}</th>
                                   ))}
-                                  {allMatrixChannels.length > 6 && <th className="text-center py-2 px-2 text-muted-foreground font-medium">+{allMatrixChannels.length - 6}</th>}
                                 </tr>
                               </thead>
                               <tbody>
@@ -1438,11 +1433,11 @@ export default function EditEntry() {
                                     <tr key={geo} className="border-b border-border/50">
                                       <td className="py-2 pr-3 font-medium">{geo.length > 22 ? geo.substring(0, 20) + "..." : geo}</td>
                                       <td className="py-2 pr-3 font-mono text-muted-foreground">{depotCode}</td>
-                                      {allMatrixChannels.slice(0, 6).map(ch => {
+                                      {allMatrixChannels.map(ch => {
                                         if (!geoChannels.includes(ch)) {
                                           return (
                                             <td key={ch} className="text-center py-2 px-2">
-                                              <span className="text-[10px] text-muted-foreground">-</span>
+                                              <span className="text-[10px] text-muted-foreground/50 italic">NA</span>
                                             </td>
                                           );
                                         }
@@ -1472,9 +1467,6 @@ export default function EditEntry() {
                                           </td>
                                         );
                                       })}
-                                      {allMatrixChannels.length > 6 && (
-                                        <td className="text-center py-2 px-2 text-muted-foreground">...</td>
-                                      )}
                                     </tr>
                                   );
                                 })}
