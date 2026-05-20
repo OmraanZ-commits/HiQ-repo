@@ -4,6 +4,7 @@ import {
   useReferenceData,
   type ChannelMaster,
   type ClusterMaster,
+  type ClusterRegionState,
   type DepotMaster,
   type NetworkChangeTypeMaster,
   type RefDataAuditEntry,
@@ -50,6 +51,7 @@ import {
   RefreshCw,
   Radio,
   MapPin,
+  Map,
   Warehouse,
   CheckCircle2,
   XCircle,
@@ -969,6 +971,69 @@ function AuditLogTable({ data }: { data: RefDataAuditEntry[] }) {
   );
 }
 
+// ── Cluster-Region-State mapping table ───────────────────────────────────────
+
+function ClusterRegionMapTable({ data }: { data: ClusterRegionState[] }) {
+  if (!data.length) return <p className="text-muted-foreground text-sm py-4">No mapping data found.</p>;
+
+  // Group rows by cluster, preserving sort_order
+  const groups: { cluster: string; rows: ClusterRegionState[] }[] = [];
+  for (const row of data) {
+    const last = groups[groups.length - 1];
+    if (last && last.cluster === row.cluster) {
+      last.rows.push(row);
+    } else {
+      groups.push({ cluster: row.cluster, rows: [row] });
+    }
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/40">
+            <TableHead className="font-semibold w-52">Cluster</TableHead>
+            <TableHead className="font-semibold w-32">Region Code</TableHead>
+            <TableHead className="font-semibold">State</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {groups.map((group, gi) =>
+            group.rows.map((row, ri) => (
+              <TableRow
+                key={row.id}
+                className={gi % 2 === 0 ? "bg-white" : "bg-slate-50/60"}
+                data-testid={`row-cluster-region-${row.id}`}
+              >
+                {ri === 0 ? (
+                  <TableCell
+                    rowSpan={group.rows.length}
+                    className="align-top font-medium text-sm border-r border-muted/60 py-2.5"
+                  >
+                    {group.cluster}
+                  </TableCell>
+                ) : null}
+                <TableCell className="text-sm py-2.5">
+                  {row.regionCode ? (
+                    <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded bg-[#1f36c7]/10 text-[#1f36c7] font-mono text-xs font-semibold">
+                      {row.regionCode}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs italic">—</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-sm py-2.5 text-muted-foreground">
+                  {row.state ?? <span className="italic text-xs">—</span>}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ReferenceDataPage() {
@@ -978,7 +1043,7 @@ export default function ReferenceDataPage() {
 export function ReferenceDataContent() {
   const { toast } = useToast();
   const {
-    channels, clusters, depots, networkChangeTypes, auditLog,
+    channels, clusters, depots, networkChangeTypes, clusterRegionMap, auditLog,
     isLoading, isAuditLogLoading,
     fetchViaSaga, isSagaPending,
     updateChannelStatus, updateClusterStatus, updateDepotStatus, updateNetworkChangeTypeStatus,
@@ -1121,6 +1186,7 @@ export function ReferenceDataContent() {
                 <TabsTrigger value="clusters"><MapPin className="h-4 w-4 mr-1.5" />Clusters</TabsTrigger>
                 <TabsTrigger value="depots"><Warehouse className="h-4 w-4 mr-1.5" />Depots</TabsTrigger>
                 <TabsTrigger value="networkChangeTypes"><GitBranch className="h-4 w-4 mr-1.5" />Change Types</TabsTrigger>
+                <TabsTrigger value="regionMap" data-testid="tab-region-map"><Map className="h-4 w-4 mr-1.5" />Region Map</TabsTrigger>
                 <TabsTrigger value="auditLog"><ClipboardList className="h-4 w-4 mr-1.5" />Audit Log</TabsTrigger>
               </TabsList>
               {/* Per-tab Add button */}
@@ -1145,6 +1211,11 @@ export function ReferenceDataContent() {
             <TabsContent value="networkChangeTypes" className="p-5 mt-0">
               {isLoading ? <TableSkeleton /> : (
                 <NetworkChangeTypesTable data={networkChangeTypes} isAdmin={isAdmin} actingUserId={actingUserId} onUpdateStatus={handleNctStatus} />
+              )}
+            </TabsContent>
+            <TabsContent value="regionMap" className="p-5 mt-0">
+              {isLoading ? <TableSkeleton /> : (
+                <ClusterRegionMapTable data={clusterRegionMap} />
               )}
             </TabsContent>
             <TabsContent value="auditLog" className="p-5 mt-0">

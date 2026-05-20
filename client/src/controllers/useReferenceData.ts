@@ -68,6 +68,15 @@ export interface StatusUpdatePayload {
 
 export type GeographyDepotMap = Record<string, string[]>;
 
+export interface ClusterRegionState {
+  id: string;
+  cluster: string;
+  regionCode: string | null;
+  state: string | null;
+  sortOrder: number | null;
+  isActive: boolean;
+}
+
 export interface ChannelDef {
   code: string;
   type: "Core" | "Traditional" | "Modern Trade";
@@ -101,6 +110,7 @@ const REFDATA_KEYS = {
   depots: ["/api/reference-data/depots"],
   networkChangeTypes: ["/api/reference-data/network-change-types"],
   geographyDepotMap: ["/api/reference-data/geography-depot-map"],
+  clusterRegionMap: ["/api/reference-data/cluster-region-map"],
   auditLog: ["/api/reference-data/audit-log"],
 };
 
@@ -273,6 +283,7 @@ export function useReferenceData() {
   const depotsQuery = useQuery<DepotMaster[]>({ queryKey: REFDATA_KEYS.depots, staleTime: Infinity });
   const networkChangeTypesQuery = useQuery<NetworkChangeTypeMaster[]>({ queryKey: REFDATA_KEYS.networkChangeTypes, staleTime: Infinity });
   const geographyDepotMapQuery = useQuery<GeographyDepotMap>({ queryKey: REFDATA_KEYS.geographyDepotMap, staleTime: Infinity });
+  const clusterRegionMapQuery = useQuery<ClusterRegionState[]>({ queryKey: REFDATA_KEYS.clusterRegionMap, staleTime: Infinity });
   const auditLogQuery = useQuery<RefDataAuditEntry[]>({ queryKey: REFDATA_KEYS.auditLog, staleTime: 0 });
 
   const channels = channelsQuery.data ?? [];
@@ -280,6 +291,7 @@ export function useReferenceData() {
   const depots = depotsQuery.data ?? [];
   const networkChangeTypes = networkChangeTypesQuery.data ?? [];
   const geographyDepotMap = geographyDepotMapQuery.data ?? {};
+  const clusterRegionMap = clusterRegionMapQuery.data ?? [];
   const auditLog = auditLogQuery.data ?? [];
 
   const topChannels: ChannelDef[] = channels
@@ -305,6 +317,7 @@ export function useReferenceData() {
     depots,
     networkChangeTypes,
     geographyDepotMap,
+    clusterRegionMap,
     auditLog,
     topChannels,
     mtSubChannels,
