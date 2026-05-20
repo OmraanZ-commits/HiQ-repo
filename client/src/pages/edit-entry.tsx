@@ -1027,95 +1027,6 @@ export default function EditEntry() {
                     </CardContent>
                   </Card>
 
-                  {/* ── Pricing Status Summary ───────────────────────── */}
-                  <Card className="mt-4" data-testid="pricing-status-summary">
-                    <CardHeader className="pb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <IndianRupee className="h-4 w-4 text-[#00b0d7]" />
-                          <p className="text-sm font-semibold">Pricing Status Summary</p>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Resolved MRP per geography × channel — hover a price to see valid-till date</p>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {(() => {
-                        const allMatrixChannels = Array.from(new Set(
-                          selectedGeo.flatMap(g => (channelMapping[g] || []).filter(c => c !== "MT"))
-                        ));
-                        return selectedGeo.length > 0 && selectedDepots.length > 0 && allMatrixChannels.length > 0 ? (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="border-b">
-                                  <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Geography</th>
-                                  <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Depot</th>
-                                  {allMatrixChannels.slice(0, 6).map(ch => (
-                                    <th key={ch} className="text-center py-2 px-2 text-muted-foreground font-medium">{ch}</th>
-                                  ))}
-                                  {allMatrixChannels.length > 6 && <th className="text-center py-2 px-2 text-muted-foreground font-medium">+{allMatrixChannels.length - 6}</th>}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {selectedGeo.slice(0, 8).map((geo, geoIdx) => {
-                                  const depotCode = selectedDepots[geoIdx % selectedDepots.length];
-                                  const geoChannels = (channelMapping[geo] || []).filter(c => c !== "MT");
-                                  return (
-                                    <tr key={geo} className="border-b border-border/50">
-                                      <td className="py-2 pr-3 font-medium">{geo.length > 22 ? geo.substring(0, 20) + "..." : geo}</td>
-                                      <td className="py-2 pr-3 font-mono text-muted-foreground">{depotCode}</td>
-                                      {allMatrixChannels.slice(0, 6).map(ch => {
-                                        if (!geoChannels.includes(ch)) {
-                                          return (
-                                            <td key={ch} className="text-center py-2 px-2">
-                                              <span className="text-[10px] text-muted-foreground">-</span>
-                                            </td>
-                                          );
-                                        }
-                                        const lot = resolvePriceForGeoChannel(geo, ch, MOCK_PRICE_LOTS, clusterRegionMap);
-                                        return (
-                                          <td key={ch} className="text-center py-2 px-2">
-                                            {lot ? (
-                                              <div className="relative group/pc flex items-center justify-center">
-                                                <span
-                                                  className="text-[10px] font-bold text-[#1f36c7] tabular-nums cursor-default"
-                                                  data-testid={`price-cell-${geo}-${ch}`}
-                                                >
-                                                  ₹{lot.mrp.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                                </span>
-                                                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-20 hidden group-hover/pc:flex flex-col items-center">
-                                                  <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg">
-                                                    Valid till: {formatDateDisplay(lot.validTo)}
-                                                  </div>
-                                                  <div className="w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-800" />
-                                                </div>
-                                              </div>
-                                            ) : (
-                                              <span className="text-[10px] text-red-500 font-medium whitespace-nowrap" data-testid={`price-inactive-${geo}-${ch}`}>
-                                                Price inactive
-                                              </span>
-                                            )}
-                                          </td>
-                                        );
-                                      })}
-                                      {allMatrixChannels.length > 6 && (
-                                        <td className="text-center py-2 px-2 text-muted-foreground">...</td>
-                                      )}
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                            {selectedGeo.length > 8 && (
-                              <p className="text-[10px] text-muted-foreground mt-2 text-center">+ {selectedGeo.length - 8} more clusters</p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground text-center py-6">Select geography, depots, and channels to see the pricing summary.</p>
-                        );
-                      })()}
-                    </CardContent>
-                  </Card>
                 </TabsContent>
               </Tabs>
             </TabsContent>
@@ -1268,6 +1179,19 @@ export default function EditEntry() {
 
             {/* ── Pricing Tab ───────────────────────────────────────── */}
             <TabsContent value="pricing" className="mt-0">
+              <Tabs defaultValue="price-lots" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="price-lots" className="text-xs">
+                    <IndianRupee className="h-3.5 w-3.5 mr-1.5" />
+                    Price Lots
+                  </TabsTrigger>
+                  <TabsTrigger value="pricing-summary" className="text-xs">
+                    <Info className="h-3.5 w-3.5 mr-1.5" />
+                    Pricing Summary
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="price-lots" className="mt-0">
               {(() => {
                 /* derive summary badge(s) from data presence */
                 const getScopePills = (lot: PriceLot) => {
@@ -1473,6 +1397,100 @@ export default function EditEntry() {
 
                 return <PricingTab />;
               })()}
+                </TabsContent>
+
+                <TabsContent value="pricing-summary" className="mt-0">
+                  <Card data-testid="pricing-status-summary">
+                    <CardHeader className="pb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <IndianRupee className="h-4 w-4 text-[#00b0d7]" />
+                          <p className="text-sm font-semibold">Pricing Status Summary</p>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Resolved MRP per geography × channel — hover a price to see valid-till date</p>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {(() => {
+                        const allMatrixChannels = Array.from(new Set(
+                          selectedGeo.flatMap(g => (channelMapping[g] || []).filter(c => c !== "MT"))
+                        ));
+                        return selectedGeo.length > 0 && selectedDepots.length > 0 && allMatrixChannels.length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Geography</th>
+                                  <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Depot</th>
+                                  {allMatrixChannels.slice(0, 6).map(ch => (
+                                    <th key={ch} className="text-center py-2 px-2 text-muted-foreground font-medium">{ch}</th>
+                                  ))}
+                                  {allMatrixChannels.length > 6 && <th className="text-center py-2 px-2 text-muted-foreground font-medium">+{allMatrixChannels.length - 6}</th>}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedGeo.slice(0, 8).map((geo, geoIdx) => {
+                                  const depotCode = selectedDepots[geoIdx % selectedDepots.length];
+                                  const geoChannels = (channelMapping[geo] || []).filter(c => c !== "MT");
+                                  return (
+                                    <tr key={geo} className="border-b border-border/50">
+                                      <td className="py-2 pr-3 font-medium">{geo.length > 22 ? geo.substring(0, 20) + "..." : geo}</td>
+                                      <td className="py-2 pr-3 font-mono text-muted-foreground">{depotCode}</td>
+                                      {allMatrixChannels.slice(0, 6).map(ch => {
+                                        if (!geoChannels.includes(ch)) {
+                                          return (
+                                            <td key={ch} className="text-center py-2 px-2">
+                                              <span className="text-[10px] text-muted-foreground">-</span>
+                                            </td>
+                                          );
+                                        }
+                                        const lot = resolvePriceForGeoChannel(geo, ch, MOCK_PRICE_LOTS, clusterRegionMap);
+                                        return (
+                                          <td key={ch} className="text-center py-2 px-2">
+                                            {lot ? (
+                                              <div className="relative group/pc flex items-center justify-center">
+                                                <span
+                                                  className="text-[10px] font-bold text-[#1f36c7] tabular-nums cursor-default"
+                                                  data-testid={`price-cell-${geo}-${ch}`}
+                                                >
+                                                  ₹{lot.mrp.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                                </span>
+                                                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-20 hidden group-hover/pc:flex flex-col items-center">
+                                                  <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                                                    Valid till: {formatDateDisplay(lot.validTo)}
+                                                  </div>
+                                                  <div className="w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-800" />
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <span className="text-[10px] text-red-500 font-medium whitespace-nowrap" data-testid={`price-inactive-${geo}-${ch}`}>
+                                                Price inactive
+                                              </span>
+                                            )}
+                                          </td>
+                                        );
+                                      })}
+                                      {allMatrixChannels.length > 6 && (
+                                        <td className="text-center py-2 px-2 text-muted-foreground">...</td>
+                                      )}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                            {selectedGeo.length > 8 && (
+                              <p className="text-[10px] text-muted-foreground mt-2 text-center">+ {selectedGeo.length - 8} more clusters</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground text-center py-6">Select geography, depots, and channels to see the pricing summary.</p>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+              </Tabs>
             </TabsContent>
 
           </Tabs>
