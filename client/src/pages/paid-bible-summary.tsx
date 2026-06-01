@@ -543,8 +543,8 @@ export default function PaidBibleSummaryTab() {
                                       <tbody className="divide-y divide-slate-100 bg-white">
                                         {mats.map(m => (
                                           <tr key={m.id} className="hover:bg-blue-50/40">
-                                            <td className="px-3 py-1.5 font-mono text-[10px] text-slate-700 font-semibold">{m.cbuCode || "—"}</td>
-                                            <td className="px-3 py-1.5 text-slate-700 max-w-[12rem] truncate" title={m.basepackDescription || m.basepack || undefined}>{m.basepackDescription || m.basepack || "—"}</td>
+                                            <td className="px-3 py-1.5 font-mono text-[10px] text-slate-700 font-semibold">{m.code || "—"}</td>
+                                            <td className="px-3 py-1.5 text-slate-700 max-w-[12rem] truncate" title={m.description}>{m.description || "—"}</td>
                                             <td className="px-3 py-1.5 text-center text-slate-600 tabular-nums">{m.networkChangeDate ?? "—"}</td>
                                             <td className="px-3 py-1.5 text-center">
                                               <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${
