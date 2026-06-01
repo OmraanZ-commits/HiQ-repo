@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertTriangle, Globe, Waypoints, ArrowRightLeft, Shuffle,
-  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle, ChevronDown, ChevronRight,
+  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle, ChevronDown, ChevronRight, Truck,
 } from "lucide-react";
 import { type NetworkEntry } from "@shared/schema";
 import { useSrStore } from "@/lib/sr-store";
@@ -61,7 +61,6 @@ const SR_TYPE_DEFS = [
 
 const RELAUNCH_CODES = new Set([
   "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM", "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
-  "NEW_LAUNCH",
 ]);
 
 const RL_ONLY_CODES = new Set([
@@ -505,6 +504,16 @@ export default function PaidBibleSummaryTab() {
                 <div className="px-4 border-b bg-slate-50 flex items-center gap-2 h-[37px]">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Relaunch Timeline</span>
                   <div className="ml-auto flex items-center gap-2">
+                    {/* SMI icon toggle — before All/Relaunch */}
+                    <button
+                      title="Stock Movement Initiated only"
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-semibold transition-colors ${smiOnly ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}
+                      onClick={() => setSmiOnly(v => !v)}
+                      data-testid="relaunch-filter-smi"
+                    >
+                      <Truck className="h-3 w-3" />
+                      <span>SMI</span>
+                    </button>
                     {/* All / Relaunch toggle */}
                     <div className="flex items-center rounded-md border border-slate-200 overflow-hidden text-[10px] font-semibold">
                       {(["ALL", "RL"] as const).map((f, i) => (
@@ -516,12 +525,6 @@ export default function PaidBibleSummaryTab() {
                         >{f === "ALL" ? "All" : "Relaunch"}</button>
                       ))}
                     </div>
-                    {/* Separate SMI toggle */}
-                    <button
-                      className={`px-2.5 py-1 rounded-md border text-[10px] font-semibold transition-colors ${smiOnly ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}
-                      onClick={() => setSmiOnly(v => !v)}
-                      data-testid="relaunch-filter-smi"
-                    >SMI</button>
                   </div>
                 </div>
                 {poolRelaunchMats.length === 0 ? (
