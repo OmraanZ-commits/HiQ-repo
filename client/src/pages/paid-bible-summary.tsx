@@ -299,6 +299,29 @@ export default function PaidBibleSummaryTab() {
   return (
     <div className="space-y-5" data-testid="paid-bible-summary">
 
+      {/* ── Global Small C filter ── */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-slate-500">Small C:</span>
+        <Select value={selectedCat} onValueChange={setSelectedCat} data-testid="filter-small-c">
+          <SelectTrigger className="h-7 text-xs px-2.5 w-48 border-slate-200 rounded-md">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL" className="text-xs">All Categories</SelectItem>
+            {salesCategories.map(c => (
+              <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {selectedCat !== "ALL" && (
+          <button
+            className="text-[10px] text-slate-400 hover:text-slate-700 underline"
+            onClick={() => setSelectedCat("ALL")}
+            data-testid="filter-clear"
+          >clear</button>
+        )}
+      </div>
+
       {/* ── Top KPI strip ── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiCard
@@ -363,37 +386,16 @@ export default function PaidBibleSummaryTab() {
 
       {/* ── Section 1: Basepack Status by Small C ── */}
       <div>
-        {/* Header: title + legend + filter */}
+        {/* Header: title + legend */}
         <div className="flex items-center gap-2 mb-2.5 flex-wrap">
           <BarChart3 className="h-4 w-4 text-[#1f36c7] shrink-0" />
           <h2 className="text-sm font-bold tracking-tight shrink-0">Basepack Status by Small C</h2>
-          <div className="flex items-center gap-3 ml-2 flex-wrap flex-1">
+          <div className="flex items-center gap-3 ml-2 flex-wrap">
             {BP_STATUS_DEFS.map(d => (
               <span key={d.key} className="flex items-center gap-1 text-[10px] text-slate-500">
                 <span className={`inline-block h-2 w-2 rounded-sm ${d.bg}`} />{d.label}
               </span>
             ))}
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] text-slate-500 font-medium">Small C:</span>
-            <Select value={selectedCat} onValueChange={setSelectedCat} data-testid="filter-small-c">
-              <SelectTrigger className="h-6 text-[11px] px-2 py-0 w-44 border-slate-200 rounded-md">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL" className="text-xs">All Categories</SelectItem>
-                {salesCategories.map(c => (
-                  <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedCat !== "ALL" && (
-              <button
-                className="text-[10px] text-slate-400 hover:text-slate-700 underline"
-                onClick={() => setSelectedCat("ALL")}
-                data-testid="filter-clear"
-              >clear</button>
-            )}
           </div>
         </div>
 
