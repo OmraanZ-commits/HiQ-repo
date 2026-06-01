@@ -64,6 +64,10 @@ const RELAUNCH_CODES = new Set([
   "NEW_LAUNCH",
 ]);
 
+const RL_ONLY_CODES = new Set([
+  "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM", "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
+]);
+
 const TIMELINE_BUCKETS = [
   { key: "t15", label: "Today + 15 days", max: 15, accent: "text-emerald-700", ring: "ring-emerald-200", bg: "bg-emerald-50" },
   { key: "t30", label: "Today + 30 days", max: 30, accent: "text-amber-700",   ring: "ring-amber-200",   bg: "bg-amber-50"   },
@@ -179,6 +183,7 @@ export default function PaidBibleSummaryTab() {
   } | null>(null);
 
   const [selectedCat, setSelectedCat] = useState<string>("ALL");
+  const [relaunchFilter, setRelaunchFilter] = useState<"ALL" | "RL">("ALL");
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -367,8 +372,13 @@ export default function PaidBibleSummaryTab() {
           const visibleCats = selectedCat === "ALL" ? salesCategories : salesCategories.filter(c => c === selectedCat);
           const poolBps = selectedCat === "ALL" ? basepacks : basepacks.filter(b => b.salesCategory === selectedCat);
           const poolTotal = poolBps.length;
-          const poolRelaunchMats = selectedCat === "ALL" ? relaunchMats : relaunchMats.filter(m => m.salesCategory === selectedCat);
-          const visibleRelaunchCats = selectedCat === "ALL" ? relaunchCats : relaunchCats.filter(c => c === selectedCat);
+          const activeRelaunchMats = relaunchFilter === "RL"
+            ? relaunchMats.filter(m => RL_ONLY_CODES.has(m.typeOfNetworkCode))
+            : relaunchMats;
+          const poolRelaunchMats = selectedCat === "ALL"
+            ? activeRelaunchMats
+            : activeRelaunchMats.filter(m => m.salesCategory === selectedCat);
+          const visibleRelaunchCats = [...new Set(poolRelaunchMats.map(m => m.salesCategory))].sort();
 
           return (
             <div className="grid grid-cols-2 gap-3">
@@ -435,9 +445,21 @@ export default function PaidBibleSummaryTab() {
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Relaunch Timeline</span>
-                  <span className="text-[10px] text-muted-foreground ml-1 flex items-center gap-0.5">
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                     <Truck className="h-2.5 w-2.5 text-violet-500" /> = SMI
                   </span>
+                  <div className="ml-auto flex items-center rounded-md border border-slate-200 overflow-hidden text-[10px] font-semibold">
+                    <button
+                      className={`px-2.5 py-1 transition-colors ${relaunchFilter === "ALL" ? "bg-[#1f36c7] text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+                      onClick={() => setRelaunchFilter("ALL")}
+                      data-testid="relaunch-filter-all"
+                    >All</button>
+                    <button
+                      className={`px-2.5 py-1 border-l border-slate-200 transition-colors ${relaunchFilter === "RL" ? "bg-[#1f36c7] text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+                      onClick={() => setRelaunchFilter("RL")}
+                      data-testid="relaunch-filter-rl"
+                    >Relaunch</button>
+                  </div>
                 </div>
                 {poolRelaunchMats.length === 0 ? (
                   <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">No relaunch packs{selectedCat !== "ALL" ? ` in ${selectedCat}` : ""}.</div>
