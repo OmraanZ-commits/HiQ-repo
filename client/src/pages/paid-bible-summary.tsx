@@ -238,6 +238,9 @@ export default function PaidBibleSummaryTab() {
       bg: e.bg || "-",
       mstnPercentage: e.mstnPercentage ?? null,
       priceActive: (e as any).priceActive ?? true,
+      predecessorCode: (e as any).predecessorCode ?? null,
+      predecessorDoh: (e as any).predecessorDoh ?? null,
+      successorDoh: (e as any).successorDoh ?? null,
     }));
 
     return { basepacks: bps, allMaterials: mats };
@@ -696,6 +699,9 @@ export default function PaidBibleSummaryTab() {
                               <tr className="bg-slate-100 border-b border-slate-200">
                                 <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">CBU Code</th>
                                 <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Description</th>
+                                <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Predecessor CBU</th>
+                                <th className="text-center px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Pred. DOH</th>
+                                <th className="text-center px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Succ. DOH</th>
                                 <th className="text-center px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Status</th>
                               </tr>
                             </thead>
@@ -704,6 +710,17 @@ export default function PaidBibleSummaryTab() {
                                 <tr key={m.id} className="hover:bg-red-50/40">
                                   <td className="px-3 py-1.5 font-mono text-[10px] font-semibold text-slate-700">{m.code}</td>
                                   <td className="px-3 py-1.5 text-slate-600 max-w-[10rem] truncate" title={m.description}>{m.description}</td>
+                                  <td className="px-3 py-1.5 font-mono text-[10px] text-slate-600">{m.predecessorCode ?? "—"}</td>
+                                  <td className="px-3 py-1.5 text-center tabular-nums text-[10px] text-slate-700 font-semibold">
+                                    {m.predecessorDoh != null
+                                      ? <span className="text-red-600">{m.predecessorDoh}d</span>
+                                      : <span className="text-slate-300">—</span>}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center tabular-nums text-[10px] text-slate-700 font-semibold">
+                                    {m.successorDoh != null
+                                      ? <span className="text-emerald-600">{m.successorDoh}d</span>
+                                      : <span className="text-slate-300">—</span>}
+                                  </td>
                                   <td className="px-3 py-1.5 text-center">
                                     <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border bg-orange-50 text-orange-700 border-orange-200">
                                       {m.networkStatus}
