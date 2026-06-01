@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertTriangle, Globe, Waypoints, ArrowRightLeft, Shuffle,
   Package, BarChart3, Clock, Truck, TrendingUp, CheckCircle2, XCircle,
@@ -176,6 +177,8 @@ export default function PaidBibleSummaryTab() {
     items: { id: string; age: number; basepackId: string }[];
   } | null>(null);
 
+  const [selectedCat, setSelectedCat] = useState<string>("ALL");
+
   // ── Derived data ──────────────────────────────────────────────────────────
 
   const { basepacks, allMaterials } = useMemo(() => {
@@ -324,62 +327,145 @@ export default function PaidBibleSummaryTab() {
 
       {/* ── Section 1: Basepack Status by Small C ── */}
       <div>
-        <div className="flex items-center gap-2 mb-2.5">
-          <BarChart3 className="h-4 w-4 text-[#1f36c7]" />
-          <h2 className="text-sm font-bold tracking-tight">Basepack Status by Small C</h2>
-          <div className="flex items-center gap-3 ml-4 flex-wrap">
+        {/* Header: title + legend + filter */}
+        <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+          <BarChart3 className="h-4 w-4 text-[#1f36c7] shrink-0" />
+          <h2 className="text-sm font-bold tracking-tight shrink-0">Basepack Status by Small C</h2>
+          <div className="flex items-center gap-3 ml-2 flex-wrap flex-1">
             {BP_STATUS_DEFS.map(d => (
               <span key={d.key} className="flex items-center gap-1 text-[10px] text-slate-500">
                 <span className={`inline-block h-2 w-2 rounded-sm ${d.bg}`} />{d.label}
               </span>
             ))}
           </div>
-        </div>
-        <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-          <div className="divide-y">
-            {salesCategories.map(cat => {
-              const data = bpStatusData(cat);
-              const total = data.reduce((s, d) => s + d.count, 0);
-              return (
-                <div key={cat} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50/60" data-testid={`bp-cat-row-${cat}`}>
-                  <span className="text-xs font-semibold text-slate-700 w-36 shrink-0">{cat}</span>
-                  <div className="flex-1">
-                    <StackedBar data={data} total={total} />
-                  </div>
-                  <span className="text-xs font-black text-slate-600 tabular-nums w-6 text-right">{total}</span>
-                  <div className="flex items-center gap-2 w-48 shrink-0">
-                    {data.filter(d => d.count > 0).map(d => (
-                      <span key={d.key} className="text-[10px] font-semibold" style={{ color: d.color }}>
-                        {d.label} {d.count}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            {/* Totals */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide w-36 shrink-0">All Categories</span>
-              <div className="flex-1">
-                <StackedBar
-                  data={BP_STATUS_DEFS.map(d => ({ ...d, count: basepacks.filter(b => b.effectiveStatus === d.key).length }))}
-                  total={totalBps}
-                />
-              </div>
-              <span className="text-xs font-black text-[#1f36c7] tabular-nums w-6 text-right">{totalBps}</span>
-              <div className="flex items-center gap-2 w-48 shrink-0">
-                {BP_STATUS_DEFS.map(d => {
-                  const n = basepacks.filter(b => b.effectiveStatus === d.key).length;
-                  return n > 0 ? (
-                    <span key={d.key} className="text-[10px] font-bold" style={{ color: d.color }}>
-                      {d.label} {n}
-                    </span>
-                  ) : null;
-                })}
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] text-slate-500 font-medium">Small C:</span>
+            <Select value={selectedCat} onValueChange={setSelectedCat} data-testid="filter-small-c">
+              <SelectTrigger className="h-6 text-[11px] px-2 py-0 w-44 border-slate-200 rounded-md">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL" className="text-xs">All Categories</SelectItem>
+                {salesCategories.map(c => (
+                  <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedCat !== "ALL" && (
+              <button
+                className="text-[10px] text-slate-400 hover:text-slate-700 underline"
+                onClick={() => setSelectedCat("ALL")}
+                data-testid="filter-clear"
+              >clear</button>
+            )}
           </div>
         </div>
+
+        {/* Two-panel split */}
+        {(() => {
+          const visibleCats = selectedCat === "ALL" ? salesCategories : salesCategories.filter(c => c === selectedCat);
+          const poolBps = selectedCat === "ALL" ? basepacks : basepacks.filter(b => b.salesCategory === selectedCat);
+          const poolTotal = poolBps.length;
+
+          return (
+            <div className="grid grid-cols-2 gap-3">
+
+              {/* ── Left: Bar chart panel ── */}
+              <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                <div className="px-4 py-2 border-b bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Bar View
+                </div>
+                <div className="divide-y">
+                  {visibleCats.map(cat => {
+                    const data = bpStatusData(cat);
+                    const total = data.reduce((s, d) => s + d.count, 0);
+                    return (
+                      <div key={cat} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50/60" data-testid={`bp-cat-row-${cat}`}>
+                        <span className="text-xs font-semibold text-slate-700 w-32 shrink-0 truncate" title={cat}>{cat}</span>
+                        <div className="flex-1 min-w-0">
+                          <StackedBar data={data} total={total} />
+                        </div>
+                        <span className="text-xs font-black text-slate-600 tabular-nums w-5 text-right shrink-0">{total}</span>
+                      </div>
+                    );
+                  })}
+                  {/* Totals bar */}
+                  <div className="flex items-center gap-3 px-4 py-2 bg-slate-50">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide w-32 shrink-0">
+                      {selectedCat === "ALL" ? "All" : "Total"}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <StackedBar
+                        data={BP_STATUS_DEFS.map(d => ({ ...d, count: poolBps.filter(b => b.effectiveStatus === d.key).length }))}
+                        total={poolTotal}
+                      />
+                    </div>
+                    <span className="text-xs font-black text-[#1f36c7] tabular-nums w-5 text-right shrink-0">{poolTotal}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Right: Tabular matrix panel ── */}
+              <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                <div className="px-4 py-2 border-b bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Table View
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left px-3 py-1.5 font-bold text-slate-500 text-[10px] uppercase tracking-wider w-32">Small C</th>
+                        {BP_STATUS_DEFS.map(d => (
+                          <th key={d.key} className="text-center px-2 py-1.5 font-bold text-[10px] uppercase tracking-wider whitespace-nowrap" style={{ color: d.color }}>
+                            {d.label}
+                          </th>
+                        ))}
+                        <th className="text-center px-2 py-1.5 font-bold text-[10px] uppercase tracking-wider text-[#1f36c7]">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {visibleCats.map(cat => {
+                        const data = bpStatusData(cat);
+                        const total = data.reduce((s, d) => s + d.count, 0);
+                        return (
+                          <tr key={cat} className="hover:bg-slate-50/60" data-testid={`bp-cat-table-${cat}`}>
+                            <td className="px-3 py-1.5 font-semibold text-slate-700 truncate max-w-[8rem]" title={cat}>{cat}</td>
+                            {data.map(d => (
+                              <td key={d.key} className="text-center px-2 py-1.5 tabular-nums font-semibold">
+                                {d.count > 0
+                                  ? <span className="font-black" style={{ color: d.color }}>{d.count}</span>
+                                  : <span className="text-slate-200">—</span>
+                                }
+                              </td>
+                            ))}
+                            <td className="text-center px-2 py-1.5 font-black text-slate-600 tabular-nums">{total}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-50 border-t">
+                        <td className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                          {selectedCat === "ALL" ? "All" : "Total"}
+                        </td>
+                        {BP_STATUS_DEFS.map(d => {
+                          const n = poolBps.filter(b => b.effectiveStatus === d.key).length;
+                          return (
+                            <td key={d.key} className="text-center px-2 py-1.5 tabular-nums font-black" style={{ color: n > 0 ? d.color : undefined }}>
+                              {n > 0 ? n : <span className="text-slate-200 font-normal">—</span>}
+                            </td>
+                          );
+                        })}
+                        <td className="text-center px-2 py-1.5 font-black text-[#1f36c7] tabular-nums">{poolTotal}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Section 2: Service Request Status Summary ── */}
