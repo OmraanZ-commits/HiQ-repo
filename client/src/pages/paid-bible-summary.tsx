@@ -305,7 +305,7 @@ export default function PaidBibleSummaryTab() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-8" data-testid="paid-bible-summary">
+    <div className="space-y-12" data-testid="paid-bible-summary">
 
       {/* ── Global Small C filter ── */}
       <div className="flex items-center gap-2">
