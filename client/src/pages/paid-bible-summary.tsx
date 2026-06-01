@@ -37,8 +37,8 @@ function daysFromNow(dateStr: string | null | undefined): number | null {
   return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function inBucket(days: number | null, max: number): boolean {
-  return days !== null && days >= 0 && days <= max;
+function inBucket(days: number | null, min: number, max: number): boolean {
+  return days !== null && days >= min && days <= max;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -69,10 +69,10 @@ const RL_ONLY_CODES = new Set([
 ]);
 
 const TIMELINE_BUCKETS = [
-  { key: "t15", label: "Today + 15 days", max: 15, accent: "text-emerald-700", ring: "ring-emerald-200", bg: "bg-emerald-50" },
-  { key: "t30", label: "Today + 30 days", max: 30, accent: "text-amber-700",   ring: "ring-amber-200",   bg: "bg-amber-50"   },
-  { key: "t60", label: "Today + 60 days", max: 60, accent: "text-orange-700",  ring: "ring-orange-200",  bg: "bg-orange-50"  },
-] as const;
+  { key: "t15", label: "Today + 15 days", min: 0,  max: 15, accent: "text-emerald-700", ring: "ring-emerald-200", bg: "bg-emerald-50" },
+  { key: "t30", label: "Today + 30 days", min: 16, max: 30, accent: "text-amber-700",   ring: "ring-amber-200",   bg: "bg-amber-50"   },
+  { key: "t60", label: "Today + 60 days", min: 31, max: 60, accent: "text-orange-700",  ring: "ring-orange-200",  bg: "bg-orange-50"  },
+];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -297,8 +297,8 @@ export default function PaidBibleSummaryTab() {
     [...new Set(relaunchMats.map(m => m.typeOfNetworkCode))].sort(),
   [relaunchMats]);
 
-  function bucketCount(items: typeof relaunchMats, max: number) {
-    return items.filter(m => inBucket(daysFromNow(m.networkChangeDate), max)).length;
+  function bucketCount(items: typeof relaunchMats, min: number, max: number) {
+    return items.filter(m => inBucket(daysFromNow(m.networkChangeDate), min, max)).length;
   }
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -560,7 +560,7 @@ export default function PaidBibleSummaryTab() {
                                   </div>
                                 </td>
                                 {TIMELINE_BUCKETS.map(b => {
-                                  const n = bucketCount(mats, b.max);
+                                  const n = bucketCount(mats, b.min, b.max);
                                   return (
                                     <td key={b.key} className="text-center py-1.5 px-2">
                                       {n > 0
@@ -570,8 +570,8 @@ export default function PaidBibleSummaryTab() {
                                   );
                                 })}
                                 <td className="text-center py-1.5 px-3">
-                                  {bucketCount(mats, 60) > 0
-                                    ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 60)}</span>
+                                  {bucketCount(mats, 0, 60) > 0
+                                    ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 0, 60)}</span>
                                     : <span className="text-slate-200 text-sm font-black">—</span>
                                   }
                                 </td>
@@ -819,7 +819,7 @@ export default function PaidBibleSummaryTab() {
                         <div className="text-[9px] text-muted-foreground font-mono">{code}</div>
                       </td>
                       {TIMELINE_BUCKETS.map(b => {
-                        const n = bucketCount(mats, b.max);
+                        const n = bucketCount(mats, b.min, b.max);
                         return (
                           <td key={b.key} className="text-center py-2 px-3">
                             {n > 0
@@ -829,8 +829,8 @@ export default function PaidBibleSummaryTab() {
                         );
                       })}
                       <td className="text-center py-2 px-4">
-                        {bucketCount(mats, 60) > 0
-                          ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 60)}</span>
+                        {bucketCount(mats, 0, 60) > 0
+                          ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 0, 60)}</span>
                           : <span className="text-slate-200 text-sm font-black">—</span>
                         }
                       </td>
@@ -841,7 +841,7 @@ export default function PaidBibleSummaryTab() {
                 <tr className="bg-slate-50 border-t">
                   <td className="py-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Types</td>
                   {TIMELINE_BUCKETS.map(b => {
-                    const n = bucketCount(relaunchMats, b.max);
+                    const n = bucketCount(relaunchMats, b.min, b.max);
                     return (
                       <td key={b.key} className="text-center py-2 px-3">
                         {n > 0
@@ -852,8 +852,8 @@ export default function PaidBibleSummaryTab() {
                     );
                   })}
                   <td className="text-center py-2 px-4">
-                    {bucketCount(relaunchMats, 60) > 0
-                      ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{bucketCount(relaunchMats, 60)}</span>
+                    {bucketCount(relaunchMats, 0, 60) > 0
+                      ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{bucketCount(relaunchMats, 0, 60)}</span>
                       : <span className="text-slate-200 text-sm font-black">—</span>
                     }
                   </td>
