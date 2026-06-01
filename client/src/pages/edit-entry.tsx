@@ -251,10 +251,10 @@ export default function EditEntry() {
 
   // Wrapped submit — runs all cross-tab validations before the form's own submit
   const handleFormSubmit = (e?: React.FormEvent | React.MouseEvent) => {
-    // 1. Distribution: every selected geo must have at least one depot
+    // 1. Distribution: every selected geo that has a known depot mapping must have at least one depot selected
     const distGeoMissingDepot = selectedGeo.filter(geo => {
       const geoDepots = GEOGRAPHY_DEPOT_MAP[geo] || [];
-      return !geoDepots.some(d => selectedDepots.includes(d));
+      return geoDepots.length > 0 && !geoDepots.some(d => selectedDepots.includes(d));
     });
     if (distGeoMissingDepot.length > 0) {
       setActiveTab("distribution");
