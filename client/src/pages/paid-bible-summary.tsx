@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertTriangle, Globe, Waypoints, ArrowRightLeft, Shuffle,
-  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle,
+  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { type NetworkEntry } from "@shared/schema";
 import { useSrStore } from "@/lib/sr-store";
@@ -183,7 +183,17 @@ export default function PaidBibleSummaryTab() {
   } | null>(null);
 
   const [selectedCat, setSelectedCat] = useState<string>("ALL");
-  const [relaunchFilter, setRelaunchFilter] = useState<"ALL" | "RL" | "SMI">("ALL");
+  const [relaunchFilter, setRelaunchFilter] = useState<"ALL" | "RL">("ALL");
+  const [smiOnly, setSmiOnly] = useState(false);
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+
+  function toggleCat(cat: string) {
+    setExpandedCats(prev => {
+      const next = new Set(prev);
+      next.has(cat) ? next.delete(cat) : next.add(cat);
+      return next;
+    });
+  }
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -369,11 +379,13 @@ export default function PaidBibleSummaryTab() {
           const visibleCats = selectedCat === "ALL" ? salesCategories : salesCategories.filter(c => c === selectedCat);
           const poolBps = selectedCat === "ALL" ? basepacks : basepacks.filter(b => b.salesCategory === selectedCat);
           const poolTotal = poolBps.length;
-          const activeRelaunchMats = relaunchFilter === "RL"
-            ? relaunchMats.filter(m => RL_ONLY_CODES.has(m.typeOfNetworkCode))
-            : relaunchFilter === "SMI"
-              ? relaunchMats.filter(m => m.networkStatus === "Stock Movement Initiated")
+          const activeRelaunchMats = (() => {
+            let base = relaunchFilter === "RL"
+              ? relaunchMats.filter(m => RL_ONLY_CODES.has(m.typeOfNetworkCode))
               : relaunchMats;
+            if (smiOnly) base = base.filter(m => m.networkStatus === "Stock Movement Initiated");
+            return base;
+          })();
           const poolRelaunchMats = selectedCat === "ALL"
             ? activeRelaunchMats
             : activeRelaunchMats.filter(m => m.salesCategory === selectedCat);
@@ -444,19 +456,28 @@ export default function PaidBibleSummaryTab() {
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Relaunch Timeline</span>
-                  <div className="ml-auto flex items-center rounded-md border border-slate-200 overflow-hidden text-[10px] font-semibold">
-                    {(["ALL", "RL", "SMI"] as const).map((f, i) => (
-                      <button
-                        key={f}
-                        className={`px-2.5 py-1 transition-colors ${i > 0 ? "border-l border-slate-200" : ""} ${relaunchFilter === f ? "bg-[#1f36c7] text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
-                        onClick={() => setRelaunchFilter(f)}
-                        data-testid={`relaunch-filter-${f.toLowerCase()}`}
-                      >{f === "ALL" ? "All" : f === "RL" ? "Relaunch" : "SMI"}</button>
-                    ))}
+                  <div className="ml-auto flex items-center gap-2">
+                    {/* All / Relaunch toggle */}
+                    <div className="flex items-center rounded-md border border-slate-200 overflow-hidden text-[10px] font-semibold">
+                      {(["ALL", "RL"] as const).map((f, i) => (
+                        <button
+                          key={f}
+                          className={`px-2.5 py-1 transition-colors ${i > 0 ? "border-l border-slate-200" : ""} ${relaunchFilter === f ? "bg-[#1f36c7] text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+                          onClick={() => setRelaunchFilter(f)}
+                          data-testid={`relaunch-filter-${f.toLowerCase()}`}
+                        >{f === "ALL" ? "All" : "Relaunch"}</button>
+                      ))}
+                    </div>
+                    {/* Separate SMI toggle */}
+                    <button
+                      className={`px-2.5 py-1 rounded-md border text-[10px] font-semibold transition-colors ${smiOnly ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}
+                      onClick={() => setSmiOnly(v => !v)}
+                      data-testid="relaunch-filter-smi"
+                    >SMI</button>
                   </div>
                 </div>
                 {poolRelaunchMats.length === 0 ? (
-                  <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">No relaunch packs{selectedCat !== "ALL" ? ` in ${selectedCat}` : ""}.</div>
+                  <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">No entries{selectedCat !== "ALL" ? ` in ${selectedCat}` : ""}.</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
@@ -474,26 +495,76 @@ export default function PaidBibleSummaryTab() {
                       <tbody className="divide-y">
                         {visibleRelaunchCats.map(cat => {
                           const mats = poolRelaunchMats.filter(m => m.salesCategory === cat);
+                          const isExpanded = expandedCats.has(cat);
                           return (
-                            <tr key={cat} className="hover:bg-slate-50/60" data-testid={`relaunch-cat-${cat}`}>
-                              <td className="py-1.5 px-3 text-xs font-semibold text-slate-700 truncate max-w-[9rem]" title={cat}>{cat}</td>
-                              {TIMELINE_BUCKETS.map(b => {
-                                const n = bucketCount(mats, b.max);
-                                return (
-                                  <td key={b.key} className="text-center py-1.5 px-2">
-                                    {n > 0
-                                      ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                                      : <span className="text-slate-200 text-sm font-black">—</span>}
+                            <React.Fragment key={cat}>
+                              <tr
+                                className="hover:bg-slate-50/60 cursor-pointer select-none"
+                                onClick={() => toggleCat(cat)}
+                                data-testid={`relaunch-cat-${cat}`}
+                              >
+                                <td className="py-1.5 px-3 text-xs font-semibold text-slate-700">
+                                  <div className="flex items-center gap-1">
+                                    {isExpanded
+                                      ? <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
+                                      : <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />}
+                                    <span className="truncate max-w-[7rem]" title={cat}>{cat}</span>
+                                  </div>
+                                </td>
+                                {TIMELINE_BUCKETS.map(b => {
+                                  const n = bucketCount(mats, b.max);
+                                  return (
+                                    <td key={b.key} className="text-center py-1.5 px-2">
+                                      {n > 0
+                                        ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                                        : <span className="text-slate-200 text-sm font-black">—</span>}
+                                    </td>
+                                  );
+                                })}
+                                <td className="text-center py-1.5 px-3">
+                                  {bucketCount(mats, 60) > 0
+                                    ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 60)}</span>
+                                    : <span className="text-slate-200 text-sm font-black">—</span>
+                                  }
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr className="bg-slate-50/70">
+                                  <td colSpan={5} className="px-4 py-2">
+                                    <table className="w-full text-[11px] border border-slate-200 rounded-lg overflow-hidden">
+                                      <thead>
+                                        <tr className="bg-slate-100 border-b border-slate-200">
+                                          <th className="text-left px-3 py-1.5 font-bold text-slate-500 uppercase tracking-wider text-[9px]">CBU Code</th>
+                                          <th className="text-left px-3 py-1.5 font-bold text-slate-500 uppercase tracking-wider text-[9px]">Basepack Name</th>
+                                          <th className="text-center px-3 py-1.5 font-bold text-slate-500 uppercase tracking-wider text-[9px]">Nw Change Date</th>
+                                          <th className="text-center px-3 py-1.5 font-bold text-slate-500 uppercase tracking-wider text-[9px]">Status</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 bg-white">
+                                        {mats.map(m => (
+                                          <tr key={m.id} className="hover:bg-blue-50/40">
+                                            <td className="px-3 py-1.5 font-mono text-[10px] text-slate-700 font-semibold">{m.cbuCode || "—"}</td>
+                                            <td className="px-3 py-1.5 text-slate-700 max-w-[12rem] truncate" title={m.basepackDescription || m.basepack || undefined}>{m.basepackDescription || m.basepack || "—"}</td>
+                                            <td className="px-3 py-1.5 text-center text-slate-600 tabular-nums">{m.networkChangeDate ?? "—"}</td>
+                                            <td className="px-3 py-1.5 text-center">
+                                              <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                                                m.networkStatus === "Stock Movement Initiated" ? "bg-violet-50 text-violet-700 border-violet-200" :
+                                                m.networkStatus === "Network transition complete" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                                m.networkStatus === "Active" ? "bg-green-50 text-green-700 border-green-200" :
+                                                m.networkStatus === "FTR Approved" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                                m.networkStatus === "Production Started" ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+                                                m.networkStatus === "Pricing Updated" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                                "bg-slate-100 text-slate-600 border-slate-200"
+                                              }`}>{m.networkStatus ?? "Draft"}</span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
                                   </td>
-                                );
-                              })}
-                              <td className="text-center py-1.5 px-3">
-                                {bucketCount(mats, 60) > 0
-                                  ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 60)}</span>
-                                  : <span className="text-slate-200 text-sm font-black">—</span>
-                                }
-                              </td>
-                            </tr>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })}
                       </tbody>
