@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertTriangle, Globe, Waypoints, ArrowRightLeft, Shuffle,
-  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle, ChevronDown, ChevronRight, Truck,
+  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle, ChevronDown, ChevronRight, Truck, Rocket,
 } from "lucide-react";
 import { type NetworkEntry } from "@shared/schema";
 import { useSrStore } from "@/lib/sr-store";
@@ -68,10 +68,33 @@ const RL_ONLY_CODES = new Set([
   "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM", "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
 ]);
 
+const CURRENT_MONTH = new Date().getMonth() + 1; // 1-12 (June 2026 = 6)
+
+const MOC_MONTHS = [
+  { moc: 1, abbr: "Jan" }, { moc: 2, abbr: "Feb" }, { moc: 3, abbr: "Mar" },
+  { moc: 4, abbr: "Apr" }, { moc: 5, abbr: "May" }, { moc: 6, abbr: "Jun" },
+  { moc: 7, abbr: "Jul" }, { moc: 8, abbr: "Aug" }, { moc: 9, abbr: "Sep" },
+  { moc: 10, abbr: "Oct" }, { moc: 11, abbr: "Nov" }, { moc: 12, abbr: "Dec" },
+];
+
+type NewLaunchRow = {
+  bpCode: string; description: string; networkChangeDate: string | null;
+  mstnPercentage: number | null; networkStatus: string;
+  activationMonth: number | null; isActive: boolean;
+};
+
+function getMocStatus(row: NewLaunchRow, moc: number): "active" | "yes" | "no" | "future" | "unknown" {
+  if (row.activationMonth !== null && moc >= row.activationMonth) return "active";
+  if (moc > CURRENT_MONTH) return "future";
+  if (row.mstnPercentage === null) return "unknown";
+  return row.mstnPercentage >= 80 ? "yes" : "no";
+}
+
 const TIMELINE_BUCKETS = [
-  { key: "t15", label: "Today + 15 days", min: 0,  max: 15, accent: "text-emerald-700", ring: "ring-emerald-200", bg: "bg-emerald-50" },
-  { key: "t30", label: "Today + 30 days", min: 16, max: 30, accent: "text-amber-700",   ring: "ring-amber-200",   bg: "bg-amber-50"   },
-  { key: "t60", label: "Today + 60 days", min: 31, max: 60, accent: "text-orange-700",  ring: "ring-orange-200",  bg: "bg-orange-50"  },
+  { key: "t15",    label: "Today + 15 days",  min: 0,  max: 15,       accent: "text-emerald-700", ring: "ring-emerald-200", bg: "bg-emerald-50" },
+  { key: "t30",    label: "Today + 30 days",  min: 16, max: 30,       accent: "text-amber-700",   ring: "ring-amber-200",   bg: "bg-amber-50"   },
+  { key: "t60",    label: "Today + 60 days",  min: 31, max: 60,       accent: "text-orange-700",  ring: "ring-orange-200",  bg: "bg-orange-50"  },
+  { key: "t60p",   label: "Today + 60+ days", min: 61, max: Infinity, accent: "text-slate-600",   ring: "ring-slate-200",   bg: "bg-slate-50"   },
 ];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -177,6 +200,11 @@ export default function PaidBibleSummaryTab() {
     staleTime: 0,
   });
 
+  const { data: bpDatesRaw = [] } = useQuery<Array<{ bpCode: string; activationDate: string | null }>>({
+    queryKey: ["/api/paid-bible/basepack-dates"],
+    staleTime: 30_000,
+  });
+
   const [agingDialog, setAgingDialog] = useState<{
     srType: string; label: string;
     items: { id: string; age: number; basepackId: string }[];
@@ -241,10 +269,20 @@ export default function PaidBibleSummaryTab() {
       predecessorCode: (e as any).predecessorCode ?? null,
       predecessorDoh: (e as any).predecessorDoh ?? null,
       successorDoh: (e as any).successorDoh ?? null,
+      basepack: (e as any).basepack ?? null,
     }));
 
     return { basepacks: bps, allMaterials: mats };
   }, [networkEntries, bpStatusOverrides]);
+
+  const bpDateMap = useMemo(() => {
+    const m = new Map<string, number | null>();
+    bpDatesRaw.forEach(bp => {
+      const month = bp.activationDate ? new Date(bp.activationDate).getMonth() + 1 : null;
+      m.set(bp.bpCode, month);
+    });
+    return m;
+  }, [bpDatesRaw]);
 
   // ── Section 1: KPI top-line ───────────────────────────────────────────────
 
@@ -299,6 +337,34 @@ export default function PaidBibleSummaryTab() {
   const relaunchTypes = useMemo(() =>
     [...new Set(relaunchMats.map(m => m.typeOfNetworkCode))].sort(),
   [relaunchMats]);
+
+  // RL-only subset for Section 5 (excludes NEW_LAUNCH)
+  const rlMats = useMemo(() =>
+    relaunchMats.filter(m => RL_ONLY_CODES.has(m.typeOfNetworkCode)),
+  [relaunchMats]);
+
+  const rlTypes = useMemo(() =>
+    [...new Set(rlMats.map(m => m.typeOfNetworkCode))].sort(),
+  [rlMats]);
+
+  // New Launch rows grouped by basepack for MOC table
+  const newLaunchRows = useMemo((): NewLaunchRow[] => {
+    const pool = allMaterials.filter(m => m.typeOfNetworkCode === "NEW_LAUNCH");
+    const seen = new Map<string, typeof pool[0]>();
+    pool.forEach(m => {
+      const key = (m as any).basepack || m.code;
+      if (!seen.has(key)) seen.set(key, m);
+    });
+    return Array.from(seen.entries()).map(([bpCode, rep]) => ({
+      bpCode,
+      description: rep.description,
+      networkChangeDate: rep.networkChangeDate,
+      mstnPercentage: rep.mstnPercentage,
+      networkStatus: rep.networkStatus,
+      activationMonth: bpDateMap.get(bpCode) ?? null,
+      isActive: bpDateMap.has(bpCode),
+    }));
+  }, [allMaterials, bpDateMap]);
 
   function bucketCount(items: typeof relaunchMats, min: number, max: number) {
     return items.filter(m => inBucket(daysFromNow(m.networkChangeDate), min, max)).length;
@@ -577,15 +643,15 @@ export default function PaidBibleSummaryTab() {
                                   );
                                 })}
                                 <td className="text-center py-1.5 px-3">
-                                  {bucketCount(mats, 0, 60) > 0
-                                    ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 0, 60)}</span>
+                                  {mats.length > 0
+                                    ? <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
                                     : <span className="text-slate-200 text-sm font-black">—</span>
                                   }
                                 </td>
                               </tr>
                               {isExpanded && (
                                 <tr className="bg-slate-50/70">
-                                  <td colSpan={5} className="px-4 py-2">
+                                  <td colSpan={6} className="px-4 py-2">
                                     <table className="w-full text-[11px] border border-slate-200 rounded-lg overflow-hidden">
                                       <thead>
                                         <tr className="bg-slate-100 border-b border-slate-200">
@@ -635,7 +701,7 @@ export default function PaidBibleSummaryTab() {
                           {selectedCat === "ALL" ? "All" : "Total"}
                         </td>
                         {TIMELINE_BUCKETS.map(b => {
-                          const n = bucketCount(poolRelaunchMats, b.max);
+                          const n = bucketCount(poolRelaunchMats, b.min, b.max);
                           return (
                             <td key={b.key} className="text-center py-1.5 px-2">
                               {n > 0
@@ -646,8 +712,8 @@ export default function PaidBibleSummaryTab() {
                           );
                         })}
                         <td className="text-center py-1.5 px-3">
-                          {bucketCount(poolRelaunchMats, 60) > 0
-                            ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{bucketCount(poolRelaunchMats, 60)}</span>
+                          {poolRelaunchMats.length > 0
+                            ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{poolRelaunchMats.length}</span>
                             : <span className="text-slate-200 text-sm font-black">—</span>
                           }
                         </td>
@@ -807,82 +873,154 @@ export default function PaidBibleSummaryTab() {
       )}
 
 
-      {/* ── Section 5: Relaunch by Type of Network Change × Timeline ── */}
-      <div>
-        <div className="flex items-center gap-2 mb-2.5">
-          <Package className="h-4 w-4 text-[#0d8ecf]" />
-          <h2 className="text-sm font-bold tracking-tight">Relaunch Packs — by Type of Network Change &amp; Timeline</h2>
-        </div>
-        {relaunchMats.length === 0 ? (
-          <div className="rounded-xl border bg-white shadow-sm flex items-center justify-center py-10 text-muted-foreground text-sm">No relaunch packs found.</div>
-        ) : (
-          <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-50 border-b">
-                  <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-4 w-56">Type of Network Change</th>
-                  {TIMELINE_BUCKETS.map(b => (
-                    <th key={b.key} className={`text-center text-xs font-bold uppercase tracking-wider py-2 px-3 ${b.accent}`}>
-                      {b.label}
-                    </th>
-                  ))}
-                  <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-4">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {relaunchTypes.map(code => {
-                  const mats  = relaunchMats.filter(m => m.typeOfNetworkCode === code);
-                  const label = getNetworkChangeTypeName(code);
-                  return (
-                    <tr key={code} className="hover:bg-slate-50/60" data-testid={`relaunch-type-${code}`}>
-                      <td className="py-2 px-4">
-                        <div className="text-xs font-semibold text-slate-700 leading-tight">{label}</div>
-                        <div className="text-[9px] text-muted-foreground font-mono">{code}</div>
-                      </td>
-                      {TIMELINE_BUCKETS.map(b => {
-                        const n = bucketCount(mats, b.min, b.max);
-                        return (
-                          <td key={b.key} className="text-center py-2 px-3">
-                            {n > 0
-                              ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                              : <span className="text-slate-200 text-sm font-black">—</span>}
-                          </td>
-                        );
-                      })}
-                      <td className="text-center py-2 px-4">
-                        {bucketCount(mats, 0, 60) > 0
-                          ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 0, 60)}</span>
-                          : <span className="text-slate-200 text-sm font-black">—</span>
-                        }
-                      </td>
-                    </tr>
-                  );
-                })}
-                {/* Totals row */}
-                <tr className="bg-slate-50 border-t">
-                  <td className="py-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Types</td>
-                  {TIMELINE_BUCKETS.map(b => {
-                    const n = bucketCount(relaunchMats, b.min, b.max);
+      {/* ── Section 5: Relaunch by Type + New Launch MOC side-by-side ── */}
+      <div className="flex gap-4 items-start">
+
+        {/* Left: Relaunch by Type (RL codes only — no New Launch) */}
+        <div className="flex-shrink-0 w-[48%]">
+          <div className="flex items-center gap-2 mb-2.5">
+            <Package className="h-4 w-4 text-[#0d8ecf]" />
+            <h2 className="text-sm font-bold tracking-tight">Relaunch Packs — by Type &amp; Timeline</h2>
+          </div>
+          {rlMats.length === 0 ? (
+            <div className="rounded-xl border bg-white shadow-sm flex items-center justify-center py-10 text-muted-foreground text-sm">No relaunch packs found.</div>
+          ) : (
+            <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 border-b">
+                    <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider py-2 px-3">Type of Network Change</th>
+                    {TIMELINE_BUCKETS.map(b => (
+                      <th key={b.key} className={`text-center text-[10px] font-bold uppercase tracking-wider py-2 px-2 whitespace-nowrap ${b.accent}`}>
+                        {b.key === "t60p" ? ">60d" : b.label.replace("Today + ", "+").replace(" days", "d")}
+                      </th>
+                    ))}
+                    <th className="text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider py-2 px-3">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {rlTypes.map(code => {
+                    const mats = rlMats.filter(m => m.typeOfNetworkCode === code);
+                    const label = getNetworkChangeTypeName(code);
                     return (
-                      <td key={b.key} className="text-center py-2 px-3">
-                        {n > 0
-                          ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                          : <span className="text-slate-200 text-sm font-black">—</span>
-                        }
-                      </td>
+                      <tr key={code} className="hover:bg-slate-50/60" data-testid={`relaunch-type-${code}`}>
+                        <td className="py-2 px-3">
+                          <div className="text-xs font-semibold text-slate-700 leading-tight">{label}</div>
+                          <div className="text-[9px] text-muted-foreground font-mono">{code}</div>
+                        </td>
+                        {TIMELINE_BUCKETS.map(b => {
+                          const n = bucketCount(mats, b.min, b.max);
+                          return (
+                            <td key={b.key} className="text-center py-2 px-2">
+                              {n > 0
+                                ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                                : <span className="text-slate-200 text-sm font-black">—</span>}
+                            </td>
+                          );
+                        })}
+                        <td className="text-center py-2 px-3">
+                          {mats.length > 0
+                            ? <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
+                            : <span className="text-slate-200 text-sm font-black">—</span>}
+                        </td>
+                      </tr>
                     );
                   })}
-                  <td className="text-center py-2 px-4">
-                    {bucketCount(relaunchMats, 0, 60) > 0
-                      ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{bucketCount(relaunchMats, 0, 60)}</span>
-                      : <span className="text-slate-200 text-sm font-black">—</span>
-                    }
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  <tr className="bg-slate-50 border-t">
+                    <td className="py-2 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Types</td>
+                    {TIMELINE_BUCKETS.map(b => {
+                      const n = bucketCount(rlMats, b.min, b.max);
+                      return (
+                        <td key={b.key} className="text-center py-2 px-2">
+                          {n > 0
+                            ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                            : <span className="text-slate-200 text-sm font-black">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className="text-center py-2 px-3">
+                      {rlMats.length > 0
+                        ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{rlMats.length}</span>
+                        : <span className="text-slate-200 text-sm font-black">—</span>}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Right: New Launch Basepacks — MSTN Clearance by MOC */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2.5">
+            <Rocket className="h-4 w-4 text-violet-500" />
+            <h2 className="text-sm font-bold tracking-tight">New Launch Basepacks — MSTN Clearance by MOC</h2>
           </div>
-        )}
+          {newLaunchRows.length === 0 ? (
+            <div className="rounded-xl border bg-white shadow-sm flex items-center justify-center py-10 text-muted-foreground text-sm">No new launch packs found.</div>
+          ) : (
+            <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b">
+                      <th className="text-left text-[9px] font-bold text-slate-500 uppercase tracking-wider py-2 px-3 sticky left-0 bg-slate-50 z-10">Basepack</th>
+                      <th className="text-left text-[9px] font-bold text-slate-500 uppercase tracking-wider py-2 px-2 whitespace-nowrap">NW Change Date</th>
+                      {MOC_MONTHS.map(m => (
+                        <th key={m.moc} className={`text-center text-[9px] font-bold uppercase tracking-wider py-2 px-1 w-8 ${m.moc <= CURRENT_MONTH ? "text-slate-500" : "text-slate-300"}`}>
+                          {m.abbr}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {newLaunchRows.map(row => (
+                      <tr key={row.bpCode}
+                        className={row.isActive ? "bg-emerald-50 hover:bg-emerald-100/60" : "hover:bg-slate-50/60"}
+                        data-testid={`nl-row-${row.bpCode}`}
+                      >
+                        <td className={`py-2 px-3 sticky left-0 z-10 ${row.isActive ? "bg-emerald-50" : "bg-white"}`}>
+                          <div className="font-mono font-semibold text-slate-700 text-[10px]">{row.bpCode}</div>
+                          {row.isActive && (
+                            <div className="text-[8px] font-bold text-emerald-600 uppercase tracking-wide mt-0.5">Active</div>
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-slate-500 whitespace-nowrap text-[10px]">
+                          {row.networkChangeDate
+                            ? new Date(row.networkChangeDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })
+                            : <span className="text-slate-200">—</span>}
+                        </td>
+                        {MOC_MONTHS.map(m => {
+                          const status = getMocStatus(row, m.moc);
+                          return (
+                            <td key={m.moc} className="text-center py-2 px-1">
+                              {status === "active"  && <span className="text-[9px] font-semibold text-emerald-500 italic">Act</span>}
+                              {status === "yes"     && <span className="text-[11px] font-black text-emerald-600" title="MSTN Cleared">✓</span>}
+                              {status === "no"      && <span className="text-[11px] font-black text-red-500" title="Not Cleared">✗</span>}
+                              {status === "future"  && <span className="text-slate-200 text-[11px]">—</span>}
+                              {status === "unknown" && <span className="text-slate-300 text-[10px]">?</span>}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Legend */}
+              <div className="border-t bg-slate-50 px-3 py-1.5 flex items-center flex-wrap gap-x-4 gap-y-1 text-[9px] text-slate-400">
+                <span><span className="text-emerald-600 font-black mr-1">✓</span>MSTN Cleared (≥80%)</span>
+                <span><span className="text-red-500 font-black mr-1">✗</span>Not Cleared (&lt;80%)</span>
+                <span><span className="text-emerald-500 italic mr-1">Act</span>Active — no further check</span>
+                <span className="ml-auto flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-300"></span>
+                  Active Basepack (highlighted row)
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* ── SR Aging Dialog ── */}
