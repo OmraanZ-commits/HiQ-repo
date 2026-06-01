@@ -433,7 +433,7 @@ export default function PaidBibleSummaryTab() {
 
               {/* ── Left: Basepack status matrix ── */}
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                <div className="px-4 py-2 border-b bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <div className="px-4 border-b bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center h-[37px]">
                   Basepack Status
                 </div>
                 <div className="overflow-x-auto">
@@ -491,7 +491,7 @@ export default function PaidBibleSummaryTab() {
 
               {/* ── Right: Relaunch by Small C × Timeline ── */}
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
+                <div className="px-4 border-b bg-slate-50 flex items-center gap-2 h-[37px]">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Relaunch Timeline</span>
                   <div className="ml-auto flex items-center gap-2">
                     {/* All / Relaunch toggle */}
