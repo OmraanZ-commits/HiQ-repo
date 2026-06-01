@@ -77,13 +77,13 @@ function KpiCard({
   gradient: string; icon: React.ElementType;
 }) {
   return (
-    <div className={`rounded-xl p-5 text-white shadow-sm ${gradient} flex flex-col gap-1.5`}>
+    <div className={`rounded-lg p-3.5 text-white shadow-sm ${gradient} flex flex-col gap-1`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-widest opacity-80">{label}</span>
-        <Icon className="h-4 w-4 opacity-60" />
+        <span className="text-[10px] font-semibold uppercase tracking-widest opacity-80">{label}</span>
+        <Icon className="h-3.5 w-3.5 opacity-60" />
       </div>
-      <div className="text-4xl font-black tabular-nums leading-none">{value}</div>
-      {sub && <div className="text-xs opacity-70 font-medium">{sub}</div>}
+      <div className="text-2xl font-black tabular-nums leading-none">{value}</div>
+      {sub && <div className="text-[10px] opacity-70 font-medium">{sub}</div>}
     </div>
   );
 }
@@ -92,9 +92,9 @@ function StackedBar({ data, total }: {
   data: { key: string; label: string; color: string; bg: string; count: number }[];
   total: number;
 }) {
-  if (total === 0) return <div className="h-5 rounded-full bg-slate-100 text-xs text-muted-foreground flex items-center px-2">No data</div>;
+  if (total === 0) return <div className="h-2.5 rounded-full bg-slate-100" />;
   return (
-    <div className="flex h-5 rounded-full overflow-hidden gap-px w-full">
+    <div className="flex h-2.5 rounded-full overflow-hidden gap-px w-full">
       {data.filter(d => d.count > 0).map(d => (
         <div
           key={d.key}
@@ -121,42 +121,39 @@ function SrCard({
 }) {
   const Icon = def.icon;
   return (
-    <div className={`rounded-xl border-2 ${def.border} ${def.bg} overflow-hidden flex flex-col`}>
-      <div className="px-4 py-3 flex items-center gap-2 border-b border-white/60">
-        <div className={`h-7 w-7 rounded-full ${def.dot} flex items-center justify-center`}>
-          <Icon className="h-3.5 w-3.5 text-white" />
+    <div className={`rounded-lg border ${def.border} ${def.bg} overflow-hidden flex flex-col`}>
+      <div className="px-3 py-2 flex items-center gap-1.5 border-b border-white/60">
+        <div className={`h-5 w-5 rounded-full ${def.dot} flex items-center justify-center shrink-0`}>
+          <Icon className="h-3 w-3 text-white" />
         </div>
-        <span className="text-sm font-bold text-slate-800">{def.label}</span>
+        <span className="text-xs font-bold text-slate-800">{def.label}</span>
         {total > 0 && (
           <span
-            className="ml-auto text-xs font-bold underline underline-offset-2 text-slate-500 cursor-pointer hover:text-slate-800"
+            className="ml-auto text-[10px] font-bold underline underline-offset-2 text-slate-400 cursor-pointer hover:text-slate-700"
             onClick={onClickTotal}
             data-testid={`sr-total-link-${def.code}`}
           >
-            {total} total →
+            {total} →
           </span>
         )}
       </div>
       <div className="flex flex-1 divide-x divide-white/60">
         <div
-          className="flex-1 flex flex-col items-center justify-center py-4 gap-0.5 cursor-pointer"
+          className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0 cursor-pointer"
           onDoubleClick={onDoubleClickPending}
           title="Double-click to see aging"
           data-testid={`sr-pending-${def.code}`}
         >
-          <span className={`text-3xl font-black tabular-nums ${pending > 0 ? "text-amber-600" : "text-slate-300"}`}>{pending}</span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Pending</span>
-          {pending > 0 && <Clock className="h-3 w-3 text-amber-400 mt-0.5" />}
+          <span className={`text-xl font-black tabular-nums leading-none ${pending > 0 ? "text-amber-600" : "text-slate-300"}`}>{pending}</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 mt-0.5">Pending</span>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center py-4 gap-0.5" data-testid={`sr-approved-${def.code}`}>
-          <span className={`text-3xl font-black tabular-nums ${approved > 0 ? "text-emerald-600" : "text-slate-300"}`}>{approved}</span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Approved</span>
-          {approved > 0 && <CheckCircle2 className="h-3 w-3 text-emerald-400 mt-0.5" />}
+        <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0" data-testid={`sr-approved-${def.code}`}>
+          <span className={`text-xl font-black tabular-nums leading-none ${approved > 0 ? "text-emerald-600" : "text-slate-300"}`}>{approved}</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 mt-0.5">Approved</span>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center py-4 gap-0.5" data-testid={`sr-rejected-${def.code}`}>
-          <span className={`text-3xl font-black tabular-nums ${rejected > 0 ? "text-red-600" : "text-slate-300"}`}>{rejected}</span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Rejected</span>
-          {rejected > 0 && <XCircle className="h-3 w-3 text-red-400 mt-0.5" />}
+        <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0" data-testid={`sr-rejected-${def.code}`}>
+          <span className={`text-xl font-black tabular-nums leading-none ${rejected > 0 ? "text-red-600" : "text-slate-300"}`}>{rejected}</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 mt-0.5">Rejected</span>
         </div>
       </div>
     </div>
@@ -284,10 +281,10 @@ export default function PaidBibleSummaryTab() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-8" data-testid="paid-bible-summary">
+    <div className="space-y-5" data-testid="paid-bible-summary">
 
       {/* ── Top KPI strip ── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiCard
           label="Total Basepacks"
           value={totalBps}
@@ -327,7 +324,7 @@ export default function PaidBibleSummaryTab() {
 
       {/* ── Section 1: Basepack Status by Small C ── */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2.5">
           <BarChart3 className="h-4 w-4 text-[#1f36c7]" />
           <h2 className="text-sm font-bold tracking-tight">Basepack Status by Small C</h2>
           <div className="flex items-center gap-3 ml-4 flex-wrap">
@@ -344,13 +341,13 @@ export default function PaidBibleSummaryTab() {
               const data = bpStatusData(cat);
               const total = data.reduce((s, d) => s + d.count, 0);
               return (
-                <div key={cat} className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50/60" data-testid={`bp-cat-row-${cat}`}>
-                  <span className="text-sm font-semibold text-slate-700 w-40 shrink-0">{cat}</span>
+                <div key={cat} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50/60" data-testid={`bp-cat-row-${cat}`}>
+                  <span className="text-xs font-semibold text-slate-700 w-36 shrink-0">{cat}</span>
                   <div className="flex-1">
                     <StackedBar data={data} total={total} />
                   </div>
-                  <span className="text-sm font-black text-slate-600 tabular-nums w-8 text-right">{total}</span>
-                  <div className="flex items-center gap-2 w-52 shrink-0">
+                  <span className="text-xs font-black text-slate-600 tabular-nums w-6 text-right">{total}</span>
+                  <div className="flex items-center gap-2 w-48 shrink-0">
                     {data.filter(d => d.count > 0).map(d => (
                       <span key={d.key} className="text-[10px] font-semibold" style={{ color: d.color }}>
                         {d.label} {d.count}
@@ -361,16 +358,16 @@ export default function PaidBibleSummaryTab() {
               );
             })}
             {/* Totals */}
-            <div className="flex items-center gap-4 px-5 py-3.5 bg-slate-50">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide w-40 shrink-0">All Categories</span>
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide w-36 shrink-0">All Categories</span>
               <div className="flex-1">
                 <StackedBar
                   data={BP_STATUS_DEFS.map(d => ({ ...d, count: basepacks.filter(b => b.effectiveStatus === d.key).length }))}
                   total={totalBps}
                 />
               </div>
-              <span className="text-sm font-black text-[#1f36c7] tabular-nums w-8 text-right">{totalBps}</span>
-              <div className="flex items-center gap-2 w-52 shrink-0">
+              <span className="text-xs font-black text-[#1f36c7] tabular-nums w-6 text-right">{totalBps}</span>
+              <div className="flex items-center gap-2 w-48 shrink-0">
                 {BP_STATUS_DEFS.map(d => {
                   const n = basepacks.filter(b => b.effectiveStatus === d.key).length;
                   return n > 0 ? (
@@ -387,12 +384,12 @@ export default function PaidBibleSummaryTab() {
 
       {/* ── Section 2: Service Request Status Summary ── */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2.5">
           <ArrowRightLeft className="h-4 w-4 text-[#1f36c7]" />
           <h2 className="text-sm font-bold tracking-tight">Service Request Status</h2>
           <span className="text-xs text-muted-foreground ml-1">· Double-click Pending to see aging</span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {SR_TYPE_DEFS.map(def => (
             <SrCard
               key={def.code}
@@ -411,7 +408,7 @@ export default function PaidBibleSummaryTab() {
       {/* ── Section 3: SLOB Risk ── */}
       {slobCount > 0 && (
         <div>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-2.5">
             <AlertTriangle className="h-4 w-4 text-amber-500" />
             <h2 className="text-sm font-bold tracking-tight">SLOB Risk by Small C</h2>
             <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] ml-1">{slobCount} CBUs flagged</Badge>
@@ -429,10 +426,10 @@ export default function PaidBibleSummaryTab() {
                 const pct   = slobCount > 0 ? mats.length / slobCount : 0;
                 const totalVal = mats.reduce((s, m) => s + (typeof m.mrp === "number" ? m.mrp : 0), 0);
                 return (
-                  <div key={cat} className="flex items-center gap-4 px-5 py-3.5 hover:bg-red-50/30" data-testid={`slob-row-${cat}`}>
-                    <span className="text-sm font-semibold text-slate-700 w-40 shrink-0">{cat}</span>
+                  <div key={cat} className="flex items-center gap-3 px-4 py-2 hover:bg-red-50/30" data-testid={`slob-row-${cat}`}>
+                    <span className="text-xs font-semibold text-slate-700 w-36 shrink-0">{cat}</span>
                     <div className="flex-1 flex items-center gap-2">
-                      <div className="flex-1 h-4 rounded-full bg-red-100 overflow-hidden">
+                      <div className="flex-1 h-2.5 rounded-full bg-red-100 overflow-hidden">
                         <div className="h-full bg-red-400 rounded-full" style={{ width: `${pct * 100}%` }} />
                       </div>
                       <span className="text-xs font-bold text-red-600 w-8">{Math.round(pct * 100)}%</span>
@@ -454,7 +451,7 @@ export default function PaidBibleSummaryTab() {
 
       {/* ── Section 4: Relaunch by Small C × Timeline ── */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2.5">
           <TrendingUp className="h-4 w-4 text-[#1f36c7]" />
           <h2 className="text-sm font-bold tracking-tight">Relaunch Packs — by Small C &amp; Timeline</h2>
           <span className="text-xs text-muted-foreground ml-1">· Based on network change date &nbsp;·&nbsp; <span className="inline-flex items-center gap-0.5 text-violet-600"><Truck className="h-3 w-3" /> = Stock Movement Initiated</span></span>
@@ -466,13 +463,13 @@ export default function PaidBibleSummaryTab() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50 border-b">
-                  <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-3 px-5 w-44">Small C</th>
+                  <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-4 w-40">Small C</th>
                   {TIMELINE_BUCKETS.map(b => (
-                    <th key={b.key} className={`text-center text-xs font-bold uppercase tracking-wider py-3 px-4 ${b.accent}`}>
+                    <th key={b.key} className={`text-center text-xs font-bold uppercase tracking-wider py-2 px-3 ${b.accent}`}>
                       {b.label}
                     </th>
                   ))}
-                  <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-3 px-5">Total</th>
+                  <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-4">Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -480,52 +477,52 @@ export default function PaidBibleSummaryTab() {
                   const mats = relaunchMats.filter(m => m.salesCategory === cat);
                   return (
                     <tr key={cat} className="hover:bg-slate-50/60" data-testid={`relaunch-cat-${cat}`}>
-                      <td className="py-3 px-5 text-sm font-semibold text-slate-700">{cat}</td>
+                      <td className="py-2 px-4 text-xs font-semibold text-slate-700">{cat}</td>
                       {TIMELINE_BUCKETS.map(b => {
                         const n   = bucketCount(mats, b.max);
                         const smi = smiCount(mats, b.max);
                         return (
-                          <td key={b.key} className="text-center py-3 px-4">
+                          <td key={b.key} className="text-center py-2 px-3">
                             {n > 0 ? (
                               <div className="inline-flex flex-col items-center">
-                                <span className={`text-2xl font-black tabular-nums ${b.accent}`}>{n}</span>
+                                <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
                                 {smi > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full border border-violet-200 mt-0.5">
-                                    <Truck className="h-2.5 w-2.5" />{smi} SMI
+                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
+                                    <Truck className="h-2 w-2" />{smi} SMI
                                   </span>
                                 )}
                               </div>
-                            ) : <span className="text-slate-200 text-lg font-black">—</span>}
+                            ) : <span className="text-slate-200 text-sm font-black">—</span>}
                           </td>
                         );
                       })}
-                      <td className="text-center py-3 px-5">
-                        <span className="text-sm font-black text-slate-600 tabular-nums">{mats.length}</span>
+                      <td className="text-center py-2 px-4">
+                        <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
                       </td>
                     </tr>
                   );
                 })}
                 {/* Totals row */}
                 <tr className="bg-slate-50 border-t">
-                  <td className="py-3 px-5 text-xs font-bold text-slate-500 uppercase tracking-wide">All</td>
+                  <td className="py-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All</td>
                   {TIMELINE_BUCKETS.map(b => {
                     const n   = bucketCount(relaunchMats, b.max);
                     const smi = smiCount(relaunchMats, b.max);
                     return (
-                      <td key={b.key} className="text-center py-3 px-4">
+                      <td key={b.key} className="text-center py-2 px-3">
                         <div className="inline-flex flex-col items-center">
-                          <span className={`text-2xl font-black tabular-nums ${b.accent}`}>{n > 0 ? n : "—"}</span>
+                          <span className={`text-base font-black tabular-nums ${b.accent}`}>{n > 0 ? n : "—"}</span>
                           {smi > 0 && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full border border-violet-200 mt-0.5">
-                              <Truck className="h-2.5 w-2.5" />{smi} SMI
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
+                              <Truck className="h-2 w-2" />{smi} SMI
                             </span>
                           )}
                         </div>
                       </td>
                     );
                   })}
-                  <td className="text-center py-3 px-5">
-                    <span className="text-sm font-black text-[#1f36c7] tabular-nums">{relaunchMats.length}</span>
+                  <td className="text-center py-2 px-4">
+                    <span className="text-xs font-black text-[#1f36c7] tabular-nums">{relaunchMats.length}</span>
                   </td>
                 </tr>
               </tbody>
@@ -536,7 +533,7 @@ export default function PaidBibleSummaryTab() {
 
       {/* ── Section 5: Relaunch by Type of Network Change × Timeline ── */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2.5">
           <Package className="h-4 w-4 text-[#0d8ecf]" />
           <h2 className="text-sm font-bold tracking-tight">Relaunch Packs — by Type of Network Change &amp; Timeline</h2>
         </div>
@@ -547,13 +544,13 @@ export default function PaidBibleSummaryTab() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50 border-b">
-                  <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-3 px-5 w-64">Type of Network Change</th>
+                  <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-4 w-56">Type of Network Change</th>
                   {TIMELINE_BUCKETS.map(b => (
-                    <th key={b.key} className={`text-center text-xs font-bold uppercase tracking-wider py-3 px-4 ${b.accent}`}>
+                    <th key={b.key} className={`text-center text-xs font-bold uppercase tracking-wider py-2 px-3 ${b.accent}`}>
                       {b.label}
                     </th>
                   ))}
-                  <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-3 px-5">Total</th>
+                  <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-4">Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -562,55 +559,55 @@ export default function PaidBibleSummaryTab() {
                   const label = getNetworkChangeTypeName(code);
                   return (
                     <tr key={code} className="hover:bg-slate-50/60" data-testid={`relaunch-type-${code}`}>
-                      <td className="py-3 px-5">
-                        <div className="text-sm font-semibold text-slate-700 leading-tight">{label}</div>
-                        <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{code}</div>
+                      <td className="py-2 px-4">
+                        <div className="text-xs font-semibold text-slate-700 leading-tight">{label}</div>
+                        <div className="text-[9px] text-muted-foreground font-mono">{code}</div>
                       </td>
                       {TIMELINE_BUCKETS.map(b => {
                         const n   = bucketCount(mats, b.max);
                         const smi = smiCount(mats, b.max);
                         return (
-                          <td key={b.key} className="text-center py-3 px-4">
+                          <td key={b.key} className="text-center py-2 px-3">
                             {n > 0 ? (
                               <div className="inline-flex flex-col items-center">
-                                <span className={`text-2xl font-black tabular-nums ${b.accent}`}>{n}</span>
+                                <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
                                 {smi > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full border border-violet-200 mt-0.5">
-                                    <Truck className="h-2.5 w-2.5" />{smi} SMI
+                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
+                                    <Truck className="h-2 w-2" />{smi} SMI
                                   </span>
                                 )}
                               </div>
-                            ) : <span className="text-slate-200 text-lg font-black">—</span>}
+                            ) : <span className="text-slate-200 text-sm font-black">—</span>}
                           </td>
                         );
                       })}
-                      <td className="text-center py-3 px-5">
-                        <span className="text-sm font-black text-slate-600 tabular-nums">{mats.length}</span>
+                      <td className="text-center py-2 px-4">
+                        <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
                       </td>
                     </tr>
                   );
                 })}
                 {/* Totals row */}
                 <tr className="bg-slate-50 border-t">
-                  <td className="py-3 px-5 text-xs font-bold text-slate-500 uppercase tracking-wide">All Types</td>
+                  <td className="py-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Types</td>
                   {TIMELINE_BUCKETS.map(b => {
                     const n   = bucketCount(relaunchMats, b.max);
                     const smi = smiCount(relaunchMats, b.max);
                     return (
-                      <td key={b.key} className="text-center py-3 px-4">
+                      <td key={b.key} className="text-center py-2 px-3">
                         <div className="inline-flex flex-col items-center">
-                          <span className={`text-2xl font-black tabular-nums ${b.accent}`}>{n > 0 ? n : "—"}</span>
+                          <span className={`text-base font-black tabular-nums ${b.accent}`}>{n > 0 ? n : "—"}</span>
                           {smi > 0 && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full border border-violet-200 mt-0.5">
-                              <Truck className="h-2.5 w-2.5" />{smi} SMI
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
+                              <Truck className="h-2 w-2" />{smi} SMI
                             </span>
                           )}
                         </div>
                       </td>
                     );
                   })}
-                  <td className="text-center py-3 px-5">
-                    <span className="text-sm font-black text-[#1f36c7] tabular-nums">{relaunchMats.length}</span>
+                  <td className="text-center py-2 px-4">
+                    <span className="text-xs font-black text-[#1f36c7] tabular-nums">{relaunchMats.length}</span>
                   </td>
                 </tr>
               </tbody>
