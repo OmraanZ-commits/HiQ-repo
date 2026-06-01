@@ -60,7 +60,8 @@ const SR_TYPE_DEFS = [
 ] as const;
 
 const RELAUNCH_CODES = new Set([
-  "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM", "RL_ART", "RL_FORM", "RL_PKG",
+  "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM", "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
+  "NEW_LAUNCH",
 ]);
 
 const TIMELINE_BUCKETS = [
