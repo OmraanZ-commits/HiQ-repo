@@ -231,6 +231,7 @@ export default function PaidBibleSummaryTab() {
       mrp: (e as any).mrp ?? null,
       bg: e.bg || "-",
       mstnPercentage: e.mstnPercentage ?? null,
+      priceActive: (e as any).priceActive ?? true,
     }));
 
     return { basepacks: bps, allMaterials: mats };
@@ -242,7 +243,10 @@ export default function PaidBibleSummaryTab() {
   const activeBps    = basepacks.filter(b => b.effectiveStatus === "Active Pack").length;
   const sbdBps       = basepacks.filter(b => b.effectiveStatus === "Stock Base Delisted").length;
   const pendingSrs   = serviceRequests.filter(r => r.overallStatus === "pending").length;
-  const slobCount    = allMaterials.filter(m => m.slobRisk).length;
+  const slobCount         = allMaterials.filter(m => m.slobRisk).length;
+  const priceInactiveCount = allMaterials.filter(m =>
+    m.mstnPercentage !== null && m.mstnPercentage >= 80 && !m.priceActive
+  ).length;
   const MSTN_THRESHOLD = 80;
   const MSTN_ACTIVE = new Set(["Active","Pricing Updated","Production Started","FTR Approved","Stock Movement Initiated"]);
   const mstnPendingMats = allMaterials.filter(m =>
@@ -347,9 +351,9 @@ export default function PaidBibleSummaryTab() {
           icon={CheckCircle2}
         />
         <KpiCard
-          label="SBD / At-Risk"
-          value={sbdBps}
-          sub="Stock Base Delisted"
+          label="Price Inactive"
+          value={priceInactiveCount}
+          sub="MSTN ≥ 80%, price not live"
           gradient="bg-gradient-to-br from-orange-400 to-orange-600"
           icon={AlertTriangle}
         />
