@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertTriangle, Globe, Waypoints, ArrowRightLeft, Shuffle,
-  Package, BarChart3, Clock, Truck, TrendingUp, CheckCircle2, XCircle,
+  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle,
 } from "lucide-react";
 import { type NetworkEntry } from "@shared/schema";
 import { useSrStore } from "@/lib/sr-store";
@@ -183,7 +183,7 @@ export default function PaidBibleSummaryTab() {
   } | null>(null);
 
   const [selectedCat, setSelectedCat] = useState<string>("ALL");
-  const [relaunchFilter, setRelaunchFilter] = useState<"ALL" | "RL">("ALL");
+  const [relaunchFilter, setRelaunchFilter] = useState<"ALL" | "RL" | "SMI">("ALL");
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -271,9 +271,6 @@ export default function PaidBibleSummaryTab() {
 
   function bucketCount(items: typeof relaunchMats, max: number) {
     return items.filter(m => inBucket(daysFromNow(m.networkChangeDate), max)).length;
-  }
-  function smiCount(items: typeof relaunchMats, max: number) {
-    return items.filter(m => inBucket(daysFromNow(m.networkChangeDate), max) && m.networkStatus === "Stock Movement Initiated").length;
   }
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -374,7 +371,9 @@ export default function PaidBibleSummaryTab() {
           const poolTotal = poolBps.length;
           const activeRelaunchMats = relaunchFilter === "RL"
             ? relaunchMats.filter(m => RL_ONLY_CODES.has(m.typeOfNetworkCode))
-            : relaunchMats;
+            : relaunchFilter === "SMI"
+              ? relaunchMats.filter(m => m.networkStatus === "Stock Movement Initiated")
+              : relaunchMats;
           const poolRelaunchMats = selectedCat === "ALL"
             ? activeRelaunchMats
             : activeRelaunchMats.filter(m => m.salesCategory === selectedCat);
@@ -445,20 +444,15 @@ export default function PaidBibleSummaryTab() {
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Relaunch Timeline</span>
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                    <Truck className="h-2.5 w-2.5 text-violet-500" /> = SMI
-                  </span>
                   <div className="ml-auto flex items-center rounded-md border border-slate-200 overflow-hidden text-[10px] font-semibold">
-                    <button
-                      className={`px-2.5 py-1 transition-colors ${relaunchFilter === "ALL" ? "bg-[#1f36c7] text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
-                      onClick={() => setRelaunchFilter("ALL")}
-                      data-testid="relaunch-filter-all"
-                    >All</button>
-                    <button
-                      className={`px-2.5 py-1 border-l border-slate-200 transition-colors ${relaunchFilter === "RL" ? "bg-[#1f36c7] text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
-                      onClick={() => setRelaunchFilter("RL")}
-                      data-testid="relaunch-filter-rl"
-                    >Relaunch</button>
+                    {(["ALL", "RL", "SMI"] as const).map((f, i) => (
+                      <button
+                        key={f}
+                        className={`px-2.5 py-1 transition-colors ${i > 0 ? "border-l border-slate-200" : ""} ${relaunchFilter === f ? "bg-[#1f36c7] text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+                        onClick={() => setRelaunchFilter(f)}
+                        data-testid={`relaunch-filter-${f.toLowerCase()}`}
+                      >{f === "ALL" ? "All" : f === "RL" ? "Relaunch" : "SMI"}</button>
+                    ))}
                   </div>
                 </div>
                 {poolRelaunchMats.length === 0 ? (
@@ -484,20 +478,12 @@ export default function PaidBibleSummaryTab() {
                             <tr key={cat} className="hover:bg-slate-50/60" data-testid={`relaunch-cat-${cat}`}>
                               <td className="py-1.5 px-3 text-xs font-semibold text-slate-700 truncate max-w-[9rem]" title={cat}>{cat}</td>
                               {TIMELINE_BUCKETS.map(b => {
-                                const n   = bucketCount(mats, b.max);
-                                const smi = smiCount(mats, b.max);
+                                const n = bucketCount(mats, b.max);
                                 return (
                                   <td key={b.key} className="text-center py-1.5 px-2">
-                                    {n > 0 ? (
-                                      <div className="inline-flex flex-col items-center">
-                                        <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                                        {smi > 0 && (
-                                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
-                                            <Truck className="h-2 w-2" />{smi}
-                                          </span>
-                                        )}
-                                      </div>
-                                    ) : <span className="text-slate-200 text-sm font-black">—</span>}
+                                    {n > 0
+                                      ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                                      : <span className="text-slate-200 text-sm font-black">—</span>}
                                   </td>
                                 );
                               })}
@@ -517,21 +503,13 @@ export default function PaidBibleSummaryTab() {
                             {selectedCat === "ALL" ? "All" : "Total"}
                           </td>
                           {TIMELINE_BUCKETS.map(b => {
-                            const n   = bucketCount(poolRelaunchMats, b.max);
-                            const smi = smiCount(poolRelaunchMats, b.max);
+                            const n = bucketCount(poolRelaunchMats, b.max);
                             return (
                               <td key={b.key} className="text-center py-1.5 px-2">
-                                <div className="inline-flex flex-col items-center">
-                                  {n > 0
-                                    ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                                    : <span className="text-slate-200 text-sm font-black">—</span>
-                                  }
-                                  {smi > 0 && (
-                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
-                                      <Truck className="h-2 w-2" />{smi}
-                                    </span>
-                                  )}
-                                </div>
+                                {n > 0
+                                  ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                                  : <span className="text-slate-200 text-sm font-black">—</span>
+                                }
                               </td>
                             );
                           })}
@@ -654,20 +632,12 @@ export default function PaidBibleSummaryTab() {
                         <div className="text-[9px] text-muted-foreground font-mono">{code}</div>
                       </td>
                       {TIMELINE_BUCKETS.map(b => {
-                        const n   = bucketCount(mats, b.max);
-                        const smi = smiCount(mats, b.max);
+                        const n = bucketCount(mats, b.max);
                         return (
                           <td key={b.key} className="text-center py-2 px-3">
-                            {n > 0 ? (
-                              <div className="inline-flex flex-col items-center">
-                                <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                                {smi > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
-                                    <Truck className="h-2 w-2" />{smi} SMI
-                                  </span>
-                                )}
-                              </div>
-                            ) : <span className="text-slate-200 text-sm font-black">—</span>}
+                            {n > 0
+                              ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                              : <span className="text-slate-200 text-sm font-black">—</span>}
                           </td>
                         );
                       })}
@@ -684,21 +654,13 @@ export default function PaidBibleSummaryTab() {
                 <tr className="bg-slate-50 border-t">
                   <td className="py-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Types</td>
                   {TIMELINE_BUCKETS.map(b => {
-                    const n   = bucketCount(relaunchMats, b.max);
-                    const smi = smiCount(relaunchMats, b.max);
+                    const n = bucketCount(relaunchMats, b.max);
                     return (
                       <td key={b.key} className="text-center py-2 px-3">
-                        <div className="inline-flex flex-col items-center">
-                          {n > 0
-                            ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                            : <span className="text-slate-200 text-sm font-black">—</span>
-                          }
-                          {smi > 0 && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
-                              <Truck className="h-2 w-2" />{smi} SMI
-                            </span>
-                          )}
-                        </div>
+                        {n > 0
+                          ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                          : <span className="text-slate-200 text-sm font-black">—</span>
+                        }
                       </td>
                     );
                   })}
