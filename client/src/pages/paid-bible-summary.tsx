@@ -366,49 +366,16 @@ export default function PaidBibleSummaryTab() {
           const visibleCats = selectedCat === "ALL" ? salesCategories : salesCategories.filter(c => c === selectedCat);
           const poolBps = selectedCat === "ALL" ? basepacks : basepacks.filter(b => b.salesCategory === selectedCat);
           const poolTotal = poolBps.length;
+          const poolRelaunchMats = selectedCat === "ALL" ? relaunchMats : relaunchMats.filter(m => m.salesCategory === selectedCat);
+          const visibleRelaunchCats = selectedCat === "ALL" ? relaunchCats : relaunchCats.filter(c => c === selectedCat);
 
           return (
             <div className="grid grid-cols-2 gap-3">
 
-              {/* ── Left: Bar chart panel ── */}
+              {/* ── Left: Basepack status matrix ── */}
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="px-4 py-2 border-b bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Bar View
-                </div>
-                <div className="divide-y">
-                  {visibleCats.map(cat => {
-                    const data = bpStatusData(cat);
-                    const total = data.reduce((s, d) => s + d.count, 0);
-                    return (
-                      <div key={cat} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50/60" data-testid={`bp-cat-row-${cat}`}>
-                        <span className="text-xs font-semibold text-slate-700 w-32 shrink-0 truncate" title={cat}>{cat}</span>
-                        <div className="flex-1 min-w-0">
-                          <StackedBar data={data} total={total} />
-                        </div>
-                        <span className="text-xs font-black text-slate-600 tabular-nums w-5 text-right shrink-0">{total}</span>
-                      </div>
-                    );
-                  })}
-                  {/* Totals bar */}
-                  <div className="flex items-center gap-3 px-4 py-2 bg-slate-50">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide w-32 shrink-0">
-                      {selectedCat === "ALL" ? "All" : "Total"}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <StackedBar
-                        data={BP_STATUS_DEFS.map(d => ({ ...d, count: poolBps.filter(b => b.effectiveStatus === d.key).length }))}
-                        total={poolTotal}
-                      />
-                    </div>
-                    <span className="text-xs font-black text-[#1f36c7] tabular-nums w-5 text-right shrink-0">{poolTotal}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Right: Tabular matrix panel ── */}
-              <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                <div className="px-4 py-2 border-b bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Table View
+                  Basepack Status
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -431,7 +398,7 @@ export default function PaidBibleSummaryTab() {
                           <tr key={cat} className="hover:bg-slate-50/60" data-testid={`bp-cat-table-${cat}`}>
                             <td className="px-3 py-1.5 font-semibold text-slate-700 truncate max-w-[8rem]" title={cat}>{cat}</td>
                             {data.map(d => (
-                              <td key={d.key} className="text-center px-2 py-1.5 tabular-nums font-semibold">
+                              <td key={d.key} className="text-center px-2 py-1.5 tabular-nums">
                                 {d.count > 0
                                   ? <span className="font-black" style={{ color: d.color }}>{d.count}</span>
                                   : <span className="text-slate-200">—</span>
@@ -461,6 +428,92 @@ export default function PaidBibleSummaryTab() {
                     </tfoot>
                   </table>
                 </div>
+              </div>
+
+              {/* ── Right: Relaunch by Small C × Timeline ── */}
+              <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Relaunch Timeline</span>
+                  <span className="text-[10px] text-muted-foreground ml-1 flex items-center gap-0.5">
+                    <Truck className="h-2.5 w-2.5 text-violet-500" /> = SMI
+                  </span>
+                </div>
+                {poolRelaunchMats.length === 0 ? (
+                  <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">No relaunch packs{selectedCat !== "ALL" ? ` in ${selectedCat}` : ""}.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider py-1.5 px-3 w-36">Small C</th>
+                          {TIMELINE_BUCKETS.map(b => (
+                            <th key={b.key} className={`text-center text-[10px] font-bold uppercase tracking-wider py-1.5 px-2 ${b.accent}`}>
+                              {b.label}
+                            </th>
+                          ))}
+                          <th className="text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider py-1.5 px-3">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {visibleRelaunchCats.map(cat => {
+                          const mats = poolRelaunchMats.filter(m => m.salesCategory === cat);
+                          return (
+                            <tr key={cat} className="hover:bg-slate-50/60" data-testid={`relaunch-cat-${cat}`}>
+                              <td className="py-1.5 px-3 text-xs font-semibold text-slate-700 truncate max-w-[9rem]" title={cat}>{cat}</td>
+                              {TIMELINE_BUCKETS.map(b => {
+                                const n   = bucketCount(mats, b.max);
+                                const smi = smiCount(mats, b.max);
+                                return (
+                                  <td key={b.key} className="text-center py-1.5 px-2">
+                                    {n > 0 ? (
+                                      <div className="inline-flex flex-col items-center">
+                                        <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                                        {smi > 0 && (
+                                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
+                                            <Truck className="h-2 w-2" />{smi}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : <span className="text-slate-200 text-sm font-black">—</span>}
+                                  </td>
+                                );
+                              })}
+                              <td className="text-center py-1.5 px-3">
+                                <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-slate-50 border-t">
+                          <td className="py-1.5 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                            {selectedCat === "ALL" ? "All" : "Total"}
+                          </td>
+                          {TIMELINE_BUCKETS.map(b => {
+                            const n   = bucketCount(poolRelaunchMats, b.max);
+                            const smi = smiCount(poolRelaunchMats, b.max);
+                            return (
+                              <td key={b.key} className="text-center py-1.5 px-2">
+                                <div className="inline-flex flex-col items-center">
+                                  <span className={`text-base font-black tabular-nums ${b.accent}`}>{n > 0 ? n : "—"}</span>
+                                  {smi > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
+                                      <Truck className="h-2 w-2" />{smi}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td className="text-center py-1.5 px-3">
+                            <span className="text-xs font-black text-[#1f36c7] tabular-nums">{poolRelaunchMats.length}</span>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -535,87 +588,6 @@ export default function PaidBibleSummaryTab() {
         </div>
       )}
 
-      {/* ── Section 4: Relaunch by Small C × Timeline ── */}
-      <div>
-        <div className="flex items-center gap-2 mb-2.5">
-          <TrendingUp className="h-4 w-4 text-[#1f36c7]" />
-          <h2 className="text-sm font-bold tracking-tight">Relaunch Packs — by Small C &amp; Timeline</h2>
-          <span className="text-xs text-muted-foreground ml-1">· Based on network change date &nbsp;·&nbsp; <span className="inline-flex items-center gap-0.5 text-violet-600"><Truck className="h-3 w-3" /> = Stock Movement Initiated</span></span>
-        </div>
-        {relaunchMats.length === 0 ? (
-          <div className="rounded-xl border bg-white shadow-sm flex items-center justify-center py-10 text-muted-foreground text-sm">No relaunch packs found.</div>
-        ) : (
-          <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-50 border-b">
-                  <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-4 w-40">Small C</th>
-                  {TIMELINE_BUCKETS.map(b => (
-                    <th key={b.key} className={`text-center text-xs font-bold uppercase tracking-wider py-2 px-3 ${b.accent}`}>
-                      {b.label}
-                    </th>
-                  ))}
-                  <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-4">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {relaunchCats.map(cat => {
-                  const mats = relaunchMats.filter(m => m.salesCategory === cat);
-                  return (
-                    <tr key={cat} className="hover:bg-slate-50/60" data-testid={`relaunch-cat-${cat}`}>
-                      <td className="py-2 px-4 text-xs font-semibold text-slate-700">{cat}</td>
-                      {TIMELINE_BUCKETS.map(b => {
-                        const n   = bucketCount(mats, b.max);
-                        const smi = smiCount(mats, b.max);
-                        return (
-                          <td key={b.key} className="text-center py-2 px-3">
-                            {n > 0 ? (
-                              <div className="inline-flex flex-col items-center">
-                                <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                                {smi > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
-                                    <Truck className="h-2 w-2" />{smi} SMI
-                                  </span>
-                                )}
-                              </div>
-                            ) : <span className="text-slate-200 text-sm font-black">—</span>}
-                          </td>
-                        );
-                      })}
-                      <td className="text-center py-2 px-4">
-                        <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {/* Totals row */}
-                <tr className="bg-slate-50 border-t">
-                  <td className="py-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All</td>
-                  {TIMELINE_BUCKETS.map(b => {
-                    const n   = bucketCount(relaunchMats, b.max);
-                    const smi = smiCount(relaunchMats, b.max);
-                    return (
-                      <td key={b.key} className="text-center py-2 px-3">
-                        <div className="inline-flex flex-col items-center">
-                          <span className={`text-base font-black tabular-nums ${b.accent}`}>{n > 0 ? n : "—"}</span>
-                          {smi > 0 && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
-                              <Truck className="h-2 w-2" />{smi} SMI
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  })}
-                  <td className="text-center py-2 px-4">
-                    <span className="text-xs font-black text-[#1f36c7] tabular-nums">{relaunchMats.length}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       {/* ── Section 5: Relaunch by Type of Network Change × Timeline ── */}
       <div>
