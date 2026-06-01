@@ -479,7 +479,10 @@ export default function PaidBibleSummaryTab() {
                                 );
                               })}
                               <td className="text-center py-1.5 px-3">
-                                <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
+                                {bucketCount(mats, 60) > 0
+                                  ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 60)}</span>
+                                  : <span className="text-slate-200 text-sm font-black">—</span>
+                                }
                               </td>
                             </tr>
                           );
@@ -496,7 +499,10 @@ export default function PaidBibleSummaryTab() {
                             return (
                               <td key={b.key} className="text-center py-1.5 px-2">
                                 <div className="inline-flex flex-col items-center">
-                                  <span className={`text-base font-black tabular-nums ${b.accent}`}>{n > 0 ? n : "—"}</span>
+                                  {n > 0
+                                    ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                                    : <span className="text-slate-200 text-sm font-black">—</span>
+                                  }
                                   {smi > 0 && (
                                     <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
                                       <Truck className="h-2 w-2" />{smi}
@@ -507,7 +513,10 @@ export default function PaidBibleSummaryTab() {
                             );
                           })}
                           <td className="text-center py-1.5 px-3">
-                            <span className="text-xs font-black text-[#1f36c7] tabular-nums">{poolRelaunchMats.length}</span>
+                            {bucketCount(poolRelaunchMats, 60) > 0
+                              ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{bucketCount(poolRelaunchMats, 60)}</span>
+                              : <span className="text-slate-200 text-sm font-black">—</span>
+                            }
                           </td>
                         </tr>
                       </tfoot>
@@ -640,7 +649,10 @@ export default function PaidBibleSummaryTab() {
                         );
                       })}
                       <td className="text-center py-2 px-4">
-                        <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
+                        {bucketCount(mats, 60) > 0
+                          ? <span className="text-xs font-black text-slate-600 tabular-nums">{bucketCount(mats, 60)}</span>
+                          : <span className="text-slate-200 text-sm font-black">—</span>
+                        }
                       </td>
                     </tr>
                   );
@@ -654,7 +666,10 @@ export default function PaidBibleSummaryTab() {
                     return (
                       <td key={b.key} className="text-center py-2 px-3">
                         <div className="inline-flex flex-col items-center">
-                          <span className={`text-base font-black tabular-nums ${b.accent}`}>{n > 0 ? n : "—"}</span>
+                          {n > 0
+                            ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                            : <span className="text-slate-200 text-sm font-black">—</span>
+                          }
                           {smi > 0 && (
                             <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-violet-600 bg-violet-50 px-1 py-px rounded-full border border-violet-200">
                               <Truck className="h-2 w-2" />{smi} SMI
@@ -665,7 +680,10 @@ export default function PaidBibleSummaryTab() {
                     );
                   })}
                   <td className="text-center py-2 px-4">
-                    <span className="text-xs font-black text-[#1f36c7] tabular-nums">{relaunchMats.length}</span>
+                    {bucketCount(relaunchMats, 60) > 0
+                      ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{bucketCount(relaunchMats, 60)}</span>
+                      : <span className="text-slate-200 text-sm font-black">—</span>
+                    }
                   </td>
                 </tr>
               </tbody>
