@@ -78,8 +78,8 @@ const MOC_MONTHS = [
 ];
 
 type NewLaunchRow = {
-  bpCode: string; description: string; networkChangeDate: string | null;
-  mstnPercentage: number | null; networkStatus: string;
+  bpCode: string; code: string; description: string; salesCategory: string;
+  networkChangeDate: string | null; mstnPercentage: number | null; networkStatus: string;
   activationMonth: number | null; activationDate: string | null; isActive: boolean;
 };
 
@@ -347,26 +347,40 @@ export default function PaidBibleSummaryTab() {
     [...new Set(rlMats.map(m => m.typeOfNetworkCode))].sort(),
   [rlMats]);
 
-  // New Launch rows grouped by basepack for MOC table
+  // New Launch rows — one row per CBU (not grouped), sorted by Small C then BP
   const newLaunchRows = useMemo((): NewLaunchRow[] => {
     const pool = allMaterials.filter(m => m.typeOfNetworkCode === "NEW_LAUNCH");
-    const seen = new Map<string, typeof pool[0]>();
-    pool.forEach(m => {
-      const key = (m as any).basepack || m.code;
-      if (!seen.has(key)) seen.set(key, m);
-    });
     const rawDateMap = new Map(bpDatesRaw.map(bp => [bp.bpCode, bp.activationDate]));
-    return Array.from(seen.entries()).map(([bpCode, rep]) => ({
-      bpCode,
-      description: rep.description,
-      networkChangeDate: rep.networkChangeDate,
-      mstnPercentage: rep.mstnPercentage,
-      networkStatus: rep.networkStatus,
-      activationMonth: bpDateMap.get(bpCode) ?? null,
-      activationDate: rawDateMap.get(bpCode) ?? null,
-      isActive: bpDateMap.has(bpCode),
-    }));
-  }, [allMaterials, bpDateMap, bpDatesRaw]);
+    return pool.map(m => {
+      const bpCode = (m as any).basepack || m.code;
+      const activationDateRaw = rawDateMap.get(bpCode) ?? null;
+      const activationMonth = activationDateRaw ? new Date(activationDateRaw).getMonth() + 1 : null;
+      return {
+        bpCode,
+        code: m.code,
+        description: m.description,
+        salesCategory: m.salesCategory || "—",
+        networkChangeDate: m.networkChangeDate,
+        mstnPercentage: m.mstnPercentage,
+        networkStatus: m.networkStatus,
+        activationMonth,
+        activationDate: activationDateRaw,
+        isActive: activationDateRaw !== null,
+      };
+    }).sort((a, b) =>
+      a.salesCategory.localeCompare(b.salesCategory) || a.bpCode.localeCompare(b.bpCode)
+    );
+  }, [allMaterials, bpDatesRaw]);
+
+  // Group new launch rows by Small C for table rendering
+  const newLaunchByScat = useMemo(() => {
+    const groups = new Map<string, NewLaunchRow[]>();
+    newLaunchRows.forEach(row => {
+      if (!groups.has(row.salesCategory)) groups.set(row.salesCategory, []);
+      groups.get(row.salesCategory)!.push(row);
+    });
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [newLaunchRows]);
 
   function bucketCount(items: typeof relaunchMats, min: number, max: number) {
     return items.filter(m => inBucket(daysFromNow(m.networkChangeDate), min, max)).length;
@@ -960,14 +974,18 @@ export default function PaidBibleSummaryTab() {
         ) : (
           <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b">
-                    <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2.5 px-4 min-w-[160px]">Basepack</th>
-                    <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2.5 px-3 whitespace-nowrap min-w-[110px]">NW Change Date</th>
+                    <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider py-2.5 px-4 min-w-[120px]">Basepack</th>
+                    <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider py-2.5 px-3 min-w-[180px]">Description</th>
+                    <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider py-2.5 px-3 min-w-[120px]">CBU ID</th>
+                    <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider py-2.5 px-3 whitespace-nowrap">Network Status</th>
+                    <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider py-2.5 px-3 whitespace-nowrap">NW Change Date</th>
+                    <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider py-2.5 px-3 whitespace-nowrap">Activation Date</th>
                     {MOC_MONTHS.map(m => (
                       <th key={m.moc}
-                        className={`text-center text-[10px] font-bold uppercase tracking-wider py-2.5 px-2 w-12 whitespace-nowrap
+                        className={`text-center text-[10px] font-bold uppercase tracking-wider py-2.5 px-2 w-10 whitespace-nowrap
                           ${m.moc === CURRENT_MONTH ? "text-[#0d8ecf] border-b-2 border-[#0d8ecf]" : m.moc < CURRENT_MONTH ? "text-slate-500" : "text-slate-300"}`}
                       >
                         {m.abbr}
@@ -975,58 +993,91 @@ export default function PaidBibleSummaryTab() {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y">
-                  {newLaunchRows.map(row => (
-                    <tr key={row.bpCode} className="hover:bg-slate-50/50" data-testid={`nl-row-${row.bpCode}`}>
-                      {/* Basepack cell — badge for active, activation date shown */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono font-bold text-slate-800 text-xs">{row.bpCode}</span>
-                          {row.isActive && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 uppercase tracking-wide">
-                              Active
-                            </span>
-                          )}
-                        </div>
-                        {row.isActive && row.activationDate && (
-                          <div className="text-[10px] text-slate-400 mt-0.5">
-                            Activated: {new Date(row.activationDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                          </div>
-                        )}
-                      </td>
-                      {/* NW Change Date */}
-                      <td className="py-3 px-3 text-xs text-slate-500 whitespace-nowrap">
-                        {row.networkChangeDate
-                          ? new Date(row.networkChangeDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })
-                          : <span className="text-slate-200">—</span>}
-                      </td>
-                      {/* MOC columns */}
-                      {MOC_MONTHS.map(m => {
-                        const status = getMocStatus(row, m.moc);
-                        const isCurrent = m.moc === CURRENT_MONTH;
-                        return (
-                          <td key={m.moc}
-                            className={`text-center py-3 px-2 ${isCurrent ? "bg-blue-50/40" : ""}`}
-                          >
-                            {status === "active" && (
-                              <span className="text-[10px] font-semibold text-emerald-500 italic" title="Basepack active — no MSTN check">Act</span>
-                            )}
-                            {status === "yes" && (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-black text-[11px]" title="MSTN Cleared ≥80%">✓</span>
-                            )}
-                            {status === "no" && (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600 font-black text-[11px]" title="Not Cleared <80%">✗</span>
-                            )}
-                            {status === "future" && (
-                              <span className="text-slate-200 text-xs font-bold">—</span>
-                            )}
-                            {status === "unknown" && (
-                              <span className="text-slate-300 text-xs font-bold">?</span>
-                            )}
+                <tbody>
+                  {newLaunchByScat.map(([scat, rows]) => (
+                    <React.Fragment key={scat}>
+                      {/* Small C group header */}
+                      <tr className="bg-slate-100/70 border-y border-slate-200">
+                        <td colSpan={6 + MOC_MONTHS.length} className="py-1.5 px-4">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{scat}</span>
+                          <span className="ml-2 text-[9px] text-slate-400">{rows.length} {rows.length === 1 ? "CBU" : "CBUs"}</span>
+                        </td>
+                      </tr>
+                      {rows.map((row, idx) => (
+                        <tr key={row.code}
+                          className={`border-b border-slate-100 hover:bg-slate-50/60 ${idx === rows.length - 1 ? "border-b-0" : ""}`}
+                          data-testid={`nl-row-${row.code}`}
+                        >
+                          {/* Basepack */}
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono font-bold text-slate-800 text-xs">{row.bpCode}</span>
+                              {row.isActive && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 uppercase tracking-wide leading-none">
+                                  Active
+                                </span>
+                              )}
+                            </div>
                           </td>
-                        );
-                      })}
-                    </tr>
+                          {/* Description */}
+                          <td className="py-3 px-3 text-slate-600 max-w-[200px]">
+                            <span className="line-clamp-2 leading-tight" title={row.description}>{row.description || <span className="text-slate-300">—</span>}</span>
+                          </td>
+                          {/* CBU ID */}
+                          <td className="py-3 px-3">
+                            <span className="font-mono text-[11px] text-slate-600">{row.code}</span>
+                          </td>
+                          {/* Network Status */}
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border whitespace-nowrap
+                              ${row.networkStatus === "Active" || row.networkStatus === "Pricing Updated" || row.networkStatus === "FTR Approved" || row.networkStatus === "Production Started" || row.networkStatus === "Stock Movement Initiated"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : row.networkStatus === "Draft"
+                                  ? "bg-slate-50 text-slate-500 border-slate-200"
+                                  : "bg-blue-50 text-blue-600 border-blue-200"
+                              }`}>
+                              {row.networkStatus || "Draft"}
+                            </span>
+                          </td>
+                          {/* NW Change Date */}
+                          <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                            {row.networkChangeDate
+                              ? new Date(row.networkChangeDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })
+                              : <span className="text-slate-200">—</span>}
+                          </td>
+                          {/* Activation Date */}
+                          <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                            {row.activationDate
+                              ? new Date(row.activationDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })
+                              : <span className="text-slate-200">—</span>}
+                          </td>
+                          {/* MOC columns */}
+                          {MOC_MONTHS.map(m => {
+                            const status = getMocStatus(row, m.moc);
+                            const isCurrent = m.moc === CURRENT_MONTH;
+                            return (
+                              <td key={m.moc} className={`text-center py-3 px-1.5 ${isCurrent ? "bg-blue-50/40" : ""}`}>
+                                {status === "active" && (
+                                  <span className="text-slate-300 text-xs font-bold" title="Basepack active — no further MSTN check">—</span>
+                                )}
+                                {status === "yes" && (
+                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-black text-[11px]" title="MSTN Cleared ≥80%">✓</span>
+                                )}
+                                {status === "no" && (
+                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600 font-black text-[11px]" title="Not Cleared <80%">✗</span>
+                                )}
+                                {status === "future" && (
+                                  <span className="text-slate-200 text-xs font-bold">—</span>
+                                )}
+                                {status === "unknown" && (
+                                  <span className="text-slate-300 text-xs font-bold">?</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -1042,8 +1093,8 @@ export default function PaidBibleSummaryTab() {
                 Not Cleared (&lt;80%)
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="text-emerald-500 italic font-semibold">Act</span>
-                Active — no further MSTN check
+                <span className="text-slate-300 font-bold text-xs">—</span>
+                No check (pack active or future MOC)
               </span>
               <span className="flex items-center gap-1.5 ml-auto">
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 uppercase tracking-wide">Active</span>
