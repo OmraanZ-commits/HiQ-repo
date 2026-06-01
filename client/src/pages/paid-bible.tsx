@@ -1,4 +1,5 @@
-import { useState, Fragment, useMemo } from "react";
+import { useState, Fragment, useMemo, lazy, Suspense } from "react";
+const PaidBibleSummaryTab = lazy(() => import("@/pages/paid-bible-summary"));
 import { useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { PortalUser } from "@/lib/users-data";
@@ -2639,6 +2640,16 @@ export default function PaidBiblePage() {
           {activeTab === "network-updates"  && <NetworkUpdatesTab />}
           {activeTab === "service-requests" && (
             <ServiceRequestsTab requests={serviceRequests} />
+          )}
+          {activeTab === "summary" && (
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-24 text-muted-foreground text-sm gap-2">
+                <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                Loading…
+              </div>
+            }>
+              <PaidBibleSummaryTab />
+            </Suspense>
           )}
         </div>
       </main>

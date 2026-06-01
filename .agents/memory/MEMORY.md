@@ -1,0 +1,1 @@
+- [Paid Bible Summary Tab](paid-bible-summary-tab.md) — summary page derives basepacks from NetworkEntry directly; PbBasepack/PbMaterial not exported from paid-bible.tsx
