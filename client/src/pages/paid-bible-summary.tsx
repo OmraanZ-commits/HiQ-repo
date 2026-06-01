@@ -432,11 +432,11 @@ export default function PaidBibleSummaryTab() {
             <div className="grid grid-cols-2 gap-3">
 
               {/* ── Left: Basepack status matrix ── */}
-              <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+              <div className="rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
                 <div className="px-4 border-b bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center h-[37px]">
                   Basepack Status
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto flex-1">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b">
@@ -469,9 +469,14 @@ export default function PaidBibleSummaryTab() {
                         );
                       })}
                     </tbody>
-                    <tfoot>
-                      <tr className="bg-slate-50 border-t">
-                        <td className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                  </table>
+                </div>
+                {/* Pinned ALL row */}
+                <div className="border-t bg-slate-50 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <tbody>
+                      <tr>
+                        <td className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide w-32">
                           {selectedCat === "ALL" ? "All" : "Total"}
                         </td>
                         {BP_STATUS_DEFS.map(d => {
@@ -484,13 +489,13 @@ export default function PaidBibleSummaryTab() {
                         })}
                         <td className="text-center px-2 py-1.5 font-black text-[#1f36c7] tabular-nums">{poolTotal}</td>
                       </tr>
-                    </tfoot>
+                    </tbody>
                   </table>
                 </div>
               </div>
 
               {/* ── Right: Relaunch by Small C × Timeline ── */}
-              <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+              <div className="rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
                 <div className="px-4 border-b bg-slate-50 flex items-center gap-2 h-[37px]">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Relaunch Timeline</span>
                   <div className="ml-auto flex items-center gap-2">
@@ -516,7 +521,7 @@ export default function PaidBibleSummaryTab() {
                 {poolRelaunchMats.length === 0 ? (
                   <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">No entries{selectedCat !== "ALL" ? ` in ${selectedCat}` : ""}.</div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto flex-1">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b">
@@ -605,33 +610,38 @@ export default function PaidBibleSummaryTab() {
                           );
                         })}
                       </tbody>
-                      <tfoot>
-                        <tr className="bg-slate-50 border-t">
-                          <td className="py-1.5 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                            {selectedCat === "ALL" ? "All" : "Total"}
-                          </td>
-                          {TIMELINE_BUCKETS.map(b => {
-                            const n = bucketCount(poolRelaunchMats, b.max);
-                            return (
-                              <td key={b.key} className="text-center py-1.5 px-2">
-                                {n > 0
-                                  ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
-                                  : <span className="text-slate-200 text-sm font-black">—</span>
-                                }
-                              </td>
-                            );
-                          })}
-                          <td className="text-center py-1.5 px-3">
-                            {bucketCount(poolRelaunchMats, 60) > 0
-                              ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{bucketCount(poolRelaunchMats, 60)}</span>
-                              : <span className="text-slate-200 text-sm font-black">—</span>
-                            }
-                          </td>
-                        </tr>
-                      </tfoot>
                     </table>
                   </div>
                 )}
+                {/* Pinned ALL row */}
+                <div className="border-t bg-slate-50 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <tbody>
+                      <tr>
+                        <td className="py-1.5 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wide w-36">
+                          {selectedCat === "ALL" ? "All" : "Total"}
+                        </td>
+                        {TIMELINE_BUCKETS.map(b => {
+                          const n = bucketCount(poolRelaunchMats, b.max);
+                          return (
+                            <td key={b.key} className="text-center py-1.5 px-2">
+                              {n > 0
+                                ? <span className={`text-base font-black tabular-nums ${b.accent}`}>{n}</span>
+                                : <span className="text-slate-200 text-sm font-black">—</span>
+                              }
+                            </td>
+                          );
+                        })}
+                        <td className="text-center py-1.5 px-3">
+                          {bucketCount(poolRelaunchMats, 60) > 0
+                            ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{bucketCount(poolRelaunchMats, 60)}</span>
+                            : <span className="text-slate-200 text-sm font-black">—</span>
+                          }
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
             </div>
