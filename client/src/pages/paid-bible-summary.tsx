@@ -338,6 +338,29 @@ export default function PaidBibleSummaryTab() {
         />
       </div>
 
+      {/* ── Section 2: Service Request Status Summary ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-2.5">
+          <ArrowRightLeft className="h-4 w-4 text-[#1f36c7]" />
+          <h2 className="text-sm font-bold tracking-tight">Service Request Status</h2>
+          <span className="text-xs text-muted-foreground ml-1">· Double-click Pending to see aging</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {SR_TYPE_DEFS.map(def => (
+            <SrCard
+              key={def.code}
+              def={def}
+              pending={srCount(def.code, "pending")}
+              approved={srCount(def.code, "approved")}
+              rejected={srCount(def.code, "rejected")}
+              total={serviceRequests.filter(r => r.srType === def.code).length}
+              onDoubleClickPending={() => openAgingDialog(def.code, def.label)}
+              onClickTotal={() => navigate("/paid-bible?tab=service-requests")}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* ── Section 1: Basepack Status by Small C ── */}
       <div>
         {/* Header: title + legend + filter */}
@@ -600,29 +623,6 @@ export default function PaidBibleSummaryTab() {
             </div>
           );
         })()}
-      </div>
-
-      {/* ── Section 2: Service Request Status Summary ── */}
-      <div>
-        <div className="flex items-center gap-2 mb-2.5">
-          <ArrowRightLeft className="h-4 w-4 text-[#1f36c7]" />
-          <h2 className="text-sm font-bold tracking-tight">Service Request Status</h2>
-          <span className="text-xs text-muted-foreground ml-1">· Double-click Pending to see aging</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {SR_TYPE_DEFS.map(def => (
-            <SrCard
-              key={def.code}
-              def={def}
-              pending={srCount(def.code, "pending")}
-              approved={srCount(def.code, "approved")}
-              rejected={srCount(def.code, "rejected")}
-              total={serviceRequests.filter(r => r.srType === def.code).length}
-              onDoubleClickPending={() => openAgingDialog(def.code, def.label)}
-              onClickTotal={() => navigate("/paid-bible?tab=service-requests")}
-            />
-          ))}
-        </div>
       </div>
 
       {/* ── Section 3: SLOB Risk ── */}
