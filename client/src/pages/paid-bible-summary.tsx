@@ -875,9 +875,9 @@ export default function PaidBibleSummaryTab() {
                       {/* CBU rows — only when Small C is expanded */}
                       {isScatOpen && mats.map(m => {
                         const isCbuOpen = priceExpandedCbus.has(m.id);
-                        const geoChannelRows = Object.entries(m.channelMapping).flatMap(([geo, channels]) =>
-                          (channels as string[]).map(ch => ({ geo, channel: ch }))
-                        );
+                        const mapping = m.channelMapping as Record<string, string[]>;
+                        const geos = Object.keys(mapping).sort();
+                        const allChannels = [...new Set(Object.values(mapping).flat())].sort();
                         const expiredLabel = m.endDate
                           ? `Expired ${new Date(m.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}`
                           : "Price inactive";
@@ -898,35 +898,46 @@ export default function PaidBibleSummaryTab() {
                               <span className="text-[10px] text-orange-500 font-semibold whitespace-nowrap shrink-0">{expiredLabel}</span>
                             </div>
 
-                            {/* Geo × Channel table — only when CBU row is expanded */}
+                            {/* Geo × Channel matrix — only when CBU row is expanded */}
                             {isCbuOpen && (
-                              <div className="pl-8 bg-orange-50/10 border-t border-slate-100">
-                                {geoChannelRows.length > 0 ? (
-                                  <table className="w-full text-[11px]">
-                                    <thead>
-                                      <tr className="bg-slate-100 border-b border-slate-200">
-                                        <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Geography</th>
-                                        <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Channel</th>
-                                        <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Price Validity</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 bg-white">
-                                      {geoChannelRows.map((row, i) => (
-                                        <tr key={i} className="hover:bg-orange-50/30">
-                                          <td className="px-3 py-1.5 text-slate-700">{row.geo}</td>
-                                          <td className="px-3 py-1.5 text-slate-600">{row.channel}</td>
-                                          <td className="px-3 py-1.5">
-                                            <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">
-                                              <XCircle className="h-3 w-3" />
-                                              {expiredLabel}
-                                            </span>
-                                          </td>
+                              <div className="pl-8 pr-4 pb-2 bg-orange-50/10 border-t border-slate-100 overflow-x-auto">
+                                {geos.length > 0 ? (
+                                  <>
+                                    <div className="flex items-center gap-1.5 py-1.5">
+                                      <XCircle className="h-3 w-3 text-orange-500" />
+                                      <span className="text-[10px] text-orange-500 font-semibold">{expiredLabel} — all configured combinations</span>
+                                    </div>
+                                    <table className="text-[11px] border border-slate-200 rounded overflow-hidden">
+                                      <thead>
+                                        <tr className="bg-slate-100 border-b border-slate-200">
+                                          <th className="text-left px-3 py-1.5 font-bold text-slate-500 text-[9px] uppercase tracking-wider whitespace-nowrap sticky left-0 bg-slate-100 z-10 min-w-[140px]">Geography</th>
+                                          {allChannels.map(ch => (
+                                            <th key={ch} className="text-center px-3 py-1.5 font-bold text-slate-500 text-[9px] uppercase tracking-wider whitespace-nowrap">{ch}</th>
+                                          ))}
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 bg-white">
+                                        {geos.map(geo => (
+                                          <tr key={geo} className="hover:bg-orange-50/30">
+                                            <td className="px-3 py-1.5 text-slate-700 font-medium whitespace-nowrap sticky left-0 bg-white z-10">{geo}</td>
+                                            {allChannels.map(ch => {
+                                              const has = (mapping[geo] ?? []).includes(ch);
+                                              return (
+                                                <td key={ch} className="text-center px-3 py-1.5">
+                                                  {has
+                                                    ? <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-black text-[10px]" title={expiredLabel}>✗</span>
+                                                    : <span className="text-slate-200 text-xs font-bold">—</span>
+                                                  }
+                                                </td>
+                                              );
+                                            })}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </>
                                 ) : (
-                                  <p className="px-4 py-2 text-[11px] text-slate-400 italic">No geo-channel mapping configured for this CBU.</p>
+                                  <p className="py-2 text-[11px] text-slate-400 italic">No geo-channel mapping configured for this CBU.</p>
                                 )}
                               </div>
                             )}
