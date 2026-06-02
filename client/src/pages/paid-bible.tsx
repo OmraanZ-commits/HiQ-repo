@@ -2571,7 +2571,7 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
 
 export default function PaidBiblePage() {
   const search = useSearch();
-  const initialTab = new URLSearchParams(search).get("tab") ?? "overview";
+  const initialTab = new URLSearchParams(search).get("tab") ?? "summary";
   const [activeTab, setActiveTab] = useState(initialTab);
   const moc = getCurrentMoc();
 
