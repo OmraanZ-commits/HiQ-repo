@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertTriangle, Globe, Waypoints, ArrowRightLeft, Shuffle,
-  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle, ChevronDown, ChevronRight, Truck, Rocket,
+  Package, BarChart3, Clock, TrendingUp, CheckCircle2, XCircle, ChevronDown, ChevronRight, Truck, Rocket, Banknote,
 } from "lucide-react";
 import { type NetworkEntry } from "@shared/schema";
 import { useSrStore } from "@/lib/sr-store";
@@ -216,11 +216,19 @@ export default function PaidBibleSummaryTab() {
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [slobExpandedCats, setSlobExpandedCats] = useState<Set<string>>(new Set());
   const [mstnExpandedCats, setMstnExpandedCats] = useState<Set<string>>(new Set());
+  const [priceExpandedScats, setPriceExpandedScats] = useState<Set<string>>(new Set());
+  const [priceExpandedCbus, setPriceExpandedCbus] = useState<Set<string>>(new Set());
   function toggleSlobCat(cat: string) {
     setSlobExpandedCats(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
   }
   function toggleMstnCat(cat: string) {
     setMstnExpandedCats(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
+  }
+  function togglePriceScat(cat: string) {
+    setPriceExpandedScats(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
+  }
+  function togglePriceCbu(id: string) {
+    setPriceExpandedCbus(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
   function toggleCat(cat: string) {
@@ -266,6 +274,8 @@ export default function PaidBibleSummaryTab() {
       bg: e.bg || "-",
       mstnPercentage: e.mstnPercentage ?? null,
       priceActive: (e as any).priceActive ?? true,
+      endDate: e.endDate ?? null,
+      channelMapping: (e.channelMapping ?? {}) as Record<string, string[]>,
       predecessorCode: (e as any).predecessorCode ?? null,
       predecessorDoh: (e as any).predecessorDoh ?? null,
       successorDoh: (e as any).successorDoh ?? null,
@@ -290,10 +300,18 @@ export default function PaidBibleSummaryTab() {
   const activeBps    = basepacks.filter(b => b.effectiveStatus === "Active Pack").length;
   const sbdBps       = basepacks.filter(b => b.effectiveStatus === "Stock Base Delisted").length;
   const pendingSrs   = serviceRequests.filter(r => r.overallStatus === "pending").length;
-  const slobCount         = allMaterials.filter(m => m.slobRisk).length;
-  const priceInactiveCount = allMaterials.filter(m =>
-    m.mstnPercentage !== null && m.mstnPercentage >= 80 && !m.priceActive
-  ).length;
+  const slobCount          = allMaterials.filter(m => m.slobRisk).length;
+  const priceInactiveMats  = allMaterials.filter(m => !m.priceActive);
+  const priceInactiveCount = priceInactiveMats.length;
+  const priceInactiveByScat = useMemo(() => {
+    const groups = new Map<string, typeof priceInactiveMats>();
+    priceInactiveMats.forEach(m => {
+      const cat = m.salesCategory;
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat)!.push(m);
+    });
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [priceInactiveMats]);
   const MSTN_THRESHOLD = 80;
   const MSTN_ACTIVE = new Set(["Active","Pricing Updated","Production Started","FTR Approved","Stock Movement Initiated"]);
   const mstnPendingMats = allMaterials.filter(m =>
@@ -821,63 +839,96 @@ export default function PaidBibleSummaryTab() {
             </div>
           )}
 
-          {/* MSTN Clearance Pending card */}
-          {mstnPendingMats.length > 0 && (
+          {/* Price Inactive card */}
+          {priceInactiveMats.length > 0 && (
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-              <div className="px-4 py-2.5 border-b bg-amber-50/60 flex items-center gap-2" data-testid="mstn-header">
-                <TrendingUp className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">MSTN Clearance Pending</span>
-                <span className="ml-1 inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black border border-amber-200">
-                  {mstnPendingMats.length}
+              <div className="px-4 py-2.5 border-b bg-orange-50/60 flex items-center gap-2" data-testid="price-inactive-header">
+                <Banknote className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Price Inactive</span>
+                <span className="ml-1 inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-black border border-orange-200">
+                  {priceInactiveMats.length}
                 </span>
-                <span className="text-[10px] text-slate-400 ml-1">CBUs &lt;{MSTN_THRESHOLD}%</span>
+                <span className="text-[10px] text-slate-400 ml-1">CBUs with inactive or expired price</span>
               </div>
               <div className="divide-y">
-                {[...new Set(mstnPendingMats.map(m => m.salesCategory))].sort().map(cat => {
-                  const mats = mstnPendingMats.filter(m => m.salesCategory === cat);
-                  const avg  = Math.round(mats.reduce((s, m) => s + (m.mstnPercentage ?? 0), 0) / mats.length);
-                  const isOpen = mstnExpandedCats.has(cat);
+                {priceInactiveByScat.map(([cat, mats]) => {
+                  const isScatOpen = priceExpandedScats.has(cat);
                   return (
                     <React.Fragment key={cat}>
+                      {/* Small C group row */}
                       <div
-                        className="flex items-center gap-2 px-4 py-1.5 cursor-pointer hover:bg-amber-50/30 select-none"
-                        onClick={() => toggleMstnCat(cat)}
-                        data-testid={`mstn-row-${cat}`}
+                        className="flex items-center gap-2 px-4 py-1.5 cursor-pointer hover:bg-orange-50/30 select-none"
+                        onClick={() => togglePriceScat(cat)}
+                        data-testid={`price-scat-${cat}`}
                       >
-                        {isOpen ? <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" /> : <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />}
+                        {isScatOpen
+                          ? <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
+                          : <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />}
                         <span className="text-xs font-semibold text-slate-700 flex-1">{cat}</span>
-                        <span className="text-[10px] text-slate-400">avg</span>
-                        <span className="text-sm font-black text-amber-600 tabular-nums ml-1">{avg}%</span>
-                        <span className="text-xs text-slate-400 tabular-nums ml-1">({mats.length})</span>
+                        <span className="text-xs text-slate-400 tabular-nums">({mats.length} {mats.length === 1 ? "CBU" : "CBUs"})</span>
                       </div>
-                      {isOpen && (
-                        <div className="bg-amber-50/20 overflow-x-auto">
-                          <table className="w-full text-[11px]">
-                            <thead>
-                              <tr className="bg-slate-100 border-b border-slate-200">
-                                <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">CBU Code</th>
-                                <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Description</th>
-                                <th className="text-center px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">MSTN%</th>
-                                <th className="text-center px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 bg-white">
-                              {mats.map(m => (
-                                <tr key={m.id} className="hover:bg-amber-50/40">
-                                  <td className="px-3 py-1.5 font-mono text-[10px] font-semibold text-slate-700">{m.code}</td>
-                                  <td className="px-3 py-1.5 text-slate-600 max-w-[10rem] truncate" title={m.description}>{m.description}</td>
-                                  <td className="px-3 py-1.5 text-center font-black text-amber-600 tabular-nums">{m.mstnPercentage}%</td>
-                                  <td className="px-3 py-1.5 text-center">
-                                    <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border bg-slate-50 text-slate-600 border-slate-200">
-                                      {m.networkStatus}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+
+                      {/* CBU rows — only when Small C is expanded */}
+                      {isScatOpen && mats.map(m => {
+                        const isCbuOpen = priceExpandedCbus.has(m.id);
+                        const geoChannelRows = Object.entries(m.channelMapping).flatMap(([geo, channels]) =>
+                          (channels as string[]).map(ch => ({ geo, channel: ch }))
+                        );
+                        const expiredLabel = m.endDate
+                          ? `Expired ${new Date(m.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}`
+                          : "Price inactive";
+
+                        return (
+                          <React.Fragment key={m.id}>
+                            {/* CBU row */}
+                            <div
+                              className="flex items-center gap-2 pl-8 pr-4 py-1.5 cursor-pointer hover:bg-orange-50/20 select-none bg-white border-t border-slate-100"
+                              onClick={() => togglePriceCbu(m.id)}
+                              data-testid={`price-cbu-${m.id}`}
+                            >
+                              {isCbuOpen
+                                ? <ChevronDown className="h-3 w-3 text-slate-300 shrink-0" />
+                                : <ChevronRight className="h-3 w-3 text-slate-300 shrink-0" />}
+                              <span className="font-mono text-[11px] font-bold text-slate-700 shrink-0">{m.code}</span>
+                              <span className="text-[11px] text-slate-500 flex-1 truncate" title={m.description}>{m.description}</span>
+                              <span className="text-[10px] text-orange-500 font-semibold whitespace-nowrap shrink-0">{expiredLabel}</span>
+                            </div>
+
+                            {/* Geo × Channel table — only when CBU row is expanded */}
+                            {isCbuOpen && (
+                              <div className="pl-8 bg-orange-50/10 border-t border-slate-100">
+                                {geoChannelRows.length > 0 ? (
+                                  <table className="w-full text-[11px]">
+                                    <thead>
+                                      <tr className="bg-slate-100 border-b border-slate-200">
+                                        <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Geography</th>
+                                        <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Channel</th>
+                                        <th className="text-left px-3 py-1 font-bold text-slate-500 text-[9px] uppercase tracking-wider">Price Validity</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                      {geoChannelRows.map((row, i) => (
+                                        <tr key={i} className="hover:bg-orange-50/30">
+                                          <td className="px-3 py-1.5 text-slate-700">{row.geo}</td>
+                                          <td className="px-3 py-1.5 text-slate-600">{row.channel}</td>
+                                          <td className="px-3 py-1.5">
+                                            <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">
+                                              <XCircle className="h-3 w-3" />
+                                              {expiredLabel}
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                ) : (
+                                  <p className="px-4 py-2 text-[11px] text-slate-400 italic">No geo-channel mapping configured for this CBU.</p>
+                                )}
+                              </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </React.Fragment>
                   );
                 })}
