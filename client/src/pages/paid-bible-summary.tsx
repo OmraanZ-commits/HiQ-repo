@@ -677,10 +677,12 @@ export default function PaidBibleSummaryTab() {
                                   );
                                 })}
                                 <td className="text-center py-1.5 px-3">
-                                  {mats.length > 0
-                                    ? <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
-                                    : <span className="text-slate-200 text-sm font-black">—</span>
-                                  }
+                                  {(() => {
+                                    const t = TIMELINE_BUCKETS.reduce((s, b) => s + bucketCount(mats, b.min, b.max), 0);
+                                    return t > 0
+                                      ? <span className="text-xs font-black text-slate-600 tabular-nums">{t}</span>
+                                      : <span className="text-slate-200 text-sm font-black">—</span>;
+                                  })()}
                                 </td>
                               </tr>
                               {isExpanded && (
@@ -746,10 +748,12 @@ export default function PaidBibleSummaryTab() {
                           );
                         })}
                         <td className="text-center py-1.5 px-3">
-                          {poolRelaunchMats.length > 0
-                            ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{poolRelaunchMats.length}</span>
-                            : <span className="text-slate-200 text-sm font-black">—</span>
-                          }
+                          {(() => {
+                            const t = TIMELINE_BUCKETS.reduce((s, b) => s + bucketCount(poolRelaunchMats, b.min, b.max), 0);
+                            return t > 0
+                              ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{t}</span>
+                              : <span className="text-slate-200 text-sm font-black">—</span>;
+                          })()}
                         </td>
                       </tr>
                     </tbody>
@@ -983,9 +987,12 @@ export default function PaidBibleSummaryTab() {
                         );
                       })}
                       <td className="text-center py-2.5 px-4">
-                        {mats.length > 0
-                          ? <span className="text-xs font-black text-slate-600 tabular-nums">{mats.length}</span>
-                          : <span className="text-slate-200 text-sm font-black">—</span>}
+                        {(() => {
+                          const t = TIMELINE_BUCKETS.reduce((s, b) => s + bucketCount(mats, b.min, b.max), 0);
+                          return t > 0
+                            ? <span className="text-xs font-black text-slate-600 tabular-nums">{t}</span>
+                            : <span className="text-slate-200 text-sm font-black">—</span>;
+                        })()}
                       </td>
                     </tr>
                   );
@@ -1003,9 +1010,12 @@ export default function PaidBibleSummaryTab() {
                     );
                   })}
                   <td className="text-center py-2.5 px-4">
-                    {rlMats.length > 0
-                      ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{rlMats.length}</span>
-                      : <span className="text-slate-200 text-sm font-black">—</span>}
+                    {(() => {
+                      const t = TIMELINE_BUCKETS.reduce((s, b) => s + bucketCount(rlMats, b.min, b.max), 0);
+                      return t > 0
+                        ? <span className="text-xs font-black text-[#1f36c7] tabular-nums">{t}</span>
+                        : <span className="text-slate-200 text-sm font-black">—</span>;
+                    })()}
                   </td>
                 </tr>
               </tbody>
