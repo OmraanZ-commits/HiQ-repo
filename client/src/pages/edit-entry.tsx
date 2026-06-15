@@ -15,7 +15,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -226,6 +227,19 @@ export default function EditEntry() {
     });
     navigate("/paid-bible?tab=service-requests");
   };
+
+  // Finance Inputs state
+  type FinInputType = "percentage" | "number";
+  const [finMrp, setFinMrp] = useState("");
+  const [finRetailerMarginType, setFinRetailerMarginType] = useState<FinInputType>("percentage");
+  const [finRetailerMargin, setFinRetailerMargin] = useState("");
+  const [finRsMarginType, setFinRsMarginType] = useState<FinInputType>("percentage");
+  const [finRsMargin, setFinRsMargin] = useState("");
+  const [finPriceOffType, setFinPriceOffType] = useState<FinInputType>("percentage");
+  const [finPriceOff, setFinPriceOff] = useState("");
+  const [finPriceWrapper, setFinPriceWrapper] = useState("");
+
+  const financeHasValues = [finMrp, finRetailerMargin, finRsMargin, finPriceOff, finPriceWrapper].some(v => v !== "");
 
   // Sourcing Matrix local state
   const [sourcingMode, setSourcingMode] = useState<"decentralized" | "centralized">("decentralized");
@@ -522,6 +536,10 @@ export default function EditEntry() {
               </TabsTrigger>
               <TabsTrigger value="pricing" className="gap-2" data-testid="tab-pricing">
                 <Tag className="h-4 w-4" /> Pricing
+              </TabsTrigger>
+              <TabsTrigger value="finance" className="gap-2" data-testid="tab-finance">
+                <ReceiptText className="h-4 w-4" /> Finance Inputs
+                {financeHasValues && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-[#00b0d7]" />}
               </TabsTrigger>
             </TabsList>
 
@@ -1491,6 +1509,152 @@ export default function EditEntry() {
               </Tabs>
             </TabsContent>
 
+            {/* ── Finance Inputs Tab ────────────────────────────────────── */}
+            <TabsContent value="finance" className="mt-0">
+              <Card data-testid="tab-content-finance">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <ReceiptText className="h-4 w-4 text-[#00b0d7]" />
+                    <p className="text-sm font-semibold">Finance Inputs</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Fields to be completed by the Network Planner. For percentage/number fields, select the input type first.
+                  </p>
+                </CardHeader>
+                <CardContent className="pt-0 px-0">
+                  {/* Table header */}
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-2 bg-muted/40 border-y border-border/60 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                    <span>Field</span>
+                    <span>Current Value</span>
+                    <span>Manual Input</span>
+                    <span>Type</span>
+                  </div>
+
+                  {/* MRP — number only */}
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
+                    <span className="text-sm font-medium">MRP</span>
+                    <span className="text-sm text-muted-foreground tabular-nums">10</span>
+                    <div className="pr-4">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Enter value"
+                        value={finMrp}
+                        onChange={e => setFinMrp(e.target.value)}
+                        className="h-8 text-sm"
+                        data-testid="finance-input-mrp"
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground">Number</span>
+                  </div>
+
+                  {/* Retailer Margin — % or number */}
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
+                    <span className="text-sm font-medium">Retailer Margin</span>
+                    <span className="text-sm text-muted-foreground">—</span>
+                    <div className="pr-4">
+                      <Input
+                        type="number"
+                        min="0"
+                        max={finRetailerMarginType === "percentage" ? 100 : undefined}
+                        step={finRetailerMarginType === "percentage" ? 1 : 0.01}
+                        placeholder={finRetailerMarginType === "percentage" ? "0 – 100" : "Enter value"}
+                        value={finRetailerMargin}
+                        onChange={e => setFinRetailerMargin(e.target.value)}
+                        className="h-8 text-sm"
+                        data-testid="finance-input-retailer-margin"
+                      />
+                    </div>
+                    <Select value={finRetailerMarginType} onValueChange={v => { setFinRetailerMarginType(v as FinInputType); setFinRetailerMargin(""); }}>
+                      <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-retailer-margin">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">% Percentage</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* RS Margin — % or number */}
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
+                    <span className="text-sm font-medium">RS Margin</span>
+                    <span className="text-sm text-muted-foreground italic">As per system</span>
+                    <div className="pr-4">
+                      <Input
+                        type="number"
+                        min="0"
+                        max={finRsMarginType === "percentage" ? 100 : undefined}
+                        step={finRsMarginType === "percentage" ? 1 : 0.01}
+                        placeholder={finRsMarginType === "percentage" ? "0 – 100" : "Enter value"}
+                        value={finRsMargin}
+                        onChange={e => setFinRsMargin(e.target.value)}
+                        className="h-8 text-sm"
+                        data-testid="finance-input-rs-margin"
+                      />
+                    </div>
+                    <Select value={finRsMarginType} onValueChange={v => { setFinRsMarginType(v as FinInputType); setFinRsMargin(""); }}>
+                      <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-rs-margin">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">% Percentage</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Price Off — % or number */}
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
+                    <span className="text-sm font-medium">Price Off</span>
+                    <span className="text-sm text-muted-foreground">NA</span>
+                    <div className="pr-4">
+                      <Input
+                        type="number"
+                        min="0"
+                        max={finPriceOffType === "percentage" ? 100 : undefined}
+                        step={finPriceOffType === "percentage" ? 1 : 0.01}
+                        placeholder={finPriceOffType === "percentage" ? "0 – 100" : "Enter value"}
+                        value={finPriceOff}
+                        onChange={e => setFinPriceOff(e.target.value)}
+                        className="h-8 text-sm"
+                        data-testid="finance-input-price-off"
+                      />
+                    </div>
+                    <Select value={finPriceOffType} onValueChange={v => { setFinPriceOffType(v as FinInputType); setFinPriceOff(""); }}>
+                      <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-price-off">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">% Percentage</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Price to be printed on wrapper by Factory — number only */}
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 items-center hover:bg-muted/20">
+                    <span className="text-sm font-medium leading-tight">Price to be printed on<br />wrapper by Factory</span>
+                    <span className="text-sm text-muted-foreground tabular-nums">10</span>
+                    <div className="pr-4">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Enter value"
+                        value={finPriceWrapper}
+                        onChange={e => setFinPriceWrapper(e.target.value)}
+                        className="h-8 text-sm"
+                        data-testid="finance-input-price-wrapper"
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground">Number</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
           </Tabs>
         </form>
 
@@ -1617,6 +1781,54 @@ export default function EditEntry() {
                   );
                 })()}
               </div>
+
+              {/* Finance Inputs summary — only shown if at least one value was entered */}
+              {financeHasValues && (
+                <div className="border-t pt-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <ReceiptText className="h-3.5 w-3.5 text-[#00b0d7]" />
+                    <p className="text-muted-foreground text-xs font-medium">Finance Inputs</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                    {finMrp && (
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">MRP</span>
+                        <span className="font-medium tabular-nums" data-testid="summary-fin-mrp">{finMrp}</span>
+                      </div>
+                    )}
+                    {finRetailerMargin && (
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Retailer Margin</span>
+                        <span className="font-medium tabular-nums" data-testid="summary-fin-retailer-margin">
+                          {finRetailerMargin}{finRetailerMarginType === "percentage" ? "%" : ""}
+                        </span>
+                      </div>
+                    )}
+                    {finRsMargin && (
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">RS Margin</span>
+                        <span className="font-medium tabular-nums" data-testid="summary-fin-rs-margin">
+                          {finRsMargin}{finRsMarginType === "percentage" ? "%" : ""}
+                        </span>
+                      </div>
+                    )}
+                    {finPriceOff && (
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Price Off</span>
+                        <span className="font-medium tabular-nums" data-testid="summary-fin-price-off">
+                          {finPriceOff}{finPriceOffType === "percentage" ? "%" : ""}
+                        </span>
+                      </div>
+                    )}
+                    {finPriceWrapper && (
+                      <div className="flex justify-between gap-2 col-span-2">
+                        <span className="text-muted-foreground">Price on Wrapper (Factory)</span>
+                        <span className="font-medium tabular-nums" data-testid="summary-fin-price-wrapper">{finPriceWrapper}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setShowConfirmDialog(false)} data-testid="button-cancel-confirm">
