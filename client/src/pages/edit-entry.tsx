@@ -230,6 +230,7 @@ export default function EditEntry() {
 
   // Finance Inputs state
   type FinInputType = "percentage" | "number";
+  // Manual input fields (cleared after each submit)
   const [finMrp, setFinMrp] = useState("");
   const [finRetailerMarginType, setFinRetailerMarginType] = useState<FinInputType>("percentage");
   const [finRetailerMargin, setFinRetailerMargin] = useState("");
@@ -239,7 +240,30 @@ export default function EditEntry() {
   const [finPriceOff, setFinPriceOff] = useState("");
   const [finPriceWrapper, setFinPriceWrapper] = useState("");
 
+  // Current value display (updated on submit, persists for reference)
+  const [finCurMrp, setFinCurMrp] = useState("");
+  const [finCurRetailerMargin, setFinCurRetailerMargin] = useState("");
+  const [finCurRetailerMarginType, setFinCurRetailerMarginType] = useState<FinInputType>("percentage");
+  const [finCurRsMargin, setFinCurRsMargin] = useState("");
+  const [finCurRsMarginType, setFinCurRsMarginType] = useState<FinInputType>("percentage");
+  const [finCurPriceOff, setFinCurPriceOff] = useState("");
+  const [finCurPriceOffType, setFinCurPriceOffType] = useState<FinInputType>("percentage");
+  const [finCurPriceWrapper, setFinCurPriceWrapper] = useState("");
+
   const financeHasValues = [finMrp, finRetailerMargin, finRsMargin, finPriceOff, finPriceWrapper].some(v => v !== "");
+
+  const handleFinanceConfirmSubmit = () => {
+    // Promote input values → current values
+    if (finMrp)           { setFinCurMrp(finMrp); }
+    if (finRetailerMargin){ setFinCurRetailerMargin(finRetailerMargin); setFinCurRetailerMarginType(finRetailerMarginType); }
+    if (finRsMargin)      { setFinCurRsMargin(finRsMargin); setFinCurRsMarginType(finRsMarginType); }
+    if (finPriceOff)      { setFinCurPriceOff(finPriceOff); setFinCurPriceOffType(finPriceOffType); }
+    if (finPriceWrapper)  { setFinCurPriceWrapper(finPriceWrapper); }
+    // Clear manual input fields
+    setFinMrp(""); setFinRetailerMargin(""); setFinRsMargin(""); setFinPriceOff(""); setFinPriceWrapper("");
+    // Run the original confirm handler
+    handleConfirmSubmit();
+  };
 
   // Sourcing Matrix local state
   const [sourcingMode, setSourcingMode] = useState<"decentralized" | "centralized">("decentralized");
@@ -1533,7 +1557,7 @@ export default function EditEntry() {
                   {/* MRP — number only */}
                   <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
                     <span className="text-sm font-medium">MRP</span>
-                    <span className="text-sm text-muted-foreground tabular-nums">10</span>
+                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-mrp">{finCurMrp || <span className="italic text-muted-foreground/50">—</span>}</span>
                     <div className="pr-4">
                       <Input
                         type="number"
@@ -1552,7 +1576,11 @@ export default function EditEntry() {
                   {/* Retailer Margin — % or number */}
                   <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
                     <span className="text-sm font-medium">Retailer Margin</span>
-                    <span className="text-sm text-muted-foreground">—</span>
+                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-retailer-margin">
+                      {finCurRetailerMargin
+                        ? <>{finCurRetailerMargin}{finCurRetailerMarginType === "percentage" ? "%" : ""}</>
+                        : <span className="italic text-muted-foreground/50">—</span>}
+                    </span>
                     <div className="pr-4">
                       <Input
                         type="number"
@@ -1580,7 +1608,11 @@ export default function EditEntry() {
                   {/* RS Margin — % or number */}
                   <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
                     <span className="text-sm font-medium">RS Margin</span>
-                    <span className="text-sm text-muted-foreground italic">As per system</span>
+                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-rs-margin">
+                      {finCurRsMargin
+                        ? <>{finCurRsMargin}{finCurRsMarginType === "percentage" ? "%" : ""}</>
+                        : <span className="italic text-muted-foreground/50">—</span>}
+                    </span>
                     <div className="pr-4">
                       <Input
                         type="number"
@@ -1608,7 +1640,11 @@ export default function EditEntry() {
                   {/* Price Off — % or number */}
                   <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
                     <span className="text-sm font-medium">Price Off</span>
-                    <span className="text-sm text-muted-foreground">NA</span>
+                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-price-off">
+                      {finCurPriceOff
+                        ? <>{finCurPriceOff}{finCurPriceOffType === "percentage" ? "%" : ""}</>
+                        : <span className="italic text-muted-foreground/50">—</span>}
+                    </span>
                     <div className="pr-4">
                       <Input
                         type="number"
@@ -1636,7 +1672,9 @@ export default function EditEntry() {
                   {/* Price to be printed on wrapper by Factory — number only */}
                   <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 items-center hover:bg-muted/20">
                     <span className="text-sm font-medium leading-tight">Price to be printed on<br />wrapper by Factory</span>
-                    <span className="text-sm text-muted-foreground tabular-nums">10</span>
+                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-price-wrapper">
+                      {finCurPriceWrapper || <span className="italic text-muted-foreground/50">—</span>}
+                    </span>
                     <div className="pr-4">
                       <Input
                         type="number"
@@ -1834,7 +1872,7 @@ export default function EditEntry() {
               <Button variant="outline" onClick={() => setShowConfirmDialog(false)} data-testid="button-cancel-confirm">
                 Cancel
               </Button>
-              <Button onClick={handleConfirmSubmit} disabled={isPending} data-testid="button-confirm-activate">
+              <Button onClick={handleFinanceConfirmSubmit} disabled={isPending} data-testid="button-confirm-activate">
                 {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
                 Confirm & Activate
               </Button>
