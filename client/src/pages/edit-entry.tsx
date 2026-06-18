@@ -2032,6 +2032,7 @@ export default function EditEntry() {
             currentGeo={effectiveGeo}
             currentDepots={effectiveDepots}
             currentChannels={effectiveChannels}
+            channelMapping={(form?.channelMapping as Record<string, string[]>) || {}}
             clusters={CLUSTERS}
             leafChannels={LEAF_CHANNELS}
             geographyDepotMap={GEOGRAPHY_DEPOT_MAP}

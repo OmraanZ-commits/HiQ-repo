@@ -96,6 +96,8 @@ export interface ServiceRequest {
   addedGeos?: string[];
   addedDepots?: string[];
   addedChannels?: string[];
+  removedChannels?: string[];
+  requestedChannelMapping?: Record<string, string[]>;
   removedGeos?: string[];
   removedDepots?: string[];
   sourcingMode?: "decentralized" | "centralized";

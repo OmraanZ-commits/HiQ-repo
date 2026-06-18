@@ -40,8 +40,8 @@ const AMENDMENT_TYPES = [
   {
     value: "channel-extension" as SrType,
     icon: Radio,
-    label: "Channel Extension",
-    desc: "Extend distribution to additional trade channels (GT, MT, Ecom, KA…)",
+    label: "Channel Amendment",
+    desc: "Add or remove trade channels per cluster (GT, MT, Ecom, KA…)",
   },
   {
     value: "sourcing-amendment" as SrType,
@@ -94,7 +94,7 @@ function buildApprovers(
 
 // ─── Chip ─────────────────────────────────────────────────────────────────────
 
-type ChipState = "existing" | "new" | "available";
+type ChipState = "existing" | "new" | "available" | "removing";
 
 function Chip({ label, state, onClick }: {
   label: string;
@@ -105,12 +105,12 @@ function Chip({ label, state, onClick }: {
     <button
       type="button"
       onClick={onClick}
-      disabled={state === "existing"}
       className={cn(
-        "px-3 py-1.5 rounded-full text-xs font-medium border transition-all select-none",
-        state === "existing"  && "bg-blue-500 text-white border-blue-500 cursor-default",
-        state === "new"       && "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 cursor-pointer",
-        state === "available" && "bg-white text-foreground border-border hover:border-blue-300 hover:bg-blue-50 cursor-pointer",
+        "px-3 py-1.5 rounded-full text-xs font-medium border transition-all select-none cursor-pointer",
+        state === "existing"  && "bg-blue-500 text-white border-blue-500 hover:bg-blue-600",
+        state === "new"       && "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600",
+        state === "removing"  && "bg-red-400 text-white border-red-400 hover:bg-red-500 line-through opacity-80",
+        state === "available" && "bg-white text-foreground border-border hover:border-blue-300 hover:bg-blue-50",
       )}
     >
       {label}
@@ -444,11 +444,18 @@ function GeoEditor({
 
 // ─── Channel Editor ───────────────────────────────────────────────────────────
 
-function ChannelEditor({ leafChannels, currentChannels, addedChannels, setAddedChannels }: {
+function ChannelEditor({
+  leafChannels,
+  currentGeo,
+  channelMapping,
+  requestedChannelMapping,
+  setRequestedChannelMapping,
+}: {
   leafChannels: ChannelDef[];
-  currentChannels: string[];
-  addedChannels: string[];
-  setAddedChannels: (v: string[]) => void;
+  currentGeo: string[];
+  channelMapping: Record<string, string[]>;
+  requestedChannelMapping: Record<string, string[]>;
+  setRequestedChannelMapping: (v: Record<string, string[]>) => void;
 }) {
   const groups = useMemo(
     () => CHANNEL_GROUPS
@@ -457,39 +464,101 @@ function ChannelEditor({ leafChannels, currentChannels, addedChannels, setAddedC
     [leafChannels],
   );
 
-  const getState = (code: string): ChipState =>
-    currentChannels.includes(code) ? "existing"
-    : addedChannels.includes(code) ? "new"
-    : "available";
-
-  const toggle = (code: string) => {
-    if (currentChannels.includes(code)) return;
-    setAddedChannels(
-      addedChannels.includes(code)
-        ? addedChannels.filter(c => c !== code)
-        : [...addedChannels, code],
-    );
+  const getCellState = (geo: string, code: string): ChipState => {
+    const original  = channelMapping[geo] || [];
+    const requested = requestedChannelMapping[geo] ?? original;
+    const wasActive  = original.includes(code);
+    const isActive   = requested.includes(code);
+    if (wasActive && isActive)   return "existing";
+    if (!wasActive && isActive)  return "new";
+    if (wasActive && !isActive)  return "removing";
+    return "available";
   };
 
+  const toggle = (geo: string, code: string) => {
+    const original  = channelMapping[geo] || [];
+    const requested = requestedChannelMapping[geo] ?? [...original];
+    const next = { ...requestedChannelMapping };
+    next[geo] = requested.includes(code)
+      ? requested.filter(c => c !== code)
+      : [...requested, code];
+    setRequestedChannelMapping(next);
+  };
+
+  // Derive summary counts
+  const totalAdded   = currentGeo.reduce((n, geo) => {
+    const orig = new Set(channelMapping[geo] || []);
+    return n + (requestedChannelMapping[geo] ?? [...orig]).filter(c => !orig.has(c)).length;
+  }, 0);
+  const totalRemoved = currentGeo.reduce((n, geo) => {
+    const orig = channelMapping[geo] || [];
+    const req  = requestedChannelMapping[geo] ?? [...orig];
+    return n + orig.filter(c => !req.includes(c)).length;
+  }, 0);
+
   return (
-    <div className="space-y-4">
-      <SelectionLegend />
-      {groups.map(g => (
-        <div key={g.label}>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            {g.label}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {g.channels.map(c => (
-              <Chip key={c.code} label={c.code} state={getState(c.code)} onClick={() => toggle(c.code)} />
-            ))}
-          </div>
-        </div>
-      ))}
-      {addedChannels.length > 0 && (
-        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700">
-          <span className="font-semibold">{addedChannels.length} new {addedChannels.length === 1 ? "channel" : "channels"} to add:</span>{" "}
-          {addedChannels.join(", ")}
+    <div className="space-y-3">
+      <SelectionLegend showRemoving />
+      <p className="text-[11px] text-muted-foreground">
+        Click a channel chip to toggle it for that cluster.{" "}
+        <span className="text-blue-600 font-medium">Blue</span> = current,{" "}
+        <span className="text-emerald-600 font-medium">Green</span> = adding,{" "}
+        <span className="text-red-500 font-medium">Red (strikethrough)</span> = removing.
+      </p>
+
+      <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+        {currentGeo.map(geo => {
+          const original  = channelMapping[geo] || [];
+          const requested = requestedChannelMapping[geo] ?? original;
+          const modified  = JSON.stringify([...original].sort()) !== JSON.stringify([...requested].sort());
+
+          return (
+            <div key={geo} className={cn(
+              "rounded-lg border p-3 transition-colors",
+              modified ? "border-blue-300 bg-blue-50/40" : "border-border bg-muted/10",
+            )}>
+              <div className="flex items-center gap-2 mb-2.5">
+                <p className="text-xs font-semibold text-slate-700 flex-1">{geo}</p>
+                {modified && (
+                  <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
+                    Modified
+                  </span>
+                )}
+              </div>
+              {groups.map(g => (
+                <div key={g.label} className="mb-2 last:mb-0">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    {g.label}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {g.channels.map(c => (
+                      <Chip
+                        key={c.code}
+                        label={c.code}
+                        state={getCellState(geo, c.code)}
+                        onClick={() => toggle(geo, c.code)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      {(totalAdded > 0 || totalRemoved > 0) && (
+        <div className="flex gap-2">
+          {totalAdded > 0 && (
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700 flex-1">
+              <span className="font-semibold">+{totalAdded}</span> channel{totalAdded !== 1 ? "s" : ""} to add across clusters
+            </div>
+          )}
+          {totalRemoved > 0 && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 flex-1">
+              <span className="font-semibold">−{totalRemoved}</span> channel{totalRemoved !== 1 ? "s" : ""} to remove across clusters
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -656,8 +725,9 @@ function SourcingEditor({
 
 function SummaryView({
   amendmentType, currentGeo, currentChannels, currentDepots,
-  addedGeos, addedChannels, addedDepots,
+  addedGeos, addedChannels, removedChannels, addedDepots,
   removedGeos, removedDepots,
+  channelMapping, requestedChannelMapping,
   newMode, centralizedGeo, centralizedDepots,
   justification, setJustification, cbuNetworkStatus,
 }: {
@@ -667,9 +737,12 @@ function SummaryView({
   currentDepots: string[];
   addedGeos: string[];
   addedChannels: string[];
+  removedChannels: string[];
   addedDepots: string[];
   removedGeos: string[];
   removedDepots: string[];
+  channelMapping: Record<string, string[]>;
+  requestedChannelMapping: Record<string, string[]>;
   newMode: "decentralized" | "centralized";
   centralizedGeo: string[];
   centralizedDepots: string[];
@@ -744,25 +817,38 @@ function SummaryView({
         )}
 
         {amendmentType === "channel-extension" && (
-          <div className="space-y-3 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Existing Channels (no change)</p>
-              <div className="flex flex-wrap gap-1.5">
-                {currentChannels.length > 0
-                  ? currentChannels.map(c => (
-                      <Badge key={c} className="bg-blue-100 text-blue-700 border border-blue-300 text-xs font-normal">{c}</Badge>
-                    ))
-                  : <span className="text-xs text-muted-foreground italic">None</span>}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Adding Channels</p>
-              <div className="flex flex-wrap gap-1.5">
-                {addedChannels.map(c => (
-                  <Badge key={c} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal">{c}</Badge>
-                ))}
-              </div>
-            </div>
+          <div className="space-y-2 text-sm">
+            {currentGeo.map(geo => {
+              const original  = channelMapping[geo] || [];
+              const requested = requestedChannelMapping[geo] ?? original;
+              const added     = requested.filter(c => !original.includes(c));
+              const removed   = original.filter(c => !requested.includes(c));
+              const kept      = original.filter(c => requested.includes(c));
+              if (added.length === 0 && removed.length === 0) return null;
+              return (
+                <div key={geo} className="rounded-lg border border-blue-200 bg-blue-50/30 px-3 py-2.5 space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-700">{geo}</p>
+                  {kept.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {kept.map(c => <Badge key={c} className="bg-blue-100 text-blue-700 border border-blue-200 text-xs font-normal">{c}</Badge>)}
+                    </div>
+                  )}
+                  {added.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {added.map(c => <Badge key={c} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal">+ {c}</Badge>)}
+                    </div>
+                  )}
+                  {removed.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {removed.map(c => <Badge key={c} className="bg-red-100 text-red-700 border border-red-300 text-xs font-normal line-through">− {c}</Badge>)}
+                    </div>
+                  )}
+                </div>
+              );
+            }).filter(Boolean)}
+            {addedChannels.length === 0 && removedChannels.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">No channel changes</p>
+            )}
           </div>
         )}
 
@@ -870,6 +956,7 @@ export interface RaiseAmendmentDialogProps {
   currentGeo: string[];
   currentDepots: string[];
   currentChannels: string[];
+  channelMapping: Record<string, string[]>;
   clusters: ClusterInfo[];
   leafChannels: ChannelDef[];
   geographyDepotMap: Record<string, string[]>;
@@ -884,6 +971,7 @@ export function RaiseAmendmentDialog({
   raisedBy: raisedByProp,
   users, onSuccess,
   currentGeo, currentDepots, currentChannels,
+  channelMapping,
   clusters, leafChannels, geographyDepotMap,
   pendingSrs = [],
 }: RaiseAmendmentDialogProps) {
@@ -897,9 +985,31 @@ export function RaiseAmendmentDialog({
 
   const [addedGeos,     setAddedGeos]     = useState<string[]>([]);
   const [addedDepots,   setAddedDepots]   = useState<string[]>([]);
-  const [addedChannels, setAddedChannels] = useState<string[]>([]);
   const [removedGeos,   setRemovedGeos]   = useState<string[]>([]);
   const [removedDepots, setRemovedDepots] = useState<string[]>([]);
+
+  // Channel amendment state: full per-geo requested mapping
+  const [requestedChannelMapping, setRequestedChannelMapping] = useState<Record<string, string[]>>({});
+
+  // Derived: flat added/removed channel lists (union across all geos)
+  const addedChannels = useMemo(() => {
+    const s = new Set<string>();
+    currentGeo.forEach(geo => {
+      const orig = new Set(channelMapping[geo] || []);
+      (requestedChannelMapping[geo] ?? [...orig]).forEach(c => { if (!orig.has(c)) s.add(c); });
+    });
+    return Array.from(s);
+  }, [currentGeo, channelMapping, requestedChannelMapping]);
+
+  const removedChannels = useMemo(() => {
+    const s = new Set<string>();
+    currentGeo.forEach(geo => {
+      const orig = channelMapping[geo] || [];
+      const req  = requestedChannelMapping[geo] ?? orig;
+      orig.forEach(c => { if (!req.includes(c)) s.add(c); });
+    });
+    return Array.from(s);
+  }, [currentGeo, channelMapping, requestedChannelMapping]);
 
   const [newMode,          setNewMode]          = useState<"decentralized" | "centralized">("decentralized");
   const [centralizedGeo,   setCentralizedGeo]   = useState<string[]>([]);
@@ -912,20 +1022,20 @@ export function RaiseAmendmentDialog({
 
   const hasChanges = useMemo(() => {
     if (amendmentType === "geo-extension")     return addedGeos.length > 0 || removedGeos.length > 0 || removedDepots.length > 0;
-    if (amendmentType === "channel-extension") return addedChannels.length > 0;
+    if (amendmentType === "channel-extension") return addedChannels.length > 0 || removedChannels.length > 0;
     if (amendmentType === "sourcing-amendment") {
       if (newMode === "decentralized") return false;
       return centralizedGeo.length > 0 && centralizedDepots.length > 0;
     }
     return false;
-  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, newMode, centralizedGeo, centralizedDepots]);
+  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, centralizedGeo, centralizedDepots]);
 
   const reset = () => {
     setStep("type");
     setAmendmentType("");
     setAddedGeos([]);
     setAddedDepots([]);
-    setAddedChannels([]);
+    setRequestedChannelMapping({});
     setRemovedGeos([]);
     setRemovedDepots([]);
     setNewMode("decentralized");
@@ -953,8 +1063,10 @@ export function RaiseAmendmentDialog({
       requestedValue   = geoStr + addStr + rmvGeoStr + rmvDepStr;
 
     } else if (amendmentType === "channel-extension") {
-      currentValue     = currentChannels.join(", ") || "None";
-      requestedValue   = [...currentChannels, ...addedChannels].join(", ");
+      currentValue   = currentChannels.join(", ") || "None";
+      const addStr   = addedChannels.length   > 0 ? `Adding: ${addedChannels.join(", ")}`   : "";
+      const rmvStr   = removedChannels.length > 0 ? `Removing: ${removedChannels.join(", ")}` : "";
+      requestedValue = [addStr, rmvStr].filter(Boolean).join("; ") || currentValue;
     } else {
       currentValue     = `Decentralized — ${currentGeo.length} geo(s), ${currentDepots.length} depot(s)`;
       requestedValue   = newMode === "decentralized"
@@ -982,6 +1094,8 @@ export function RaiseAmendmentDialog({
       addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
       addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
       addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
+      removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
+      requestedChannelMapping: amendmentType === "channel-extension" ? requestedChannelMapping : undefined,
       removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
       removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
       sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
@@ -1005,6 +1119,7 @@ export function RaiseAmendmentDialog({
         addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
         addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
         addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
+        removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
         removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
         removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
         sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
@@ -1166,9 +1281,10 @@ export function RaiseAmendmentDialog({
           {step === "edit" && amendmentType === "channel-extension" && (
             <ChannelEditor
               leafChannels={leafChannels}
-              currentChannels={currentChannels}
-              addedChannels={addedChannels}
-              setAddedChannels={setAddedChannels}
+              currentGeo={currentGeo}
+              channelMapping={channelMapping}
+              requestedChannelMapping={requestedChannelMapping}
+              setRequestedChannelMapping={setRequestedChannelMapping}
             />
           )}
 
@@ -1196,6 +1312,9 @@ export function RaiseAmendmentDialog({
               addedGeos={addedGeos}
               addedDepots={addedDepots}
               addedChannels={addedChannels}
+              removedChannels={removedChannels}
+              channelMapping={channelMapping}
+              requestedChannelMapping={requestedChannelMapping}
               removedGeos={removedGeos}
               removedDepots={removedDepots}
               newMode={newMode}
