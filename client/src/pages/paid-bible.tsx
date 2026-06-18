@@ -13,6 +13,7 @@ import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,6 +57,12 @@ const BP_STATUS_ALIASES: Record<string, string> = {
 
 function normalizeBpStatus(s: string): string {
   return BP_STATUS_ALIASES[s] ?? s;
+}
+
+function getAllowedTransitions(from: string): string[] {
+  if (from === "Delisted Packs")      return [];
+  if (from === "Stock Base Delisted") return ["Delisted Packs"];
+  return BP_STATUS_OPTIONS.filter(s => s !== from);
 }
 
 const MSTN_ACTIVE_STATUSES = new Set([
@@ -108,6 +115,10 @@ interface PbMaterial {
   networkChangeDate: string | null;
   mstnByDepot: Record<string, number>;
   mstnClear: "Yes" | "No" | null;
+  basepakDoh: number | null;
+  prodPlanMoc1: boolean | null;
+  prodPlanMoc2: boolean | null;
+  prodPlanMoc3: boolean | null;
 }
 
 interface PbBasepack {
@@ -124,6 +135,7 @@ interface PbBasepack {
   networkPlanner: string;
   paidBibleOwner: string;
   materials: PbMaterial[];
+  basepakDoh: number | null;
 }
 
 // ─── MOC Calculator ──────────────────────────────────────────────────────────
@@ -289,6 +301,8 @@ function MaterialsSubTable({
             <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">NW Change Date</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">MSTN Clear</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Predecessor CBU DOH</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Successor CBU DOH</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Prod Plan (Next 3 MOC)</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 w-16" />
@@ -362,6 +376,20 @@ function MaterialsSubTable({
                       </span>
                     ) : <span className="text-sm text-muted-foreground">-</span>}
                   </TableCell>
+                  <TableCell className="py-3 px-4 whitespace-nowrap text-center" data-testid={`successor-doh-${m.id}`}>
+                    {m.successorDoh != null ? (
+                      <span className="text-sm text-muted-foreground">{m.successorDoh}</span>
+                    ) : <span className="text-sm text-muted-foreground">-</span>}
+                  </TableCell>
+                  <TableCell className="py-3 px-4" data-testid={`prod-plan-${m.id}`}>
+                    <div className="flex gap-1">
+                      {([m.prodPlanMoc1, m.prodPlanMoc2, m.prodPlanMoc3] as (boolean | null)[]).map((hasPlan, i) => (
+                        <span key={i} className={`text-[10px] px-1 py-0.5 rounded border font-medium whitespace-nowrap ${hasPlan === null ? "bg-slate-50 border-slate-200 text-slate-400" : hasPlan ? "bg-amber-50 border-amber-200 text-amber-600" : "bg-slate-50 border-slate-200 text-slate-500"}`}>
+                          M+{i + 1}:{hasPlan === null ? "—" : hasPlan ? "✓" : "✗"}
+                        </span>
+                      ))}
+                    </div>
+                  </TableCell>
                   <TableCell className="py-3 px-4">
                     <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
                       {m.priceActive ? "Yes" : "No"}
@@ -384,7 +412,7 @@ function MaterialsSubTable({
 
                 {isExpanded && hasDepots && (
                   <TableRow data-testid={`mat-depot-breakdown-${m.id}`}>
-                    <TableCell colSpan={13} className="p-0 bg-slate-50/80 border-t border-dashed">
+                    <TableCell colSpan={15} className="p-0 bg-slate-50/80 border-t border-dashed">
                       <div className="px-6 py-3.5">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
                           DC-wise MSTN levels
@@ -1256,16 +1284,277 @@ function ExportDialog({
   );
 }
 
+// ─── Inactivation / Seasonal Dialog ─────────────────────────────────────────
+
+function InactivationDialog({ bp, targetStatus, onClose, onCreateRequest, users }: {
+  bp: PbBasepack | null;
+  targetStatus: string;
+  onClose: () => void;
+  onCreateRequest: (request: ServiceRequest) => void;
+  users: PortalUser[];
+}) {
+  const [justification, setJustification] = useState("");
+  if (!bp) return null;
+  const currentStatus = normalizeBpStatus(bp.bpStatus);
+  const descriptionMap: Record<string, string> = {
+    "Inactive Pack":  "Basepack will be intentionally made Inactive. This is used when a basepack may be reintroduced in the future.",
+    "Seasonal Pack":  "Basepack will be classified as Seasonal based on whitelist or historical sales patterns.",
+  };
+  const handleCreate = () => {
+    const userByRole = (role: string) => users.find(u => u.role === role && u.isActive)?.name;
+    const approvers: ApproverStep[] = APPROVER_CHAIN.map((a, i) => ({
+      ...a,
+      assignedTo: userByRole(a.role),
+      status: i === 0 ? "pending" : "waiting",
+    }));
+    const sr: ServiceRequest = {
+      id:             makeTicketId(),
+      srType:         "basepack-status-change",
+      targetStatus,
+      basepackId:     bp.id,
+      basepackCode:   bp.basepackCode,
+      basepackName:   bp.basepakName,
+      brand:          bp.brand,
+      bg:             bp.bg,
+      raisedBy:       bp.paidBibleOwner || "Brand Planner",
+      raisedAt:       formatNow(),
+      justification,
+      approvers,
+      overallStatus:  "pending",
+    };
+    onCreateRequest(sr);
+    onClose();
+  };
+  return (
+    <Dialog open={!!bp} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ArrowRightLeft className="h-5 w-5 text-slate-500" />
+            Status Change Request
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Basepack Status Change · {bp.basepakName} · {bp.basepackCode}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 mt-1">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md bg-muted/40 border border-border/50 text-xs">
+            <BpStatusBadge status={currentStatus} />
+            <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+            <BpStatusBadge status={targetStatus} />
+          </div>
+          <div className="rounded-lg border bg-slate-50 p-3.5 text-xs text-slate-600">
+            {descriptionMap[targetStatus] ?? "Basepack status change requested."}
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">
+              Business Justification <span className="text-red-500">*</span>
+            </label>
+            <Textarea
+              placeholder="Provide a brief business reason for this status change..."
+              value={justification}
+              onChange={e => setJustification(e.target.value)}
+              className="resize-none text-sm"
+              rows={3}
+              data-testid="textarea-justification-inactivation"
+            />
+            <p className="text-[10px] text-muted-foreground">Recorded with the Service Request for audit purposes.</p>
+          </div>
+          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <ListChecks className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-500" />
+            <p>Requires approval: Network Planner → Supply Planner → Distribution Planner → NCSM</p>
+          </div>
+        </div>
+        <DialogFooter className="gap-2 mt-2">
+          <Button variant="outline" onClick={onClose} data-testid="button-cancel-inactivation">Cancel</Button>
+          <Button
+            onClick={handleCreate}
+            disabled={!justification.trim()}
+            className="gap-1.5 bg-[#1f36c7] hover:bg-[#1a2fa8] text-white"
+            data-testid="button-raise-sr-inactivation"
+          >
+            <Send className="h-4 w-4" /> Raise Service Request
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Delisting Criteria Dialog ────────────────────────────────────────────────
+
+function DelistingCriteriaDialog({ bp, targetStatus, onClose, onCreateRequest, users }: {
+  bp: PbBasepack | null;
+  targetStatus: string;
+  onClose: () => void;
+  onCreateRequest: (request: ServiceRequest) => void;
+  users: PortalUser[];
+}) {
+  const [justification, setJustification] = useState("");
+  if (!bp) return null;
+  const isStockBase   = targetStatus === "Stock Base Delisted";
+  const dohThreshold  = isStockBase ? 15 : 2;
+  const dohConditionMet = bp.basepakDoh !== null && bp.basepakDoh < dohThreshold;
+  const cbuCriteria   = bp.materials.map(m => ({
+    code:       m.code,
+    description: m.description,
+    zeroPlan:  !m.prodPlanMoc1 && !m.prodPlanMoc2 && !m.prodPlanMoc3,
+    moc:       [m.prodPlanMoc1, m.prodPlanMoc2, m.prodPlanMoc3] as (boolean | null)[],
+  }));
+  const overallMet    = dohConditionMet && cbuCriteria.every(c => c.zeroPlan);
+
+  const CritBadge = ({ met }: { met: boolean }) => met
+    ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5" />Y</span>
+    : <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500"><XCircle className="h-3.5 w-3.5" />N</span>;
+
+  const handleCreate = () => {
+    const userByRole = (role: string) => users.find(u => u.role === role && u.isActive)?.name;
+    const approvers: ApproverStep[] = APPROVER_CHAIN.map((a, i) => ({
+      ...a,
+      assignedTo: userByRole(a.role),
+      status: i === 0 ? "pending" : "waiting",
+    }));
+    const sr: ServiceRequest = {
+      id:                 makeTicketId(),
+      srType:             "basepack-status-change",
+      targetStatus,
+      basepackId:         bp.id,
+      basepackCode:       bp.basepackCode,
+      basepackName:       bp.basepakName,
+      brand:              bp.brand,
+      bg:                 bp.bg,
+      raisedBy:           bp.paidBibleOwner || "Brand Planner",
+      raisedAt:           formatNow(),
+      justification,
+      criteriaMetAtRaise: overallMet,
+      approvers,
+      overallStatus:      "pending",
+    };
+    onCreateRequest(sr);
+    onClose();
+  };
+
+  return (
+    <Dialog open={!!bp} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {overallMet
+              ? <BadgeCheck className="h-5 w-5 text-emerald-600" />
+              : <BadgeX className="h-5 w-5 text-amber-500" />
+            }
+            {isStockBase ? "Stock Base Delisting Criteria" : "Delisting Criteria"}
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Basepack Status Change · {bp.basepakName} · {bp.basepackCode}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-1">
+          <div className={`rounded-lg border-l-4 px-4 py-3 flex items-center gap-3 text-sm ${overallMet ? "bg-emerald-50 border-l-emerald-500 border-emerald-200" : "bg-amber-50 border-l-amber-500 border-amber-200"}`}>
+            {overallMet
+              ? <><CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" /><p className="font-medium text-emerald-700">All criteria met — eligible for {targetStatus}.</p></>
+              : <><AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" /><p className="font-medium text-amber-700">Criteria not fully met — SR will be raised for review.</p></>
+            }
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Criteria Evaluation Matrix</p>
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="text-xs py-2 w-24">Level</TableHead>
+                    <TableHead className="text-xs py-2">Criteria</TableHead>
+                    <TableHead className="text-xs py-2 text-center w-16">(Y/N)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow className="bg-muted/20">
+                    <TableCell className="text-xs py-2 font-semibold">Basepack</TableCell>
+                    <TableCell className="text-xs py-2 text-slate-700">Overall criteria met</TableCell>
+                    <TableCell className="text-xs py-2 text-center"><CritBadge met={overallMet} /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="text-xs py-2 font-medium">Basepack</TableCell>
+                    <TableCell className="text-xs py-2 text-slate-700">
+                      DOH &lt; {dohThreshold} days
+                      {bp.basepakDoh !== null && (
+                        <span className="ml-2 text-muted-foreground font-normal">(Current: {bp.basepakDoh} days)</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs py-2 text-center"><CritBadge met={dohConditionMet} /></TableCell>
+                  </TableRow>
+                  {cbuCriteria.map((c, i) => (
+                    <TableRow key={c.code}>
+                      <TableCell className="text-xs py-2 font-medium">CBU {i + 1}</TableCell>
+                      <TableCell className="text-xs py-2">
+                        <div className="text-slate-700">Zero Production Plan for Next 3 MOC</div>
+                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{c.code}</div>
+                        <div className="flex gap-1.5 mt-1">
+                          {c.moc.map((hasPlan, mi) => (
+                            <span key={mi} className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${hasPlan === null ? "bg-slate-50 border-slate-200 text-slate-400" : hasPlan ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-slate-50 border-slate-200 text-slate-500"}`}>
+                              MOC+{mi + 1}: {hasPlan === null ? "—" : hasPlan ? "Plan" : "None"}
+                            </span>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs py-2 text-center"><CritBadge met={c.zeroPlan} /></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">
+              Business Justification <span className="text-red-500">*</span>
+            </label>
+            <Textarea
+              placeholder="Provide a brief business reason for this status change..."
+              value={justification}
+              onChange={e => setJustification(e.target.value)}
+              className="resize-none text-sm"
+              rows={3}
+              data-testid="textarea-justification-delist"
+            />
+          </div>
+
+          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <ListChecks className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-500" />
+            <p>Requires approval: Network Planner → Supply Planner → Distribution Planner → NCSM</p>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose} data-testid="button-cancel-delist">Cancel</Button>
+          <Button
+            onClick={handleCreate}
+            disabled={!justification.trim()}
+            className={`gap-1.5 text-white ${overallMet ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"}`}
+            data-testid="button-raise-sr-delist"
+          >
+            <Send className="h-4 w-4" /> Raise Service Request
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Part 1: Overview ────────────────────────────────────────────────────────
 
 interface OverviewTabProps {
   localBpStatus: Record<string, string>;
   onRequestActivation: (bp: PbBasepack) => void;
+  onRequestInactivation: (bp: PbBasepack, targetStatus: string) => void;
+  onRequestDelisting: (bp: PbBasepack, targetStatus: string) => void;
   serviceRequests: ServiceRequest[];
   bpDates: Record<string, BpDates>;
 }
 
-function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDates }: OverviewTabProps) {
+function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation, onRequestDelisting, serviceRequests, bpDates }: OverviewTabProps) {
   const [, navigate] = useLocation();
 
   const { data: networkEntries = [], isLoading } = useQuery<NetworkEntry[]>({
@@ -1373,8 +1662,16 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
             mstnClear: e.typeOfNetwork === "NEW_LAUNCH"
               ? computeMstnClear([{ mstnByDepot: (e as any).mstnByDepot ?? {} }])
               : null,
+            basepakDoh:   (e as any).basepakDoh    ?? null,
+            prodPlanMoc1: (e as any).prodPlanMoc1  ?? null,
+            prodPlanMoc2: (e as any).prodPlanMoc2  ?? null,
+            prodPlanMoc3: (e as any).prodPlanMoc3  ?? null,
           };
         }),
+        get basepakDoh() {
+          const dohs = this.materials.map(m => m.basepakDoh).filter((d): d is number => d !== null);
+          return dohs.length ? Math.min(...dohs) : null;
+        },
       } as PbBasepack;
     });
   }, [networkEntries]);
@@ -1451,12 +1748,17 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
   const saveEdit = (bp: PbBasepack, e: React.MouseEvent) => {
     e.stopPropagation();
     const currentStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
-    if (pendingStatus === "Active Pack" && currentStatus !== "Active Pack") {
-      setEditingId(null);
+    setEditingId(null);
+    if (pendingStatus === currentStatus) return;
+    if (currentStatus === "Delisted Packs") return;
+    if (pendingStatus === "Active Pack") {
       onRequestActivation(bp);
+    } else if (pendingStatus === "Inactive Pack" || pendingStatus === "Seasonal Pack") {
+      onRequestInactivation(bp, pendingStatus);
+    } else if (pendingStatus === "Stock Base Delisted" || pendingStatus === "Delisted Packs") {
+      onRequestDelisting(bp, pendingStatus);
     } else {
       setBpStatusOverride(bp.id, pendingStatus);
-      setEditingId(null);
     }
   };
 
@@ -1775,10 +2077,15 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
         </CardContent>
       </Card>
 
-      {/* Draft → Active Pack hint */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">
-        <Activity className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
-        To change a basepack from <span className="font-semibold text-slate-600 mx-1">Draft → Active Pack</span>, click the pencil icon next to the status. A criteria check will run automatically.
+      {/* Status transition hint */}
+      <div className="flex items-start gap-2 text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">
+        <Activity className="h-3.5 w-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
+        <span>
+          Click the <span className="font-semibold text-slate-600">pencil icon</span> next to the status to initiate a status change.
+          {" "}<span className="font-semibold text-slate-600">Draft → Active Pack</span> runs an MSTN criteria check automatically.
+          {" "}<span className="font-semibold text-slate-600">Inactive / Seasonal</span> require a business justification.
+          {" "}<span className="font-semibold text-slate-600">Stock Base Delisted / Delisted</span> evaluate DOH and production plan criteria.
+        </span>
       </div>
 
       {/* Basepack table */}
@@ -1794,6 +2101,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Location / Cluster</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Channels</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">MSTN</TableHead>
+                  <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))] text-center">DOH (days)</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">Basepack Status</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 shadow-[0_1px_0_0_hsl(var(--border))]">BG</TableHead>
                   <TableHead className="text-xs font-semibold sticky top-0 z-20 bg-muted/60 w-20 shadow-[0_1px_0_0_hsl(var(--border))]">CBUs</TableHead>
@@ -1803,7 +2111,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-16">No basepacks found — try adjusting your filters</TableCell>
+                    <TableCell colSpan={11} className="text-center text-muted-foreground py-16">No basepacks found — try adjusting your filters</TableCell>
                   </TableRow>
                 ) : filtered.map(bp => {
                   const effStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
@@ -1846,6 +2154,13 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                           })()}
                         </TableCell>
 
+                        <TableCell className="py-3 text-center" data-testid={`bp-doh-${bp.id}`}>
+                          {bp.basepakDoh !== null
+                            ? <span className={`text-sm font-semibold ${bp.basepakDoh < 2 ? "text-red-600" : bp.basepakDoh < 15 ? "text-amber-600" : "text-slate-600"}`}>{bp.basepakDoh}</span>
+                            : <span className="text-xs text-muted-foreground">—</span>
+                          }
+                        </TableCell>
+
                         <TableCell className="py-3" onClick={e => e.stopPropagation()}>
                           {isEditing ? (
                             <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
@@ -1854,7 +2169,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {BP_STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                  {getAllowedTransitions(effStatus).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                 </SelectContent>
                               </Select>
                               <Button size="icon" variant="ghost" className="h-6 w-6" onClick={e => saveEdit(bp, e)} data-testid={`button-save-status-${bp.id}`}>
@@ -1903,7 +2218,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, serviceRequests, bpDa
 
                       {isExpanded && (
                         <TableRow key={`${bp.id}-exp`} data-testid={`bp-expanded-${bp.id}`}>
-                          <TableCell colSpan={10} className="p-0 bg-muted/20">
+                          <TableCell colSpan={11} className="p-0 bg-muted/20">
                             <div className="px-10 py-5 border-l-4 border-l-[#1f36c7]/40 overflow-x-auto">
                               {/* Key Dates strip */}
                               {(() => {
@@ -2576,15 +2891,29 @@ export default function PaidBiblePage() {
   const moc = getCurrentMoc();
 
   const { requests: serviceRequests, bpStatusOverrides, bpDates } = useSrStore();
-  const [activationTarget, setActivationTarget] = useState<PbBasepack | null>(null);
+  const [activationTarget,   setActivationTarget]   = useState<PbBasepack | null>(null);
+  const [inactivationTarget, setInactivationTarget] = useState<{ bp: PbBasepack; targetStatus: string } | null>(null);
+  const [delistingTarget,    setDelistingTarget]    = useState<{ bp: PbBasepack; targetStatus: string } | null>(null);
 
   const { data: users = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
 
-  const handleRequestActivation = (bp: PbBasepack) => setActivationTarget(bp);
+  const handleRequestActivation   = (bp: PbBasepack) => setActivationTarget(bp);
+  const handleRequestInactivation = (bp: PbBasepack, targetStatus: string) => setInactivationTarget({ bp, targetStatus });
+  const handleRequestDelisting    = (bp: PbBasepack, targetStatus: string) => setDelistingTarget({ bp, targetStatus });
 
   const handleCreateRequest = (request: ServiceRequest) => {
     addRequest(request);
     setActivationTarget(null);
+    setActiveTab("service-requests");
+  };
+  const handleCreateInactivationRequest = (request: ServiceRequest) => {
+    addRequest(request);
+    setInactivationTarget(null);
+    setActiveTab("service-requests");
+  };
+  const handleCreateDelistingRequest = (request: ServiceRequest) => {
+    addRequest(request);
+    setDelistingTarget(null);
     setActiveTab("service-requests");
   };
 
@@ -2592,11 +2921,24 @@ export default function PaidBiblePage() {
     <div className="h-screen overflow-hidden bg-background flex flex-col">
       <UnileverHeader module="paid-bible" activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Criteria Check Dialog */}
       <ActivationCheckDialog
         bp={activationTarget}
         onClose={() => setActivationTarget(null)}
         onCreateRequest={handleCreateRequest}
+        users={users}
+      />
+      <InactivationDialog
+        bp={inactivationTarget?.bp ?? null}
+        targetStatus={inactivationTarget?.targetStatus ?? ""}
+        onClose={() => setInactivationTarget(null)}
+        onCreateRequest={handleCreateInactivationRequest}
+        users={users}
+      />
+      <DelistingCriteriaDialog
+        bp={delistingTarget?.bp ?? null}
+        targetStatus={delistingTarget?.targetStatus ?? ""}
+        onClose={() => setDelistingTarget(null)}
+        onCreateRequest={handleCreateDelistingRequest}
         users={users}
       />
 
@@ -2633,6 +2975,8 @@ export default function PaidBiblePage() {
             <OverviewTab
               localBpStatus={bpStatusOverrides}
               onRequestActivation={handleRequestActivation}
+              onRequestInactivation={handleRequestInactivation}
+              onRequestDelisting={handleRequestDelisting}
               serviceRequests={serviceRequests}
               bpDates={bpDates}
             />

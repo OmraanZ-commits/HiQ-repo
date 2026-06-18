@@ -85,6 +85,10 @@ class NetworkEntryModel(Base):
     successor_doh = Column(Integer, nullable=True)
     doh_snapshot_date = Column(String, nullable=True)
     slob_risk = Column(Boolean, nullable=True, default=False)
+    basepak_doh = Column(Integer, nullable=True)
+    prod_plan_moc_1 = Column(Boolean, nullable=True)
+    prod_plan_moc_2 = Column(Boolean, nullable=True)
+    prod_plan_moc_3 = Column(Boolean, nullable=True)
     price_active = Column(Boolean, nullable=True)
     launch_type = Column(String, nullable=True)  # "standard" | "relaunch" | "new-launch"
     sourcing_mode = Column(String, nullable=True)  # "decentralized" | "centralized"
@@ -399,6 +403,48 @@ def run_migrations():
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS mstn_by_depot JSONB"
         ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS basepak_doh INTEGER"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS prod_plan_moc_1 BOOLEAN"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS prod_plan_moc_2 BOOLEAN"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS prod_plan_moc_3 BOOLEAN"
+        ))
+        conn.execute(text("""
+            UPDATE network_entries SET basepak_doh=10, prod_plan_moc_1=true,  prod_plan_moc_2=false, prod_plan_moc_3=false WHERE cbu_code='CBU-50007890'
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET basepak_doh=10, prod_plan_moc_1=false, prod_plan_moc_2=true,  prod_plan_moc_3=false WHERE cbu_code='CBU-50007891'
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET basepak_doh=10, prod_plan_moc_1=false, prod_plan_moc_2=false, prod_plan_moc_3=false WHERE cbu_code='CBU-50007892'
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET basepak_doh=1,  prod_plan_moc_1=false, prod_plan_moc_2=false, prod_plan_moc_3=false WHERE cbu_code='CBU-50005678'
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET basepak_doh=8,  prod_plan_moc_1=true,  prod_plan_moc_2=false, prod_plan_moc_3=false WHERE cbu_code='CBU-50006789'
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET basepak_doh=5,  prod_plan_moc_1=false, prod_plan_moc_2=false, prod_plan_moc_3=false WHERE cbu_code='CBU-50003456'
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET basepak_doh=1,  prod_plan_moc_1=false, prod_plan_moc_2=false, prod_plan_moc_3=false WHERE cbu_code='CBU-50001234'
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET successor_doh=8   WHERE cbu_code='CBU-50005678' AND successor_doh IS NULL
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET predecessor_doh=20, successor_doh=8  WHERE cbu_code='CBU-50006789' AND (predecessor_doh IS NULL OR successor_doh IS NULL)
+        """))
+        conn.execute(text("""
+            UPDATE network_entries SET predecessor_doh=18, successor_doh=5  WHERE cbu_code='CBU-50003456' AND (predecessor_doh IS NULL OR successor_doh IS NULL)
+        """))
         conn.execute(text("""
             UPDATE network_entries
             SET mstn_by_depot = (
@@ -502,6 +548,10 @@ FIELD_MAP_TO_DB = {
     "successorDoh": "successor_doh",
     "dohSnapshotDate": "doh_snapshot_date",
     "slobRisk": "slob_risk",
+    "basepakDoh": "basepak_doh",
+    "prodPlanMoc1": "prod_plan_moc_1",
+    "prodPlanMoc2": "prod_plan_moc_2",
+    "prodPlanMoc3": "prod_plan_moc_3",
     "priceActive": "price_active",
     "launchType": "launch_type",
     "sourcingMode": "sourcing_mode",

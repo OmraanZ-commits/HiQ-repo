@@ -61,6 +61,10 @@ class NetworkEntryBase(BaseModel):
     successorDoh: Optional[int] = None
     dohSnapshotDate: Optional[str] = None
     slobRisk: Optional[bool] = None
+    basepakDoh: Optional[int] = None
+    prodPlanMoc1: Optional[bool] = None
+    prodPlanMoc2: Optional[bool] = None
+    prodPlanMoc3: Optional[bool] = None
     priceActive: Optional[bool] = None
     launchType: Optional[str] = None  # "standard" | "relaunch" | "new-launch"
     sourcingMode: Optional[str] = None  # "decentralized" | "centralized"
