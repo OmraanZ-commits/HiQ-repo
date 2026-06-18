@@ -45,6 +45,11 @@ from server_py.services.mstn_doh.service import MstnDohService
 from server_py.services.mstn_doh.router import router as mstn_doh_router, set_service as set_mstn_doh_service
 
 from server_py.saga.router import router as saga_router, init_saga_services
+from server_py.saga.transition_saga import build_transition_saga
+
+from server_py.services.ftr.storage import FtrStorage
+from server_py.services.ftr.service import FtrService
+from server_py.services.ftr.router import router as ftr_router, set_service as set_ftr_service
 
 from server_py.services.paid_bible.storage import PaidBibleStorage
 from server_py.services.paid_bible.service import PaidBibleService
@@ -78,6 +83,7 @@ app.include_router(sr_router, prefix="/api/service-requests", tags=["Service Req
 app.include_router(bp_status_router, prefix="/api/basepack-status", tags=["Basepack Status"])
 app.include_router(mstn_doh_router, prefix="/api/mstn-doh", tags=["MSTN & DOH"])
 app.include_router(paid_bible_router, prefix="/api/paid-bible", tags=["Paid Bible"])
+app.include_router(ftr_router, prefix="/api/ftr", tags=["FTR"])
 
 
 @app.on_event("startup")
@@ -141,6 +147,28 @@ async def startup():
             bp_status_service=bp_status_service,
             paid_bible_service=paid_bible_service,
         )
+
+    ftr_storage = FtrStorage()
+    ftr_service = FtrService(ftr_storage)
+
+    def _trigger_ftr_transition(entry_id: str, to_status: str, triggered_by: str | None = None):
+        if state_service and lifecycle_service:
+            saga = build_transition_saga(
+                entry_id=entry_id,
+                to_status=to_status,
+                triggered_by=triggered_by,
+                metadata=None,
+                state_service=state_service,
+                list_service=list_service,
+                lifecycle_service=lifecycle_service,
+            )
+            saga.execute(context={})
+
+    ftr_service.set_dependencies(
+        list_service=list_service,
+        transition_fn=_trigger_ftr_transition,
+    )
+    set_ftr_service(ftr_service)
 
 
 @app.get("/api/health")

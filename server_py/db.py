@@ -143,6 +143,29 @@ class SagaLogModel(Base):
     error = Column(String, nullable=True)
 
 
+class FtrLinkModel(Base):
+    __tablename__ = "ftr_links"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cbu_code = Column(String, nullable=False, index=True)
+    ftr_link = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    uploaded_by = Column(String, nullable=True)
+    uploaded_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    source_file = Column(String, nullable=True)
+
+
+class FtrImageModel(Base):
+    __tablename__ = "ftr_images"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cbu_code = Column(String, nullable=False, index=True)
+    image_url = Column(String, nullable=False)
+    caption = Column(String, nullable=True)
+    uploaded_by = Column(String, nullable=True)
+    uploaded_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
 # ── Master Tables ──────────────────────────────────────────────
 
 
@@ -508,6 +531,33 @@ def run_migrations():
         """))
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_crs_cluster ON cluster_region_states (cluster)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ftr_links (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                cbu_code VARCHAR NOT NULL,
+                ftr_link VARCHAR NOT NULL,
+                description VARCHAR,
+                uploaded_by VARCHAR,
+                uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                source_file VARCHAR
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ftr_links_cbu ON ftr_links (cbu_code)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ftr_images (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                cbu_code VARCHAR NOT NULL,
+                image_url VARCHAR NOT NULL,
+                caption VARCHAR,
+                uploaded_by VARCHAR,
+                uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ftr_images_cbu ON ftr_images (cbu_code)"
         ))
         conn.commit()
 

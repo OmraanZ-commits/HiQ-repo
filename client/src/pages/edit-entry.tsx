@@ -15,10 +15,12 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, AlertCircle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, AlertCircle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText, FileCheck, Plus, Trash2, ExternalLink, Upload, FileSpreadsheet, Image } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import type { PortalUser } from "@/lib/users-data";
 import { RaiseAmendmentDialog } from "@/components/raise-amendment-dialog";
@@ -207,8 +209,100 @@ export default function EditEntry() {
   const isPaidBibleView = _pbParams.get("source") === "paid-bible";
   const cbuStatusFromPaidBible = isPaidBibleView ? (_pbParams.get("cbuStatus") || "") : "";
 
+  const queryClient = useQueryClient();
   const [showAmendmentDialog, setShowAmendmentDialog] = useState(false);
   const { data: portalUsers = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
+
+  // ── FTR tab state ────────────────────────────────────────────────────────────
+  const ftrFileRef = useRef<HTMLInputElement>(null);
+  const [ftrParsedRows, setFtrParsedRows] = useState<{ cbu_code: string; ftr_link: string; description: string }[]>([]);
+  const [ftrFileName, setFtrFileName] = useState<string>("");
+  const [ftrNewImageUrl, setFtrNewImageUrl] = useState("");
+  const [ftrNewImageCaption, setFtrNewImageCaption] = useState("");
+
+  const cbuCode = entry?.cbuCode ?? "";
+
+  const { data: ftrLinks = [], isLoading: ftrLinksLoading } = useQuery<any[]>({
+    queryKey: ["/api/ftr/links", cbuCode],
+    queryFn: () => cbuCode ? fetch(`/api/ftr/links/${encodeURIComponent(cbuCode)}`).then(r => r.json()) : Promise.resolve([]),
+    enabled: !!cbuCode,
+  });
+
+  const { data: ftrImages = [], isLoading: ftrImagesLoading } = useQuery<any[]>({
+    queryKey: ["/api/ftr/images", cbuCode],
+    queryFn: () => cbuCode ? fetch(`/api/ftr/images/${encodeURIComponent(cbuCode)}`).then(r => r.json()) : Promise.resolve([]),
+    enabled: !!cbuCode,
+  });
+
+  const uploadFtrLinksMutation = useMutation({
+    mutationFn: (payload: { entries: any[]; uploadedBy: string; sourceFile: string }) =>
+      apiRequest("POST", "/api/ftr/links/upload", payload).then(r => r.json()),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ftr/links", cbuCode] });
+      queryClient.invalidateQueries({ queryKey: ["/api/network-entries", entry?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      setFtrParsedRows([]);
+      setFtrFileName("");
+      if (ftrFileRef.current) ftrFileRef.current.value = "";
+      if (result.triggered > 0) {
+        toast({
+          title: "FTR Links Uploaded — Status Updated",
+          description: `${result.added} link(s) saved. ${result.triggered} CBU(s) automatically moved to "FTR Approved".`,
+        });
+      } else {
+        toast({
+          title: "FTR Links Uploaded",
+          description: `${result.added} link(s) saved successfully.`,
+        });
+      }
+    },
+    onError: () => toast({ title: "Upload failed", description: "Could not upload FTR links.", variant: "destructive" }),
+  });
+
+  const addFtrImageMutation = useMutation({
+    mutationFn: (payload: { cbuCode: string; imageUrl: string; caption: string }) =>
+      apiRequest("POST", "/api/ftr/images", payload).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ftr/images", cbuCode] });
+      setFtrNewImageUrl("");
+      setFtrNewImageCaption("");
+      toast({ title: "Image link added" });
+    },
+    onError: () => toast({ title: "Failed to add image link", variant: "destructive" }),
+  });
+
+  const deleteFtrLinkMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/ftr/links/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/ftr/links", cbuCode] }),
+  });
+
+  const deleteFtrImageMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/ftr/images/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/ftr/images", cbuCode] }),
+  });
+
+  const handleFtrFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFtrFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = new Uint8Array(ev.target!.result as ArrayBuffer);
+      const wb = XLSX.read(data, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      const parsed = rows
+        .slice(1)
+        .filter(r => r[0] && r[1])
+        .map(r => ({
+          cbu_code: String(r[0]).trim(),
+          ftr_link: String(r[1]).trim(),
+          description: r[2] ? String(r[2]).trim() : "",
+        }));
+      setFtrParsedRows(parsed);
+    };
+    reader.readAsArrayBuffer(file);
+  };
   const { channelOverrides, sourcingOverrides, geoRemovalOverrides, requests: allRequests } = useSrStore();
   const handleRaiseAmendment = () => setShowAmendmentDialog(true);
 
@@ -643,6 +737,12 @@ export default function EditEntry() {
               <TabsTrigger value="pricing" className="gap-2" data-testid="tab-pricing">
                 <Tag className="h-4 w-4" /> Pricing
               </TabsTrigger>
+              <TabsTrigger value="ftr" className="gap-2" data-testid="tab-ftr">
+                <FileCheck className="h-4 w-4" /> FTR
+                {ftrLinks.length > 0 && (
+                  <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
+                )}
+              </TabsTrigger>
               <TabsTrigger value="finance" className="gap-2" data-testid="tab-finance">
                 <ReceiptText className="h-4 w-4" /> Finance Inputs
                 {finHasErrors
@@ -741,9 +841,6 @@ export default function EditEntry() {
                     <ReadOnlyField label="Successor Code" value={form.successorCode} testId="input-successor-code" />
                     <ReadOnlyField label="Header Code" value={form.headerCode} testId="input-header-code" />
                     <ReadOnlyField label="CSD Index No." value={form.csdIndexNo} testId="input-csd-index" />
-                    <FormField label="FTR Images Link">
-                      <Input value={form.ftrImagesLink || ""} onChange={e => updateField("ftrImagesLink", e.target.value)} placeholder="Enter FTR images link" data-testid="input-ftr-link" />
-                    </FormField>
                     <ReadOnlyField label="PC at Channel/State Level" value={form.pcAtChannelState} testId="input-pc-channel" />
                   </CardContent>
                 </Card>
@@ -1617,6 +1714,297 @@ export default function EditEntry() {
                 </TabsContent>
 
               </Tabs>
+            </TabsContent>
+
+            {/* ── FTR Tab ───────────────────────────────────────────────── */}
+            <TabsContent value="ftr" className="mt-0">
+              <div className="space-y-6">
+
+                {/* Network / FTR trigger indicator */}
+                {ftrLinks.length > 0 && (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
+                    <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>
+                      <span className="font-semibold">Network trigger active</span> — {ftrLinks.length} FTR link{ftrLinks.length !== 1 ? "s" : ""} on record for <span className="font-mono">{cbuCode}</span>. FTR Approved transition will fire automatically for any "Production Started" CBU on upload.
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Upload Section ─────────────────────────────────────── */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="h-4 w-4 text-[#00b0d7]" />
+                      <h3 className="text-sm font-semibold text-[#0d8ecf]">Upload FTR Links via Excel</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Upload a spreadsheet mapping CBU codes to FTR document links.
+                      Any CBU in <span className="font-medium">"Production Started"</span> status will automatically advance to <span className="font-medium">"FTR Approved"</span>.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Format hint */}
+                    <div className="rounded-md bg-muted/50 border px-4 py-3 text-xs text-muted-foreground">
+                      <p className="font-semibold mb-1">Expected Excel format (Sheet 1):</p>
+                      <div className="grid grid-cols-3 gap-2 mt-1 font-mono text-[11px]">
+                        <span className="bg-background border rounded px-2 py-1 text-center font-semibold text-foreground">A — CBU Code</span>
+                        <span className="bg-background border rounded px-2 py-1 text-center font-semibold text-foreground">B — FTR Link</span>
+                        <span className="bg-background border rounded px-2 py-1 text-center text-muted-foreground">C — Description (optional)</span>
+                      </div>
+                      <p className="mt-2">Row 1 is the header and will be skipped. Each subsequent row is one CBU–link pair.</p>
+                    </div>
+
+                    {/* File picker */}
+                    <input
+                      ref={ftrFileRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      className="hidden"
+                      onChange={handleFtrFileChange}
+                      data-testid="input-ftr-file"
+                    />
+                    <div
+                      className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border py-8 px-4 cursor-pointer hover:border-[#00b0d7]/50 hover:bg-muted/20 transition-colors"
+                      onClick={() => ftrFileRef.current?.click()}
+                      data-testid="dropzone-ftr"
+                    >
+                      <Upload className="h-8 w-8 text-muted-foreground/50" />
+                      {ftrFileName ? (
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-foreground">{ftrFileName}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{ftrParsedRows.length} row(s) parsed · click to replace</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-muted-foreground">Click to select an Excel file</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">.xlsx or .xls</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Parsed preview */}
+                    {ftrParsedRows.length > 0 && (
+                      <div className="rounded-md border overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-muted/50 border-b">
+                              <th className="text-left py-2 px-3 font-semibold text-muted-foreground w-36">CBU Code</th>
+                              <th className="text-left py-2 px-3 font-semibold text-muted-foreground">FTR Link</th>
+                              <th className="text-left py-2 px-3 font-semibold text-muted-foreground w-48">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ftrParsedRows.slice(0, 8).map((r, i) => (
+                              <tr key={i} className="border-b last:border-0 hover:bg-muted/10">
+                                <td className="py-2 px-3 font-mono text-[11px]">{r.cbu_code}</td>
+                                <td className="py-2 px-3 max-w-xs truncate text-[#0d8ecf]">{r.ftr_link}</td>
+                                <td className="py-2 px-3 text-muted-foreground">{r.description || "—"}</td>
+                              </tr>
+                            ))}
+                            {ftrParsedRows.length > 8 && (
+                              <tr>
+                                <td colSpan={3} className="text-center py-2 text-[11px] text-muted-foreground bg-muted/20">
+                                  + {ftrParsedRows.length - 8} more row(s)
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {ftrParsedRows.length > 0 && (
+                      <Button
+                        onClick={() => uploadFtrLinksMutation.mutate({
+                          entries: ftrParsedRows,
+                          uploadedBy: "Portal User",
+                          sourceFile: ftrFileName,
+                        })}
+                        disabled={uploadFtrLinksMutation.isPending}
+                        className="w-full"
+                        data-testid="btn-ftr-upload"
+                      >
+                        {uploadFtrLinksMutation.isPending ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading…</>
+                        ) : (
+                          <><Upload className="h-4 w-4 mr-2" /> Upload {ftrParsedRows.length} FTR link{ftrParsedRows.length !== 1 ? "s" : ""}</>
+                        )}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* ── FTR Links for this CBU ──────────────────────────────── */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <FileCheck className="h-4 w-4 text-[#00b0d7]" />
+                      <h3 className="text-sm font-semibold text-[#0d8ecf]">
+                        FTR Document Links
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">({cbuCode})</span>
+                      </h3>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {ftrLinksLoading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    ) : ftrLinks.length === 0 ? (
+                      <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
+                        <FileCheck className="h-8 w-8 opacity-30" />
+                        <p className="text-sm">No FTR links on record for this CBU.</p>
+                        <p className="text-xs">Upload an Excel file above to add links.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {ftrLinks.map((link: any, i: number) => (
+                          <div key={link.id} className="flex items-start gap-3 rounded-lg border px-4 py-3 hover:bg-muted/10 group">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded shrink-0">
+                                  #{i + 1}
+                                </span>
+                                <a
+                                  href={link.ftrLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-[#0d8ecf] hover:underline truncate flex items-center gap-1"
+                                  data-testid={`link-ftr-${link.id}`}
+                                >
+                                  {link.ftrLink}
+                                  <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                                </a>
+                              </div>
+                              {link.description && (
+                                <p className="text-xs text-muted-foreground mt-1 ml-7">{link.description}</p>
+                              )}
+                              <p className="text-[10px] text-muted-foreground mt-1 ml-7">
+                                Uploaded {link.uploadedAt ? new Date(link.uploadedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                                {link.uploadedBy ? ` · ${link.uploadedBy}` : ""}
+                                {link.sourceFile ? ` · ${link.sourceFile}` : ""}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                              onClick={() => deleteFtrLinkMutation.mutate(link.id)}
+                              disabled={deleteFtrLinkMutation.isPending}
+                              data-testid={`btn-delete-ftr-link-${link.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* ── Image Links ─────────────────────────────────────────── */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Image className="h-4 w-4 text-[#00b0d7]" />
+                      <h3 className="text-sm font-semibold text-[#0d8ecf]">FTR Image Links</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Paste URLs to FTR images (up to 5–6 per CBU). These are displayed in the detail view.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {ftrImagesLoading ? (
+                      <Skeleton className="h-10 w-full" />
+                    ) : ftrImages.length === 0 ? (
+                      <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground">
+                        <Image className="h-7 w-7 opacity-30" />
+                        <p className="text-sm">No image links added yet.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {ftrImages.map((img: any, i: number) => (
+                          <div key={img.id} className="flex items-start gap-2 rounded-lg border px-3 py-2.5 hover:bg-muted/10 group">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-muted-foreground shrink-0">#{i + 1}</span>
+                                <a
+                                  href={img.imageUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-[#0d8ecf] hover:underline truncate flex items-center gap-1"
+                                  data-testid={`link-ftr-image-${img.id}`}
+                                >
+                                  {img.imageUrl}
+                                  <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-60" />
+                                </a>
+                              </div>
+                              {img.caption && (
+                                <p className="text-[11px] text-muted-foreground mt-0.5 ml-5">{img.caption}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                              onClick={() => deleteFtrImageMutation.mutate(img.id)}
+                              disabled={deleteFtrImageMutation.isPending}
+                              data-testid={`btn-delete-ftr-image-${img.id}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add image link form */}
+                    <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                      <p className="text-xs font-semibold text-muted-foreground">Add Image Link</p>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="text-[11px] text-muted-foreground mb-1 block">Image URL *</label>
+                          <input
+                            type="url"
+                            value={ftrNewImageUrl}
+                            onChange={e => setFtrNewImageUrl(e.target.value)}
+                            placeholder="https://..."
+                            className="w-full text-xs rounded-md border bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-[#00b0d7]"
+                            data-testid="input-ftr-image-url"
+                          />
+                        </div>
+                        <div className="w-48">
+                          <label className="text-[11px] text-muted-foreground mb-1 block">Caption (optional)</label>
+                          <input
+                            type="text"
+                            value={ftrNewImageCaption}
+                            onChange={e => setFtrNewImageCaption(e.target.value)}
+                            placeholder="e.g. Front view"
+                            className="w-full text-xs rounded-md border bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-[#00b0d7]"
+                            data-testid="input-ftr-image-caption"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => addFtrImageMutation.mutate({
+                          cbuCode,
+                          imageUrl: ftrNewImageUrl.trim(),
+                          caption: ftrNewImageCaption.trim(),
+                        })}
+                        disabled={!ftrNewImageUrl.trim() || addFtrImageMutation.isPending}
+                        data-testid="btn-add-ftr-image"
+                      >
+                        {addFtrImageMutation.isPending
+                          ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Adding…</>
+                          : <><Plus className="h-3.5 w-3.5 mr-1.5" /> Add Image Link</>}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+              </div>
             </TabsContent>
 
             {/* ── Finance Inputs Tab ────────────────────────────────────── */}
