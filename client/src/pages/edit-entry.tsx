@@ -290,6 +290,8 @@ export default function EditEntry() {
       if (isNaN(val)) return "";
       if (finPriceOffType === "percentage" && (val < 0 || val > 100))
         return "Percentage must be between 0 and 100";
+      if (finPriceOffType === "number" && effectiveMrpValue !== null && val > effectiveMrpValue)
+        return `Cannot exceed MRP (${effectiveMrpValue})`;
       if (val < 0) return "Must be a positive number";
       return "";
     })(),
@@ -299,6 +301,28 @@ export default function EditEntry() {
   };
 
   const finHasErrors = Object.values(finErrors).some(e => e !== "");
+
+  // When MRP is entered/changed, alert if existing margin/price-off values now violate the new MRP
+  useEffect(() => {
+    if (finMrp === "") return;
+    const mrp = parseFloat(finMrp);
+    if (isNaN(mrp) || mrp <= 0) return;
+    const violations: string[] = [];
+    if (finRetailerMargin !== "" && finRetailerMarginType === "number" && parseFloat(finRetailerMargin) > mrp)
+      violations.push("Retailer Margin");
+    if (finRsMargin !== "" && finRsMarginType === "number" && parseFloat(finRsMargin) > mrp)
+      violations.push("RS Margin");
+    if (finPriceOff !== "" && finPriceOffType === "number" && parseFloat(finPriceOff) > mrp)
+      violations.push("Price Off");
+    if (violations.length > 0) {
+      toast({
+        title: "MRP constraint violated",
+        description: `${violations.join(", ")} exceed${violations.length === 1 ? "s" : ""} the entered MRP (${mrp}). Please update the value${violations.length === 1 ? "" : "s"}.`,
+        variant: "destructive",
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finMrp]);
 
   const handleFinanceConfirmSubmit = () => {
     if (finHasErrors) {
