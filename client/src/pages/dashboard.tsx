@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useNetworkEntries } from "@/controllers/useNetworkEntries";
 import { useLifecycleData } from "@/controllers/useLifecycleData";
@@ -13,7 +13,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Filter, Search, X, BarChart3, LayoutList, PieChart, Layers } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Download, Filter, Search, X, BarChart3, LayoutList, PieChart, Layers, FileSpreadsheet, Upload, Loader2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import * as XLSX from "xlsx";
 import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 import { getNotifications, registerBulkOpCbus } from "@/lib/notification-store";
 import type { BulkDigestNotification } from "@/lib/notification-store";
@@ -39,6 +43,50 @@ export default function Dashboard() {
   const { lifecycleMap } = useLifecycleData();
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewEntry, setViewEntry] = useState<NetworkEntry | null>(null);
+
+  // ── FTR Excel Upload ────────────────────────────────────────────────────────
+  const ftrExcelRef = useRef<HTMLInputElement>(null);
+  const queryClientDash = useQueryClient();
+  const [ftrExcelOpen, setFtrExcelOpen] = useState(false);
+  const [ftrExcelFileName, setFtrExcelFileName] = useState("");
+  const [ftrExcelRows, setFtrExcelRows] = useState<{ cbu_code: string; ftr_link: string; description: string }[]>([]);
+
+  const uploadFtrExcelMutation = useMutation({
+    mutationFn: (payload: { entries: any[]; uploadedBy: string; sourceFile: string }) =>
+      apiRequest("POST", "/api/ftr/links/upload", payload).then(r => r.json()),
+    onSuccess: (result) => {
+      queryClientDash.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      setFtrExcelRows([]);
+      setFtrExcelFileName("");
+      if (ftrExcelRef.current) ftrExcelRef.current.value = "";
+      setFtrExcelOpen(false);
+      const msg = result.triggered > 0
+        ? `${result.added} link(s) saved. ${result.triggered} CBU(s) moved to "FTR Approved".`
+        : `${result.added} FTR link(s) saved.`;
+      alert(msg);
+    },
+    onError: () => alert("Upload failed — please try again."),
+  });
+
+  const handleFtrExcelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFtrExcelFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = new Uint8Array(ev.target!.result as ArrayBuffer);
+      const wb = XLSX.read(data, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      const parsed = rows.slice(1).filter(r => r[0] && r[1]).map(r => ({
+        cbu_code: String(r[0]).trim(),
+        ftr_link: String(r[1]).trim(),
+        description: r[2] ? String(r[2]).trim() : "",
+      }));
+      setFtrExcelRows(parsed);
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   const [bulkOpCbuCodes, setBulkOpCbuCodes] = useState<string[] | null>(null);
 
@@ -91,6 +139,23 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <input
+              ref={ftrExcelRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleFtrExcelChange}
+              data-testid="input-ftr-excel"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFtrExcelOpen(true)}
+              data-testid="button-ftr-excel-upload"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-600" />
+              Upload FTR Excel
+            </Button>
             <Button variant="outline" size="sm" data-testid="button-export">
               <Download className="h-4 w-4 mr-1.5" />
               Export
@@ -492,6 +557,95 @@ export default function Dashboard() {
         onOpenChange={setDetailOpen}
         entry={viewEntry}
       />
+
+      {/* ── FTR Excel Upload Dialog ─────────────────────────────────────── */}
+      <Dialog open={ftrExcelOpen} onOpenChange={setFtrExcelOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+              Upload FTR Excel
+            </DialogTitle>
+            <DialogDescription>
+              Upload a spreadsheet mapping CBU codes to FTR document links. Any CBU in
+              <span className="font-semibold"> "Production Started"</span> status will automatically
+              advance to <span className="font-semibold">"FTR Approved"</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Format hint */}
+            <div className="rounded-md bg-muted/50 border px-4 py-3 text-xs text-muted-foreground">
+              <p className="font-semibold mb-1">Expected Excel format (Sheet 1):</p>
+              <div className="grid grid-cols-3 gap-2 mt-1 font-mono text-[11px]">
+                <span className="bg-background border rounded px-2 py-1 text-center font-semibold text-foreground">A — CBU Code</span>
+                <span className="bg-background border rounded px-2 py-1 text-center font-semibold text-foreground">B — FTR Link</span>
+                <span className="bg-background border rounded px-2 py-1 text-center text-muted-foreground">C — Description (optional)</span>
+              </div>
+              <p className="mt-2">Row 1 is the header and will be skipped.</p>
+            </div>
+
+            {/* Dropzone */}
+            <div
+              className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border py-8 px-4 cursor-pointer hover:border-emerald-400/60 hover:bg-muted/10 transition-colors"
+              onClick={() => ftrExcelRef.current?.click()}
+              data-testid="dropzone-ftr-excel"
+            >
+              <Upload className="h-8 w-8 text-muted-foreground/40" />
+              {ftrExcelFileName ? (
+                <div className="text-center">
+                  <p className="text-sm font-medium">{ftrExcelFileName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{ftrExcelRows.length} row(s) parsed · click to replace</p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm font-medium text-muted-foreground">Click to select an Excel file</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">.xlsx or .xls</p>
+                </div>
+              )}
+            </div>
+
+            {/* Preview table */}
+            {ftrExcelRows.length > 0 && (
+              <div className="rounded-md border overflow-hidden max-h-52 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0">
+                    <tr className="bg-muted/60 border-b">
+                      <th className="text-left py-2 px-3 font-semibold text-muted-foreground w-36">CBU Code</th>
+                      <th className="text-left py-2 px-3 font-semibold text-muted-foreground">FTR Link</th>
+                      <th className="text-left py-2 px-3 font-semibold text-muted-foreground w-44">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ftrExcelRows.map((r, i) => (
+                      <tr key={i} className="border-b last:border-0 hover:bg-muted/10">
+                        <td className="py-2 px-3 font-mono text-[11px]">{r.cbu_code}</td>
+                        <td className="py-2 px-3 truncate max-w-xs text-[#0d8ecf]">{r.ftr_link}</td>
+                        <td className="py-2 px-3 text-muted-foreground">{r.description || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setFtrExcelOpen(false); setFtrExcelRows([]); setFtrExcelFileName(""); }} data-testid="btn-ftr-excel-cancel">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => uploadFtrExcelMutation.mutate({ entries: ftrExcelRows, uploadedBy: "Portal User", sourceFile: ftrExcelFileName })}
+              disabled={ftrExcelRows.length === 0 || uploadFtrExcelMutation.isPending}
+              data-testid="btn-ftr-excel-submit"
+            >
+              {uploadFtrExcelMutation.isPending
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading…</>
+                : <><Upload className="h-4 w-4 mr-2" /> Upload {ftrExcelRows.length > 0 ? `${ftrExcelRows.length} link${ftrExcelRows.length !== 1 ? "s" : ""}` : "Links"}</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

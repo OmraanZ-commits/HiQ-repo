@@ -160,7 +160,9 @@ class FtrImageModel(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cbu_code = Column(String, nullable=False, index=True)
-    image_url = Column(String, nullable=False)
+    image_url = Column(String, nullable=True)
+    image_data = Column(Text, nullable=True)
+    image_filename = Column(String, nullable=True)
     caption = Column(String, nullable=True)
     uploaded_by = Column(String, nullable=True)
     uploaded_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
@@ -550,7 +552,9 @@ def run_migrations():
             CREATE TABLE IF NOT EXISTS ftr_images (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 cbu_code VARCHAR NOT NULL,
-                image_url VARCHAR NOT NULL,
+                image_url VARCHAR,
+                image_data TEXT,
+                image_filename VARCHAR,
                 caption VARCHAR,
                 uploaded_by VARCHAR,
                 uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -559,6 +563,14 @@ def run_migrations():
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_ftr_images_cbu ON ftr_images (cbu_code)"
         ))
+        for col_sql in [
+            "ALTER TABLE ftr_images ADD COLUMN IF NOT EXISTS image_data TEXT",
+            "ALTER TABLE ftr_images ADD COLUMN IF NOT EXISTS image_filename VARCHAR",
+        ]:
+            try:
+                conn.execute(text(col_sql))
+            except Exception:
+                pass
         conn.commit()
 
 

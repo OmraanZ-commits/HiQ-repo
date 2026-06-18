@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+import base64
+
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -76,6 +78,28 @@ async def get_ftr_images(cbu_code: str):
     if not _service:
         raise HTTPException(status_code=503, detail="FTR service not initialized")
     return _service.get_ftr_images(cbu_code)
+
+
+@router.post("/images/upload-file")
+async def upload_ftr_image_file(
+    cbu_code: str = Form(...),
+    caption: str = Form(None),
+    uploaded_by: str = Form(None),
+    file: UploadFile = File(...),
+):
+    if not _service:
+        raise HTTPException(status_code=503, detail="FTR service not initialized")
+    content = await file.read()
+    content_type = file.content_type or "image/jpeg"
+    image_data = f"data:{content_type};base64,{base64.b64encode(content).decode('utf-8')}"
+    return _service.add_ftr_image({
+        "cbu_code": cbu_code,
+        "image_url": None,
+        "image_data": image_data,
+        "image_filename": file.filename,
+        "caption": caption,
+        "uploaded_by": uploaded_by,
+    })
 
 
 @router.delete("/images/{image_id}")

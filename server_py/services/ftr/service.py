@@ -67,7 +67,25 @@ class FtrService:
         return self.storage.delete_ftr_link(link_id)
 
     def add_ftr_image(self, data: dict) -> dict:
-        return self.storage.add_ftr_image(data)
+        result = self.storage.add_ftr_image(data)
+        self._try_trigger_ftr_approved(data.get("cbu_code", ""), data.get("uploaded_by"))
+        return result
+
+    def _try_trigger_ftr_approved(self, cbu_code: str, triggered_by: Optional[str]) -> None:
+        if not cbu_code or not self._list_service or not self._transition_fn:
+            return
+        try:
+            all_entries = self._list_service.get_all()
+            for entry in all_entries:
+                if entry.get("cbuCode") == cbu_code and entry.get("networkStatus") == "Production Started":
+                    self._transition_fn(
+                        entry_id=entry["id"],
+                        to_status="FTR Approved",
+                        triggered_by=triggered_by or "FTR Image Upload",
+                    )
+                    break
+        except Exception:
+            pass
 
     def get_ftr_images(self, cbu_code: str) -> list[dict]:
         return self.storage.get_ftr_images_for_cbu(cbu_code)
