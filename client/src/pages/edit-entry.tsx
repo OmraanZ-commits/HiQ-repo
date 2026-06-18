@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, AlertCircle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -252,7 +252,65 @@ export default function EditEntry() {
 
   const financeHasValues = [finMrp, finRetailerMargin, finRsMargin, finPriceOff, finPriceWrapper].some(v => v !== "");
 
+  // The MRP ceiling for margin validation: prefer the current manual input, fall back to last submitted
+  const effectiveMrpValue: number | null = (() => {
+    const raw = finMrp !== "" ? finMrp : finCurMrp;
+    if (raw === "") return null;
+    const n = parseFloat(raw);
+    return isNaN(n) ? null : n;
+  })();
+
+  const finErrors = {
+    mrp: finMrp !== "" && parseFloat(finMrp) <= 0
+      ? "MRP must be greater than 0"
+      : "",
+    retailerMargin: (() => {
+      if (finRetailerMargin === "") return "";
+      const val = parseFloat(finRetailerMargin);
+      if (isNaN(val)) return "";
+      if (finRetailerMarginType === "percentage" && (val < 0 || val > 100))
+        return "Percentage must be between 0 and 100";
+      if (finRetailerMarginType === "number" && effectiveMrpValue !== null && val > effectiveMrpValue)
+        return `Cannot exceed MRP (${effectiveMrpValue})`;
+      return "";
+    })(),
+    rsMargin: (() => {
+      if (finRsMargin === "") return "";
+      const val = parseFloat(finRsMargin);
+      if (isNaN(val)) return "";
+      if (finRsMarginType === "percentage" && (val < 0 || val > 100))
+        return "Percentage must be between 0 and 100";
+      if (finRsMarginType === "number" && effectiveMrpValue !== null && val > effectiveMrpValue)
+        return `Cannot exceed MRP (${effectiveMrpValue})`;
+      return "";
+    })(),
+    priceOff: (() => {
+      if (finPriceOff === "") return "";
+      const val = parseFloat(finPriceOff);
+      if (isNaN(val)) return "";
+      if (finPriceOffType === "percentage" && (val < 0 || val > 100))
+        return "Percentage must be between 0 and 100";
+      if (val < 0) return "Must be a positive number";
+      return "";
+    })(),
+    priceWrapper: finPriceWrapper !== "" && parseFloat(finPriceWrapper) <= 0
+      ? "Must be greater than 0"
+      : "",
+  };
+
+  const finHasErrors = Object.values(finErrors).some(e => e !== "");
+
   const handleFinanceConfirmSubmit = () => {
+    if (finHasErrors) {
+      toast({
+        title: "Finance Inputs have errors",
+        description: "Please fix all validation errors in the Finance Inputs tab before submitting.",
+        variant: "destructive",
+      });
+      setShowConfirmDialog(false);
+      setActiveTab("finance");
+      return;
+    }
     // Promote input values → current values
     if (finMrp)           { setFinCurMrp(finMrp); }
     if (finRetailerMargin){ setFinCurRetailerMargin(finRetailerMargin); setFinCurRetailerMarginType(finRetailerMarginType); }
@@ -563,7 +621,11 @@ export default function EditEntry() {
               </TabsTrigger>
               <TabsTrigger value="finance" className="gap-2" data-testid="tab-finance">
                 <ReceiptText className="h-4 w-4" /> Finance Inputs
-                {financeHasValues && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-[#00b0d7]" />}
+                {finHasErrors
+                  ? <span className="ml-1 h-1.5 w-1.5 rounded-full bg-red-500" />
+                  : financeHasValues
+                    ? <span className="ml-1 h-1.5 w-1.5 rounded-full bg-[#00b0d7]" />
+                    : null}
               </TabsTrigger>
             </TabsList>
 
@@ -1555,9 +1617,9 @@ export default function EditEntry() {
                   </div>
 
                   {/* MRP — number only */}
-                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
-                    <span className="text-sm font-medium">MRP</span>
-                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-mrp">{finCurMrp || <span className="italic text-muted-foreground/50">—</span>}</span>
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-start hover:bg-muted/20">
+                    <span className="text-sm font-medium pt-1.5">MRP</span>
+                    <span className="text-sm text-muted-foreground tabular-nums pt-1.5" data-testid="finance-cur-mrp">{finCurMrp || <span className="italic text-muted-foreground/50">—</span>}</span>
                     <div className="pr-4">
                       <Input
                         type="number"
@@ -1566,17 +1628,22 @@ export default function EditEntry() {
                         placeholder="Enter value"
                         value={finMrp}
                         onChange={e => setFinMrp(e.target.value)}
-                        className="h-8 text-sm"
+                        className={`h-8 text-sm ${finErrors.mrp ? "border-red-400 focus-visible:ring-red-300" : ""}`}
                         data-testid="finance-input-mrp"
                       />
+                      {finErrors.mrp && (
+                        <p className="flex items-center gap-1 mt-1 text-[11px] text-red-500" data-testid="finance-error-mrp">
+                          <AlertCircle className="h-3 w-3 shrink-0" />{finErrors.mrp}
+                        </p>
+                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground">Number</span>
+                    <span className="text-xs text-muted-foreground pt-1.5">Number</span>
                   </div>
 
                   {/* Retailer Margin — % or number */}
-                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
-                    <span className="text-sm font-medium">Retailer Margin</span>
-                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-retailer-margin">
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-start hover:bg-muted/20">
+                    <span className="text-sm font-medium pt-1.5">Retailer Margin</span>
+                    <span className="text-sm text-muted-foreground tabular-nums pt-1.5" data-testid="finance-cur-retailer-margin">
                       {finCurRetailerMargin
                         ? <>{finCurRetailerMargin}{finCurRetailerMarginType === "percentage" ? "%" : ""}</>
                         : <span className="italic text-muted-foreground/50">—</span>}
@@ -1590,25 +1657,32 @@ export default function EditEntry() {
                         placeholder={finRetailerMarginType === "percentage" ? "0 – 100" : "Enter value"}
                         value={finRetailerMargin}
                         onChange={e => setFinRetailerMargin(e.target.value)}
-                        className="h-8 text-sm"
+                        className={`h-8 text-sm ${finErrors.retailerMargin ? "border-red-400 focus-visible:ring-red-300" : ""}`}
                         data-testid="finance-input-retailer-margin"
                       />
+                      {finErrors.retailerMargin && (
+                        <p className="flex items-center gap-1 mt-1 text-[11px] text-red-500" data-testid="finance-error-retailer-margin">
+                          <AlertCircle className="h-3 w-3 shrink-0" />{finErrors.retailerMargin}
+                        </p>
+                      )}
                     </div>
-                    <Select value={finRetailerMarginType} onValueChange={v => { setFinRetailerMarginType(v as FinInputType); setFinRetailerMargin(""); }}>
-                      <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-retailer-margin">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">% Percentage</SelectItem>
-                        <SelectItem value="number">Number</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="pt-0">
+                      <Select value={finRetailerMarginType} onValueChange={v => { setFinRetailerMarginType(v as FinInputType); setFinRetailerMargin(""); }}>
+                        <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-retailer-margin">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">% Percentage</SelectItem>
+                          <SelectItem value="number">Number</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* RS Margin — % or number */}
-                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
-                    <span className="text-sm font-medium">RS Margin</span>
-                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-rs-margin">
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-start hover:bg-muted/20">
+                    <span className="text-sm font-medium pt-1.5">RS Margin</span>
+                    <span className="text-sm text-muted-foreground tabular-nums pt-1.5" data-testid="finance-cur-rs-margin">
                       {finCurRsMargin
                         ? <>{finCurRsMargin}{finCurRsMarginType === "percentage" ? "%" : ""}</>
                         : <span className="italic text-muted-foreground/50">—</span>}
@@ -1622,25 +1696,32 @@ export default function EditEntry() {
                         placeholder={finRsMarginType === "percentage" ? "0 – 100" : "Enter value"}
                         value={finRsMargin}
                         onChange={e => setFinRsMargin(e.target.value)}
-                        className="h-8 text-sm"
+                        className={`h-8 text-sm ${finErrors.rsMargin ? "border-red-400 focus-visible:ring-red-300" : ""}`}
                         data-testid="finance-input-rs-margin"
                       />
+                      {finErrors.rsMargin && (
+                        <p className="flex items-center gap-1 mt-1 text-[11px] text-red-500" data-testid="finance-error-rs-margin">
+                          <AlertCircle className="h-3 w-3 shrink-0" />{finErrors.rsMargin}
+                        </p>
+                      )}
                     </div>
-                    <Select value={finRsMarginType} onValueChange={v => { setFinRsMarginType(v as FinInputType); setFinRsMargin(""); }}>
-                      <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-rs-margin">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">% Percentage</SelectItem>
-                        <SelectItem value="number">Number</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="pt-0">
+                      <Select value={finRsMarginType} onValueChange={v => { setFinRsMarginType(v as FinInputType); setFinRsMargin(""); }}>
+                        <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-rs-margin">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">% Percentage</SelectItem>
+                          <SelectItem value="number">Number</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Price Off — % or number */}
-                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-center hover:bg-muted/20">
-                    <span className="text-sm font-medium">Price Off</span>
-                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-price-off">
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 border-b border-border/50 items-start hover:bg-muted/20">
+                    <span className="text-sm font-medium pt-1.5">Price Off</span>
+                    <span className="text-sm text-muted-foreground tabular-nums pt-1.5" data-testid="finance-cur-price-off">
                       {finCurPriceOff
                         ? <>{finCurPriceOff}{finCurPriceOffType === "percentage" ? "%" : ""}</>
                         : <span className="italic text-muted-foreground/50">—</span>}
@@ -1654,25 +1735,32 @@ export default function EditEntry() {
                         placeholder={finPriceOffType === "percentage" ? "0 – 100" : "Enter value"}
                         value={finPriceOff}
                         onChange={e => setFinPriceOff(e.target.value)}
-                        className="h-8 text-sm"
+                        className={`h-8 text-sm ${finErrors.priceOff ? "border-red-400 focus-visible:ring-red-300" : ""}`}
                         data-testid="finance-input-price-off"
                       />
+                      {finErrors.priceOff && (
+                        <p className="flex items-center gap-1 mt-1 text-[11px] text-red-500" data-testid="finance-error-price-off">
+                          <AlertCircle className="h-3 w-3 shrink-0" />{finErrors.priceOff}
+                        </p>
+                      )}
                     </div>
-                    <Select value={finPriceOffType} onValueChange={v => { setFinPriceOffType(v as FinInputType); setFinPriceOff(""); }}>
-                      <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-price-off">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">% Percentage</SelectItem>
-                        <SelectItem value="number">Number</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="pt-0">
+                      <Select value={finPriceOffType} onValueChange={v => { setFinPriceOffType(v as FinInputType); setFinPriceOff(""); }}>
+                        <SelectTrigger className="h-8 text-xs w-36" data-testid="finance-type-price-off">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">% Percentage</SelectItem>
+                          <SelectItem value="number">Number</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Price to be printed on wrapper by Factory — number only */}
-                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 items-center hover:bg-muted/20">
-                    <span className="text-sm font-medium leading-tight">Price to be printed on<br />wrapper by Factory</span>
-                    <span className="text-sm text-muted-foreground tabular-nums" data-testid="finance-cur-price-wrapper">
+                  <div className="grid grid-cols-[200px_160px_1fr_160px] gap-0 px-6 py-3 items-start hover:bg-muted/20">
+                    <span className="text-sm font-medium leading-tight pt-1.5">Price to be printed on<br />wrapper by Factory</span>
+                    <span className="text-sm text-muted-foreground tabular-nums pt-1.5" data-testid="finance-cur-price-wrapper">
                       {finCurPriceWrapper || <span className="italic text-muted-foreground/50">—</span>}
                     </span>
                     <div className="pr-4">
@@ -1683,11 +1771,16 @@ export default function EditEntry() {
                         placeholder="Enter value"
                         value={finPriceWrapper}
                         onChange={e => setFinPriceWrapper(e.target.value)}
-                        className="h-8 text-sm"
+                        className={`h-8 text-sm ${finErrors.priceWrapper ? "border-red-400 focus-visible:ring-red-300" : ""}`}
                         data-testid="finance-input-price-wrapper"
                       />
+                      {finErrors.priceWrapper && (
+                        <p className="flex items-center gap-1 mt-1 text-[11px] text-red-500" data-testid="finance-error-price-wrapper">
+                          <AlertCircle className="h-3 w-3 shrink-0" />{finErrors.priceWrapper}
+                        </p>
+                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground">Number</span>
+                    <span className="text-xs text-muted-foreground pt-1.5">Number</span>
                   </div>
                 </CardContent>
               </Card>
@@ -1820,8 +1913,21 @@ export default function EditEntry() {
                 })()}
               </div>
 
+              {/* Finance Inputs validation warning in popup */}
+              {finHasErrors && (
+                <div className="border-t pt-3">
+                  <div className="flex items-start gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-2">
+                    <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-red-700">Finance Inputs have errors</p>
+                      <p className="text-[11px] text-red-600 mt-0.5">Fix all validation errors in the Finance Inputs tab before activating.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Finance Inputs summary — only shown if at least one value was entered */}
-              {financeHasValues && (
+              {financeHasValues && !finHasErrors && (
                 <div className="border-t pt-3">
                   <div className="flex items-center gap-1.5 mb-2">
                     <ReceiptText className="h-3.5 w-3.5 text-[#00b0d7]" />
