@@ -1456,45 +1456,49 @@ function DelistingCriteriaDialog({ bp, targetStatus, onClose, onCreateRequest, u
             }
           </div>
 
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Criteria Evaluation Matrix</p>
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="text-xs py-2 w-24">Level</TableHead>
-                    <TableHead className="text-xs py-2">Criteria</TableHead>
-                    <TableHead className="text-xs py-2 text-center w-16">(Y/N)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow className="bg-muted/20">
-                    <TableCell className="text-xs py-2 font-semibold">Basepack</TableCell>
-                    <TableCell className="text-xs py-2 text-slate-700">Overall criteria met</TableCell>
-                    <TableCell className="text-xs py-2 text-center"><CritBadge met={overallMet} /></TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="text-xs py-2 font-medium">Basepack</TableCell>
-                    <TableCell className="text-xs py-2 text-slate-700">
-                      DOH &lt; {dohThreshold} days
-                      {bp.basepakDoh !== null && (
-                        <span className="ml-2 text-muted-foreground font-normal">(Current: {bp.basepakDoh} days)</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs py-2 text-center"><CritBadge met={dohConditionMet} /></TableCell>
-                  </TableRow>
-                  {cbuCriteria.map((c, i) => (
-                    <TableRow key={c.code}>
-                      <TableCell className="text-xs py-2.5 font-medium align-top">CBU {i + 1}</TableCell>
-                      <TableCell className="text-xs py-2.5">
-                        <div className="text-slate-700">Zero Production Plan for Next 3 MOC</div>
-                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{c.code}</div>
-                      </TableCell>
-                      <TableCell className="text-xs py-2.5 text-center align-top"><CritBadge met={c.zeroPlan} /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Criteria Check</p>
+
+            {/* DOH criterion */}
+            <div className={`flex items-center justify-between rounded-lg border px-4 py-3 ${dohConditionMet ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+              <div className="flex items-center gap-3">
+                {dohConditionMet
+                  ? <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                  : <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                }
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Days on Hand &lt; {dohThreshold} days</p>
+                  {bp.basepakDoh !== null && (
+                    <p className="text-xs text-muted-foreground mt-0.5">Current: <span className="font-semibold text-slate-600">{bp.basepakDoh} days</span></p>
+                  )}
+                </div>
+              </div>
+              <CritBadge met={dohConditionMet} />
+            </div>
+
+            {/* Production plan criterion */}
+            <div className={`rounded-lg border px-4 py-3 ${cbuCriteria.every(c => c.zeroPlan) ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-3">
+                  {cbuCriteria.every(c => c.zeroPlan)
+                    ? <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                    : <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                  }
+                  <p className="text-sm font-medium text-slate-700">No production plan for next 3 MOCs</p>
+                </div>
+                <CritBadge met={cbuCriteria.every(c => c.zeroPlan)} />
+              </div>
+              <div className="flex flex-wrap gap-2 pl-7">
+                {cbuCriteria.map(c => (
+                  <div key={c.code} className={`flex items-center gap-1.5 text-xs rounded-md px-2.5 py-1 border font-mono ${c.zeroPlan ? "bg-white border-emerald-200 text-slate-600" : "bg-white border-red-200 text-slate-600"}`}>
+                    {c.zeroPlan
+                      ? <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                      : <XCircle className="h-3 w-3 text-red-400 flex-shrink-0" />
+                    }
+                    {c.code}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
