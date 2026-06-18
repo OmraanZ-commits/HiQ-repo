@@ -1287,9 +1287,7 @@ export default function EditEntry() {
                             {mtGeos.map((geo, idx) => {
                               const geoChannels = channelMapping[geo] || [];
                               const geoMtSubCodes = MT_SUB_CHANNELS.filter(sc => geoChannels.includes(sc.code)).map(sc => sc.code);
-                              const availableChains = CUSTOMER_CHAINS.filter(c => geoMtSubCodes.includes(c.subChannel));
                               const selectedChains = customerMapping[geo] || [];
-                              const isOpen = openGeo === geo;
 
                               const toggleChain = (code: string) => {
                                 const next = selectedChains.includes(code)
@@ -1306,80 +1304,85 @@ export default function EditEntry() {
                               return (
                                 <div
                                   key={geo}
-                                  className={`grid grid-cols-[220px_1fr] gap-0 px-4 py-3 items-start ${idx % 2 === 0 ? "bg-background" : "bg-muted/10"} border-b last:border-0`}
+                                  className={`grid grid-cols-[200px_1fr] gap-0 px-4 py-3 items-start ${idx % 2 === 0 ? "bg-background" : "bg-muted/10"} border-b last:border-0`}
                                   data-testid={`customer-mapping-row-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}
                                 >
-                                  {/* Cluster name + sub-channel badges */}
-                                  <div className="flex flex-col gap-1 pt-1">
+                                  {/* Cluster name */}
+                                  <div className="pt-1.5">
                                     <span className="text-sm font-medium">{geo}</span>
-                                    <div className="flex flex-wrap gap-1">
-                                      {geoMtSubCodes.map(sc => (
-                                        <Badge key={sc} variant="secondary" className="text-[9px] px-1.5 h-4">{sc}</Badge>
-                                      ))}
-                                    </div>
                                   </div>
 
-                                  {/* Multi-select dropdown */}
-                                  <Popover open={isOpen} onOpenChange={open => setOpenGeo(open ? geo : null)}>
-                                    <PopoverTrigger asChild>
-                                      <button
-                                        type="button"
-                                        data-testid={`dropdown-chains-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}
-                                        className="w-full min-h-9 flex items-center gap-1.5 flex-wrap rounded-md border border-input bg-background px-2 py-1.5 text-sm text-left hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
-                                      >
-                                        {selectedChains.length === 0 ? (
-                                          <span className="text-xs text-muted-foreground">Select customer chains…</span>
-                                        ) : (
-                                          selectedChains.map(code => (
-                                            <span
-                                              key={code}
-                                              className="inline-flex items-center gap-0.5 bg-primary/10 text-primary text-[11px] font-medium px-1.5 py-0.5 rounded"
-                                            >
-                                              {code}
-                                              <X
-                                                className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                                onClick={e => removeChain(code, e)}
-                                              />
-                                            </span>
-                                          ))
-                                        )}
-                                        <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0" />
-                                      </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-72 p-0" align="start">
-                                      <Command>
-                                        <CommandInput placeholder="Search chains…" className="h-8 text-xs" />
-                                        <CommandList className="max-h-64">
-                                          <CommandEmpty className="py-3 text-xs text-center text-muted-foreground">No chains found.</CommandEmpty>
-                                          {geoMtSubCodes.map(subCode => {
-                                            const chainsForSub = availableChains.filter(c => c.subChannel === subCode);
-                                            if (chainsForSub.length === 0) return null;
-                                            return (
-                                              <CommandGroup key={subCode} heading={subCode} className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide">
-                                                {chainsForSub.map(chain => {
-                                                  const checked = selectedChains.includes(chain.code);
-                                                  return (
-                                                    <CommandItem
-                                                      key={chain.code}
-                                                      value={chain.code}
-                                                      onSelect={() => toggleChain(chain.code)}
-                                                      className="flex items-center gap-2 text-xs cursor-pointer"
-                                                      data-testid={`chain-option-${chain.code}-${geo}`.toLowerCase().replace(/[\s-]+/g, "-")}
+                                  {/* One dropdown per MT sub-channel */}
+                                  <div className="flex flex-wrap gap-3">
+                                    {geoMtSubCodes.map(subCode => {
+                                      const chainsForSub = CUSTOMER_CHAINS.filter(c => c.subChannel === subCode);
+                                      const subSelected = selectedChains.filter(c => chainsForSub.some(ch => ch.code === c));
+                                      const dropKey = `${geo}::${subCode}`;
+                                      const isOpen = openGeo === dropKey;
+
+                                      return (
+                                        <div key={subCode} className="flex flex-col gap-1 min-w-[160px]">
+                                          {/* Sub-channel label */}
+                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{subCode}</span>
+
+                                          <Popover open={isOpen} onOpenChange={open => setOpenGeo(open ? dropKey : null)}>
+                                            <PopoverTrigger asChild>
+                                              <button
+                                                type="button"
+                                                data-testid={`dropdown-chains-${geo}-${subCode}`.toLowerCase().replace(/[\s:\s-]+/g, "-")}
+                                                className="min-h-8 w-full flex items-start gap-1.5 flex-wrap rounded-md border border-input bg-background px-2 py-1.5 text-left hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                                              >
+                                                {subSelected.length === 0 ? (
+                                                  <span className="text-xs text-muted-foreground self-center">Select…</span>
+                                                ) : (
+                                                  subSelected.map(code => (
+                                                    <span
+                                                      key={code}
+                                                      className="inline-flex items-center gap-0.5 bg-primary/10 text-primary text-[11px] font-medium px-1.5 py-0.5 rounded"
                                                     >
-                                                      <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
-                                                        {checked && <Check className="h-2.5 w-2.5 text-white" />}
-                                                      </div>
-                                                      {chain.code}
-                                                    </CommandItem>
-                                                  );
-                                                })}
-                                              </CommandGroup>
-                                            );
-                                          })}
-                                        </CommandList>
-                                      </Command>
-                                    </PopoverContent>
-                                  </Popover>
+                                                      {code}
+                                                      <X
+                                                        className="h-2.5 w-2.5 cursor-pointer hover:text-destructive"
+                                                        onClick={e => removeChain(code, e)}
+                                                      />
+                                                    </span>
+                                                  ))
+                                                )}
+                                                <ChevronsUpDown className="h-3 w-3 text-muted-foreground ml-auto shrink-0 self-center" />
+                                              </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-52 p-0" align="start">
+                                              <Command>
+                                                <CommandInput placeholder={`Search ${subCode}…`} className="h-8 text-xs" />
+                                                <CommandList className="max-h-52">
+                                                  <CommandEmpty className="py-3 text-xs text-center text-muted-foreground">No chains found.</CommandEmpty>
+                                                  <CommandGroup>
+                                                    {chainsForSub.map(chain => {
+                                                      const checked = selectedChains.includes(chain.code);
+                                                      return (
+                                                        <CommandItem
+                                                          key={chain.code}
+                                                          value={chain.code}
+                                                          onSelect={() => toggleChain(chain.code)}
+                                                          className="flex items-center gap-2 text-xs cursor-pointer"
+                                                          data-testid={`chain-option-${chain.code}-${geo}`.toLowerCase().replace(/[\s-]+/g, "-")}
+                                                        >
+                                                          <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
+                                                            {checked && <Check className="h-2.5 w-2.5 text-white" />}
+                                                          </div>
+                                                          {chain.code}
+                                                        </CommandItem>
+                                                      );
+                                                    })}
+                                                  </CommandGroup>
+                                                </CommandList>
+                                              </Command>
+                                            </PopoverContent>
+                                          </Popover>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               );
                             })}
