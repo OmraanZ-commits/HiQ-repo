@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Map as MapIcon, Radio, PackageSearch, AlertTriangle,
   ChevronRight, ChevronLeft, CheckCircle2, ExternalLink,
+  MapPin, Check, Plus, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PortalUser } from "@/lib/users-data";
@@ -53,10 +54,6 @@ const AMENDMENT_TYPES = [
 
 const REGION_ORDER = ["North", "South", "East", "West"];
 
-const CHANNEL_GROUPS: { label: string; match: (c: ChannelDef) => boolean }[] = [
-  { label: "Core & Traditional", match: c => c.type === "Core" || c.type === "Traditional" },
-  { label: "Modern Trade",       match: c => c.type === "Modern Trade" },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -442,6 +439,53 @@ function GeoEditor({
   );
 }
 
+// ─── Matrix Cell (3-state checkbox for amendment) ────────────────────────────
+
+function MatrixCell({ state, onClick }: { state: ChipState; onClick: () => void }) {
+  return (
+    <div
+      role="checkbox"
+      tabIndex={0}
+      aria-checked={state !== "available"}
+      onClick={onClick}
+      onKeyDown={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); onClick(); } }}
+      className={cn(
+        "w-[18px] h-[18px] rounded border-2 flex items-center justify-center mx-auto cursor-pointer transition-all select-none focus:outline-none focus:ring-1 focus:ring-[#00b0d7] focus:ring-offset-1",
+        state === "existing"  && "bg-[#00b0d7] border-[#00b0d7]",
+        state === "new"       && "bg-emerald-500 border-emerald-500",
+        state === "removing"  && "bg-red-400 border-red-400",
+        state === "available" && "bg-white border-border hover:border-[#00b0d7]/60",
+      )}
+    >
+      {state === "existing"  && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+      {state === "new"       && <Plus  className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+      {state === "removing"  && <X     className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+    </div>
+  );
+}
+
+// Aggregate toggle cell (for MT-All and Row-All — shows overall coverage, no diff colour)
+function AggCell({ active, mixed, onClick }: { active: boolean; mixed: boolean; onClick: () => void }) {
+  return (
+    <div
+      role="checkbox"
+      tabIndex={0}
+      aria-checked={active}
+      onClick={onClick}
+      onKeyDown={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); onClick(); } }}
+      className={cn(
+        "w-[18px] h-[18px] rounded border-2 flex items-center justify-center mx-auto cursor-pointer transition-all select-none focus:outline-none",
+        active                  && "bg-[#00b0d7] border-[#00b0d7]",
+        !active && mixed        && "bg-[#00b0d7]/10 border-[#00b0d7]/30",
+        !active && !mixed       && "bg-white border-border hover:border-[#00b0d7]/60",
+      )}
+    >
+      {active        && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+      {!active && mixed && <span className="text-[#00b0d7] text-[9px] font-black leading-none">–</span>}
+    </div>
+  );
+}
+
 // ─── Channel Editor ───────────────────────────────────────────────────────────
 
 function ChannelEditor({
@@ -457,106 +501,288 @@ function ChannelEditor({
   requestedChannelMapping: Record<string, string[]>;
   setRequestedChannelMapping: (v: Record<string, string[]>) => void;
 }) {
-  const groups = useMemo(
-    () => CHANNEL_GROUPS
-      .map(g => ({ label: g.label, channels: leafChannels.filter(g.match) }))
-      .filter(g => g.channels.length > 0),
-    [leafChannels],
-  );
+  // Partition into top-level channels (GT, RD, CSD) and MT sub-channels
+  const topChs = useMemo(() => leafChannels.filter(c => !c.parent), [leafChannels]);
+  const mtChs  = useMemo(() => leafChannels.filter(c => c.parent === "MT"), [leafChannels]);
 
+  // Resolved requested state for a geo (falls back to current if untouched)
+  const getReq = (geo: string): string[] =>
+    requestedChannelMapping[geo] ?? [...(channelMapping[geo] || [])];
+
+  // 4-state diff for a single geo×channel cell
   const getCellState = (geo: string, code: string): ChipState => {
-    const original  = channelMapping[geo] || [];
-    const requested = requestedChannelMapping[geo] ?? original;
-    const wasActive  = original.includes(code);
-    const isActive   = requested.includes(code);
-    if (wasActive && isActive)   return "existing";
-    if (!wasActive && isActive)  return "new";
-    if (wasActive && !isActive)  return "removing";
+    const orig = channelMapping[geo] || [];
+    const req  = getReq(geo);
+    if (orig.includes(code)  && req.includes(code))  return "existing";
+    if (!orig.includes(code) && req.includes(code))  return "new";
+    if (orig.includes(code)  && !req.includes(code)) return "removing";
     return "available";
   };
 
-  const toggle = (geo: string, code: string) => {
-    const original  = channelMapping[geo] || [];
-    const requested = requestedChannelMapping[geo] ?? [...original];
-    const next = { ...requestedChannelMapping };
-    next[geo] = requested.includes(code)
-      ? requested.filter(c => c !== code)
-      : [...requested, code];
+  // Toggle a single cell (or MT group when code === "MT")
+  const toggleCell = (geo: string, code: string) => {
+    const codes = code === "MT" ? mtChs.map(c => c.code) : [code];
+    const req   = [...getReq(geo)];
+    const next  = { ...requestedChannelMapping };
+    if (code === "MT") {
+      const allOn = codes.every(c => req.includes(c));
+      next[geo] = allOn ? req.filter(c => !codes.includes(c)) : [...new Set([...req, ...codes])];
+    } else {
+      next[geo] = req.includes(code) ? req.filter(c => c !== code) : [...req, code];
+    }
     setRequestedChannelMapping(next);
   };
 
-  // Derive summary counts
-  const totalAdded   = currentGeo.reduce((n, geo) => {
+  // Toggle an entire column across all geos
+  const toggleColumn = (code: string) => {
+    const codes   = code === "MT" ? mtChs.map(c => c.code) : [code];
+    const allOn   = currentGeo.every(geo => codes.every(c => getReq(geo).includes(c)));
+    const next    = { ...requestedChannelMapping };
+    currentGeo.forEach(geo => {
+      const req = [...getReq(geo)];
+      next[geo] = allOn ? req.filter(c => !codes.includes(c)) : [...new Set([...req, ...codes])];
+    });
+    setRequestedChannelMapping(next);
+  };
+
+  // Toggle every channel for every geo
+  const toggleAll = () => {
+    const allCodes = leafChannels.map(c => c.code);
+    const allOn    = currentGeo.every(geo => allCodes.every(c => getReq(geo).includes(c)));
+    const next     = { ...requestedChannelMapping };
+    currentGeo.forEach(geo => {
+      const req = [...getReq(geo)];
+      next[geo] = allOn ? req.filter(c => !allCodes.includes(c)) : [...new Set([...req, ...allCodes])];
+    });
+    setRequestedChannelMapping(next);
+  };
+
+  // Toggle all channels for a single geo row
+  const toggleRowAll = (geo: string) => {
+    const allCodes = leafChannels.map(c => c.code);
+    const req      = [...getReq(geo)];
+    const allOn    = allCodes.every(c => req.includes(c));
+    const next     = { ...requestedChannelMapping };
+    next[geo] = allOn ? req.filter(c => !allCodes.includes(c)) : [...new Set([...req, ...allCodes])];
+    setRequestedChannelMapping(next);
+  };
+
+  // Column pill state (based on requested, for header toggles)
+  const getColState = (code: string): boolean | "indeterminate" => {
+    const codes = code === "MT" ? mtChs.map(c => c.code) : [code];
+    const all  = currentGeo.every(geo => codes.every(c => getReq(geo).includes(c)));
+    const some = currentGeo.some(geo =>  codes.some(c  => getReq(geo).includes(c)));
+    return all ? true : some ? "indeterminate" : false;
+  };
+
+  const getAllState = (): boolean | "indeterminate" => {
+    const allCodes = leafChannels.map(c => c.code);
+    const all  = currentGeo.every(geo => allCodes.every(c => getReq(geo).includes(c)));
+    const some = currentGeo.some(geo =>  allCodes.some(c  => getReq(geo).includes(c)));
+    return all ? true : some ? "indeterminate" : false;
+  };
+
+  // Summary counts
+  const totalAdded = currentGeo.reduce((n, geo) => {
     const orig = new Set(channelMapping[geo] || []);
-    return n + (requestedChannelMapping[geo] ?? [...orig]).filter(c => !orig.has(c)).length;
+    return n + getReq(geo).filter(c => !orig.has(c)).length;
   }, 0);
   const totalRemoved = currentGeo.reduce((n, geo) => {
     const orig = channelMapping[geo] || [];
-    const req  = requestedChannelMapping[geo] ?? [...orig];
-    return n + orig.filter(c => !req.includes(c)).length;
+    return n + orig.filter(c => !getReq(geo).includes(c)).length;
   }, 0);
+
+  // Inline column-header pill
+  const ColPill = ({ label, state, onClick }: {
+    label: string;
+    state: boolean | "indeterminate";
+    onClick: (e: React.MouseEvent) => void;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap transition-all select-none",
+        state === true            && "bg-[#00b0d7] border-[#00b0d7] text-white",
+        state === "indeterminate" && "bg-[#00b0d7]/10 border-[#00b0d7]/30 text-[#00b0d7]",
+        state === false           && "bg-white border-border text-muted-foreground hover:border-[#00b0d7]/40",
+      )}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="space-y-3">
-      <SelectionLegend showRemoving />
-      <p className="text-[11px] text-muted-foreground">
-        Click a channel chip to toggle it for that cluster.{" "}
-        <span className="text-blue-600 font-medium">Blue</span> = current,{" "}
-        <span className="text-emerald-600 font-medium">Green</span> = adding,{" "}
-        <span className="text-red-500 font-medium">Red (strikethrough)</span> = removing.
-      </p>
-
-      <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
-        {currentGeo.map(geo => {
-          const original  = channelMapping[geo] || [];
-          const requested = requestedChannelMapping[geo] ?? original;
-          const modified  = JSON.stringify([...original].sort()) !== JSON.stringify([...requested].sort());
-
-          return (
-            <div key={geo} className={cn(
-              "rounded-lg border p-3 transition-colors",
-              modified ? "border-blue-300 bg-blue-50/40" : "border-border bg-muted/10",
-            )}>
-              <div className="flex items-center gap-2 mb-2.5">
-                <p className="text-xs font-semibold text-slate-700 flex-1">{geo}</p>
-                {modified && (
-                  <span className="text-[10px] font-medium text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
-                    Modified
-                  </span>
-                )}
-              </div>
-              {groups.map(g => (
-                <div key={g.label} className="mb-2 last:mb-0">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    {g.label}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {g.channels.map(c => (
-                      <Chip
-                        key={c.code}
-                        label={c.code}
-                        state={getCellState(geo, c.code)}
-                        onClick={() => toggle(geo, c.code)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        })}
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground py-2 border-b">
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded border-2 border-[#00b0d7] bg-[#00b0d7] inline-flex items-center justify-center shrink-0">
+            <Check className="h-2 w-2 text-white" strokeWidth={3} />
+          </span>
+          Current (click to remove)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded border-2 border-emerald-500 bg-emerald-500 inline-flex items-center justify-center shrink-0">
+            <Plus className="h-2 w-2 text-white" strokeWidth={3} />
+          </span>
+          Adding (click to cancel)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded border-2 border-red-400 bg-red-400 inline-flex items-center justify-center shrink-0">
+            <X className="h-2 w-2 text-white" strokeWidth={3} />
+          </span>
+          Removing (click to cancel)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded border-2 border-border bg-white inline-block shrink-0" />
+          Available
+        </span>
       </div>
 
+      {/* Matrix table — mirrors "Channels by Geography" from Network Visibility */}
+      <div className="overflow-auto max-h-80 rounded-md border">
+        <table className="w-full text-xs border-separate border-spacing-0">
+          <thead className="sticky top-0 z-10">
+            {/* Row 1: Cluster | TOP channels | MT group header | All */}
+            <tr>
+              <th className="text-left py-3 pl-4 pr-3 text-muted-foreground font-medium w-36 bg-white border-b border-border/60">
+                Cluster
+              </th>
+              {topChs.map(ch => (
+                <th
+                  key={ch.code}
+                  className="text-center py-3 px-3 bg-white border-b border-border/60 cursor-pointer select-none"
+                >
+                  <ColPill
+                    label={ch.code}
+                    state={getColState(ch.code)}
+                    onClick={e => { e.stopPropagation(); toggleColumn(ch.code); }}
+                  />
+                </th>
+              ))}
+              {/* MT group header — label only, spans MT All + each sub-channel */}
+              <th
+                colSpan={mtChs.length + 1}
+                className="text-center py-3 px-4 font-semibold text-[#00b0d7] bg-[#e6f7fb] border-b-2 border-[#00b0d7]/40"
+              >
+                MT
+              </th>
+              {/* All — toggles every channel for every geo */}
+              <th className="text-center py-3 px-3 bg-white border-b border-border/60 cursor-pointer select-none">
+                <ColPill
+                  label="All"
+                  state={getAllState()}
+                  onClick={e => { e.stopPropagation(); toggleAll(); }}
+                />
+              </th>
+            </tr>
+            {/* Row 2: blank | blank for top-chs | MT All pill | MT sub-channel pills | blank */}
+            <tr>
+              <th className="py-2 pl-4 bg-white border-b border-border/50" />
+              {topChs.map(ch => (
+                <th key={ch.code} className="py-2 px-3 bg-white border-b border-border/50" />
+              ))}
+              {/* MT All */}
+              <th className="text-center py-2 px-3 bg-[#e6f7fb] border-b border-border/50 cursor-pointer select-none">
+                <ColPill
+                  label="All"
+                  state={getColState("MT")}
+                  onClick={e => { e.stopPropagation(); toggleColumn("MT"); }}
+                />
+              </th>
+              {/* MT sub-channels */}
+              {mtChs.map(ch => (
+                <th
+                  key={ch.code}
+                  className="text-center py-2 px-3 bg-[#e6f7fb] border-b border-border/50 cursor-pointer select-none"
+                >
+                  <ColPill
+                    label={ch.code}
+                    state={getColState(ch.code)}
+                    onClick={e => { e.stopPropagation(); toggleColumn(ch.code); }}
+                  />
+                </th>
+              ))}
+              <th className="py-2 px-3 bg-white border-b border-border/50" />
+            </tr>
+          </thead>
+          <tbody>
+            {currentGeo.map((geo, idx) => {
+              const req          = getReq(geo);
+              const mtAllOn      = mtChs.every(c => req.includes(c.code));
+              const mtSomeOn     = mtChs.some(c  => req.includes(c.code));
+              const allOn        = leafChannels.every(c => req.includes(c.code));
+              const someOn       = leafChannels.some(c  => req.includes(c.code));
+              return (
+                <tr
+                  key={geo}
+                  className={cn(
+                    "border-b border-border/30 transition-colors hover:bg-muted/20",
+                    idx % 2 !== 0 && "bg-muted/10",
+                  )}
+                >
+                  {/* Cluster name */}
+                  <td className="py-3 pl-4 pr-3">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-3 w-3 text-[#0d8ecf] shrink-0" />
+                      <span className="text-[12px] font-medium text-[#00b0d7] leading-tight capitalize">
+                        {geo.toLowerCase()}
+                      </span>
+                    </div>
+                  </td>
+                  {/* TOP channels */}
+                  {topChs.map(ch => (
+                    <td key={ch.code} className="text-center py-3 px-4">
+                      <MatrixCell
+                        state={getCellState(geo, ch.code)}
+                        onClick={() => toggleCell(geo, ch.code)}
+                      />
+                    </td>
+                  ))}
+                  {/* MT All */}
+                  <td className="text-center py-3 px-4 bg-[#f0fafd]">
+                    <AggCell
+                      active={mtAllOn}
+                      mixed={mtSomeOn && !mtAllOn}
+                      onClick={() => toggleCell(geo, "MT")}
+                    />
+                  </td>
+                  {/* MT sub-channels */}
+                  {mtChs.map(ch => (
+                    <td key={ch.code} className="text-center py-3 px-4 bg-[#f0fafd]">
+                      <MatrixCell
+                        state={getCellState(geo, ch.code)}
+                        onClick={() => toggleCell(geo, ch.code)}
+                      />
+                    </td>
+                  ))}
+                  {/* Row All */}
+                  <td className="text-center py-3 px-4">
+                    <AggCell
+                      active={allOn}
+                      mixed={someOn && !allOn}
+                      onClick={() => toggleRowAll(geo)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Change summary */}
       {(totalAdded > 0 || totalRemoved > 0) && (
         <div className="flex gap-2">
           {totalAdded > 0 && (
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700 flex-1">
-              <span className="font-semibold">+{totalAdded}</span> channel{totalAdded !== 1 ? "s" : ""} to add across clusters
+              <span className="font-semibold">+{totalAdded}</span> channel slot{totalAdded !== 1 ? "s" : ""} to add across clusters
             </div>
           )}
           {totalRemoved > 0 && (
             <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 flex-1">
-              <span className="font-semibold">−{totalRemoved}</span> channel{totalRemoved !== 1 ? "s" : ""} to remove across clusters
+              <span className="font-semibold">−{totalRemoved}</span> channel slot{totalRemoved !== 1 ? "s" : ""} to remove across clusters
             </div>
           )}
         </div>
