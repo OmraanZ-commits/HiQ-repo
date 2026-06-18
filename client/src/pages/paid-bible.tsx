@@ -382,13 +382,12 @@ function MaterialsSubTable({
                     ) : <span className="text-sm text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell className="py-3 px-4" data-testid={`prod-plan-${m.id}`}>
-                    <div className="flex gap-1">
-                      {([m.prodPlanMoc1, m.prodPlanMoc2, m.prodPlanMoc3] as (boolean | null)[]).map((hasPlan, i) => (
-                        <span key={i} className={`text-[10px] px-1 py-0.5 rounded border font-medium whitespace-nowrap ${hasPlan === null ? "bg-slate-50 border-slate-200 text-slate-400" : hasPlan ? "bg-amber-50 border-amber-200 text-amber-600" : "bg-slate-50 border-slate-200 text-slate-500"}`}>
-                          M+{i + 1}:{hasPlan === null ? "—" : hasPlan ? "✓" : "✗"}
-                        </span>
-                      ))}
-                    </div>
+                    {m.prodPlanMoc1 === null && m.prodPlanMoc2 === null && m.prodPlanMoc3 === null
+                      ? <span className="text-xs text-muted-foreground">—</span>
+                      : (m.prodPlanMoc1 || m.prodPlanMoc2 || m.prodPlanMoc3)
+                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 whitespace-nowrap">Has Plan</span>
+                        : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 whitespace-nowrap">No Plan</span>
+                    }
                   </TableCell>
                   <TableCell className="py-3 px-4">
                     <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
@@ -1399,7 +1398,6 @@ function DelistingCriteriaDialog({ bp, targetStatus, onClose, onCreateRequest, u
     code:       m.code,
     description: m.description,
     zeroPlan:  !m.prodPlanMoc1 && !m.prodPlanMoc2 && !m.prodPlanMoc3,
-    moc:       [m.prodPlanMoc1, m.prodPlanMoc2, m.prodPlanMoc3] as (boolean | null)[],
   }));
   const overallMet    = dohConditionMet && cbuCriteria.every(c => c.zeroPlan);
 
@@ -1487,19 +1485,12 @@ function DelistingCriteriaDialog({ bp, targetStatus, onClose, onCreateRequest, u
                   </TableRow>
                   {cbuCriteria.map((c, i) => (
                     <TableRow key={c.code}>
-                      <TableCell className="text-xs py-2 font-medium">CBU {i + 1}</TableCell>
-                      <TableCell className="text-xs py-2">
+                      <TableCell className="text-xs py-2.5 font-medium align-top">CBU {i + 1}</TableCell>
+                      <TableCell className="text-xs py-2.5">
                         <div className="text-slate-700">Zero Production Plan for Next 3 MOC</div>
                         <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{c.code}</div>
-                        <div className="flex gap-1.5 mt-1">
-                          {c.moc.map((hasPlan, mi) => (
-                            <span key={mi} className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${hasPlan === null ? "bg-slate-50 border-slate-200 text-slate-400" : hasPlan ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-slate-50 border-slate-200 text-slate-500"}`}>
-                              MOC+{mi + 1}: {hasPlan === null ? "—" : hasPlan ? "Plan" : "None"}
-                            </span>
-                          ))}
-                        </div>
                       </TableCell>
-                      <TableCell className="text-xs py-2 text-center"><CritBadge met={c.zeroPlan} /></TableCell>
+                      <TableCell className="text-xs py-2.5 text-center align-top"><CritBadge met={c.zeroPlan} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
