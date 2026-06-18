@@ -70,6 +70,7 @@ class NetworkEntryBase(BaseModel):
     sourcingMode: Optional[str] = None  # "decentralized" | "centralized"
     centralizedGeos: Optional[List[str]] = Field(default_factory=list)
     centralizedDepots: Optional[List[str]] = Field(default_factory=list)
+    customerMapping: Optional[dict] = Field(default_factory=dict)
 
 
 class InsertNetworkEntry(NetworkEntryBase):
@@ -132,6 +133,7 @@ class UpdateNetworkEntry(BaseModel):
     sourcingMode: Optional[str] = None
     centralizedGeos: Optional[List[str]] = None
     centralizedDepots: Optional[List[str]] = None
+    customerMapping: Optional[dict] = None
 
 
 class StateTransition(BaseModel):

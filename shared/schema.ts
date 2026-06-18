@@ -54,6 +54,7 @@ export const networkEntries = pgTable("network_entries", {
   depot: text("depot").array(),
   channel: text("channel").array(),
   channelMapping: jsonb("channel_mapping").$type<Record<string, string[]>>(),
+  customerMapping: jsonb("customer_mapping").$type<Record<string, string[]>>(),
   createdAt: timestamp("created_at").defaultNow(),
   caseConfigUpdatedAt: timestamp("case_config_updated_at"),
   priceUpdatedAt: timestamp("price_updated_at"),

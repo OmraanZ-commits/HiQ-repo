@@ -94,6 +94,7 @@ class NetworkEntryModel(Base):
     sourcing_mode = Column(String, nullable=True)  # "decentralized" | "centralized"
     centralized_geos = Column(JSONB, nullable=True, default=[])
     centralized_depots = Column(JSONB, nullable=True, default=[])
+    customer_mapping = Column(JSONB, nullable=True, default={})
 
 
 class EntryStatusModel(Base):
@@ -566,6 +567,7 @@ def run_migrations():
         for col_sql in [
             "ALTER TABLE ftr_images ADD COLUMN IF NOT EXISTS image_data TEXT",
             "ALTER TABLE ftr_images ADD COLUMN IF NOT EXISTS image_filename VARCHAR",
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS customer_mapping JSONB",
         ]:
             try:
                 conn.execute(text(col_sql))
@@ -619,6 +621,7 @@ FIELD_MAP_TO_DB = {
     "sourcingMode": "sourcing_mode",
     "centralizedGeos": "centralized_geos",
     "centralizedDepots": "centralized_depots",
+    "customerMapping": "customer_mapping",
 }
 
 FIELD_MAP_TO_API = {v: k for k, v in FIELD_MAP_TO_DB.items()}

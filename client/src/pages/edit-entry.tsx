@@ -1,6 +1,6 @@
 import { UnileverHeader } from "@/components/unilever-header";
 import { StatusFlow } from "@/components/status-flow";
-import { CLUSTERS as STATIC_CLUSTERS, TOP_CHANNELS as STATIC_TOP_CHANNELS, MT_SUB_CHANNELS as STATIC_MT_SUB_CHANNELS, GEOGRAPHY_DEPOT_MAP as STATIC_GEOGRAPHY_DEPOT_MAP } from "@/lib/distribution-data";
+import { CLUSTERS as STATIC_CLUSTERS, TOP_CHANNELS as STATIC_TOP_CHANNELS, MT_SUB_CHANNELS as STATIC_MT_SUB_CHANNELS, GEOGRAPHY_DEPOT_MAP as STATIC_GEOGRAPHY_DEPOT_MAP, CUSTOMER_CHAINS } from "@/lib/distribution-data";
 import { PeoplePicker } from "@/components/people-picker";
 import { useNetworkEntryForm } from "@/controllers/useNetworkEntryForm";
 import { useReferenceData, type ChannelDef, type ClusterRegionState } from "@/controllers/useReferenceData";
@@ -192,6 +192,7 @@ export default function EditEntry() {
     toggleAllClusters, toggleAllDepots,
     handleSubmit, handleSaveDraft, handleConfirmSubmit, isPending, navigate,
     selectedGeo, selectedDepots, selectedChannels, channelMapping,
+    customerMapping, updateCustomerMapping, mtGeos,
     allClustersSelected, allDepotsSelected,
     selectedLeafCount,
     computedYear, isDraft,
@@ -859,7 +860,7 @@ export default function EditEntry() {
 
             <TabsContent value="distribution" className="mt-0">
               <Tabs defaultValue="geo-depot" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsList className="grid w-full grid-cols-4 mb-4">
                   <TabsTrigger value="geo-depot" className="text-xs">
                     <Building2 className="h-3.5 w-3.5 mr-1.5" />
                     Geo → Depot
@@ -867,6 +868,15 @@ export default function EditEntry() {
                   <TabsTrigger value="geo-channel" className="text-xs">
                     <Radio className="h-3.5 w-3.5 mr-1.5" />
                     Geo → Channel
+                  </TabsTrigger>
+                  <TabsTrigger value="customer-mapping" className="text-xs" data-testid="tab-customer-mapping">
+                    <Network className="h-3.5 w-3.5 mr-1.5" />
+                    Customer Mapping
+                    {mtGeos.length > 0 && (
+                      <Badge variant="secondary" className="ml-1.5 h-4 min-w-4 text-[9px] px-1">
+                        {mtGeos.length}
+                      </Badge>
+                    )}
                   </TabsTrigger>
                   <TabsTrigger value="summary" className="text-xs">
                     <Info className="h-3.5 w-3.5 mr-1.5" />
@@ -1239,6 +1249,145 @@ export default function EditEntry() {
                   </Card>
 
                 </TabsContent>
+
+                {/* ── Customer Mapping Sub-Tab ─────────────────────────── */}
+                <TabsContent value="customer-mapping" className="mt-0">
+                  {mtGeos.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <Network className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-muted-foreground">No MT clusters selected</p>
+                        <p className="text-xs text-muted-foreground/70 mt-1">
+                          Select the <span className="font-semibold">MT</span> channel for at least one cluster in the
+                          &nbsp;<span className="font-semibold">Geo → Channel</span> tab to configure customer mapping.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Network className="h-4 w-4 text-primary" />
+                        <h3 className="text-sm font-semibold">Customer Chain Mapping</h3>
+                        <Badge variant="secondary" className="text-[10px]">{mtGeos.length} MT cluster{mtGeos.length !== 1 ? "s" : ""}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground -mt-2">
+                        For each cluster with MT selected, choose which customer chains apply. Chains are grouped by MT sub-channel.
+                      </p>
+
+                      {mtGeos.map(geo => {
+                        const geoChannels = channelMapping[geo] || [];
+                        const geoMtSubCodes = MT_SUB_CHANNELS.filter(sc => geoChannels.includes(sc.code)).map(sc => sc.code);
+                        const selectedChains = customerMapping[geo] || [];
+                        const totalChains = CUSTOMER_CHAINS.filter(c => geoMtSubCodes.includes(c.subChannel)).length;
+                        const selectedCount = selectedChains.length;
+
+                        const toggleChain = (chainCode: string) => {
+                          const next = selectedChains.includes(chainCode)
+                            ? selectedChains.filter(c => c !== chainCode)
+                            : [...selectedChains, chainCode];
+                          updateCustomerMapping(geo, next);
+                        };
+
+                        const toggleAllForGeo = () => {
+                          const all = CUSTOMER_CHAINS.filter(c => geoMtSubCodes.includes(c.subChannel)).map(c => c.code);
+                          const allSelected = all.every(c => selectedChains.includes(c));
+                          updateCustomerMapping(geo, allSelected ? [] : all);
+                        };
+
+                        return (
+                          <Card key={geo} data-testid={`customer-mapping-geo-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}>
+                            <CardHeader className="pb-2 pt-3 px-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Globe className="h-3.5 w-3.5 text-primary" />
+                                  <span className="text-sm font-semibold">{geo}</span>
+                                  <Badge variant="outline" className="text-[10px]">{selectedCount}/{totalChains} chains</Badge>
+                                  {geoMtSubCodes.map(sc => (
+                                    <Badge key={sc} variant="secondary" className="text-[9px] px-1.5">{sc}</Badge>
+                                  ))}
+                                </div>
+                                <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+                                  data-testid={`select-all-chains-${geo.toLowerCase().replace(/[\s-]+/g, "-")}`}>
+                                  <Checkbox
+                                    checked={totalChains > 0 && selectedCount === totalChains}
+                                    onCheckedChange={toggleAllForGeo}
+                                    className="h-3.5 w-3.5"
+                                  />
+                                  All
+                                </label>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="px-4 pb-3">
+                              {geoMtSubCodes.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">No MT sub-channels selected for this cluster.</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {geoMtSubCodes.map(subCode => {
+                                    const chainsForSub = CUSTOMER_CHAINS.filter(c => c.subChannel === subCode);
+                                    const allSubSelected = chainsForSub.every(c => selectedChains.includes(c.code));
+                                    const someSubSelected = chainsForSub.some(c => selectedChains.includes(c.code));
+
+                                    const toggleAllSub = () => {
+                                      const codes = chainsForSub.map(c => c.code);
+                                      let next: string[];
+                                      if (allSubSelected) {
+                                        next = selectedChains.filter(c => !codes.includes(c));
+                                      } else {
+                                        next = [...new Set([...selectedChains, ...codes])];
+                                      }
+                                      updateCustomerMapping(geo, next);
+                                    };
+
+                                    return (
+                                      <div key={subCode}>
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                          <label className="flex items-center gap-1.5 cursor-pointer"
+                                            data-testid={`select-all-sub-${geo}-${subCode}`.toLowerCase().replace(/[\s-]+/g, "-")}>
+                                            <Checkbox
+                                              checked={allSubSelected}
+                                              data-state={someSubSelected && !allSubSelected ? "indeterminate" : undefined}
+                                              onCheckedChange={toggleAllSub}
+                                              className="h-3 w-3"
+                                            />
+                                          </label>
+                                          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{subCode}</span>
+                                          <span className="text-[10px] text-muted-foreground">
+                                            ({chainsForSub.filter(c => selectedChains.includes(c.code)).length}/{chainsForSub.length})
+                                          </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1.5 pl-2">
+                                          {chainsForSub.map(chain => (
+                                            <label
+                                              key={chain.code}
+                                              className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs cursor-pointer transition-colors ${
+                                                selectedChains.includes(chain.code)
+                                                  ? "bg-primary/10 border-primary/30 text-foreground font-medium"
+                                                  : "bg-background border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/30"
+                                              }`}
+                                              data-testid={`chain-${chain.code}-${geo}`.toLowerCase().replace(/[\s-]+/g, "-")}
+                                            >
+                                              <Checkbox
+                                                checked={selectedChains.includes(chain.code)}
+                                                onCheckedChange={() => toggleChain(chain.code)}
+                                                className="h-3 w-3"
+                                              />
+                                              {chain.code}
+                                            </label>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+
               </Tabs>
             </TabsContent>
 

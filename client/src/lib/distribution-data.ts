@@ -109,3 +109,61 @@ export function getSelectedRegions(selectedClusters: string[]): string[] {
   }
   return Array.from(stateIds);
 }
+
+export interface CustomerChainDef {
+  code: string;
+  subChannel: string; // matches an MT_SUB_CHANNELS code
+}
+
+export const CUSTOMER_CHAINS: CustomerChainDef[] = [
+  { code: "ASDS",  subChannel: "Ecom" },
+  { code: "BTML",  subChannel: "Ecom" },
+  { code: "BTMS",  subChannel: "Ecom" },
+  { code: "CITI",  subChannel: "Ecom" },
+  { code: "CLOT",  subChannel: "Ecom" },
+  { code: "CRWL",  subChannel: "Ecom" },
+  { code: "FKMT",  subChannel: "Ecom" },
+  { code: "FKPT",  subChannel: "Ecom" },
+  { code: "FLPT",  subChannel: "Ecom" },
+  { code: "FRCY",  subChannel: "Ecom" },
+  { code: "FTHP",  subChannel: "Ecom" },
+  { code: "JRPL",  subChannel: "Ecom" },
+  { code: "MRPL",  subChannel: "Ecom" },
+  { code: "MYAN",  subChannel: "Ecom" },
+  { code: "NSPL",  subChannel: "Ecom" },
+  { code: "NYKA",  subChannel: "Ecom" },
+  { code: "PRPE",  subChannel: "Ecom" },
+  { code: "SLIK",  subChannel: "Ecom" },
+  { code: "SMYT",  subChannel: "Ecom" },
+  { code: "TCLQ",  subChannel: "Ecom" },
+  { code: "WFLP",  subChannel: "Ecom" },
+  { code: "ZIPE",  subChannel: "Ecom" },
+  { code: "ASML",  subChannel: "MT Retail" },
+  { code: "DNCP",  subChannel: "MT Retail" },
+  { code: "FSNB",  subChannel: "MT Retail" },
+  { code: "HNGL",  subChannel: "MT Retail" },
+  { code: "LSIP",  subChannel: "MT Retail" },
+  { code: "MAX",   subChannel: "MT Retail" },
+  { code: "MORE",  subChannel: "MT Retail" },
+  { code: "RELI",  subChannel: "MT Retail" },
+  { code: "SPEN",  subChannel: "MT Retail" },
+  { code: "STAR",  subChannel: "MT Retail" },
+  { code: "TIRV",  subChannel: "MT Retail" },
+  { code: "WIRL",  subChannel: "MT Retail" },
+  { code: "WRRL",  subChannel: "MT Retail" },
+  { code: "BIGB",  subChannel: "Qcom" },
+  { code: "BLIT",  subChannel: "Qcom" },
+  { code: "MOON",  subChannel: "Qcom" },
+  { code: "SWIN",  subChannel: "Qcom" },
+  { code: "ZPTO",  subChannel: "Qcom" },
+  { code: "BIPL",  subChannel: "CNC" },
+  { code: "CPWI",  subChannel: "CNC" },
+  { code: "JBTL",  subChannel: "CNC" },
+  { code: "METRO", subChannel: "CNC" },
+  { code: "NYKB",  subChannel: "CNC" },
+  { code: "SMGS",  subChannel: "CNC" },
+  { code: "UDAN",  subChannel: "CNC" },
+  { code: "WBWM",  subChannel: "CNC" },
+  { code: "WMCC",  subChannel: "CNC" },
+  { code: "WRMC",  subChannel: "CNC" },
+];

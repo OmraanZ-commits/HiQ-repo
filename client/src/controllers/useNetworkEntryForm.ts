@@ -84,6 +84,7 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
         depot: entry.depot || [],
         channel: entry.channel || [],
         channelMapping: (entry.channelMapping as Record<string, string[]>) || {},
+        customerMapping: (entry.customerMapping as Record<string, string[]>) || {},
       });
     }
   }, [entry]);
@@ -391,12 +392,29 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
   const selectedDepots = (form?.depot || []) as string[];
   const selectedChannels = (form?.channel || []) as string[];
   const channelMapping = ((form?.channelMapping as Record<string, string[]>) || {});
+  const customerMapping = ((form?.customerMapping as Record<string, string[]>) || {});
   const allClustersSelected = clusters.every(c => selectedGeo.includes(c.name));
   const availableDepotsForGeo = getAvailableDepotsFromMap(selectedGeo);
   const allDepotsSelected = availableDepotsForGeo.length > 0 && availableDepotsForGeo.every(d => selectedDepots.includes(d));
   const selectedLeafCount = leafChannels.filter(c => selectedChannels.includes(c.code)).length;
   const computedYear = form ? computeYear(form.cbuCreatedDate) : null;
   const isDraft = entry?.networkStatus === "Draft";
+
+  // Geos where MT (Modern Trade) channel is selected
+  const mtGeos = selectedGeo.filter(geo => (channelMapping[geo] || []).includes("MT"));
+
+  const updateCustomerMapping = (geo: string, chains: string[]) => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const cm = { ...((prev.customerMapping as Record<string, string[]>) || {}) };
+      if (chains.length === 0) {
+        delete cm[geo];
+      } else {
+        cm[geo] = chains;
+      }
+      return { ...prev, customerMapping: cm };
+    });
+  };
 
   return {
     entry,
@@ -425,6 +443,9 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     selectedDepots,
     selectedChannels,
     channelMapping,
+    customerMapping,
+    updateCustomerMapping,
+    mtGeos,
     allClustersSelected,
     allDepotsSelected,
     selectedLeafCount,
