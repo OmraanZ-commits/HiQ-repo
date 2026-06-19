@@ -1348,7 +1348,24 @@ export default function EditEntry() {
                                                     </span>
                                                   ))
                                                 )}
-                                                <ChevronsUpDown className="h-3 w-3 text-muted-foreground ml-auto shrink-0 self-center" />
+                                                <span className="ml-auto shrink-0 self-center flex items-center gap-0.5">
+                                                  {subSelected.length > 0 && (
+                                                    <span
+                                                      role="button"
+                                                      data-testid={`clear-all-chains-${geo}-${subCode}`.toLowerCase().replace(/[\s:]+/g, "-")}
+                                                      className="inline-flex items-center justify-center h-4 w-4 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                                      onClick={e => {
+                                                        e.stopPropagation();
+                                                        const allCodes = chainsForSub.map(c => c.code);
+                                                        updateCustomerMapping(geo, selectedChains.filter(c => !allCodes.includes(c)));
+                                                      }}
+                                                      title={`Clear all ${subCode}`}
+                                                    >
+                                                      <X className="h-3 w-3" />
+                                                    </span>
+                                                  )}
+                                                  <ChevronsUpDown className="h-3 w-3 text-muted-foreground" />
+                                                </span>
                                               </button>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-52 p-0" align="start">
