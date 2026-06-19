@@ -400,8 +400,11 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
   const computedYear = form ? computeYear(form.cbuCreatedDate) : null;
   const isDraft = entry?.networkStatus === "Draft";
 
-  // Geos where MT (Modern Trade) channel is selected
-  const mtGeos = selectedGeo.filter(geo => (channelMapping[geo] || []).includes("MT"));
+  // Geos where at least one MT sub-channel is selected (or the MT parent itself)
+  const mtGeos = selectedGeo.filter(geo => {
+    const geoChans = channelMapping[geo] || [];
+    return geoChans.includes("MT") || mtSubChannels.some(sc => geoChans.includes(sc.code));
+  });
 
   const updateCustomerMapping = (geo: string, chains: string[]) => {
     setForm(prev => {
