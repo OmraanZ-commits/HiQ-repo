@@ -1357,6 +1357,28 @@ export default function EditEntry() {
                                                 <CommandList className="max-h-52">
                                                   <CommandEmpty className="py-3 text-xs text-center text-muted-foreground">No chains found.</CommandEmpty>
                                                   <CommandGroup>
+                                                    {/* Select all / Clear row */}
+                                                    {(() => {
+                                                      const allCodes = chainsForSub.map(c => c.code);
+                                                      const allSelected = allCodes.every(c => selectedChains.includes(c));
+                                                      return (
+                                                        <CommandItem
+                                                          key="__select_all__"
+                                                          value="__select_all__"
+                                                          onSelect={() => {
+                                                            const otherSelected = selectedChains.filter(c => !allCodes.includes(c));
+                                                            updateCustomerMapping(geo, allSelected ? otherSelected : [...otherSelected, ...allCodes]);
+                                                          }}
+                                                          className="flex items-center gap-2 text-xs cursor-pointer border-b mb-0.5 pb-1.5 font-medium text-primary"
+                                                          data-testid={`chain-select-all-${geo}-${subCode}`.toLowerCase().replace(/[\s:]+/g, "-")}
+                                                        >
+                                                          <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${allSelected ? "bg-primary border-primary" : "border-primary/50"}`}>
+                                                            {allSelected ? <Check className="h-2.5 w-2.5 text-white" /> : <span className="text-[8px] text-primary font-bold leading-none">✓</span>}
+                                                          </div>
+                                                          {allSelected ? "Clear all" : "Select all"}
+                                                        </CommandItem>
+                                                      );
+                                                    })()}
                                                     {chainsForSub.map(chain => {
                                                       const checked = selectedChains.includes(chain.code);
                                                       return (
