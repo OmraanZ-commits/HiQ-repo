@@ -13,7 +13,7 @@ CHANNEL_SEEDS = [
     {"code": "Ecom", "name": "E-Commerce", "type": "Modern Trade", "parentCode": "MT"},
     {"code": "Qcom", "name": "Quick Commerce", "type": "Modern Trade", "parentCode": "MT"},
     {"code": "MT Retail", "name": "MT Retail", "type": "Modern Trade", "parentCode": "MT"},
-    {"code": "KA", "name": "Key Accounts", "type": "Modern Trade", "parentCode": "MT"},
+    {"code": "KA", "name": "Key Accounts", "type": "Traditional"},
     {"code": "CNC", "name": "Cash & Carry", "type": "Modern Trade", "parentCode": "MT"},
 ]
 
