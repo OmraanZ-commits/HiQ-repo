@@ -8,13 +8,13 @@ export const TOP_CHANNELS: ChannelDef[] = [
   { code: "GT", type: "Core" },
   { code: "RD", type: "Core" },
   { code: "CSD", type: "Traditional" },
+  { code: "KA", type: "Traditional" },
 ];
 
 export const MT_SUB_CHANNELS: ChannelDef[] = [
   { code: "Ecom", type: "Modern Trade", parent: "MT" },
   { code: "Qcom", type: "Modern Trade", parent: "MT" },
   { code: "MT Retail", type: "Modern Trade", parent: "MT" },
-  { code: "KA", type: "Modern Trade", parent: "MT" },
   { code: "CNC", type: "Modern Trade", parent: "MT" },
 ];
 
