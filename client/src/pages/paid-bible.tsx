@@ -300,9 +300,6 @@ function MaterialsSubTable({
             <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">NW Change Date</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">MSTN Clear</TableHead>
-            <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Predecessor CBU DOH</TableHead>
-            <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Successor CBU DOH</TableHead>
-            <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">Prod Plan (Next 3 MOC)</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4">Price End</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 w-16" />
@@ -363,31 +360,6 @@ function MaterialsSubTable({
                     {m.mstnClear != null
                       ? <MstnBadge status={m.mstnClear} />
                       : <span className="text-sm text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="py-3 px-4 whitespace-nowrap text-center">
-                    {m.predecessorDoh != null ? (
-                      <span className="inline-flex items-center justify-center gap-1.5">
-                        <span className="text-sm text-muted-foreground">{m.predecessorDoh}</span>
-                        {m.slobRisk && (
-                          <span title="SLOB Risk" aria-label="SLOB Risk" data-testid={`icon-slob-risk-${m.id}`}>
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 cursor-help" />
-                          </span>
-                        )}
-                      </span>
-                    ) : <span className="text-sm text-muted-foreground">-</span>}
-                  </TableCell>
-                  <TableCell className="py-3 px-4 whitespace-nowrap text-center" data-testid={`successor-doh-${m.id}`}>
-                    {m.successorDoh != null ? (
-                      <span className="text-sm text-muted-foreground">{m.successorDoh}</span>
-                    ) : <span className="text-sm text-muted-foreground">-</span>}
-                  </TableCell>
-                  <TableCell className="py-3 px-4" data-testid={`prod-plan-${m.id}`}>
-                    {m.prodPlanMoc1 === null && m.prodPlanMoc2 === null && m.prodPlanMoc3 === null
-                      ? <span className="text-xs text-muted-foreground">—</span>
-                      : (m.prodPlanMoc1 || m.prodPlanMoc2 || m.prodPlanMoc3)
-                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 whitespace-nowrap">Has Plan</span>
-                        : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 whitespace-nowrap">No Plan</span>
-                    }
                   </TableCell>
                   <TableCell className="py-3 px-4">
                     <span className={`text-sm font-semibold ${m.priceActive ? "text-emerald-600" : "text-red-500"}`}>
@@ -1842,8 +1814,6 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
                       </>}
                       {t.id === "slob-risk" && <>
                         <TableHead className="text-xs font-semibold">Predecessor Code</TableHead>
-                        <TableHead className="text-xs font-semibold text-center">Predecessor DOH</TableHead>
-                        <TableHead className="text-xs font-semibold text-center">Successor DOH</TableHead>
                         <TableHead className="text-xs font-semibold text-center">Last Updated</TableHead>
                       </>}
                     </TableRow>
@@ -1860,8 +1830,6 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
                         </>}
                         {t.id === "slob-risk" && <>
                           <TableCell className="text-xs font-mono text-muted-foreground">{m.copyCbu || "—"}</TableCell>
-                          <TableCell className="text-xs text-center text-muted-foreground">{m.predecessorDoh ?? "—"}</TableCell>
-                          <TableCell className="text-xs text-center text-muted-foreground">{m.successorDoh ?? "—"}</TableCell>
                           <TableCell className="text-xs text-center text-muted-foreground">
                             {new Date(m.dohSnapshotDate ?? Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                           </TableCell>
