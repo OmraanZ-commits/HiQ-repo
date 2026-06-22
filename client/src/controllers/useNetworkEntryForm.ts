@@ -3,7 +3,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
-import { TOP_CHANNELS as STATIC_TOP_CHANNELS, MT_SUB_CHANNELS as STATIC_MT_SUB_CHANNELS, GEOGRAPHY_DEPOT_MAP as STATIC_GEOGRAPHY_DEPOT_MAP, CLUSTERS as STATIC_CLUSTERS, type ClusterDef } from "@/lib/distribution-data";
+import { TOP_CHANNELS as STATIC_TOP_CHANNELS, MT_SUB_CHANNELS as STATIC_MT_SUB_CHANNELS, GEOGRAPHY_DEPOT_MAP as STATIC_GEOGRAPHY_DEPOT_MAP, CLUSTERS as STATIC_CLUSTERS, CUSTOMER_CHAINS, type ClusterDef } from "@/lib/distribution-data";
 import { addDays, computeYear } from "@/lib/date-utils";
 import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
 import type { GeographyDepotMap, ChannelDef } from "@/controllers/useReferenceData";
@@ -419,6 +419,43 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     });
   };
 
+  // Select all customer chains for every MT cluster (only for their active sub-channels)
+  const selectAllCustomerChains = () => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const cm = { ...((prev.customerMapping as Record<string, string[]>) || {}) };
+      const mapping = (prev.channelMapping as Record<string, string[]>) || {};
+      const geos = (prev.geography as string[]) || [];
+      const currentMtGeos = geos.filter(geo => {
+        const geoChans = mapping[geo] || [];
+        return geoChans.includes("MT") || mtSubChannels.some(sc => geoChans.includes(sc.code));
+      });
+      currentMtGeos.forEach(geo => {
+        const geoChans = mapping[geo] || [];
+        const activeSubs = mtSubChannels.filter(sc => geoChans.includes(sc.code)).map(sc => sc.code);
+        const allChainsForGeo = CUSTOMER_CHAINS.filter(c => activeSubs.includes(c.subChannel)).map(c => c.code);
+        cm[geo] = allChainsForGeo;
+      });
+      return { ...prev, customerMapping: cm };
+    });
+  };
+
+  // Clear all customer chains for every MT cluster
+  const clearAllCustomerChains = () => {
+    setForm(prev => {
+      if (!prev) return prev;
+      const cm = { ...((prev.customerMapping as Record<string, string[]>) || {}) };
+      const mapping = (prev.channelMapping as Record<string, string[]>) || {};
+      const geos = (prev.geography as string[]) || [];
+      const currentMtGeos = geos.filter(geo => {
+        const geoChans = mapping[geo] || [];
+        return geoChans.includes("MT") || mtSubChannels.some(sc => geoChans.includes(sc.code));
+      });
+      currentMtGeos.forEach(geo => { delete cm[geo]; });
+      return { ...prev, customerMapping: cm };
+    });
+  };
+
   return {
     entry,
     form,
@@ -448,6 +485,8 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     channelMapping,
     customerMapping,
     updateCustomerMapping,
+    selectAllCustomerChains,
+    clearAllCustomerChains,
     mtGeos,
     allClustersSelected,
     allDepotsSelected,

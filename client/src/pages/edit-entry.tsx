@@ -194,7 +194,7 @@ export default function EditEntry() {
     toggleAllClusters, toggleAllDepots,
     handleSubmit, handleSaveDraft, handleConfirmSubmit, isPending, navigate,
     selectedGeo, selectedDepots, selectedChannels, channelMapping,
-    customerMapping, updateCustomerMapping, mtGeos,
+    customerMapping, updateCustomerMapping, selectAllCustomerChains, clearAllCustomerChains, mtGeos,
     allClustersSelected, allDepotsSelected,
     selectedLeafCount,
     computedYear, isDraft,
@@ -1273,6 +1273,25 @@ export default function EditEntry() {
                             <Network className="h-4 w-4 text-primary" />
                             <h3 className="text-sm font-semibold">Customer Chain Mapping</h3>
                             <Badge variant="secondary" className="text-[10px]">{mtGeos.length} MT cluster{mtGeos.length !== 1 ? "s" : ""}</Badge>
+                            <div className="ml-auto flex items-center gap-2">
+                              <button
+                                type="button"
+                                data-testid="select-all-customer-chains"
+                                onClick={selectAllCustomerChains}
+                                className="text-[11px] font-medium text-primary hover:underline underline-offset-2 transition-colors"
+                              >
+                                Select all
+                              </button>
+                              <span className="text-muted-foreground/40 text-xs">|</span>
+                              <button
+                                type="button"
+                                data-testid="deselect-all-customer-chains"
+                                onClick={clearAllCustomerChains}
+                                className="text-[11px] font-medium text-muted-foreground hover:text-destructive hover:underline underline-offset-2 transition-colors"
+                              >
+                                Deselect all
+                              </button>
+                            </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">Select the customer chains that apply to each MT cluster.</p>
                         </CardHeader>
