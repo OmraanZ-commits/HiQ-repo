@@ -15,11 +15,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, AlertCircle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText, FileCheck, Plus, Trash2, ExternalLink, Upload, FileSpreadsheet, Image, ChevronsUpDown, X } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, AlertCircle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText, Plus, ExternalLink, FileSpreadsheet, ChevronsUpDown, X, Eye } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import * as XLSX from "xlsx";
@@ -217,16 +217,8 @@ export default function EditEntry() {
   const [openGeo, setOpenGeo] = useState<string | null>(null);
   const { data: portalUsers = [] } = useQuery<PortalUser[]>({ queryKey: ["/api/users"] });
 
-  // ── FTR tab state ────────────────────────────────────────────────────────────
-  const ftrImagePickerRef = useRef<HTMLInputElement>(null);
-
-  type FtrConfirm =
-    | { type: "url"; url: string; caption: string }
-    | { type: "file"; file: File; previewDataUrl: string; caption: string }
-    | null;
-  const [ftrConfirm, setFtrConfirm] = useState<FtrConfirm>(null);
-  const [ftrNewImageUrl, setFtrNewImageUrl] = useState("");
-  const [ftrNewImageCaption, setFtrNewImageCaption] = useState("");
+  // ── FTR state ────────────────────────────────────────────────────────────────
+  const [ftrDialogOpen, setFtrDialogOpen] = useState(false);
 
   const cbuCode = entry?.cbuCode ?? "";
 
@@ -235,64 +227,6 @@ export default function EditEntry() {
     queryFn: () => cbuCode ? fetch(`/api/ftr/images/${encodeURIComponent(cbuCode)}`).then(r => r.json()) : Promise.resolve([]),
     enabled: !!cbuCode,
   });
-
-  const addFtrImageUrlMutation = useMutation({
-    mutationFn: (payload: { cbuCode: string; imageUrl: string; caption: string }) =>
-      apiRequest("POST", "/api/ftr/images", payload).then(r => r.json()),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ftr/images", cbuCode] });
-      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
-      setFtrNewImageUrl("");
-      setFtrNewImageCaption("");
-      setFtrConfirm(null);
-      const advanced = result?.statusTriggered;
-      toast({
-        title: "Image link saved",
-        description: advanced ? 'CBU automatically moved to "FTR Approved".' : undefined,
-      });
-    },
-    onError: () => toast({ title: "Failed to save image link", variant: "destructive" }),
-  });
-
-  const uploadFtrImageFileMutation = useMutation({
-    mutationFn: async (payload: { file: File; caption: string }) => {
-      const form = new FormData();
-      form.append("cbu_code", cbuCode);
-      form.append("file", payload.file);
-      if (payload.caption) form.append("caption", payload.caption);
-      form.append("uploaded_by", "Portal User");
-      const res = await fetch("/api/ftr/images/upload-file", { method: "POST", body: form });
-      if (!res.ok) throw new Error("Upload failed");
-      return res.json();
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ftr/images", cbuCode] });
-      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
-      setFtrConfirm(null);
-      const advanced = result?.statusTriggered;
-      toast({
-        title: "Image uploaded",
-        description: advanced ? 'CBU automatically moved to "FTR Approved".' : undefined,
-      });
-    },
-    onError: () => toast({ title: "Image upload failed", variant: "destructive" }),
-  });
-
-  const deleteFtrImageMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/ftr/images/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/ftr/images", cbuCode] }),
-  });
-
-  const handleFtrImageFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setFtrConfirm({ type: "file", file, previewDataUrl: ev.target!.result as string, caption: "" });
-    };
-    reader.readAsDataURL(file);
-    if (ftrImagePickerRef.current) ftrImagePickerRef.current.value = "";
-  };
 
   const { channelOverrides, sourcingOverrides, geoRemovalOverrides, requests: allRequests } = useSrStore();
   const handleRaiseAmendment = () => setShowAmendmentDialog(true);
@@ -652,38 +586,55 @@ export default function EditEntry() {
               </div>
             </div>
           </div>
-          {isPaidBibleView ? (
+          <div className="flex items-center gap-2">
+            {/* FTR viewer button — always visible */}
             <Button
-              onClick={handleRaiseAmendment}
-              variant="outline"
-              className="gap-2 border-amber-400 text-amber-700 hover:bg-amber-50"
-              data-testid="button-raise-amendment"
+              type="button"
+              variant={ftrImages.length > 0 ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => setFtrDialogOpen(true)}
+              className={ftrImages.length > 0
+                ? "gap-1.5 text-[#0d8ecf] border-[#0d8ecf]/40 hover:bg-[#0d8ecf]/5"
+                : "gap-1.5 text-muted-foreground hover:text-[#0d8ecf]"}
+              data-testid="button-show-ftr"
             >
-              <AlertTriangle className="h-4 w-4" />
-              Raise Amendment Request
+              <Eye className="h-3.5 w-3.5" />
+              {ftrImages.length > 0 ? `FTR (${ftrImages.length})` : "FTR"}
             </Button>
-          ) : isDraft ? (
-            <div className="flex items-center gap-2">
+
+            {isPaidBibleView ? (
               <Button
+                onClick={handleRaiseAmendment}
                 variant="outline"
-                onClick={handleSaveDraft}
-                disabled={isPending}
-                data-testid="button-save-draft"
+                className="gap-2 border-amber-400 text-amber-700 hover:bg-amber-50"
+                data-testid="button-raise-amendment"
               >
+                <AlertTriangle className="h-4 w-4" />
+                Raise Amendment Request
+              </Button>
+            ) : isDraft ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleSaveDraft}
+                  disabled={isPending}
+                  data-testid="button-save-draft"
+                >
+                  {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Draft
+                </Button>
+                <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-activate">
+                  {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                  Submit & Activate
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
                 {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                Save Draft
+                Save Changes
               </Button>
-              <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-activate">
-                {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-                Submit & Activate
-              </Button>
-            </div>
-          ) : (
-            <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
-              {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Changes
-            </Button>
-          )}
+            )}
+          </div>
         </div>
 
         {!isPaidBibleView && (
@@ -727,12 +678,6 @@ export default function EditEntry() {
               </TabsTrigger>
               <TabsTrigger value="pricing" className="gap-2" data-testid="tab-pricing">
                 <Tag className="h-4 w-4" /> Pricing
-              </TabsTrigger>
-              <TabsTrigger value="ftr" className="gap-2" data-testid="tab-ftr">
-                <FileCheck className="h-4 w-4" /> FTR
-                {ftrImages.length > 0 && (
-                  <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
-                )}
               </TabsTrigger>
               <TabsTrigger value="finance" className="gap-2" data-testid="tab-finance">
                 <ReceiptText className="h-4 w-4" /> Finance Inputs
@@ -1914,259 +1859,6 @@ export default function EditEntry() {
               </Tabs>
             </TabsContent>
 
-            {/* ── FTR Tab ───────────────────────────────────────────────── */}
-            <TabsContent value="ftr" className="mt-0">
-              {/* Hidden file input for actual image upload */}
-              <input
-                ref={ftrImagePickerRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFtrImageFileSelected}
-                data-testid="input-ftr-image-file"
-              />
-
-              {/* Confirmation dialog */}
-              <Dialog open={!!ftrConfirm} onOpenChange={(open) => !open && setFtrConfirm(null)}>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {ftrConfirm?.type === "file" ? "Confirm Image Upload" : "Confirm Image Link"}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {ftrConfirm?.type === "file"
-                        ? "Review the image below and add an optional caption before confirming."
-                        : "Review the image link and add an optional caption before confirming."}
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-4">
-                    {ftrConfirm?.type === "file" && (
-                      <div className="rounded-lg overflow-hidden border bg-muted/20 flex items-center justify-center min-h-[160px]">
-                        <img
-                          src={ftrConfirm.previewDataUrl}
-                          alt="Preview"
-                          className="max-h-48 max-w-full object-contain"
-                        />
-                      </div>
-                    )}
-                    {ftrConfirm?.type === "url" && (
-                      <div className="rounded-md bg-muted/30 px-3 py-2 text-xs font-mono break-all text-[#0d8ecf]">
-                        {ftrConfirm.url}
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Caption (optional)</label>
-                      <input
-                        type="text"
-                        value={ftrConfirm?.caption ?? ""}
-                        onChange={e => setFtrConfirm(prev => prev ? { ...prev, caption: e.target.value } : prev)}
-                        placeholder="e.g. Front view, pack shot…"
-                        className="w-full text-sm rounded-md border bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-[#00b0d7]"
-                        data-testid="input-ftr-confirm-caption"
-                      />
-                    </div>
-
-                    {ftrConfirm?.type === "file" && (
-                      <p className="text-xs text-muted-foreground">
-                        File: <span className="font-medium">{ftrConfirm.file.name}</span>
-                        {" "}({(ftrConfirm.file.size / 1024).toFixed(0)} KB)
-                      </p>
-                    )}
-
-                    <p className="text-xs text-amber-700 bg-amber-50 rounded px-3 py-2 border border-amber-200">
-                      If this CBU is in <span className="font-semibold">"Production Started"</span> status, it will automatically advance to <span className="font-semibold">"FTR Approved"</span> upon confirmation.
-                    </p>
-                  </div>
-
-                  <DialogFooter className="gap-2">
-                    <Button variant="outline" onClick={() => setFtrConfirm(null)} data-testid="btn-ftr-confirm-cancel">
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        if (!ftrConfirm) return;
-                        if (ftrConfirm.type === "file") {
-                          uploadFtrImageFileMutation.mutate({ file: ftrConfirm.file, caption: ftrConfirm.caption });
-                        } else {
-                          addFtrImageUrlMutation.mutate({ cbuCode, imageUrl: ftrConfirm.url, caption: ftrConfirm.caption });
-                        }
-                      }}
-                      disabled={uploadFtrImageFileMutation.isPending || addFtrImageUrlMutation.isPending}
-                      data-testid="btn-ftr-confirm-submit"
-                    >
-                      {(uploadFtrImageFileMutation.isPending || addFtrImageUrlMutation.isPending)
-                        ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
-                        : <><Check className="h-4 w-4 mr-2" /> Confirm & Save</>}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              <div className="space-y-5">
-
-                {/* Network trigger active banner */}
-                {ftrImages.length > 0 && (
-                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
-                    <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>
-                      <span className="font-semibold">FTR Approved trigger active</span> — {ftrImages.length} image{ftrImages.length !== 1 ? "s" : ""} on record for <span className="font-mono">{cbuCode}</span>.
-                    </span>
-                  </div>
-                )}
-
-                {/* ── Add Image Actions ──────────────────────────────────── */}
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-dashed hover:border-[#00b0d7]/60 hover:bg-muted/10"
-                    onClick={() => ftrImagePickerRef.current?.click()}
-                    data-testid="btn-ftr-upload-image"
-                  >
-                    <Upload className="h-4 w-4 mr-2 text-[#00b0d7]" />
-                    Upload Image
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-dashed hover:border-[#00b0d7]/60 hover:bg-muted/10"
-                    onClick={() => {
-                      if (!ftrNewImageUrl.trim()) return;
-                      setFtrConfirm({ type: "url", url: ftrNewImageUrl.trim(), caption: ftrNewImageCaption.trim() });
-                    }}
-                    disabled={!ftrNewImageUrl.trim()}
-                    data-testid="btn-ftr-add-link"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2 text-[#00b0d7]" />
-                    Add Image Link
-                  </Button>
-                </div>
-
-                {/* URL input row (shown below the buttons) */}
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="text-[11px] text-muted-foreground mb-1 block">Image URL</label>
-                    <input
-                      type="url"
-                      value={ftrNewImageUrl}
-                      onChange={e => setFtrNewImageUrl(e.target.value)}
-                      placeholder="https://…"
-                      className="w-full text-xs rounded-md border bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-[#00b0d7]"
-                      data-testid="input-ftr-image-url"
-                    />
-                  </div>
-                  <div className="w-44">
-                    <label className="text-[11px] text-muted-foreground mb-1 block">Caption (optional)</label>
-                    <input
-                      type="text"
-                      value={ftrNewImageCaption}
-                      onChange={e => setFtrNewImageCaption(e.target.value)}
-                      placeholder="e.g. Front view"
-                      className="w-full text-xs rounded-md border bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-[#00b0d7]"
-                      data-testid="input-ftr-image-caption"
-                    />
-                  </div>
-                </div>
-
-                {/* ── FTR Images Gallery ──────────────────────────────────── */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <Image className="h-4 w-4 text-[#00b0d7]" />
-                      <h3 className="text-sm font-semibold text-[#0d8ecf]">
-                        FTR Images
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">({cbuCode})</span>
-                      </h3>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Uploaded images and image links for this CBU. Adding even one triggers "FTR Approved" status.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    {ftrImagesLoading ? (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {[1,2,3].map(i => <Skeleton key={i} className="h-40 w-full rounded-lg" />)}
-                      </div>
-                    ) : ftrImages.length === 0 ? (
-                      <div className="flex flex-col items-center gap-3 py-10 text-muted-foreground">
-                        <Image className="h-10 w-10 opacity-20" />
-                        <p className="text-sm font-medium">No FTR images yet</p>
-                        <p className="text-xs text-center max-w-xs">
-                          Use the buttons above to upload an image file or add an image link (URL).
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {ftrImages.map((img: any, i: number) => (
-                          <div key={img.id} className="group relative rounded-lg border overflow-hidden bg-muted/10" data-testid={`card-ftr-image-${img.id}`}>
-                            {/* Image render: prefer imageData (actual upload), fall back to imageUrl */}
-                            {(img.imageData || img.imageUrl) ? (
-                              <div className="aspect-square bg-muted/20 flex items-center justify-center overflow-hidden">
-                                <img
-                                  src={img.imageData ?? img.imageUrl}
-                                  alt={img.caption || `FTR Image ${i + 1}`}
-                                  className="w-full h-full object-cover"
-                                  onError={e => {
-                                    (e.target as HTMLImageElement).style.display = "none";
-                                    const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
-                                    if (fallback) fallback.style.display = "flex";
-                                  }}
-                                />
-                                {/* Fallback for broken URL images */}
-                                <div className="hidden w-full h-full items-center justify-center flex-col gap-2 text-muted-foreground">
-                                  <ExternalLink className="h-8 w-8 opacity-30" />
-                                  <p className="text-[10px] text-center px-2 break-all">{img.imageUrl}</p>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="aspect-square bg-muted/30 flex items-center justify-center">
-                                <Image className="h-8 w-8 opacity-20" />
-                              </div>
-                            )}
-                            {/* Caption & meta */}
-                            <div className="px-2.5 py-2 space-y-0.5">
-                              {img.caption ? (
-                                <p className="text-xs font-medium truncate">{img.caption}</p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground italic">
-                                  {img.imageFilename || `Image ${i + 1}`}
-                                </p>
-                              )}
-                              <p className="text-[10px] text-muted-foreground">
-                                {img.imageData ? "Uploaded file" : "Image link"}
-                                {img.uploadedAt ? ` · ${new Date(img.uploadedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}` : ""}
-                              </p>
-                            </div>
-                            {/* Delete overlay on hover */}
-                            <button
-                              className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                              onClick={() => deleteFtrImageMutation.mutate(img.id)}
-                              disabled={deleteFtrImageMutation.isPending}
-                              data-testid={`btn-delete-ftr-image-${img.id}`}
-                            >
-                              <Trash2 className="h-3 w-3 text-white" />
-                            </button>
-                            {/* URL link badge */}
-                            {!img.imageData && img.imageUrl && (
-                              <a
-                                href={img.imageUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="absolute top-2 left-2 h-5 w-5 rounded-full bg-black/40 flex items-center justify-center hover:bg-[#00b0d7]"
-                                data-testid={`link-ftr-image-${img.id}`}
-                              >
-                                <ExternalLink className="h-2.5 w-2.5 text-white" />
-                              </a>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-              </div>
-            </TabsContent>
 
             {/* ── Finance Inputs Tab ────────────────────────────────────── */}
             <TabsContent value="finance" className="mt-0">
@@ -2361,6 +2053,68 @@ export default function EditEntry() {
 
           </Tabs>
         </form>
+
+        {/* ── FTR Links viewer dialog ──────────────────────────────────── */}
+        <Dialog open={ftrDialogOpen} onOpenChange={setFtrDialogOpen}>
+          <DialogContent className="max-w-lg" data-testid="dialog-ftr-links">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-[#0d8ecf]" />
+                FTR Links
+                <span className="text-xs font-normal text-muted-foreground ml-1">({cbuCode})</span>
+              </DialogTitle>
+              <DialogDescription>
+                FTR document links sourced from the Overview Excel upload.
+              </DialogDescription>
+            </DialogHeader>
+
+            {ftrImagesLoading ? (
+              <div className="space-y-2 py-2">
+                {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full rounded" />)}
+              </div>
+            ) : ftrImages.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-10 text-muted-foreground">
+                <ExternalLink className="h-8 w-8 opacity-20" />
+                <p className="text-sm font-medium">No FTR links on record</p>
+                <p className="text-xs text-center max-w-xs text-muted-foreground/70">
+                  Upload an FTR Excel file from the Overview page to associate links with this CBU.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y rounded-md border overflow-hidden">
+                {ftrImages.map((img: any, i: number) => (
+                  <div key={img.id} className="flex items-start gap-3 px-4 py-3 bg-background hover:bg-muted/30 transition-colors" data-testid={`ftr-link-row-${img.id}`}>
+                    <ExternalLink className="h-4 w-4 mt-0.5 shrink-0 text-[#0d8ecf]" />
+                    <div className="flex-1 min-w-0">
+                      {img.caption || img.description ? (
+                        <p className="text-sm font-medium mb-0.5">{img.caption || img.description}</p>
+                      ) : (
+                        <p className="text-sm font-medium mb-0.5 text-muted-foreground italic">Link {i + 1}</p>
+                      )}
+                      {(img.imageUrl || img.ftrLink) && (
+                        <a
+                          href={img.imageUrl || img.ftrLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-[#0d8ecf] hover:underline underline-offset-2 break-all"
+                          data-testid={`ftr-link-url-${img.id}`}
+                        >
+                          {img.imageUrl || img.ftrLink}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setFtrDialogOpen(false)} data-testid="btn-ftr-dialog-close">
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Sourcing Matrix — "all selected" dialog */}
         <Dialog open={showSourcingAllDialog} onOpenChange={setShowSourcingAllDialog}>
