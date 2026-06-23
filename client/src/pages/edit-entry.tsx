@@ -1499,28 +1499,25 @@ export default function EditEntry() {
                               <thead>
                                 <tr className="bg-muted/50 border-b">
                                   <th className="text-left py-2 px-3 font-medium text-xs w-[160px]">Depot</th>
-                                  <th className="text-left py-2 px-3 font-medium text-xs w-[220px]">Sourcing Depot</th>
-                                  <th className="text-left py-2 px-3 font-medium text-xs text-muted-foreground">Remarks</th>
+                                  <th className="text-left py-2 px-3 font-medium text-xs">Sourcing Depot</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {selectedDepots.map((depot, idx) => {
                                   const isLocked = sourcingDepotSet.has(depot);
                                   const currentSourcing = sourcingDepotMapping[depot] || "";
-                                  // Compute all distribution depots that map to the same sourcing depot as this row
-                                  const groupMembers = currentSourcing
-                                    ? selectedDepots.filter(d => sourcingDepotMapping[d] === currentSourcing)
-                                    : [];
-                                  const remarks = currentSourcing
-                                    ? `Invoice raised by ${groupMembers.join(", ")}; stock fulfilled by ${currentSourcing}`
-                                    : "";
+                                  // Only offer depots that are unassigned OR already acting as their own sourcing depot.
+                                  // Depots already mapped to a different depot (distribution depots) are excluded.
+                                  const eligibleOptions = selectedDepots.filter(d =>
+                                    !sourcingDepotMapping[d] || sourcingDepotMapping[d] === d
+                                  );
 
                                   return (
                                     <tr key={depot} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
                                       <td className="py-2 px-3 border-r font-mono text-xs font-medium align-middle whitespace-nowrap">
                                         {depot}
                                       </td>
-                                      <td className="py-2 px-3 border-r align-middle">
+                                      <td className="py-2 px-3 align-middle">
                                         {isLocked ? (
                                           <div className="flex items-center gap-1.5">
                                             <span className="text-xs font-mono font-semibold text-primary">{depot}</span>
@@ -1534,11 +1531,11 @@ export default function EditEntry() {
                                             onValueChange={val => handleSourcingDepotChange(depot, val)}
                                             data-testid={`sourcing-select-${depot.toLowerCase().replace(/\s+/g, "-")}`}
                                           >
-                                            <SelectTrigger className="h-7 text-xs font-mono w-full max-w-[200px]">
+                                            <SelectTrigger className="h-7 text-xs font-mono w-full max-w-[220px]">
                                               <SelectValue placeholder="Select sourcing depot…" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                              {selectedDepots.map(d => (
+                                              {eligibleOptions.map(d => (
                                                 <SelectItem key={d} value={d} className="text-xs font-mono">
                                                   {d}
                                                 </SelectItem>
@@ -1546,9 +1543,6 @@ export default function EditEntry() {
                                             </SelectContent>
                                           </Select>
                                         )}
-                                      </td>
-                                      <td className="py-2 px-3 text-[11px] text-muted-foreground italic align-middle">
-                                        {remarks}
                                       </td>
                                     </tr>
                                   );
