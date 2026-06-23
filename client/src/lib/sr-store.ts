@@ -101,6 +101,7 @@ export interface ServiceRequest {
   removedGeos?: string[];
   removedDepots?: string[];
   sourcingMode?: "decentralized" | "centralized";
+  sourcingDepotMapping?: Record<string, string>;
   centralizedGeos?: string[];
   centralizedDepots?: string[];
 
@@ -238,7 +239,7 @@ function _mapFrontendSrToBackend(sr: ServiceRequest): any {
 let _requests: ServiceRequest[] = [];
 let _bpStatusOverrides: Record<string, string> = {};
 let _channelOverrides: Record<string, string[]> = {};
-let _sourcingOverrides: Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }> = {};
+let _sourcingOverrides: Record<string, { mode: "decentralized" | "centralized"; depotMapping: Record<string, string>; centralizedGeos: string[]; centralizedDepots: string[] }> = {};
 let _geoRemovalOverrides: Record<string, { removedGeos: string[]; removedDepots: string[] }> = {};
 let _bpDates: Record<string, BpDates> = {};
 let _initialised = false;
@@ -315,7 +316,7 @@ export function getChannelOverrides(): Record<string, string[]> {
   return _channelOverrides;
 }
 
-export function getSourcingOverrides(): Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }> {
+export function getSourcingOverrides(): Record<string, { mode: "decentralized" | "centralized"; depotMapping: Record<string, string>; centralizedGeos: string[]; centralizedDepots: string[] }> {
   return _sourcingOverrides;
 }
 
@@ -390,6 +391,7 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
           ..._sourcingOverrides,
           [sr.cbuId]: {
             mode: sr.sourcingMode,
+            depotMapping: sr.sourcingDepotMapping ?? {},
             centralizedGeos: sr.centralizedGeos ?? [],
             centralizedDepots: sr.centralizedDepots ?? [],
           },
@@ -508,7 +510,7 @@ export function useSrStore() {
   const [requests, setRequests] = useState<ServiceRequest[]>(getRequests);
   const [bpStatusOverrides, setBpStatusOverridesState] = useState<Record<string, string>>(getBpStatusOverrides);
   const [channelOverrides, setChannelOverrides] = useState<Record<string, string[]>>(getChannelOverrides);
-  const [sourcingOverrides, setSourcingOverrides] = useState<Record<string, { mode: "decentralized" | "centralized"; centralizedGeos: string[]; centralizedDepots: string[] }>>(getSourcingOverrides);
+  const [sourcingOverrides, setSourcingOverrides] = useState<Record<string, { mode: "decentralized" | "centralized"; depotMapping: Record<string, string>; centralizedGeos: string[]; centralizedDepots: string[] }>>(getSourcingOverrides);
   const [geoRemovalOverrides, setGeoRemovalOverrides] = useState<Record<string, { removedGeos: string[]; removedDepots: string[] }>>(getGeoRemovalOverrides);
   const [bpDates, setBpDatesState] = useState<Record<string, BpDates>>(getBpDates);
 

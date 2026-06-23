@@ -10,8 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Map as MapIcon, Radio, PackageSearch, AlertTriangle,
   ChevronRight, ChevronLeft, CheckCircle2, ExternalLink,
-  MapPin, Check, Plus, X,
+  MapPin, Check, Plus, X, Lock,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { PortalUser } from "@/lib/users-data";
 import type { ChannelDef } from "@/lib/distribution-data";
@@ -794,51 +795,26 @@ function ChannelEditor({
 // ─── Sourcing Editor ──────────────────────────────────────────────────────────
 
 function SourcingEditor({
-  currentGeo, currentDepots, geographyDepotMap,
+  currentGeo, currentDepots,
   newMode, setNewMode,
-  centralizedGeo, setCentralizedGeo,
-  centralizedDepots, setCentralizedDepots,
+  sourcingDepotMapping, setSourcingDepotMapping,
 }: {
   currentGeo: string[];
   currentDepots: string[];
-  geographyDepotMap: Record<string, string[]>;
   newMode: "decentralized" | "centralized";
   setNewMode: (m: "decentralized" | "centralized") => void;
-  centralizedGeo: string[];
-  setCentralizedGeo: (v: string[]) => void;
-  centralizedDepots: string[];
-  setCentralizedDepots: (v: string[]) => void;
+  sourcingDepotMapping: Record<string, string>;
+  setSourcingDepotMapping: (v: Record<string, string>) => void;
 }) {
-  const availableDepots = useMemo(() => {
-    const s = new Set<string>();
-    centralizedGeo.forEach(geo =>
-      (geographyDepotMap[geo] || [])
-        .filter(d => currentDepots.includes(d))
-        .forEach(d => s.add(d)),
-    );
-    return Array.from(s).sort();
-  }, [centralizedGeo, geographyDepotMap, currentDepots]);
+  const sourcingDepotSet = new Set(Object.values(sourcingDepotMapping));
 
-  const toggleGeo = (geo: string) => {
-    const next = centralizedGeo.includes(geo)
-      ? centralizedGeo.filter(g => g !== geo)
-      : [...centralizedGeo, geo];
-    setCentralizedGeo(next);
-    const validD = new Set<string>();
-    next.forEach(g =>
-      (geographyDepotMap[g] || [])
-        .filter(d => currentDepots.includes(d))
-        .forEach(d => validD.add(d)),
-    );
-    setCentralizedDepots(centralizedDepots.filter(d => validD.has(d)));
+  const handleDepotChange = (depot: string, sourcingDepot: string) => {
+    const next = { ...sourcingDepotMapping, [depot]: sourcingDepot };
+    if (sourcingDepot !== depot) {
+      next[sourcingDepot] = sourcingDepot;
+    }
+    setSourcingDepotMapping(next);
   };
-
-  const toggleDepot = (d: string) =>
-    setCentralizedDepots(
-      centralizedDepots.includes(d)
-        ? centralizedDepots.filter(x => x !== d)
-        : [...centralizedDepots, d],
-    );
 
   return (
     <div className="space-y-5">
@@ -850,7 +826,10 @@ function SourcingEditor({
             <button
               key={m}
               type="button"
-              onClick={() => setNewMode(m)}
+              onClick={() => {
+                setNewMode(m);
+                if (m === "centralized") setSourcingDepotMapping({});
+              }}
               className={cn(
                 "px-4 py-2 rounded-lg border text-sm font-medium transition-all capitalize",
                 newMode === m
@@ -864,8 +843,8 @@ function SourcingEditor({
         </div>
         <p className="text-xs text-muted-foreground mt-1.5">
           {newMode === "decentralized"
-            ? "All distribution geographies and depots are included in the sourcing scope."
-            : "Select a specific subset of geographies and depots for centralized sourcing."}
+            ? "All distribution depots source stock independently from themselves."
+            : "Assign each distribution depot a sourcing depot. A depot chosen as a sourcing depot is auto-locked to itself."}
         </p>
       </div>
 
@@ -886,62 +865,70 @@ function SourcingEditor({
         </div>
       )}
 
-      {/* Centralized selection */}
+      {/* Centralized: depot → sourcing depot mapping table */}
       {newMode === "centralized" && (
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm font-medium mb-2">
-              Select Geographies for Centralized Sourcing <span className="text-red-500">*</span>
+        currentDepots.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No depots available — entry has no distribution coverage.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">
+              Depot Sourcing Mapping <span className="text-red-500">*</span>
             </p>
-            {currentGeo.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No geographies available — entry has no distribution coverage.
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {currentGeo.map(geo => (
-                  <label
-                    key={geo}
-                    className="flex items-center gap-2.5 text-sm cursor-pointer hover:bg-muted/40 rounded-md px-2 py-1.5 transition-colors"
-                  >
-                    <Checkbox
-                      checked={centralizedGeo.includes(geo)}
-                      onCheckedChange={() => toggleGeo(geo)}
-                      data-testid={`check-sourcing-geo-${geo}`}
-                    />
-                    <span>{geo}</span>
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      {(geographyDepotMap[geo] || []).filter(d => currentDepots.includes(d)).length} depot(s)
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {centralizedGeo.length > 0 && (
-            <div>
-              <p className="text-sm font-medium mb-2">
-                Select Depots <span className="text-red-500">*</span>
-              </p>
-              <div className="space-y-1 columns-2">
-                {availableDepots.map(depot => (
-                  <label
-                    key={depot}
-                    className="flex items-center gap-2.5 text-sm cursor-pointer hover:bg-muted/40 rounded-md px-2 py-1.5 transition-colors break-inside-avoid"
-                  >
-                    <Checkbox
-                      checked={centralizedDepots.includes(depot)}
-                      onCheckedChange={() => toggleDepot(depot)}
-                      data-testid={`check-sourcing-depot-${depot}`}
-                    />
-                    <span className="font-mono">{depot}</span>
-                  </label>
-                ))}
-              </div>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50 border-b">
+                    <th className="text-left py-2 px-3 font-medium text-xs w-[140px]">Depot</th>
+                    <th className="text-left py-2 px-3 font-medium text-xs">Sourcing Depot</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentDepots.map((depot, idx) => {
+                    const isLocked = sourcingDepotSet.has(depot);
+                    const current = sourcingDepotMapping[depot] || "";
+                    const eligibleOptions = currentDepots.filter(d =>
+                      !sourcingDepotMapping[d] || sourcingDepotMapping[d] === d
+                    );
+                    return (
+                      <tr key={depot} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                        <td className="py-2 px-3 border-r font-mono text-xs font-medium align-middle whitespace-nowrap">
+                          {depot}
+                        </td>
+                        <td className="py-2 px-3 align-middle">
+                          {isLocked ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-mono font-semibold text-blue-600">{depot}</span>
+                              <Badge variant="outline" className="text-[9px] gap-0.5 px-1.5 py-0 border-blue-400/40 text-blue-600">
+                                <Lock className="h-2 w-2" /> Sourcing depot
+                              </Badge>
+                            </div>
+                          ) : (
+                            <Select
+                              value={current}
+                              onValueChange={val => handleDepotChange(depot, val)}
+                              data-testid={`sourcing-select-${depot.toLowerCase().replace(/\s+/g, "-")}`}
+                            >
+                              <SelectTrigger className="h-7 text-xs font-mono w-full max-w-[200px]">
+                                <SelectValue placeholder="Select sourcing depot…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {eligibleOptions.map(d => (
+                                  <SelectItem key={d} value={d} className="text-xs font-mono">{d}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+          </div>
+        )
       )}
     </div>
   );
@@ -954,7 +941,7 @@ function SummaryView({
   addedGeos, addedChannels, removedChannels, addedDepots,
   removedGeos, removedDepots,
   channelMapping, requestedChannelMapping,
-  newMode, centralizedGeo, centralizedDepots,
+  newMode, sourcingDepotMapping,
   justification, setJustification, cbuNetworkStatus,
 }: {
   amendmentType: SrType;
@@ -970,8 +957,7 @@ function SummaryView({
   channelMapping: Record<string, string[]>;
   requestedChannelMapping: Record<string, string[]>;
   newMode: "decentralized" | "centralized";
-  centralizedGeo: string[];
-  centralizedDepots: string[];
+  sourcingDepotMapping: Record<string, string>;
   justification: string;
   setJustification: (v: string) => void;
   cbuNetworkStatus?: string;
@@ -1097,25 +1083,34 @@ function SummaryView({
                 </Badge>
               </div>
             </div>
-            {newMode === "centralized" && (
-              <>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Centralized Geographies</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {centralizedGeo.map(g => (
-                      <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal">{g}</Badge>
-                    ))}
-                  </div>
+            {newMode === "centralized" && Object.keys(sourcingDepotMapping).length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Depot Sourcing Mapping</p>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="text-left py-1.5 px-3 font-medium w-[130px]">Depot</th>
+                        <th className="text-left py-1.5 px-3 font-medium">Sourcing Depot</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(sourcingDepotMapping).map(([depot, sourcing], idx) => (
+                        <tr key={depot} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                          <td className="py-1.5 px-3 font-mono border-r">{depot}</td>
+                          <td className="py-1.5 px-3 font-mono">
+                            {sourcing === depot ? (
+                              <span className="flex items-center gap-1 text-blue-600">
+                                {sourcing} <Lock className="h-2.5 w-2.5" />
+                              </span>
+                            ) : sourcing}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Centralized Depots</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {centralizedDepots.map(d => (
-                      <Badge key={d} variant="outline" className="text-xs font-mono">{d}</Badge>
-                    ))}
-                  </div>
-                </div>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -1237,9 +1232,8 @@ export function RaiseAmendmentDialog({
     return Array.from(s);
   }, [currentGeo, channelMapping, requestedChannelMapping]);
 
-  const [newMode,          setNewMode]          = useState<"decentralized" | "centralized">("decentralized");
-  const [centralizedGeo,   setCentralizedGeo]   = useState<string[]>([]);
-  const [centralizedDepots,setCentralizedDepots]= useState<string[]>([]);
+  const [newMode,              setNewMode]              = useState<"decentralized" | "centralized">("decentralized");
+  const [sourcingDepotMapping, setSourcingDepotMapping] = useState<Record<string, string>>({});
 
   const [justification, setJustification] = useState("");
   const [submitting,    setSubmitting]    = useState(false);
@@ -1250,11 +1244,12 @@ export function RaiseAmendmentDialog({
     if (amendmentType === "geo-extension")     return addedGeos.length > 0 || removedGeos.length > 0 || removedDepots.length > 0;
     if (amendmentType === "channel-extension") return addedChannels.length > 0 || removedChannels.length > 0;
     if (amendmentType === "sourcing-amendment") {
-      if (newMode === "decentralized") return false;
-      return centralizedGeo.length > 0 && centralizedDepots.length > 0;
+      if (newMode === "decentralized") return true;
+      // Centralized: all current depots must have a sourcing depot assigned
+      return currentDepots.length > 0 && currentDepots.every(d => !!sourcingDepotMapping[d]);
     }
     return false;
-  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, centralizedGeo, centralizedDepots]);
+  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, currentDepots]);
 
   const reset = () => {
     setStep("type");
@@ -1265,8 +1260,7 @@ export function RaiseAmendmentDialog({
     setRemovedGeos([]);
     setRemovedDepots([]);
     setNewMode("decentralized");
-    setCentralizedGeo([]);
-    setCentralizedDepots([]);
+    setSourcingDepotMapping({});
     setJustification("");
   };
 
@@ -1294,10 +1288,15 @@ export function RaiseAmendmentDialog({
       const rmvStr   = removedChannels.length > 0 ? `Removing: ${removedChannels.join(", ")}` : "";
       requestedValue = [addStr, rmvStr].filter(Boolean).join("; ") || currentValue;
     } else {
-      currentValue     = `Decentralized — ${currentGeo.length} geo(s), ${currentDepots.length} depot(s)`;
-      requestedValue   = newMode === "decentralized"
-        ? currentValue
-        : `Centralized — Geos: ${centralizedGeo.join(", ")}; Depots: ${centralizedDepots.join(", ")}`;
+      currentValue   = `Decentralized — ${currentGeo.length} geo(s), ${currentDepots.length} depot(s)`;
+      if (newMode === "decentralized") {
+        requestedValue = currentValue;
+      } else {
+        const pairs = Object.entries(sourcingDepotMapping)
+          .map(([d, s]) => `${d}→${s}`)
+          .join(", ");
+        requestedValue = `Centralized — ${pairs}`;
+      }
     }
 
     const raisedBy = raisedByProp || users.find(u => u.role === "Paid Bible Owner" && u.isActive)?.name || "PB SPOC";
@@ -1325,8 +1324,9 @@ export function RaiseAmendmentDialog({
       removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
       removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
       sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
-      centralizedGeos: amendmentType === "sourcing-amendment" ? centralizedGeo : [],
-      centralizedDepots: amendmentType === "sourcing-amendment" ? centralizedDepots : [],
+      sourcingDepotMapping: amendmentType === "sourcing-amendment" ? sourcingDepotMapping : undefined,
+      centralizedGeos: [],
+      centralizedDepots: [],
     };
 
     try {
@@ -1349,8 +1349,9 @@ export function RaiseAmendmentDialog({
         removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
         removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
         sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
-        centralizedGeo: amendmentType === "sourcing-amendment" ? centralizedGeo : [],
-        centralizedDepots: amendmentType === "sourcing-amendment" ? centralizedDepots : [],
+        sourcingDepotMapping: amendmentType === "sourcing-amendment" ? sourcingDepotMapping : undefined,
+        centralizedGeo: [],
+        centralizedDepots: [],
         approvers,
       });
     } catch {
@@ -1518,13 +1519,10 @@ export function RaiseAmendmentDialog({
             <SourcingEditor
               currentGeo={currentGeo}
               currentDepots={currentDepots}
-              geographyDepotMap={geographyDepotMap}
               newMode={newMode}
               setNewMode={setNewMode}
-              centralizedGeo={centralizedGeo}
-              setCentralizedGeo={setCentralizedGeo}
-              centralizedDepots={centralizedDepots}
-              setCentralizedDepots={setCentralizedDepots}
+              sourcingDepotMapping={sourcingDepotMapping}
+              setSourcingDepotMapping={setSourcingDepotMapping}
             />
           )}
 
@@ -1544,8 +1542,7 @@ export function RaiseAmendmentDialog({
               removedGeos={removedGeos}
               removedDepots={removedDepots}
               newMode={newMode}
-              centralizedGeo={centralizedGeo}
-              centralizedDepots={centralizedDepots}
+              sourcingDepotMapping={sourcingDepotMapping}
               justification={justification}
               setJustification={setJustification}
               cbuNetworkStatus={cbuNetworkStatus}

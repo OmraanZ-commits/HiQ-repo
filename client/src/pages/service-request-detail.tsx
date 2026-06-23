@@ -345,31 +345,28 @@ export default function ServiceRequestDetailPage() {
                           </div>
                         </div>
                       </div>
-                      {request.sourcingMode === "centralized" && (request.centralizedGeos?.length ?? 0) > 0 && (
-                        <div className="px-5 py-4 space-y-1.5">
+                      {request.sourcingMode === "centralized" && request.sourcingDepotMapping && Object.keys(request.sourcingDepotMapping).length > 0 && (
+                        <div className="px-5 py-4 space-y-1.5" data-testid="section-depot-mapping">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Centralized Geographies
+                            Depot Sourcing Mapping
                           </p>
-                          <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-centralized-geos">
-                            {request.centralizedGeos!.map(g => (
-                              <Badge key={g} className="bg-amber-100 text-amber-700 border border-amber-300 text-xs font-normal" data-testid={`badge-centralized-geo-${g}`}>
-                                {g}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {request.sourcingMode === "centralized" && (request.centralizedDepots?.length ?? 0) > 0 && (
-                        <div className="px-5 py-4 space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Centralized Depots
-                          </p>
-                          <div className="flex flex-wrap gap-1.5 pt-1" data-testid="section-centralized-depots">
-                            {request.centralizedDepots!.map(d => (
-                              <Badge key={d} variant="outline" className="text-xs font-mono" data-testid={`badge-centralized-depot-${d}`}>
-                                {d}
-                              </Badge>
-                            ))}
+                          <div className="border rounded-lg overflow-hidden mt-2">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-muted/50 border-b">
+                                  <th className="text-left py-1.5 px-3 font-medium w-[140px]">Depot</th>
+                                  <th className="text-left py-1.5 px-3 font-medium">Sourcing Depot</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(request.sourcingDepotMapping).map(([depot, sourcing], idx) => (
+                                  <tr key={depot} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                                    <td className="py-1.5 px-3 font-mono border-r" data-testid={`row-depot-${depot}`}>{depot}</td>
+                                    <td className="py-1.5 px-3 font-mono text-amber-700" data-testid={`row-sourcing-${depot}`}>{sourcing}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       )}
