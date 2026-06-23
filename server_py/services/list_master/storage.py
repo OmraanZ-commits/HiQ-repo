@@ -5,6 +5,7 @@ from typing import Optional
 from server_py.db import (
     SessionLocal,
     NetworkEntryModel,
+    EntryStatusModel,
     db_row_to_api,
     api_data_to_db,
 )
@@ -63,6 +64,12 @@ class ListMasterStorage:
                 **db_data,
             )
             db.add(entry)
+            db.flush()  # get the id before commit
+            db.add(EntryStatusModel(
+                entry_id=str(entry.id),
+                current_status="Draft",
+                updated_at=datetime.now(timezone.utc),
+            ))
             db.commit()
             db.refresh(entry)
             return db_row_to_api(entry)
