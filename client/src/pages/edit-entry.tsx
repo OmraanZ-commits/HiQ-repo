@@ -763,34 +763,23 @@ export default function EditEntry() {
                     <ReadOnlyField label="Header Code" value={form.headerCode} testId="input-header-code" />
                     <ReadOnlyField label="CSD Index No." value={form.csdIndexNo} testId="input-csd-index" />
                     <ReadOnlyField label="PC at Channel/State Level" value={form.pcAtChannelState} testId="input-pc-channel" />
-                    {/* FTR Images Link — read-only, opens dialog */}
-                    <div className="space-y-1.5">
+                    {/* FTR Images Link — button only, opens dialog */}
+                    <div className="flex items-center justify-between">
                       <label className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                         <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                         FTR Images Link
                       </label>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-9 px-3 flex items-center rounded-md border border-input bg-muted/30 text-sm">
-                          {ftrImagesLoading ? (
-                            <span className="text-muted-foreground italic text-xs">Loading…</span>
-                          ) : ftrImages.length > 0 ? (
-                            <span className="text-[#0d8ecf] font-medium">{ftrImages.length} link{ftrImages.length !== 1 ? "s" : ""} available</span>
-                          ) : (
-                            <span className="text-muted-foreground italic text-xs">No FTR links on record</span>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setFtrDialogOpen(true)}
-                          className="gap-1.5 shrink-0"
-                          data-testid="button-show-ftr"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </Button>
-                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFtrDialogOpen(true)}
+                        className="gap-1.5"
+                        data-testid="button-show-ftr"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
