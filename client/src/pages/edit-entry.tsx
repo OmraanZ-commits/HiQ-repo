@@ -441,6 +441,20 @@ export default function EditEntry() {
     updateField("sourcingMatrixSection", JSON.stringify({ mode: "centralized", depotMapping: next }));
   };
 
+  const handleSourcingDepotClear = (depot: string) => {
+    const oldSourcing = sourcingDepotMapping[depot];
+    const next = { ...sourcingDepotMapping };
+    delete next[depot];
+    // If the previously chosen sourcing depot was a different depot (auto-locked),
+    // and nothing else still references it, remove its self-lock too.
+    if (oldSourcing && oldSourcing !== depot) {
+      const stillReferenced = Object.values(next).some(v => v === oldSourcing);
+      if (!stillReferenced) delete next[oldSourcing];
+    }
+    setSourcingDepotMapping(next);
+    updateField("sourcingMatrixSection", JSON.stringify({ mode: "centralized", depotMapping: next }));
+  };
+
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
 
@@ -1526,22 +1540,35 @@ export default function EditEntry() {
                                             </Badge>
                                           </div>
                                         ) : (
-                                          <Select
-                                            value={currentSourcing}
-                                            onValueChange={val => handleSourcingDepotChange(depot, val)}
-                                            data-testid={`sourcing-select-${depot.toLowerCase().replace(/\s+/g, "-")}`}
-                                          >
-                                            <SelectTrigger className="h-7 text-xs font-mono w-full max-w-[220px]">
-                                              <SelectValue placeholder="Select sourcing depot…" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {eligibleOptions.map(d => (
-                                                <SelectItem key={d} value={d} className="text-xs font-mono">
-                                                  {d}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
+                                          <div className="flex items-center gap-1.5">
+                                            <Select
+                                              value={currentSourcing}
+                                              onValueChange={val => handleSourcingDepotChange(depot, val)}
+                                              data-testid={`sourcing-select-${depot.toLowerCase().replace(/\s+/g, "-")}`}
+                                            >
+                                              <SelectTrigger className="h-7 text-xs font-mono w-full max-w-[220px]">
+                                                <SelectValue placeholder="Select sourcing depot…" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {eligibleOptions.map(d => (
+                                                  <SelectItem key={d} value={d} className="text-xs font-mono">
+                                                    {d}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                            {currentSourcing && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleSourcingDepotClear(depot)}
+                                                className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                                title="Clear sourcing depot"
+                                                data-testid={`sourcing-clear-${depot.toLowerCase().replace(/\s+/g, "-")}`}
+                                              >
+                                                <X className="h-3.5 w-3.5" />
+                                              </button>
+                                            )}
+                                          </div>
                                         )}
                                       </td>
                                     </tr>
