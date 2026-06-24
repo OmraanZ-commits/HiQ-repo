@@ -455,6 +455,16 @@ export default function EditEntry() {
     updateField("sourcingMatrixSection", JSON.stringify({ mode: "centralized", depotMapping: next }));
   };
 
+  const handleLockedDepotClear = (depot: string) => {
+    const next = { ...sourcingDepotMapping };
+    // Remove the self-lock
+    delete next[depot];
+    // Also remove any distribution depots that were pointing to this locked depot
+    Object.keys(next).forEach(d => { if (next[d] === depot) delete next[d]; });
+    setSourcingDepotMapping(next);
+    updateField("sourcingMatrixSection", JSON.stringify({ mode: "centralized", depotMapping: next }));
+  };
+
   const { lifecycleMap } = useLifecycleData();
   const lifecycle = entry ? lifecycleMap[entry.id] : undefined;
 
@@ -1538,6 +1548,15 @@ export default function EditEntry() {
                                             <Badge variant="outline" className="text-[9px] gap-0.5 px-1.5 py-0 border-primary/40 text-primary">
                                               <Lock className="h-2 w-2" /> Sourcing depot
                                             </Badge>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleLockedDepotClear(depot)}
+                                              className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                              title="Remove sourcing depot lock"
+                                              data-testid={`sourcing-unlock-${depot.toLowerCase().replace(/\s+/g, "-")}`}
+                                            >
+                                              <X className="h-3.5 w-3.5" />
+                                            </button>
                                           </div>
                                         ) : (
                                           <div className="flex items-center gap-1.5">
