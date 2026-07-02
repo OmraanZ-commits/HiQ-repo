@@ -630,6 +630,14 @@ export default function Dashboard() {
             )}
           </div>
 
+          {ftrExcelRows.length > 0 && (
+            <div className="mx-1 mb-1 flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-800">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+              <p className="text-xs leading-relaxed">
+                Please ensure the CBU IDs in this file are correct. Uploading will trigger the <span className="font-semibold">FTR Approved</span> stage for any matching CBU currently in <span className="font-semibold">Production Started</span>.
+              </p>
+            </div>
+          )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => { setFtrExcelOpen(false); setFtrExcelRows([]); setFtrExcelFileName(""); }} data-testid="btn-ftr-excel-cancel">
               Cancel

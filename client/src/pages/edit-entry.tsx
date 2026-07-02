@@ -220,6 +220,7 @@ export default function EditEntry() {
   // ── FTR state ────────────────────────────────────────────────────────────────
   const [ftrDialogOpen, setFtrDialogOpen] = useState(false);
   const [ftrStagedImages, setFtrStagedImages] = useState<File[]>([]);
+  const [ftrUploadConfirmOpen, setFtrUploadConfirmOpen] = useState(false);
   const ftrImageRef = useRef<HTMLInputElement>(null);
 
   const cbuCode = entry?.cbuCode ?? "";
@@ -2294,7 +2295,7 @@ export default function EditEntry() {
                     <Button
                       type="button"
                       size="sm"
-                      onClick={() => uploadFtrImagesMutation.mutate(ftrStagedImages)}
+                      onClick={() => ftrStagedImages.length > 0 && setFtrUploadConfirmOpen(true)}
                       disabled={ftrStagedImages.length === 0 || uploadFtrImagesMutation.isPending}
                       className="mb-6"
                       data-testid="btn-ftr-images-upload"
@@ -2348,6 +2349,55 @@ export default function EditEntry() {
 
           </Tabs>
         </form>
+
+        {/* ── FTR Upload confirmation dialog ───────────────────────────── */}
+        <Dialog open={ftrUploadConfirmOpen} onOpenChange={setFtrUploadConfirmOpen}>
+          <DialogContent className="max-w-md" data-testid="dialog-ftr-upload-confirm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-600">
+                <AlertTriangle className="h-5 w-5" />
+                Confirm FTR Image Upload
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-2 space-y-3">
+              <p className="text-sm text-foreground leading-relaxed">
+                Please ensure you are uploading the FTR images for the correct CBU:
+              </p>
+              <div className="flex items-center gap-2 bg-muted/60 border rounded-md px-3 py-2">
+                <FileCheck2 className="h-4 w-4 text-[#0d8ecf] shrink-0" />
+                <span className="font-mono text-sm font-semibold text-[#0d8ecf]">{cbuCode}</span>
+                {entry?.materialDescription && (
+                  <span className="text-xs text-muted-foreground truncate">· {entry.materialDescription}</span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                These images will be used to trigger the <span className="font-semibold text-foreground">FTR Approved</span> network stage. If this CBU is currently in <span className="font-semibold text-foreground">Production Started</span>, uploading will automatically advance it.
+              </p>
+              <p className="text-xs text-amber-600 font-medium">
+                {ftrStagedImages.length} image{ftrStagedImages.length !== 1 ? "s" : ""} queued for upload.
+              </p>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setFtrUploadConfirmOpen(false)}
+                data-testid="btn-ftr-confirm-cancel"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setFtrUploadConfirmOpen(false);
+                  uploadFtrImagesMutation.mutate(ftrStagedImages);
+                }}
+                data-testid="btn-ftr-confirm-proceed"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Confirm & Upload
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ── FTR Links viewer dialog ──────────────────────────────────── */}
         <Dialog open={ftrDialogOpen} onOpenChange={setFtrDialogOpen}>
