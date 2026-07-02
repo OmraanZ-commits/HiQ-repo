@@ -10,17 +10,20 @@ class StateStorage:
     def seed_statuses(self, entries: list[dict]):
         db = SessionLocal()
         try:
-            count = db.query(EntryStatusModel).count()
-            if count > 0:
-                return
-            for entry in entries:
+            existing_ids = {
+                str(row.entry_id)
+                for row in db.query(EntryStatusModel.entry_id).all()
+            }
+            new_rows = [e for e in entries if str(e["id"]) not in existing_ids]
+            for entry in new_rows:
                 status_row = EntryStatusModel(
                     entry_id=entry["id"],
                     current_status=entry["status"],
                     updated_at=datetime.now(timezone.utc),
                 )
                 db.add(status_row)
-            db.commit()
+            if new_rows:
+                db.commit()
         finally:
             db.close()
 
