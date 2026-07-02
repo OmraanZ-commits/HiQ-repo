@@ -1,5 +1,15 @@
+import logging
 from typing import Callable, Optional
 from server_py.services.ftr.storage import FtrStorage
+
+logger = logging.getLogger(__name__)
+
+
+def _normalize_cbu(code: str) -> str:
+    code = code.strip()
+    if code and not code.upper().startswith("CBU-"):
+        return f"CBU-{code}"
+    return code
 
 
 class FtrService:
@@ -22,7 +32,7 @@ class FtrService:
             return {"added": 0, "triggered": 0, "links": []}
 
         enriched = [
-            {**e, "uploaded_by": uploaded_by, "source_file": source_file}
+            {**e, "cbu_code": _normalize_cbu(e.get("cbu_code") or ""), "uploaded_by": uploaded_by, "source_file": source_file}
             for e in entries
         ]
         links = self.storage.add_ftr_links(enriched)
@@ -35,7 +45,7 @@ class FtrService:
             entries_by_cbu = {e.get("cbuCode"): e for e in all_entries if e.get("cbuCode")}
 
             for entry in entries:
-                cbu_code = (entry.get("cbu_code") or "").strip()
+                cbu_code = _normalize_cbu(entry.get("cbu_code") or "")
                 if not cbu_code or cbu_code in seen:
                     continue
                 seen.add(cbu_code)
@@ -50,8 +60,8 @@ class FtrService:
                         )
                         triggered += 1
                         triggered_entries.append(cbu_code)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.error("FTR transition failed for %s: %s", cbu_code, e)
 
         return {
             "added": len(links),
@@ -72,6 +82,7 @@ class FtrService:
         return result
 
     def _try_trigger_ftr_approved(self, cbu_code: str, triggered_by: Optional[str]) -> None:
+        cbu_code = _normalize_cbu(cbu_code)
         if not cbu_code or not self._list_service or not self._transition_fn:
             return
         try:
@@ -84,8 +95,8 @@ class FtrService:
                         triggered_by=triggered_by or "FTR Image Upload",
                     )
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error("FTR image trigger failed for %s: %s", cbu_code, e)
 
     def get_ftr_images(self, cbu_code: str) -> list[dict]:
         return self.storage.get_ftr_images_for_cbu(cbu_code)
