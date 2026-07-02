@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Download, Filter, Search, X, BarChart3, LayoutList, PieChart, Layers, FileSpreadsheet, Upload, Loader2, AlertTriangle } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 import { getNotifications, registerBulkOpCbus } from "@/lib/notification-store";
@@ -41,6 +42,7 @@ export default function Dashboard() {
   } = useNetworkEntries();
 
   const { lifecycleMap } = useLifecycleData();
+  const { toast } = useToast();
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewEntry, setViewEntry] = useState<NetworkEntry | null>(null);
 
@@ -56,16 +58,19 @@ export default function Dashboard() {
       apiRequest("POST", "/api/ftr/links/upload", payload).then(r => r.json()),
     onSuccess: (result) => {
       queryClientDash.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      queryClientDash.invalidateQueries({ queryKey: ["/api/lifecycle"] });
       setFtrExcelRows([]);
       setFtrExcelFileName("");
       if (ftrExcelRef.current) ftrExcelRef.current.value = "";
       setFtrExcelOpen(false);
-      const msg = result.triggered > 0
-        ? `${result.added} link(s) saved. ${result.triggered} CBU(s) moved to "FTR Approved".`
-        : `${result.added} FTR link(s) saved.`;
-      alert(msg);
+      toast({
+        title: "FTR Links Uploaded",
+        description: result.triggered > 0
+          ? `${result.added} link(s) saved. ${result.triggered} CBU(s) moved to "FTR Approved".`
+          : `${result.added} FTR link(s) saved.`,
+      });
     },
-    onError: () => alert("Upload failed — please try again."),
+    onError: () => toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" }),
   });
 
   const handleFtrExcelChange = (e: React.ChangeEvent<HTMLInputElement>) => {

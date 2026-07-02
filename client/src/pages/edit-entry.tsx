@@ -250,11 +250,14 @@ export default function EditEntry() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ftr/images", cbuCode] });
+      queryClient.invalidateQueries({ queryKey: ["/api/network-entries", entry?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lifecycle"] });
       setFtrStagedImages([]);
       if (ftrImageRef.current) ftrImageRef.current.value = "";
       toast({ title: "Images uploaded", description: "FTR images saved successfully." });
     },
-    onError: () => toast({ title: "Upload failed", variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Upload failed", description: e?.message || "Please try again.", variant: "destructive" }),
   });
 
   function handleFtrImageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -2413,11 +2416,11 @@ export default function EditEntry() {
               </DialogDescription>
             </DialogHeader>
 
-            {ftrImagesLoading ? (
+            {ftrLinksLoading ? (
               <div className="space-y-2 py-2">
                 {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full rounded" />)}
               </div>
-            ) : ftrImages.length === 0 ? (
+            ) : ftrLinks.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-10 text-muted-foreground">
                 <ExternalLink className="h-8 w-8 opacity-20" />
                 <p className="text-sm font-medium">No FTR links on record</p>
@@ -2427,24 +2430,24 @@ export default function EditEntry() {
               </div>
             ) : (
               <div className="divide-y rounded-md border overflow-hidden">
-                {ftrImages.map((img: any, i: number) => (
-                  <div key={img.id} className="flex items-start gap-3 px-4 py-3 bg-background hover:bg-muted/30 transition-colors" data-testid={`ftr-link-row-${img.id}`}>
+                {ftrLinks.map((link: any, i: number) => (
+                  <div key={link.id} className="flex items-start gap-3 px-4 py-3 bg-background hover:bg-muted/30 transition-colors" data-testid={`ftr-link-row-${link.id}`}>
                     <ExternalLink className="h-4 w-4 mt-0.5 shrink-0 text-[#0d8ecf]" />
                     <div className="flex-1 min-w-0">
-                      {img.caption || img.description ? (
-                        <p className="text-sm font-medium mb-0.5">{img.caption || img.description}</p>
+                      {link.description ? (
+                        <p className="text-sm font-medium mb-0.5">{link.description}</p>
                       ) : (
                         <p className="text-sm font-medium mb-0.5 text-muted-foreground italic">Link {i + 1}</p>
                       )}
-                      {(img.imageUrl || img.ftrLink) && (
+                      {link.ftrLink && (
                         <a
-                          href={img.imageUrl || img.ftrLink}
+                          href={link.ftrLink}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-[#0d8ecf] hover:underline underline-offset-2 break-all"
-                          data-testid={`ftr-link-url-${img.id}`}
+                          data-testid={`ftr-link-url-${link.id}`}
                         >
-                          {img.imageUrl || img.ftrLink}
+                          {link.ftrLink}
                         </a>
                       )}
                     </div>
