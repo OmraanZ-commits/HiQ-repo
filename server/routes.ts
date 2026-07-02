@@ -58,13 +58,20 @@ function startPythonBackend(): Promise<void> {
 }
 
 function proxyToFastAPI(req: Request, res: Response) {
+  const contentType = (req.headers["content-type"] || "").toLowerCase();
+  const isJson = contentType.includes("application/json");
+
   let body: string | undefined;
   const headers: Record<string, string | string[] | undefined> = {
     ...req.headers,
     host: "127.0.0.1:8000",
   };
 
-  if (req.body && Object.keys(req.body).length > 0) {
+  // For JSON requests, express.json() has already consumed the raw stream and
+  // populated req.body — re-serialise it so FastAPI gets a valid payload.
+  // For multipart/form-data and other binary types, the raw stream is still
+  // intact (express.json/urlencoded don't touch them), so we pipe it directly.
+  if (isJson && req.body && Object.keys(req.body).length > 0) {
     body = JSON.stringify(req.body);
     headers["content-type"] = "application/json";
     headers["content-length"] = Buffer.byteLength(body).toString();
@@ -91,9 +98,13 @@ function proxyToFastAPI(req: Request, res: Response) {
   });
 
   if (body) {
+    // JSON body: write the re-serialised string and close
     proxyReq.write(body);
+    proxyReq.end();
+  } else {
+    // Multipart / binary / no-body: pipe the raw request stream through
+    req.pipe(proxyReq, { end: true });
   }
-  proxyReq.end();
 }
 
 export async function registerRoutes(
