@@ -568,6 +568,7 @@ def run_migrations():
             "ALTER TABLE ftr_images ADD COLUMN IF NOT EXISTS image_data TEXT",
             "ALTER TABLE ftr_images ADD COLUMN IF NOT EXISTS image_filename VARCHAR",
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS customer_mapping JSONB",
+            "ALTER TABLE ftr_images ALTER COLUMN image_url DROP NOT NULL",
         ]:
             try:
                 conn.execute(text(col_sql))
