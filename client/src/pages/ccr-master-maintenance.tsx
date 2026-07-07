@@ -90,6 +90,9 @@ const RELAUNCH_TYPES = new Set([
 ]);
 
 function isEligibleCbu(entry: NetworkEntry): boolean {
+  // Only CBUs that have reached or crossed "Production Started" (index >= 3)
+  const statusIdx = STATUS_IDX[entry.networkStatus ?? ""] ?? 0;
+  if (statusIdx < STATUS_IDX["Production Started"]) return false;
   // New launches only: no predecessor CBU and not a relaunch change type
   return !entry.predecessorCode && !RELAUNCH_TYPES.has(entry.typeOfNetwork ?? "");
 }
