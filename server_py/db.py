@@ -352,6 +352,95 @@ class RefDataAuditLogModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+# ── CCR Tables ──────────────────────────────────────────────────
+
+
+class CcrCustomerMasterModel(Base):
+    __tablename__ = "ccr_customer_master"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_chain = Column(String, nullable=False, unique=True)
+    coverage_type = Column(String, nullable=False)    # National | Regional
+    behaviour_type = Column(String, nullable=False)   # Listing | Non-Listing
+    cse_id = Column(String, nullable=True)            # email of the assigned CSE user
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class CcrCustomerCodeMappingModel(Base):
+    __tablename__ = "ccr_customer_code_mapping"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_chain = Column(String, nullable=False, index=True)
+    customer_code = Column(String, nullable=False)
+    depot = Column(String, nullable=False)
+    sub_channel = Column(String, nullable=True)
+    channel = Column(String, nullable=False, default="MT")
+
+
+class CcrCicMappingModel(Base):
+    __tablename__ = "ccr_cic_mapping"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cbu_code = Column(String, nullable=False, index=True)
+    basepack = Column(String, nullable=True)
+    customer_chain = Column(String, nullable=False, index=True)
+    customer_code = Column(String, nullable=False)
+    cic = Column(String, nullable=True)
+    sales_org = Column(String, nullable=True, default="1000")
+    channel = Column(String, nullable=True)
+    depot = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="Mapped")   # Mapped | Non-Mapped | Inactive | Stock Base Delisted | Delisted
+    sourcing_depot = Column(String, nullable=True)
+    sourcing_type = Column(String, nullable=True)               # Centralized | Decentralized
+    pricing_status = Column(String, nullable=True)              # Available | Not Available | Partial
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class CcrRulesetModel(Base):
+    __tablename__ = "ccr_ruleset"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    network_change_type = Column(String, nullable=False, unique=True)
+    new_cic_required = Column(Boolean, nullable=False, default=False)
+    content_update_required = Column(Boolean, nullable=False, default=False)
+    rundown_required = Column(Boolean, nullable=False, default=False)
+    auto_ccr = Column(Boolean, nullable=False, default=False)
+    notes = Column(Text, nullable=True)
+
+
+class CcrLineItemModel(Base):
+    __tablename__ = "ccr_line_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    predecessor_cbu_code = Column(String, nullable=True, index=True)
+    successor_cbu_code = Column(String, nullable=True, index=True)
+    customer_chain = Column(String, nullable=False, index=True)
+    customer_code = Column(String, nullable=False)
+    cic = Column(String, nullable=True)
+    trigger_stage = Column(String, nullable=False, default="None")   # None | First | Second | Third | Fourth
+    urgency_color = Column(String, nullable=False, default="None")   # None | Amber | Red | Blinking Red
+    ccr_status = Column(String, nullable=False, default="Upcoming")  # Upcoming | Action Required | Completed
+    execution_type = Column(String, nullable=False, default="Manual")  # Auto | Semi-Auto | Manual | None
+    ruleset_outcome = Column(JSONB, nullable=True)
+    overrides = Column(JSONB, nullable=True)
+    escalation_due_at = Column(DateTime, nullable=True)
+    escalated_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class CcrAuditLogModel(Base):
+    __tablename__ = "ccr_audit_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ccr_line_item_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    event_type = Column(String, nullable=False)
+    actor = Column(String, nullable=False)
+    payload = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
 def create_tables():
     Base.metadata.create_all(bind=engine)
 
@@ -574,6 +663,109 @@ def run_migrations():
                 conn.execute(text(col_sql))
             except Exception:
                 pass
+
+        # ── CCR tables ──────────────────────────────────────────
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ccr_customer_master (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                customer_chain VARCHAR NOT NULL UNIQUE,
+                coverage_type VARCHAR NOT NULL,
+                behaviour_type VARCHAR NOT NULL,
+                cse_id VARCHAR,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ccr_customer_code_mapping (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                customer_chain VARCHAR NOT NULL,
+                customer_code VARCHAR NOT NULL,
+                depot VARCHAR NOT NULL,
+                sub_channel VARCHAR,
+                channel VARCHAR NOT NULL DEFAULT 'MT'
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_ccm_chain ON ccr_customer_code_mapping (customer_chain)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ccr_cic_mapping (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                cbu_code VARCHAR NOT NULL,
+                basepack VARCHAR,
+                customer_chain VARCHAR NOT NULL,
+                customer_code VARCHAR NOT NULL,
+                cic VARCHAR,
+                sales_org VARCHAR DEFAULT '1000',
+                channel VARCHAR,
+                depot VARCHAR,
+                status VARCHAR NOT NULL DEFAULT 'Mapped',
+                sourcing_depot VARCHAR,
+                sourcing_type VARCHAR,
+                pricing_status VARCHAR,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_cic_cbu ON ccr_cic_mapping (cbu_code)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_cic_chain ON ccr_cic_mapping (customer_chain)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ccr_ruleset (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                network_change_type VARCHAR NOT NULL UNIQUE,
+                new_cic_required BOOLEAN NOT NULL DEFAULT FALSE,
+                content_update_required BOOLEAN NOT NULL DEFAULT FALSE,
+                rundown_required BOOLEAN NOT NULL DEFAULT FALSE,
+                auto_ccr BOOLEAN NOT NULL DEFAULT FALSE,
+                notes TEXT
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ccr_line_items (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                predecessor_cbu_code VARCHAR,
+                successor_cbu_code VARCHAR,
+                customer_chain VARCHAR NOT NULL,
+                customer_code VARCHAR NOT NULL,
+                cic VARCHAR,
+                trigger_stage VARCHAR NOT NULL DEFAULT 'None',
+                urgency_color VARCHAR NOT NULL DEFAULT 'None',
+                ccr_status VARCHAR NOT NULL DEFAULT 'Upcoming',
+                execution_type VARCHAR NOT NULL DEFAULT 'Manual',
+                ruleset_outcome JSONB,
+                overrides JSONB,
+                escalation_due_at TIMESTAMP WITH TIME ZONE,
+                escalated_at TIMESTAMP WITH TIME ZONE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_li_pred ON ccr_line_items (predecessor_cbu_code)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_li_succ ON ccr_line_items (successor_cbu_code)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_li_chain ON ccr_line_items (customer_chain)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ccr_audit_log (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                ccr_line_item_id UUID NOT NULL,
+                event_type VARCHAR NOT NULL,
+                actor VARCHAR NOT NULL,
+                payload JSONB,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_al_item ON ccr_audit_log (ccr_line_item_id)"
+        ))
         conn.commit()
 
 

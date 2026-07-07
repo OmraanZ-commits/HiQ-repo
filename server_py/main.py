@@ -58,9 +58,20 @@ from server_py.services.paid_bible.router import (
     set_service as set_paid_bible_service,
 )
 
+from server_py.services.ccr.storage import CcrStorage
+from server_py.services.ccr.service import CcrService
+from server_py.services.ccr.router import router as ccr_router, set_service as set_ccr_service
+
 from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS, CLUSTER_REGION_STATE_SEEDS
 from server_py.seed_users import USER_SEEDS
 from server_py.seed_service_requests import SR_SEEDS
+from server_py.seed_ccr import (
+    CCR_CUSTOMER_SEEDS,
+    CCR_CODE_MAPPING_SEEDS,
+    CCR_CIC_MAPPING_SEEDS,
+    CCR_RULESET_SEEDS,
+    CCR_LINE_ITEM_SEEDS,
+)
 
 app = FastAPI(title="Unilever Network Visibility API", version="1.0.0", redirect_slashes=False)
 
@@ -84,6 +95,7 @@ app.include_router(bp_status_router, prefix="/api/basepack-status", tags=["Basep
 app.include_router(mstn_doh_router, prefix="/api/mstn-doh", tags=["MSTN & DOH"])
 app.include_router(paid_bible_router, prefix="/api/paid-bible", tags=["Paid Bible"])
 app.include_router(ftr_router, prefix="/api/ftr", tags=["FTR"])
+app.include_router(ccr_router, prefix="/api/ccr", tags=["CCR"])
 
 
 @app.on_event("startup")
@@ -148,6 +160,17 @@ async def startup():
             paid_bible_service=paid_bible_service,
         )
 
+    ccr_storage = CcrStorage()
+    ccr_service = CcrService(ccr_storage)
+    set_ccr_service(ccr_service)
+    ccr_service.seed_all(
+        CCR_CUSTOMER_SEEDS,
+        CCR_CODE_MAPPING_SEEDS,
+        CCR_CIC_MAPPING_SEEDS,
+        CCR_RULESET_SEEDS,
+        CCR_LINE_ITEM_SEEDS,
+    )
+
     ftr_storage = FtrStorage()
     ftr_service = FtrService(ftr_storage)
 
@@ -186,6 +209,8 @@ async def health():
             "basepack-status",
             "mstn-doh",
             "paid-bible",
+            "ftr",
+            "ccr",
         ],
     }
 
