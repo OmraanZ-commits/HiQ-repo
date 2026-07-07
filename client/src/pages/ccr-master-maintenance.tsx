@@ -637,16 +637,16 @@ export default function CcrMasterMaintenancePage() {
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
                       <TableHead className="text-xs font-semibold pl-4 w-[10%]">CBU Code</TableHead>
-                      <TableHead className="text-xs font-semibold w-[16%]">Material Description</TableHead>
-                      <TableHead className="text-xs font-semibold w-[8%]">Brand</TableHead>
-                      <TableHead className="text-xs font-semibold w-[10%]">BG</TableHead>
-                      <TableHead className="text-xs font-semibold w-[9%]">Type of Network</TableHead>
+                      <TableHead className="text-xs font-semibold w-[15%]">Material Description</TableHead>
+                      <TableHead className="text-xs font-semibold w-[7%]">Brand</TableHead>
+                      <TableHead className="text-xs font-semibold w-[8%]">BG</TableHead>
+                      <TableHead className="text-xs font-semibold w-[8%]">Type of Network</TableHead>
                       <TableHead className="text-xs font-semibold w-[12%]">Assigned Person</TableHead>
-                      <TableHead className="text-xs font-semibold w-[9%]">Network Start Date</TableHead>
-                      <TableHead className="text-xs font-semibold w-[12%]">Network Status</TableHead>
-                      <TableHead className="text-xs font-semibold text-center w-[5%]">Trigger</TableHead>
-                      <TableHead className="text-xs font-semibold w-[9%]">Posting Status</TableHead>
-                      <TableHead className="text-xs font-semibold pr-4 text-right w-[8%]">Action</TableHead>
+                      <TableHead className="text-xs font-semibold w-[8%]">Network Start Date</TableHead>
+                      <TableHead className="text-xs font-semibold w-[16%]">Network Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-center w-[4%]">Trigger</TableHead>
+                      <TableHead className="text-xs font-semibold w-[7%]">Posting Status</TableHead>
+                      <TableHead className="text-xs font-semibold pr-4 text-right w-[5%]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
