@@ -364,6 +364,12 @@ function TakeActionDialog({
   const [cicMode, setCicMode] = useState<"reuse" | "new">(newCicRequired ? "new" : "reuse");
   const [newCicCode, setNewCicCode] = useState("");
 
+  // Keep cicMode in sync when newCicRequired is toggled in Step 1
+  // If user enables "New CIC Required", immediately force cicMode to "new"
+  useEffect(() => {
+    if (newCicRequired) setCicMode("new");
+  }, [newCicRequired]);
+
   // Step 3: Execution mode
   const derivedMode = useMemo<"Auto" | "Semi-Auto" | "Manual">(() => {
     if (autoCcr) return "Auto";

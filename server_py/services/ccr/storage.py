@@ -747,41 +747,81 @@ class CcrStorage:
                 .all()
             )
 
+            def _upsert_succ_mapped(target_cic: str) -> None:
+                """
+                Update existing successor rows to Mapped with target_cic.
+                If no rows exist, create them by cloning the predecessor's
+                customer_code/depot/channel structure (or from customer_code_mapping
+                when the predecessor has no rows either).
+                """
+                if succ_rows:
+                    for row in succ_rows:
+                        row.cic        = target_cic
+                        row.status     = "Mapped"
+                        row.updated_at = now
+                elif pred_rows:
+                    # Clone predecessor rows to create successor rows
+                    for tmpl in pred_rows:
+                        db.add(CcrCicMappingModel(
+                            id=uuid.uuid4(),
+                            cbu_code=item.successor_cbu_code,
+                            customer_chain=tmpl.customer_chain,
+                            customer_code=tmpl.customer_code,
+                            cic=target_cic,
+                            sales_org=tmpl.sales_org or "1000",
+                            channel=tmpl.channel,
+                            depot=tmpl.depot,
+                            status="Mapped",
+                            sourcing_depot=tmpl.sourcing_depot,
+                            sourcing_type=tmpl.sourcing_type,
+                            pricing_status=tmpl.pricing_status,
+                            created_at=now,
+                            updated_at=now,
+                        ))
+                else:
+                    # Neither predecessor nor successor rows — create from chain's
+                    # customer_code_mappings (depot/channel scaffold)
+                    code_maps = (
+                        db.query(CcrCustomerCodeMappingModel)
+                        .filter(CcrCustomerCodeMappingModel.customer_chain == item.customer_chain)
+                        .all()
+                    )
+                    for cm in code_maps:
+                        db.add(CcrCicMappingModel(
+                            id=uuid.uuid4(),
+                            cbu_code=item.successor_cbu_code,
+                            customer_chain=item.customer_chain,
+                            customer_code=cm.customer_code,
+                            cic=target_cic,
+                            depot=cm.depot,
+                            status="Mapped",
+                            created_at=now,
+                            updated_at=now,
+                        ))
+
             if new_cic_required:
                 # Old CBU rows in old CIC → Inactive; new CBU → Mapped with new CIC
                 for row in pred_rows:
                     if row.cic == item.cic:
                         row.status     = "Inactive"
                         row.updated_at = now
-                for row in succ_rows:
-                    row.cic        = cic_code
-                    row.status     = "Mapped"
-                    row.updated_at = now
+                _upsert_succ_mapped(cic_code)
             elif behaviour == "Listing":
                 # Regional OR National Listing:
                 # Predecessor stays Mapped; Successor → Mapped with same CIC
-                for row in succ_rows:
-                    row.cic        = cic_code
-                    row.status     = "Mapped"
-                    row.updated_at = now
+                _upsert_succ_mapped(cic_code)
             elif coverage == "National" and not pending_doh_clot_gate:
                 # National Non-Listing, DOH/CLOT gate MET: full depot shift
                 for row in pred_rows:
                     row.status     = "Inactive"
                     row.updated_at = now
-                for row in succ_rows:
-                    row.cic        = cic_code
-                    row.status     = "Mapped"
-                    row.updated_at = now
+                _upsert_succ_mapped(cic_code)
             elif coverage != "National":
                 # Regional Non-Listing: Predecessor → Inactive; Successor → Mapped
                 for row in pred_rows:
                     row.status     = "Inactive"
                     row.updated_at = now
-                for row in succ_rows:
-                    row.cic        = cic_code
-                    row.status     = "Mapped"
-                    row.updated_at = now
+                _upsert_succ_mapped(cic_code)
             # else: National Non-Listing, gate NOT met → no mapping changes; deferred
 
             # ── Build enriched ruleset outcome ───────────────────────
@@ -943,10 +983,11 @@ class CcrStorage:
         finally:
             db.close()
 
-    def get_export_data(self, item_id: str) -> List[dict]:
+    def get_export_data(self, item_id: str) -> Optional[List[dict]]:
         """
         Return BRD-specified mapping columns for a completed line item.
         Used by the 'Generate Mapping Output' button on the detail page.
+        Returns None when the item_id does not exist (router converts to 404).
         """
         db = SessionLocal()
         try:
@@ -954,7 +995,7 @@ class CcrStorage:
                 CcrLineItemModel.id == uuid.UUID(item_id)
             ).first()
             if not item:
-                return []
+                return None
             rows = (
                 db.query(CcrCicMappingModel)
                 .filter(

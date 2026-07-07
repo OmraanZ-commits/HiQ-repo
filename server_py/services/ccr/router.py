@@ -13,7 +13,7 @@ async def _get_session_user() -> dict:
     In production this would read identity from a JWT or session cookie.
     For the demo it queries the first CSE in the customer master — same deterministic
     source used by /api/me — so the result is always consistent.
-    Returns {"cseId": str | None, "isAdmin": bool}.
+    Returns {"cseId": str | None, "isAdmin": bool, "customerChains": List[str]}.
     """
     db = SessionLocal()
     try:
@@ -24,9 +24,34 @@ async def _get_session_user() -> dict:
             .first()
         )
         cse_id = row.cse_id if row else None
+        if cse_id:
+            chains = [
+                r.customer_chain
+                for r in db.query(CcrCustomerMasterModel)
+                .filter(CcrCustomerMasterModel.cse_id == cse_id)
+                .all()
+            ]
+        else:
+            chains = []
     finally:
         db.close()
-    return {"cseId": cse_id, "isAdmin": cse_id is None}
+    return {"cseId": cse_id, "isAdmin": cse_id is None, "customerChains": chains}
+
+
+def _assert_item_access(item: dict, session_user: dict) -> None:
+    """
+    Raise HTTP 403 if the session user is not an admin and the item's
+    customer_chain is not in their assigned chains.
+    Admins (no CSE assignment) pass unrestricted.
+    """
+    if session_user["isAdmin"]:
+        return
+    chain = item.get("customerChain") or item.get("customer_chain")
+    if chain not in session_user["customerChains"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: this line item does not belong to your portfolio",
+        )
 
 router = APIRouter()
 _service: CcrService | None = None
@@ -116,10 +141,14 @@ async def get_line_items(
 
 
 @router.get("/line-items/{item_id}")
-async def get_line_item(item_id: str):
+async def get_line_item(
+    item_id: str,
+    session_user: dict = Depends(_get_session_user),
+):
     item = _svc().get_line_item_by_id(item_id)
     if not item:
         raise HTTPException(status_code=404, detail="CCR line item not found")
+    _assert_item_access(item, session_user)
     return item
 
 
@@ -178,6 +207,11 @@ async def execute_line_item(
     and marks the item Completed.
     Actor identity is derived server-side — never accepted from the client.
     """
+    # Access check before executing — IDOR prevention
+    item_check = _svc().get_line_item_by_id(item_id)
+    if not item_check:
+        raise HTTPException(status_code=404, detail="CCR line item not found")
+    _assert_item_access(item_check, session_user)
     payload = req.model_dump()
     # Inject server-derived actor so storage.execute_line_item cannot be spoofed
     payload["_serverActor"] = session_user.get("cseId") or "system"
@@ -196,6 +230,11 @@ async def get_recommendation(
     Auto-CCR recommendation engine: returns Scenario A/B/C with rationale
     derived from network entry DOH (ATP proxy).
     """
+    # Access check: verify item belongs to this CSE before returning recommendation
+    item_check = _svc().get_line_item_by_id(item_id)
+    if not item_check:
+        raise HTTPException(status_code=404, detail="CCR line item not found")
+    _assert_item_access(item_check, session_user)
     result = _svc().get_recommendation(item_id)
     if not result:
         raise HTTPException(status_code=404, detail="CCR line item not found")
@@ -212,6 +251,11 @@ async def get_export_data(
     (Customer Code, Customer Chain, CIC, Material Code, Depot,
      Mapping Status, Sourcing Depot, Pricing Status).
     """
+    # Access check before exporting data
+    item_check = _svc().get_line_item_by_id(item_id)
+    if not item_check:
+        raise HTTPException(status_code=404, detail="CCR line item not found")
+    _assert_item_access(item_check, session_user)
     data = _svc().get_export_data(item_id)
     if data is None:
         raise HTTPException(status_code=404, detail="CCR line item not found")
@@ -235,6 +279,11 @@ async def delisting_response(
             status_code=422,
             detail="Justification is required when rejecting a delisting intimation",
         )
+    # Access check before mutating
+    item_check = _svc().get_line_item_by_id(item_id)
+    if not item_check:
+        raise HTTPException(status_code=404, detail="CCR line item not found")
+    _assert_item_access(item_check, session_user)
     result = _svc().delisting_response(item_id, req.action, req.justification)
     if not result:
         raise HTTPException(status_code=404, detail="CCR line item not found")
