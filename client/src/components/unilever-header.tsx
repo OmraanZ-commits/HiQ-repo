@@ -8,7 +8,7 @@ import { useNotificationStore, markAllRead } from "@/lib/notification-store";
 import type { AppNotification } from "@/lib/notification-store";
 
 interface UnileverHeaderProps {
-  module?: "network" | "paid-bible";
+  module?: "network" | "paid-bible" | "ccr";
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
@@ -25,6 +25,10 @@ const NETWORK_NAV = [
   { label: "My Queue",     path: "/my-queue" },
   { label: "Reports",      path: "/reports" },
   { label: "Admin Center", path: "/admin" },
+];
+
+const CCR_NAV = [
+  { label: "Master Maintenance", path: "/ccr/master-maintenance" },
 ];
 
 function relativeTime(ts: number): string {
@@ -135,6 +139,16 @@ export function UnileverHeader({ module = "network", activeTab, onTabChange }: U
                         active={activeTab === item.tab}
                         onClick={() => onTabChange?.(item.tab)}
                         testId={`nav-pb-${item.tab}`}
+                      />
+                    ))
+                  : module === "ccr"
+                  ? CCR_NAV.map(item => (
+                      <NavItem
+                        key={item.label}
+                        label={item.label}
+                        active={location === item.path}
+                        onClick={() => navigate(item.path)}
+                        testId={`nav-ccr-${item.label.toLowerCase().replace(/\s/g, "-")}`}
                       />
                     ))
                   : NETWORK_NAV.map(item => (
@@ -249,7 +263,7 @@ export function UnileverHeader({ module = "network", activeTab, onTabChange }: U
           </button>
           <span className="text-xs text-muted-foreground">/</span>
           <span className="text-xs font-medium" data-testid="text-breadcrumb-current">
-            {module === "paid-bible" ? "Paid Bible" : "Network Visibility"}
+            {module === "paid-bible" ? "Paid Bible" : module === "ccr" ? "CCR" : "Network Visibility"}
           </span>
           {module === "paid-bible" && activeTab && (
             <>

@@ -19,6 +19,10 @@ def _svc() -> CcrService:
     return _service
 
 
+class UpsertCicMappingsRequest(BaseModel):
+    mappings: list[Any]
+
+
 class UpdateLineItemStatusRequest(BaseModel):
     ccrStatus: Optional[str] = None
     triggerStage: Optional[str] = None
@@ -52,6 +56,11 @@ async def get_cic_mappings(
     customer_chain: Optional[str] = Query(None),
 ):
     return _svc().get_cic_mappings(cbu_code=cbu_code, customer_chain=customer_chain)
+
+
+@router.put("/cic-mappings")
+async def upsert_cic_mappings(req: UpsertCicMappingsRequest):
+    return _svc().upsert_cic_mappings(req.mappings)
 
 
 @router.get("/ruleset")

@@ -14,6 +14,7 @@ import PaidBiblePage from "@/pages/paid-bible";
 import BasepakDetailPage from "@/pages/paid-bible-basepack-detail";
 import ServiceRequestDetailPage from "@/pages/service-request-detail";
 import AmendmentDetailPage from "@/pages/amendment-detail";
+import CcrMasterMaintenancePage from "@/pages/ccr-master-maintenance";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/my-queue" component={MyQueuePage} />
       <Route path="/notifications" component={NotificationsPage} />
       <Route path="/admin" component={AdminCenterPage} />
+      <Route path="/ccr/master-maintenance" component={CcrMasterMaintenancePage} />
       <Route component={NotFound} />
     </Switch>
   );

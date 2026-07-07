@@ -20,6 +20,9 @@ class CcrService:
     def get_cic_mappings(self, cbu_code: Optional[str] = None, customer_chain: Optional[str] = None) -> List[dict]:
         return self.storage.get_cic_mappings(cbu_code=cbu_code, customer_chain=customer_chain)
 
+    def upsert_cic_mappings(self, mappings: List[dict]) -> List[dict]:
+        return self.storage.upsert_cic_mappings(mappings)
+
     # ── Ruleset ─────────────────────────────────────────────────
 
     def get_ruleset(self) -> List[dict]:

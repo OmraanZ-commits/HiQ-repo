@@ -370,6 +370,58 @@ class CcrStorage:
         finally:
             db.close()
 
+    def upsert_cic_mappings(self, mappings: List[dict]) -> List[dict]:
+        db = SessionLocal()
+        try:
+            now = datetime.now(timezone.utc)
+            results = []
+            for m in mappings:
+                row = (
+                    db.query(CcrCicMappingModel)
+                    .filter(
+                        CcrCicMappingModel.cbu_code == m["cbuCode"],
+                        CcrCicMappingModel.customer_chain == m["customerChain"],
+                        CcrCicMappingModel.customer_code == m["customerCode"],
+                    )
+                    .first()
+                )
+                if row:
+                    row.basepack = m.get("basepack", row.basepack)
+                    row.cic = m.get("cic", row.cic)
+                    row.sales_org = m.get("salesOrg", row.sales_org)
+                    row.channel = m.get("channel", row.channel)
+                    row.depot = m.get("depot", row.depot)
+                    row.status = m.get("status", row.status)
+                    row.sourcing_depot = m.get("sourcingDepot", row.sourcing_depot)
+                    row.sourcing_type = m.get("sourcingType", row.sourcing_type)
+                    row.pricing_status = m.get("pricingStatus", row.pricing_status)
+                    row.updated_at = now
+                else:
+                    row = CcrCicMappingModel(
+                        id=uuid.uuid4(),
+                        cbu_code=m["cbuCode"],
+                        basepack=m.get("basepack"),
+                        customer_chain=m["customerChain"],
+                        customer_code=m["customerCode"],
+                        cic=m.get("cic"),
+                        sales_org=m.get("salesOrg", "1000"),
+                        channel=m.get("channel", "MT"),
+                        depot=m.get("depot"),
+                        status=m.get("status", "Mapped"),
+                        sourcing_depot=m.get("sourcingDepot"),
+                        sourcing_type=m.get("sourcingType", "Decentralized"),
+                        pricing_status=m.get("pricingStatus", "Available"),
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    db.add(row)
+                db.flush()
+                results.append(_cic_mapping_to_dict(row))
+            db.commit()
+            return results
+        finally:
+            db.close()
+
     def seed_line_items(self, seeds: List[dict]) -> None:
         db = SessionLocal()
         try:

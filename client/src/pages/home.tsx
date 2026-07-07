@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { Network, BookOpen, BarChart3, Layers, Settings } from "lucide-react";
+import { Network, BookOpen, BarChart3, Layers, Settings, GitCompareArrows } from "lucide-react";
 
 const MODULES = [
   {
@@ -25,6 +25,18 @@ const MODULES = [
     accent: "from-[#0d8ecf] to-[#00b0d7]",
     features: ["Basepack & Material Matrix", "Geo Applicability", "Network Updates Feed", "Amendment Requests"],
     badge: "New",
+  },
+  {
+    id: "ccr",
+    title: "CCR",
+    subtitle: "Customer Code Replacement",
+    description:
+      "Manage depot-level CIC mappings for relaunch and successor CBUs. Configure customer code assignments, sourcing depot relationships, and pricing status across customer chains.",
+    icon: GitCompareArrows,
+    path: "/ccr/master-maintenance",
+    accent: "from-[#059669] to-[#0d9488]",
+    features: ["Master Maintenance", "Depot Grid Mapping", "Pricing Validation", "Excel Export"],
+    badge: "CCR",
   },
   {
     id: "admin",
