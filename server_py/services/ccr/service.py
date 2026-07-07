@@ -28,6 +28,9 @@ class CcrService:
     def upsert_cic_mappings(self, mappings: List[dict]) -> List[dict]:
         return self.storage.upsert_cic_mappings(mappings)
 
+    def get_cic_mapping_summary(self) -> dict:
+        return self.storage.get_cic_mapping_status_summary()
+
     # ── Ruleset ─────────────────────────────────────────────────
 
     def get_ruleset(self) -> List[dict]:

@@ -101,6 +101,15 @@ async def get_code_mapping(customer_chain: str):
     return _svc().get_code_mappings_for_chain(customer_chain)
 
 
+@router.get("/cic-mappings/summary")
+async def get_cic_mapping_summary():
+    """
+    Returns per-CBU posting status: {[cbuCode]: "Pending" | "Saved" | "Posted"}.
+    Absent keys = Pending (no CIC rows exist yet for that CBU).
+    """
+    return _svc().get_cic_mapping_summary()
+
+
 @router.get("/cic-mappings")
 async def get_cic_mappings(
     cbu_code: Optional[str] = Query(None),

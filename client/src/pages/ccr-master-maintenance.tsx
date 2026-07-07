@@ -193,6 +193,88 @@ function PricingBadge({ status }: { status: PricingStatus }) {
   );
 }
 
+// ─── CCR Dashboard cell helpers ───────────────────────────────────────────────
+
+function formatCbuDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return dateStr ?? "—";
+  }
+}
+
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  return name.trim().split(/\s+/).map(w => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
+}
+
+const AVATAR_COLORS = [
+  "bg-blue-600", "bg-violet-600", "bg-emerald-600",
+  "bg-amber-600", "bg-rose-600", "bg-cyan-600", "bg-indigo-600",
+];
+
+function avatarColor(name: string | null | undefined): string {
+  if (!name) return "bg-slate-400";
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
+function AssignedPersonCell({ name }: { name: string | null | undefined }) {
+  if (!name) return <span className="text-xs text-muted-foreground">—</span>;
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <span className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-white text-[10px] font-semibold flex-shrink-0 ${avatarColor(name)}`}>
+        {getInitials(name)}
+      </span>
+      <span className="text-sm">{name}</span>
+    </div>
+  );
+}
+
+function LifecycleStatusCell({ status }: { status: string | null | undefined }) {
+  const idx = STATUS_IDX[status ?? ""] ?? -1;
+  if (idx >= 4) {
+    return (
+      <Badge className="bg-primary text-primary-foreground hover:bg-primary text-xs whitespace-nowrap" data-testid="badge-lifecycle-active">
+        {status}
+      </Badge>
+    );
+  }
+  return (
+    <span className={`text-sm font-semibold ${idx >= 0 ? "text-foreground" : "text-muted-foreground"}`}>
+      {status || "—"}
+    </span>
+  );
+}
+
+function TriggerDot({ status }: { status: string | null | undefined }) {
+  const idx = STATUS_IDX[status ?? ""] ?? -1;
+  if (idx < 3) return <span className="text-xs text-muted-foreground">—</span>;
+  if (idx >= 5) return <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" title="Red" />;
+  return <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" title="Amber" />;
+}
+
+function PostingStatusBadge({ status }: { status: string }) {
+  if (status === "Posted") return (
+    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs" data-testid="badge-posting-posted">
+      Posted
+    </Badge>
+  );
+  if (status === "Saved") return (
+    <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs" data-testid="badge-posting-saved">
+      Saved
+    </Badge>
+  );
+  return (
+    <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs" data-testid="badge-posting-pending">
+      Pending
+    </Badge>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CcrMasterMaintenancePage() {
@@ -234,6 +316,10 @@ export default function CcrMasterMaintenancePage() {
   const { data: bpStatusMap = {} } = useQuery<Record<string, string>>({
     queryKey: ["/api/basepack-status"],
     queryFn: () => fetch("/api/basepack-status").then(r => r.ok ? r.json() : {}),
+  });
+
+  const { data: postingStatusMap = {} } = useQuery<Record<string, string>>({
+    queryKey: ["/api/ccr/cic-mappings/summary"],
   });
 
   // ── Derived values ──────────────────────────────────────────────────────────
@@ -420,6 +506,7 @@ export default function CcrMasterMaintenancePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", selectedCbu, selectedChain] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
       toast({
         title: "Mapping saved",
         description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-Mapped.`,
@@ -525,173 +612,225 @@ export default function CcrMasterMaintenancePage() {
           </AlertDescription>
         </Alert>
 
-        {/* ── Mapping Configuration panel ───────────────────────────────────── */}
+        {/* ── CBU Overview Table ───────────────────────────────────────────────── */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Tag className="h-4 w-4 text-primary" />
-              Mapping Configuration
+              CBU Overview
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-
-              {/* Customer Chain */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Customer Chain
-                </Label>
-                {isLoading ? (
-                  <Skeleton className="h-9 w-full" />
-                ) : (
-                  <Select value={selectedChain} onValueChange={handleChainChange}>
-                    <SelectTrigger data-testid="select-customer-chain" className="h-9">
-                      <SelectValue placeholder="Select chain…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map(c => (
-                        <SelectItem
-                          key={c.id}
-                          value={c.customerChain}
-                          data-testid={`option-chain-${c.customerChain}`}
-                        >
-                          {c.customerChain}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="p-4 space-y-2">
+                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
-
-              {/* CBU selector (relaunch / successor only) */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  CBU (Relaunch / Successor)
-                </Label>
-                {isLoading ? (
-                  <Skeleton className="h-9 w-full" />
-                ) : (
-                  <Select value={selectedCbu} onValueChange={handleCbuChange}>
-                    <SelectTrigger data-testid="select-cbu" className="h-9">
-                      <SelectValue placeholder="Select CBU…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {eligibleEntries.length === 0 && (
-                        <SelectItem value="__none__" disabled>No eligible CBUs found</SelectItem>
-                      )}
-                      {eligibleEntries.map(e => (
-                        <SelectItem
-                          key={e.id}
-                          value={e.cbuCode ?? ""}
-                          data-testid={`option-cbu-${e.cbuCode}`}
-                        >
-                          <span className="font-mono text-xs">{e.cbuCode}</span>
-                          {(e.basepackDescription || e.materialDescription) && (
-                            <span className="ml-2 text-muted-foreground text-xs">
-                              {e.basepackDescription || e.materialDescription}
-                            </span>
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+            ) : eligibleEntries.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                No eligible new launch CBUs found.
               </div>
-
-              {/* CIC Code input */}
-              <div className="space-y-1.5">
-                <Label
-                  className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
-                  htmlFor="cic-input"
-                >
-                  CIC Code
-                </Label>
-                <div className="relative">
-                  <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                  <Input
-                    id="cic-input"
-                    data-testid="input-cic"
-                    value={cicInput}
-                    onChange={e => setCicInput(e.target.value.toUpperCase())}
-                    placeholder={existingCicMappings[0]?.cic ?? "e.g. CIC001…"}
-                    className="h-9 pl-7 font-mono text-sm"
-                    disabled={!selectedCbu}
-                  />
-                </div>
-                {existingCicMappings.length > 0 && !cicInput && (
-                  <p className="text-[10px] text-muted-foreground">Existing CIC values shown per row</p>
-                )}
+            ) : (
+              <div className="overflow-x-auto">
+                <Table data-testid="table-cbu-overview">
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="text-xs font-semibold whitespace-nowrap pl-4">CBU Code</TableHead>
+                      <TableHead className="text-xs font-semibold">Material Description</TableHead>
+                      <TableHead className="text-xs font-semibold">Brand</TableHead>
+                      <TableHead className="text-xs font-semibold">BG</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">Type of Network</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">Assigned Person</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">CBU Created Date</TableHead>
+                      <TableHead className="text-xs font-semibold">Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-center">Trigger</TableHead>
+                      <TableHead className="text-xs font-semibold pr-4">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {eligibleEntries.map(entry => (
+                      <TableRow
+                        key={entry.id}
+                        onClick={() => handleCbuChange(entry.cbuCode ?? "")}
+                        className={
+                          selectedCbu === entry.cbuCode
+                            ? "bg-primary/5 border-l-2 border-l-primary cursor-pointer"
+                            : "cursor-pointer hover:bg-muted/40"
+                        }
+                        data-testid={`row-cbu-${entry.cbuCode}`}
+                      >
+                        <TableCell className="font-mono text-xs font-medium pl-4 whitespace-nowrap">
+                          {entry.cbuCode}
+                        </TableCell>
+                        <TableCell className="text-sm max-w-[200px]">
+                          <span className="line-clamp-1">{entry.materialDescription || entry.basepackDescription || "—"}</span>
+                        </TableCell>
+                        <TableCell className="text-sm font-semibold whitespace-nowrap">
+                          {entry.brand || "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {entry.bg || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono whitespace-nowrap">
+                          {getNetworkChangeTypeName(entry.typeOfNetwork)}
+                        </TableCell>
+                        <TableCell>
+                          <AssignedPersonCell name={(entry as any).assignedPerson} />
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {formatCbuDate(entry.cbuCreatedDate)}
+                        </TableCell>
+                        <TableCell>
+                          <LifecycleStatusCell status={entry.networkStatus} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <TriggerDot status={entry.networkStatus} />
+                        </TableCell>
+                        <TableCell className="pr-4">
+                          <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-
-              {/* Sourcing Type (read-only, derived from network entry) */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Sourcing Type
-                </Label>
-                <div className="h-9 flex items-center">
-                  {networkEntry ? (
-                    <Badge
-                      className={
-                        sourcingMode === "decentralized"
-                          ? "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100"
-                          : "bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100"
-                      }
-                      data-testid="badge-sourcing-mode"
-                    >
-                      {sourcingMode === "decentralized" ? "Decentralized" : "Centralized"}
-                    </Badge>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">—</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* CBU detail strip */}
-            {networkEntry && (
-              <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  {networkEntry.materialDescription || networkEntry.basepackDescription || networkEntry.cbuCode}
-                </span>
-                {networkEntry.basepack && (
-                  <span>Basepack: <span className="font-mono font-medium text-foreground">{networkEntry.basepack}</span></span>
-                )}
-                <span className="flex items-center gap-1">
-                  <Warehouse className="h-3 w-3" />
-                  {getNetworkChangeTypeName(networkEntry.typeOfNetwork)}
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  <span className="font-medium text-foreground">{networkEntry.networkStatus}</span>
-                </span>
-                <span>
-                  Pricing: <PricingBadge status={computeRowPricingStatus(networkEntry)} />
-                </span>
-                {networkEntry.pcAtChannelState && (
-                  <span>PC Level: <span className="font-medium text-foreground">{networkEntry.pcAtChannelState}</span></span>
-                )}
-                {networkEntry.predecessorCode && (
-                  <span>
-                    Predecessor: <span className="font-mono font-medium text-foreground">{networkEntry.predecessorCode}</span>
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Paid Bible blocking alert */}
-            {pbBlocked && networkEntry && (
-              <Alert className="mt-3 border-amber-200 bg-amber-50" data-testid="alert-pb-blocked">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-700 text-xs">
-                  <strong>Paid Bible override:</strong> Basepack{" "}
-                  <span className="font-mono">{networkEntry.basepack}</span> is marked{" "}
-                  <strong>"{basepackStatus}"</strong>. All depot rows show this status automatically.
-                  Mapping submission is blocked until the Paid Bible status is resolved.
-                </AlertDescription>
-              </Alert>
             )}
           </CardContent>
         </Card>
+
+        {/* ── Mapping Configuration — appears after CBU selected ───────────── */}
+        {selectedCbu && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Tag className="h-4 w-4 text-primary" />
+                Mapping Configuration
+                <span className="font-mono text-muted-foreground font-normal ml-1">— {selectedCbu}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                {/* Customer Chain */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Customer Chain
+                  </Label>
+                  {isLoading ? (
+                    <Skeleton className="h-9 w-full" />
+                  ) : (
+                    <Select value={selectedChain} onValueChange={handleChainChange}>
+                      <SelectTrigger data-testid="select-customer-chain" className="h-9">
+                        <SelectValue placeholder="Select chain…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map(c => (
+                          <SelectItem
+                            key={c.id}
+                            value={c.customerChain}
+                            data-testid={`option-chain-${c.customerChain}`}
+                          >
+                            {c.customerChain}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {/* CIC Code input */}
+                <div className="space-y-1.5">
+                  <Label
+                    className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
+                    htmlFor="cic-input"
+                  >
+                    CIC Code
+                  </Label>
+                  <div className="relative">
+                    <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="cic-input"
+                      data-testid="input-cic"
+                      value={cicInput}
+                      onChange={e => setCicInput(e.target.value.toUpperCase())}
+                      placeholder={existingCicMappings[0]?.cic ?? "e.g. CIC001…"}
+                      className="h-9 pl-7 font-mono text-sm"
+                    />
+                  </div>
+                  {existingCicMappings.length > 0 && !cicInput && (
+                    <p className="text-[10px] text-muted-foreground">Existing CIC values shown per row</p>
+                  )}
+                </div>
+
+                {/* Sourcing Type */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Sourcing Type
+                  </Label>
+                  <div className="h-9 flex items-center">
+                    {networkEntry ? (
+                      <Badge
+                        className={
+                          sourcingMode === "decentralized"
+                            ? "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100"
+                            : "bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100"
+                        }
+                        data-testid="badge-sourcing-mode"
+                      >
+                        {sourcingMode === "decentralized" ? "Decentralized" : "Centralized"}
+                      </Badge>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* CBU detail strip */}
+              {networkEntry && (
+                <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {networkEntry.materialDescription || networkEntry.basepackDescription || networkEntry.cbuCode}
+                  </span>
+                  {networkEntry.basepack && (
+                    <span>Basepack: <span className="font-mono font-medium text-foreground">{networkEntry.basepack}</span></span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <Warehouse className="h-3 w-3" />
+                    {getNetworkChangeTypeName(networkEntry.typeOfNetwork)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    <span className="font-medium text-foreground">{networkEntry.networkStatus}</span>
+                  </span>
+                  <span>
+                    Pricing: <PricingBadge status={computeRowPricingStatus(networkEntry)} />
+                  </span>
+                  {networkEntry.pcAtChannelState && (
+                    <span>PC Level: <span className="font-medium text-foreground">{networkEntry.pcAtChannelState}</span></span>
+                  )}
+                  {networkEntry.predecessorCode && (
+                    <span>
+                      Predecessor: <span className="font-mono font-medium text-foreground">{networkEntry.predecessorCode}</span>
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Paid Bible blocking alert */}
+              {pbBlocked && networkEntry && (
+                <Alert className="mt-3 border-amber-200 bg-amber-50" data-testid="alert-pb-blocked">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-700 text-xs">
+                    <strong>Paid Bible override:</strong> Basepack{" "}
+                    <span className="font-mono">{networkEntry.basepack}</span> is marked{" "}
+                    <strong>"{basepackStatus}"</strong>. All depot rows show this status automatically.
+                    Mapping submission is blocked until the Paid Bible status is resolved.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* ── Depot Mapping Grid ────────────────────────────────────────────── */}
         <Card>

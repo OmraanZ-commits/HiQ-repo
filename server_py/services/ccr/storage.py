@@ -163,6 +163,34 @@ class CcrStorage:
         finally:
             db.close()
 
+    def get_cic_mapping_status_summary(self) -> dict:
+        """
+        Returns per-CBU posting status for all CBUs that have CIC mapping rows.
+        Pending: no rows exist (caller defaults; absent keys = Pending)
+        Saved:   rows exist, not all Mapped (partial / Non-Mapped rows present)
+        Posted:  all rows for the CBU have status='Mapped'
+        """
+        db = SessionLocal()
+        try:
+            rows = db.query(CcrCicMappingModel.cbu_code, CcrCicMappingModel.status).all()
+            agg: dict = {}
+            for r in rows:
+                cbu = r.cbu_code
+                if cbu not in agg:
+                    agg[cbu] = {"total": 0, "mapped": 0}
+                agg[cbu]["total"] += 1
+                if r.status == "Mapped":
+                    agg[cbu]["mapped"] += 1
+            result = {}
+            for cbu, counts in agg.items():
+                if counts["mapped"] == counts["total"]:
+                    result[cbu] = "Posted"
+                else:
+                    result[cbu] = "Saved"
+            return result
+        finally:
+            db.close()
+
     # ── Ruleset ─────────────────────────────────────────────────
 
     def get_all_ruleset(self) -> List[dict]:
