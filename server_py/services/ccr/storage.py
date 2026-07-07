@@ -668,12 +668,22 @@ class CcrStorage:
 
             new_cic_required = payload.get("rulesetValues", {}).get("newCicRequired", False)
             cic_code         = payload.get("cicCode") or item.cic
-            execution_type   = payload.get("executionType", "Manual")
             overrides_list   = payload.get("overrides", [])  # structured [{field,orig,new,ts}]
             ruleset_values   = payload.get("rulesetValues", {})
             actor            = payload.get("_serverActor", "system")  # always server-derived
             justification    = payload.get("justification")
             now              = datetime.now(timezone.utc)
+
+            # ── Derive execution mode server-side from ruleset values ─────────
+            # Client-supplied executionType is ignored; mode is always determined here.
+            auto_ccr         = bool(ruleset_values.get("autoCcr", False))
+            rundown_required = bool(ruleset_values.get("rundownRequired", False))
+            if auto_ccr:
+                execution_type = "Auto"
+            elif not new_cic_required and not rundown_required:
+                execution_type = "Semi-Auto"
+            else:
+                execution_type = "Manual"
 
             # ── DOH / CLOT gating for National Non-Listing ───────────
             # Required per BRD: "all depots shift only after DOH/CLOT"
@@ -778,9 +788,43 @@ class CcrStorage:
             outcome = {**ruleset_values}
             outcome["coverage"]             = coverage
             outcome["behaviour"]            = behaviour
+            outcome["derivedExecutionType"] = execution_type
             outcome["pendingDohClotGate"]   = pending_doh_clot_gate
 
-            # ── Update line item ─────────────────────────────────────
+            if pending_doh_clot_gate:
+                # ── Gate NOT met: defer mapping changes ──────────────
+                # Do NOT mark Completed. Keep current status so the item
+                # remains actionable and re-evaluated by the trigger engine.
+                # Record a gate_pending audit event for traceability.
+                item.ruleset_outcome = outcome
+                item.execution_type  = execution_type
+                if overrides_list:
+                    item.overrides = overrides_list
+                item.updated_at = now
+
+                gate_log = CcrAuditLogModel(
+                    id=uuid.uuid4(),
+                    ccr_line_item_id=uuid.UUID(item_id),
+                    event_type="gate_pending",
+                    actor=actor,
+                    payload={
+                        "message":          "National Non-Listing DOH/CLOT gate not yet met; mapping deferred.",
+                        "executionType":    execution_type,
+                        "rulesetValues":    ruleset_values,
+                        "overrides":        overrides_list,
+                        "cicCode":          cic_code,
+                        "justification":    justification,
+                        "coverage":         coverage,
+                        "behaviour":        behaviour,
+                    },
+                    created_at=now,
+                )
+                db.add(gate_log)
+                db.commit()
+                db.refresh(item)
+                return _line_item_to_dict(item)
+
+            # ── Gate met (or not applicable): mark Completed ─────────
             item.ccr_status      = "Completed"
             item.execution_type  = execution_type
             item.ruleset_outcome = outcome
@@ -791,7 +835,7 @@ class CcrStorage:
             item.updated_at = now
 
             # ── Audit log ────────────────────────────────────────────
-            log = CcrAuditLogModel(
+            exec_log = CcrAuditLogModel(
                 id=uuid.uuid4(),
                 ccr_line_item_id=uuid.UUID(item_id),
                 event_type="executed",
@@ -805,11 +849,11 @@ class CcrStorage:
                     "coverage":             coverage,
                     "behaviour":            behaviour,
                     "newCicRequired":       new_cic_required,
-                    "pendingDohClotGate":   pending_doh_clot_gate,
+                    "pendingDohClotGate":   False,
                 },
                 created_at=now,
             )
-            db.add(log)
+            db.add(exec_log)
             db.commit()
             db.refresh(item)
             return _line_item_to_dict(item)

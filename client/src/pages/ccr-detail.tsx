@@ -370,7 +370,7 @@ function TakeActionDialog({
     if (!newCicRequired && !rundownRequired) return "Semi-Auto";
     return "Manual";
   }, [autoCcr, newCicRequired, rundownRequired]);
-  const [executionMode, setExecutionMode] = useState<"Auto" | "Semi-Auto" | "Manual">(derivedMode);
+  // Execution mode is system-determined (derivedMode). No user-editable state needed.
   const [justification, setJustification] = useState("");
 
   const [step, setStep] = useState(1);
@@ -415,7 +415,7 @@ function TakeActionDialog({
       },
       overrides,
       cicCode,
-      executionType: executionMode,
+      executionType: derivedMode,
       justification: justification || undefined,
       // Actor is NOT sent to the server — it is always derived server-side.
     });
@@ -439,7 +439,7 @@ function TakeActionDialog({
 
   const canProceedStep1 = true;
   const canProceedStep2 = cicMode === "reuse" || newCicCode.trim().length > 2;
-  const canProceedStep3 = executionMode !== "Manual" || justification.trim().length > 5;
+  const canProceedStep3 = derivedMode !== "Manual" || justification.trim().length > 5;
 
   const stepTitles = [
     "Ruleset Evaluation",
@@ -452,7 +452,12 @@ function TakeActionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-xl" data-testid="dialog-take-action">
+      <DialogContent
+        className="max-w-xl"
+        data-testid="dialog-take-action"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="text-base font-bold">
             Take Action — CCR
@@ -559,7 +564,7 @@ function TakeActionDialog({
                     The matched ruleset requires a <strong>New CIC</strong> for this network change.
                     Reuse is not permitted.{" "}
                     <a
-                      href="/master-maintenance"
+                      href="/ccr/master-maintenance"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="underline font-semibold text-amber-900"
@@ -628,64 +633,85 @@ function TakeActionDialog({
             </div>
           )}
 
-          {/* ── Step 3: Execution Mode ── */}
+          {/* ── Step 3: Execution Mode (system-determined, read-only) ── */}
           {step === 3 && (
             <div className="space-y-4" data-testid="step-execution-mode">
-              <div className="rounded bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                Suggested mode based on ruleset:{" "}
-                <span className="font-semibold text-foreground">{derivedMode}</span>
+              <div className="rounded bg-sky-50 border border-sky-200 px-3 py-2 text-xs text-sky-800">
+                The execution mode is <strong>system-determined</strong> from the ruleset
+                parameters set in Step 1. It cannot be overridden here.
               </div>
-              <RadioGroup
-                value={executionMode}
-                onValueChange={v => setExecutionMode(v as "Auto" | "Semi-Auto" | "Manual")}
-                className="space-y-2"
-                data-testid="radio-execution-mode"
-              >
-                {([
-                  {
-                    value: "Auto",
-                    label: "Auto — Confirm Auto Execution",
-                    description: "CCR will be submitted and processed automatically.",
-                  },
-                  {
-                    value: "Semi-Auto",
-                    label: "Semi-Auto — Submit for CD Approval",
-                    description: "CCR submitted; requires Channel Development sign-off.",
-                  },
-                  {
-                    value: "Manual",
-                    label: "Manual — Flag for Manual Review",
-                    description: "CCR flagged; requires full manual coordination.",
-                  },
-                ] as const).map(opt => (
+
+              {/* Read-only mode display cards */}
+              {([
+                {
+                  value: "Auto",
+                  label: "Auto — Automatic Execution",
+                  description: "CCR will be submitted and processed automatically.",
+                  color: "emerald",
+                },
+                {
+                  value: "Semi-Auto",
+                  label: "Semi-Auto — Channel Development Approval",
+                  description: "CCR submitted; requires Channel Development sign-off.",
+                  color: "sky",
+                },
+                {
+                  value: "Manual",
+                  label: "Manual — Full Manual Review Required",
+                  description: "CCR flagged; requires full manual coordination and justification.",
+                  color: "amber",
+                },
+              ] as const).map(opt => {
+                const isSelected = derivedMode === opt.value;
+                const colorMap: Record<string, string> = {
+                  emerald: "border-emerald-400 bg-emerald-50",
+                  sky: "border-sky-400 bg-sky-50",
+                  amber: "border-amber-400 bg-amber-50",
+                };
+                return (
                   <div
                     key={opt.value}
-                    className={`flex items-start gap-3 rounded border px-3 py-2.5 cursor-pointer transition-colors ${executionMode === opt.value ? "border-primary bg-primary/5" : "border-border"}`}
+                    className={`flex items-start gap-3 rounded border px-3 py-2.5 transition-colors ${
+                      isSelected ? colorMap[opt.color] : "border-border opacity-40"
+                    }`}
+                    data-testid={`mode-card-${opt.value}`}
                   >
-                    <RadioGroupItem value={opt.value} id={`mode-${opt.value}`} className="mt-0.5" />
-                    <Label htmlFor={`mode-${opt.value}`} className="cursor-pointer space-y-0.5">
+                    <div className={`mt-0.5 h-3.5 w-3.5 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                      isSelected ? "border-primary" : "border-muted-foreground"
+                    }`}>
+                      {isSelected && (
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
+                    </div>
+                    <div className="space-y-0.5">
                       <p className="font-medium text-sm">{opt.label}</p>
                       <p className="text-xs text-muted-foreground">{opt.description}</p>
-                    </Label>
+                    </div>
                   </div>
-                ))}
-              </RadioGroup>
-              {executionMode === "Manual" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="justification" className="text-xs">
-                    Justification <span className="text-red-500">*</span>
-                  </Label>
-                  <Textarea
-                    id="justification"
-                    placeholder="Explain why manual handling is required…"
-                    value={justification}
-                    onChange={e => setJustification(e.target.value)}
-                    rows={3}
-                    className="text-xs resize-none"
-                    data-testid="textarea-justification"
-                  />
-                </div>
-              )}
+                );
+              })}
+
+              {/* Justification input is always available for audit context */}
+              <div className="space-y-1.5">
+                <Label htmlFor="justification" className="text-xs">
+                  Justification / Context{derivedMode === "Manual" && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </Label>
+                <Textarea
+                  id="justification"
+                  placeholder={
+                    derivedMode === "Manual"
+                      ? "Explain why manual handling is required…"
+                      : "Optional: add context or notes for this CCR execution…"
+                  }
+                  value={justification}
+                  onChange={e => setJustification(e.target.value)}
+                  rows={3}
+                  className="text-xs resize-none"
+                  data-testid="textarea-justification"
+                />
+              </div>
             </div>
           )}
 
@@ -709,7 +735,7 @@ function TakeActionDialog({
                   ["Predecessor Rundown", rundownRequired ? "Yes" : "No"],
                   ["Auto-CCR", autoCcr ? "Yes" : "No"],
                   ["CIC Code", cicCode],
-                  ["Execution Mode", executionMode],
+                  ["Execution Mode", `${derivedMode} (system-determined)`],
                   ["Overrides", overrides.length > 0 ? overrides.map(o => o.field).join(", ") : "None"],
                   justification ? ["Justification", justification] : null,
                 ]
