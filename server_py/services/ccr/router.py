@@ -110,6 +110,18 @@ async def get_cic_mapping_summary():
     return _svc().get_cic_mapping_summary()
 
 
+@router.get("/cic-mappings/depot-change-summary")
+async def get_depot_change_summary():
+    """
+    Returns per-CBU depot-change status for CBUs with saved CIC mapping rows.
+    stale:   at least one saved row's status no longer matches the auto-derived status
+             based on the CBU's current NV depot array.
+    current: all saved rows match.
+    Absent keys = no saved CIC rows for that CBU.
+    """
+    return _svc().get_depot_change_summary()
+
+
 @router.get("/cic-mappings")
 async def get_cic_mappings(
     cbu_code: Optional[str] = Query(None),

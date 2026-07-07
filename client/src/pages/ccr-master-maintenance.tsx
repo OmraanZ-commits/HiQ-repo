@@ -15,9 +15,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Download, Save, AlertTriangle, CheckCircle2, XCircle, Info,
-  Warehouse, Hash, MapPin, Tag,
+  Warehouse, Hash, MapPin, Tag, RefreshCw,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -276,6 +277,116 @@ function PostingStatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── CBU Table (shared across tabs) ──────────────────────────────────────────
+
+type CbuTableProps = {
+  entries: NetworkEntry[];
+  emptyMessage: string;
+  testId: string;
+  isLoading: boolean;
+  selectedCbu: string;
+  onCbuChange: (cbu: string) => void;
+  postingStatusMap: Record<string, string>;
+  onNavigate: (path: string) => void;
+};
+
+function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange, postingStatusMap, onNavigate }: CbuTableProps) {
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-2">
+        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+      </div>
+    );
+  }
+  if (entries.length === 0) {
+    return (
+      <div className="py-10 text-center text-sm text-muted-foreground" data-testid={`empty-${testId}`}>
+        {emptyMessage}
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <Table data-testid={`table-${testId}`} className="w-full table-fixed">
+        <TableHeader>
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableHead className="text-xs font-semibold pl-4 w-[10%]">CBU Code</TableHead>
+            <TableHead className="text-xs font-semibold w-[15%]">Material Description</TableHead>
+            <TableHead className="text-xs font-semibold w-[7%]">Brand</TableHead>
+            <TableHead className="text-xs font-semibold w-[8%]">BG</TableHead>
+            <TableHead className="text-xs font-semibold w-[8%]">Type of Network</TableHead>
+            <TableHead className="text-xs font-semibold w-[12%]">Assigned Person</TableHead>
+            <TableHead className="text-xs font-semibold w-[8%]">Network Start Date</TableHead>
+            <TableHead className="text-xs font-semibold w-[16%]">Network Status</TableHead>
+            <TableHead className="text-xs font-semibold text-center w-[4%]">Trigger</TableHead>
+            <TableHead className="text-xs font-semibold w-[7%]">Posting Status</TableHead>
+            <TableHead className="text-xs font-semibold pr-4 text-right w-[5%]">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {entries.map(entry => (
+            <TableRow
+              key={entry.id}
+              onClick={() => onCbuChange(entry.cbuCode ?? "")}
+              className={
+                selectedCbu === entry.cbuCode
+                  ? "bg-primary/5 border-l-2 border-l-primary cursor-pointer"
+                  : "cursor-pointer hover:bg-muted/40"
+              }
+              data-testid={`row-cbu-${entry.cbuCode}`}
+            >
+              <TableCell className="font-mono text-xs font-medium pl-4 truncate">
+                {entry.cbuCode}
+              </TableCell>
+              <TableCell className="text-sm">
+                <span className="truncate block">{entry.materialDescription || entry.basepackDescription || "—"}</span>
+              </TableCell>
+              <TableCell className="text-sm font-semibold truncate">
+                {entry.brand || "—"}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground truncate">
+                {entry.bg || "—"}
+              </TableCell>
+              <TableCell className="text-xs font-mono truncate">
+                {getNetworkChangeTypeName(entry.typeOfNetwork)}
+              </TableCell>
+              <TableCell>
+                <AssignedPersonCell name={(entry as any).assignedPerson} />
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                {formatCbuDate((entry as any).startDate)}
+              </TableCell>
+              <TableCell>
+                <LifecycleStatusCell status={entry.networkStatus} />
+              </TableCell>
+              <TableCell className="text-center">
+                <TriggerDot status={entry.networkStatus} />
+              </TableCell>
+              <TableCell>
+                <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
+              </TableCell>
+              <TableCell className="pr-4 text-right">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs px-2.5"
+                  data-testid={`btn-configure-${entry.cbuCode}`}
+                  onClick={e => {
+                    e.stopPropagation();
+                    onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`);
+                  }}
+                >
+                  Configure
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CcrMasterMaintenancePage() {
@@ -288,6 +399,7 @@ export default function CcrMasterMaintenancePage() {
   const [cicInput, setCicInput] = useState<string>("");
   const [sourcingDepotMap, setSourcingDepotMap] = useState<Record<string, string>>({});
   const [centralizedMappedSet, setCentralizedMappedSet] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<string>("new-launch");
 
   // ── Data Queries ────────────────────────────────────────────────────────────
 
@@ -324,11 +436,30 @@ export default function CcrMasterMaintenancePage() {
     queryKey: ["/api/ccr/cic-mappings/summary"],
   });
 
+  const { data: depotChangeSummary = {} } = useQuery<Record<string, "stale" | "current">>({
+    queryKey: ["/api/ccr/cic-mappings/depot-change-summary"],
+  });
+
   // ── Derived values ──────────────────────────────────────────────────────────
 
   const eligibleEntries = useMemo(
     () => networkEntries.filter(isEligibleCbu),
     [networkEntries],
+  );
+
+  const newLaunchEntries = useMemo(
+    () => eligibleEntries.filter(e => !depotChangeSummary[e.cbuCode ?? ""]),
+    [eligibleEntries, depotChangeSummary],
+  );
+
+  const networkChangeEntries = useMemo(
+    () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""] === "stale"),
+    [eligibleEntries, depotChangeSummary],
+  );
+
+  const completedEntries = useMemo(
+    () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""] === "current"),
+    [eligibleEntries, depotChangeSummary],
   );
 
   const networkEntry = useMemo(
@@ -509,6 +640,7 @@ export default function CcrMasterMaintenancePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", selectedCbu, selectedChain] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
       toast({
         title: "Mapping saved",
         description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-Mapped.`,
@@ -614,104 +746,107 @@ export default function CcrMasterMaintenancePage() {
           </AlertDescription>
         </Alert>
 
-        {/* ── CBU Overview Table ───────────────────────────────────────────────── */}
+        {/* ── CBU Overview Tabs ────────────────────────────────────────────────── */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Tag className="h-4 w-4 text-primary" />
-              CBU Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="p-4 space-y-2">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <CardHeader className="pb-0 border-b">
+              <div className="flex items-center justify-between mb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-primary" />
+                  CBU Overview
+                </CardTitle>
               </div>
-            ) : eligibleEntries.length === 0 ? (
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                No eligible new launch CBUs found.
-              </div>
-            ) : (
-              <div>
-                <Table data-testid="table-cbu-overview" className="w-full table-fixed">
-                  <TableHeader>
-                    <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      <TableHead className="text-xs font-semibold pl-4 w-[10%]">CBU Code</TableHead>
-                      <TableHead className="text-xs font-semibold w-[15%]">Material Description</TableHead>
-                      <TableHead className="text-xs font-semibold w-[7%]">Brand</TableHead>
-                      <TableHead className="text-xs font-semibold w-[8%]">BG</TableHead>
-                      <TableHead className="text-xs font-semibold w-[8%]">Type of Network</TableHead>
-                      <TableHead className="text-xs font-semibold w-[12%]">Assigned Person</TableHead>
-                      <TableHead className="text-xs font-semibold w-[8%]">Network Start Date</TableHead>
-                      <TableHead className="text-xs font-semibold w-[16%]">Network Status</TableHead>
-                      <TableHead className="text-xs font-semibold text-center w-[4%]">Trigger</TableHead>
-                      <TableHead className="text-xs font-semibold w-[7%]">Posting Status</TableHead>
-                      <TableHead className="text-xs font-semibold pr-4 text-right w-[5%]">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {eligibleEntries.map(entry => (
-                      <TableRow
-                        key={entry.id}
-                        onClick={() => handleCbuChange(entry.cbuCode ?? "")}
-                        className={
-                          selectedCbu === entry.cbuCode
-                            ? "bg-primary/5 border-l-2 border-l-primary cursor-pointer"
-                            : "cursor-pointer hover:bg-muted/40"
-                        }
-                        data-testid={`row-cbu-${entry.cbuCode}`}
-                      >
-                        <TableCell className="font-mono text-xs font-medium pl-4 truncate">
-                          {entry.cbuCode}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          <span className="truncate block">{entry.materialDescription || entry.basepackDescription || "—"}</span>
-                        </TableCell>
-                        <TableCell className="text-sm font-semibold truncate">
-                          {entry.brand || "—"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground truncate">
-                          {entry.bg || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono truncate">
-                          {getNetworkChangeTypeName(entry.typeOfNetwork)}
-                        </TableCell>
-                        <TableCell>
-                          <AssignedPersonCell name={(entry as any).assignedPerson} />
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatCbuDate((entry as any).startDate)}
-                        </TableCell>
-                        <TableCell>
-                          <LifecycleStatusCell status={entry.networkStatus} />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <TriggerDot status={entry.networkStatus} />
-                        </TableCell>
-                        <TableCell>
-                          <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
-                        </TableCell>
-                        <TableCell className="pr-4 text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs px-2.5"
-                            data-testid={`btn-configure-${entry.cbuCode}`}
-                            onClick={e => {
-                              e.stopPropagation();
-                              navigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`);
-                            }}
-                          >
-                            Configure
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
+              <TabsList className="h-9 bg-transparent border-0 p-0 gap-0 w-full justify-start rounded-none">
+                <TabsTrigger
+                  value="new-launch"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
+                  data-testid="tab-new-launch"
+                >
+                  New Launch
+                  {newLaunchEntries.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">
+                      {newLaunchEntries.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="network-change"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
+                  data-testid="tab-network-change"
+                >
+                  Network Change
+                  {networkChangeEntries.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold">
+                      {networkChangeEntries.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="completed"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
+                  data-testid="tab-completed"
+                >
+                  Completed
+                  {completedEntries.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
+                      {completedEntries.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </CardHeader>
+
+            {/* ── Tab content ───────────────────────────────────────────── */}
+            <TabsContent value="new-launch" className="mt-0">
+              <CbuTable
+                entries={newLaunchEntries}
+                emptyMessage="No unmapped new launch CBUs."
+                testId="new-launch"
+                isLoading={isLoading}
+                selectedCbu={selectedCbu}
+                onCbuChange={handleCbuChange}
+                postingStatusMap={postingStatusMap}
+                onNavigate={navigate}
+              />
+            </TabsContent>
+
+            <TabsContent value="network-change" className="mt-0">
+              {networkChangeEntries.length > 0 && (
+                <div className="px-4 pt-3">
+                  <Alert className="border-amber-200 bg-amber-50">
+                    <RefreshCw className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700 text-xs">
+                      These CBUs had their NV depot list updated after the mapping was saved.
+                      Open each CBU, review the grid, and save to move it to Completed.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+              <CbuTable
+                entries={networkChangeEntries}
+                emptyMessage="No CBUs with pending depot changes."
+                testId="network-change"
+                isLoading={isLoading}
+                selectedCbu={selectedCbu}
+                onCbuChange={handleCbuChange}
+                postingStatusMap={postingStatusMap}
+                onNavigate={navigate}
+              />
+            </TabsContent>
+
+            <TabsContent value="completed" className="mt-0">
+              <CbuTable
+                entries={completedEntries}
+                emptyMessage="No completed mappings yet."
+                testId="completed"
+                isLoading={isLoading}
+                selectedCbu={selectedCbu}
+                onCbuChange={handleCbuChange}
+                postingStatusMap={postingStatusMap}
+                onNavigate={navigate}
+              />
+            </TabsContent>
+          </Tabs>
         </Card>
 
       </div>

@@ -31,6 +31,9 @@ class CcrService:
     def get_cic_mapping_summary(self) -> dict:
         return self.storage.get_cic_mapping_status_summary()
 
+    def get_depot_change_summary(self) -> dict:
+        return self.storage.get_depot_change_summary()
+
     # ── Ruleset ─────────────────────────────────────────────────
 
     def get_ruleset(self) -> List[dict]:

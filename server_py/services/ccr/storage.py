@@ -4,6 +4,7 @@ from typing import Optional, List
 
 from server_py.db import (
     SessionLocal,
+    NetworkEntryModel,
     CcrCustomerMasterModel,
     CcrCustomerCodeMappingModel,
     CcrCicMappingModel,
@@ -187,6 +188,61 @@ class CcrStorage:
                     result[cbu] = "Posted"
                 else:
                     result[cbu] = "Saved"
+            return result
+        finally:
+            db.close()
+
+    def get_depot_change_summary(self) -> dict:
+        """
+        Returns per-CBU depot-change status for CBUs with saved CIC mapping rows.
+        Compares each row's saved status against the auto-derived status from
+        the NV entry's current depot array.
+
+        stale:   at least one saved row's status differs from what would be derived today
+        current: all saved rows match the derived status
+
+        CBUs with no CIC rows are absent from the result.
+        Decentralised rows derive as "Mapped" unconditionally; Centralised rows
+        derive as "Mapped" only when the row's depot appears in entry.depot.
+        """
+        db = SessionLocal()
+        try:
+            cic_rows = db.query(
+                CcrCicMappingModel.cbu_code,
+                CcrCicMappingModel.depot,
+                CcrCicMappingModel.status,
+                CcrCicMappingModel.sourcing_type,
+            ).all()
+
+            if not cic_rows:
+                return {}
+
+            cbu_codes = list({r.cbu_code for r in cic_rows})
+            ne_rows = db.query(
+                NetworkEntryModel.cbu_code,
+                NetworkEntryModel.depot,
+            ).filter(NetworkEntryModel.cbu_code.in_(cbu_codes)).all()
+
+            entry_depot_map: dict = {r.cbu_code: (r.depot or []) for r in ne_rows}
+
+            cbu_row_groups: dict = {}
+            for r in cic_rows:
+                cbu_row_groups.setdefault(r.cbu_code, []).append(r)
+
+            result = {}
+            for cbu, rows in cbu_row_groups.items():
+                nv_depots = entry_depot_map.get(cbu, [])
+                any_stale = False
+                for row in rows:
+                    if row.sourcing_type == "Decentralized":
+                        derived = "Mapped"
+                    else:
+                        derived = "Mapped" if row.depot in nv_depots else "Non-Mapped"
+                    if row.status != derived:
+                        any_stale = True
+                        break
+                result[cbu] = "stale" if any_stale else "current"
+
             return result
         finally:
             db.close()
