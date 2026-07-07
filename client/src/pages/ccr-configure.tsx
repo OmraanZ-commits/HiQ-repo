@@ -721,6 +721,12 @@ export default function CcrConfigurePage() {
             {/* Mapping grid table */}
             {!gridLoading && rows.length > 0 && (
               <div ref={staleGridRef} className="overflow-x-auto">
+                <div className="px-4 pt-3 pb-1 flex items-center gap-3 text-xs text-muted-foreground border-b">
+                  <span>Depot:</span>
+                  <span className="text-emerald-700 font-semibold">Green — in this CBU's NV distribution</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-amber-600">Amber — not in NV distribution</span>
+                </div>
                 <Table data-testid="table-depot-grid">
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -762,7 +768,12 @@ export default function CcrConfigurePage() {
                           {row.cic || <span className="text-muted-foreground italic">—</span>}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.salesOrg}</TableCell>
-                        <TableCell className="text-sm font-medium" data-testid={`text-depot-${row.customerCode}`}>{row.depot}</TableCell>
+                        <TableCell
+                          className={`text-sm font-semibold ${assignedDepots.includes(row.depot) ? "text-emerald-700" : "text-amber-600"}`}
+                          data-testid={`text-depot-${row.customerCode}`}
+                        >
+                          {row.depot}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.subChannel}</TableCell>
                         <TableCell data-testid={`cell-status-${row.customerCode}`}>
                           <StatusBadge status={row.status} pbStatus={row.pbStatus} />
