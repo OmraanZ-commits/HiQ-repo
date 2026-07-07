@@ -16,9 +16,9 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  ArrowLeft, CheckCircle2, XCircle, Warehouse,
-  MapPin, Save, Download, AlertTriangle,
-  Hash, Tag, Link2,
+  ArrowLeft, CheckCircle2, XCircle,
+  Save, Download, AlertTriangle, MapPin, Warehouse,
+  Hash, Tag, Link2, Package, TrendingUp,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -485,16 +485,7 @@ export default function CcrConfigurePage() {
 
         {/* ── Stats row ─────────────────────────────────────────────────────── */}
         {!isLoading && entry && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Card>
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Warehouse className="h-3.5 w-3.5" />
-                  <span className="text-[10px] uppercase font-semibold tracking-wide">Total Depots</span>
-                </div>
-                <p className="text-2xl font-bold">{allDepotCodes.length}</p>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card>
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -510,10 +501,28 @@ export default function CcrConfigurePage() {
             <Card>
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <MapPin className="h-3.5 w-3.5" />
-                  <span className="text-[10px] uppercase font-semibold tracking-wide">Mapped</span>
+                  <Package className="h-3.5 w-3.5" />
+                  <span className="text-[10px] uppercase font-semibold tracking-wide">Basepack Status</span>
                 </div>
-                <p className="text-2xl font-bold text-blue-600">{mappedDepotCount} <span className="text-sm text-muted-foreground font-normal">/ {allDepotCodes.length}</span></p>
+                <p className={`text-lg font-bold ${pbBlocked ? "text-red-500" : "text-emerald-600"}`}>
+                  {basepackStatus ?? "Active"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  <span className="text-[10px] uppercase font-semibold tracking-wide">MSTN Cleared</span>
+                </div>
+                {entry.mstnPercentage != null ? (
+                  <p className={`text-2xl font-bold ${entry.mstnPercentage >= 80 ? "text-emerald-600" : "text-red-500"}`}>
+                    {entry.mstnPercentage >= 80 ? "Yes" : "No"}
+                    <span className="text-sm text-muted-foreground font-normal ml-1">({entry.mstnPercentage}%)</span>
+                  </p>
+                ) : (
+                  <p className="text-2xl font-bold text-muted-foreground">—</p>
+                )}
               </CardContent>
             </Card>
           </div>
