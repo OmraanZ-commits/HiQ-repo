@@ -483,55 +483,44 @@ export default function CcrConfigurePage() {
           </CardContent>
         </Card>
 
-        {/* ── Stats cards (HUL light style) ────────────────────────────────── */}
+        {/* ── Stats cards ───────────────────────────────────────────────────── */}
         {!isLoading && entry && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
 
-            {/* Chain Mapping Completed */}
-            <div className="rounded-xl border-2 border-primary bg-blue-50/60 px-4 py-3 flex flex-col gap-1">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-extrabold text-primary leading-none">
-                  {chainCompletionStats.completed}
+            <Card>
+              <CardContent className="py-3 px-4">
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-1.5">Chain Mapping Completed</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-bold text-foreground">{chainCompletionStats.completed}</span>
+                  <span className="text-sm text-muted-foreground">/ {chainCompletionStats.applicable}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="py-3 px-4">
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-1.5">Basepack Status</p>
+                <span className={`text-sm font-semibold ${pbBlocked ? "text-red-500" : "text-emerald-600"}`}>
+                  {basepackStatus ?? "Active"}
                 </span>
-                <span className="text-base font-semibold text-primary/50 leading-none">
-                  / {chainCompletionStats.applicable}
-                </span>
-              </div>
-              <p className="text-xs font-bold text-primary/80">chains mapped</p>
-              <p className="text-[10px] text-muted-foreground">Chain Mapping Completed</p>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Basepack Status */}
-            <div className={`rounded-xl border-2 bg-blue-50/60 px-4 py-3 flex flex-col gap-1 ${pbBlocked ? "border-red-400" : "border-primary"}`}>
-              <span className={`text-2xl font-extrabold leading-none ${pbBlocked ? "text-red-500" : "text-primary"}`}>
-                {basepackStatus ?? "Active"}
-              </span>
-              <p className={`text-xs font-bold ${pbBlocked ? "text-red-400" : "text-primary/80"}`}>current pack status</p>
-              <p className="text-[10px] text-muted-foreground">Basepack Status</p>
-            </div>
-
-            {/* MSTN Cleared */}
-            <div className={`rounded-xl border-2 bg-blue-50/60 px-4 py-3 flex flex-col gap-1 ${entry.mstnPercentage != null && entry.mstnPercentage < 80 ? "border-red-400" : "border-primary"}`}>
-              {entry.mstnPercentage != null ? (
-                <>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className={`text-2xl font-extrabold leading-none ${entry.mstnPercentage >= 80 ? "text-primary" : "text-red-500"}`}>
+            <Card>
+              <CardContent className="py-3 px-4">
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-1.5">MSTN Cleared</p>
+                {entry.mstnPercentage != null ? (
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-xl font-bold ${entry.mstnPercentage >= 80 ? "text-emerald-600" : "text-red-500"}`}>
                       {entry.mstnPercentage >= 80 ? "Yes" : "No"}
                     </span>
-                    <span className={`text-base font-semibold leading-none ${entry.mstnPercentage >= 80 ? "text-primary/50" : "text-red-400/70"}`}>
-                      {entry.mstnPercentage}%
-                    </span>
+                    <span className="text-sm text-muted-foreground">{entry.mstnPercentage}%</span>
                   </div>
-                  <p className={`text-xs font-bold ${entry.mstnPercentage >= 80 ? "text-primary/80" : "text-red-400"}`}>MSTN threshold</p>
-                </>
-              ) : (
-                <>
-                  <span className="text-2xl font-extrabold text-muted-foreground/40 leading-none">—</span>
-                  <p className="text-xs font-bold text-muted-foreground">no data available</p>
-                </>
-              )}
-              <p className="text-[10px] text-muted-foreground">MSTN Cleared</p>
-            </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
+              </CardContent>
+            </Card>
 
           </div>
         )}
