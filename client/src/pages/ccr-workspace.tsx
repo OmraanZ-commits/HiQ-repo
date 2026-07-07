@@ -433,14 +433,26 @@ export default function CcrWorkspacePage() {
     queryFn: () => fetch("/api/me").then(r => r.json()),
   });
 
-  // When /api/me resolves and no URL override is present, scope to logged-in CSE.
+  // Enforce CSE scope once /api/me resolves.
+  // - Non-admins: hard-bind to their assigned CSE — URL ?cse= is ignored entirely
+  //   (backend also enforces this server-side for defense in depth).
+  // - Admins: URL ?cse= override is honoured; default is "all" (unscoped).
   useEffect(() => {
-    if (urlCse) return;  // URL param takes precedence
     if (!currentUser) return;
-    const cseId = currentUser.cseId ?? "all";
-    if (cseId !== selectedCse) {
-      setSelectedCse(cseId);
-      syncUrl(cseId, filterStages, filterNwTypes, filterEscalated);
+    if (!currentUser.isAdmin) {
+      // Non-admin: always force their own CSE regardless of URL param
+      const cseId = currentUser.cseId ?? "all";
+      if (cseId !== selectedCse) {
+        setSelectedCse(cseId);
+        syncUrl(cseId, filterStages, filterNwTypes, filterEscalated);
+      }
+    } else {
+      // Admin: respect URL override; default to "all" if no param
+      if (urlCse) return;
+      if (selectedCse !== "all") {
+        setSelectedCse("all");
+        syncUrl("all", filterStages, filterNwTypes, filterEscalated);
+      }
     }
   }, [currentUser]);
 

@@ -198,14 +198,23 @@ async def startup():
     set_ftr_service(ftr_service)
 
     async def _ccr_trigger_loop():
-        """Background task: re-evaluate CCR triggers every 30 minutes."""
+        """
+        Background task: evaluate CCR triggers at startup, then every 30 minutes.
+        The first run fires immediately (no sleep) so urgency/escalation states are
+        accurate as soon as the server is ready — avoiding a 30-minute stale window
+        after every deploy or restart.
+        """
+        first_run = True
         while True:
             try:
-                await asyncio.sleep(30 * 60)
+                if not first_run:
+                    await asyncio.sleep(30 * 60)
+                first_run = False
                 result = ccr_service.evaluate_triggers()  # fetches entries server-side
                 logging.info(f"[CCR trigger engine] updated={result['updated']} escalated={result['escalated']}")
             except Exception as exc:
                 logging.warning(f"[CCR trigger engine] error: {exc}")
+                first_run = False  # ensure loop continues even if first run fails
 
     asyncio.create_task(_ccr_trigger_loop())
 

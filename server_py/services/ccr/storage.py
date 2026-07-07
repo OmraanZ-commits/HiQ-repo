@@ -511,7 +511,10 @@ class CcrStorage:
                 .filter(CcrLineItemModel.ccr_status != "Completed")
                 .all()
             )
-            now = datetime.now(timezone.utc)
+            # Use naive UTC to match PostgreSQL TIMESTAMP WITHOUT TIME ZONE columns.
+            # datetime.now(timezone.utc) is offset-aware and cannot be directly compared
+            # against naive datetimes returned from SQLAlchemy ORM column reads.
+            now = datetime.utcnow()
             updated = 0
             escalated = 0
 

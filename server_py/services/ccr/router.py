@@ -1,8 +1,31 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, Any
 
 from server_py.services.ccr.service import CcrService
+from server_py.db import SessionLocal, CcrCustomerMasterModel
+
+
+async def _get_session_user() -> dict:
+    """
+    Derive the 'logged-in' user server-side using the same logic as GET /api/me.
+    In production this would read identity from a JWT or session cookie.
+    For the demo it queries the first CSE in the customer master — same deterministic
+    source used by /api/me — so the result is always consistent.
+    Returns {"cseId": str | None, "isAdmin": bool}.
+    """
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(CcrCustomerMasterModel)
+            .filter(CcrCustomerMasterModel.cse_id.isnot(None))
+            .order_by(CcrCustomerMasterModel.cse_id)
+            .first()
+        )
+        cse_id = row.cse_id if row else None
+    finally:
+        db.close()
+    return {"cseId": cse_id, "isAdmin": cse_id is None}
 
 router = APIRouter()
 _service: CcrService | None = None
@@ -76,7 +99,18 @@ async def get_line_items(
     ccr_status: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    session_user: dict = Depends(_get_session_user),
 ):
+    """
+    Return CCR line items.  CSE scope is ALWAYS enforced server-side.
+    - Non-admin sessions: client-supplied cse_id is ignored; items are always
+      filtered to the session user's own cse_id (IDOR prevention).
+    - Admin sessions (no CSE assignment in customer master): client-supplied
+      cse_id is honoured so admins can inspect any CSE's workspace.
+    """
+    if not session_user["isAdmin"]:
+        # Override client input — scope strictly to the server-derived CSE identity
+        cse_id = session_user["cseId"]
     return _svc().get_line_items(cse_id=cse_id, ccr_status=ccr_status, limit=limit, offset=offset)
 
 
