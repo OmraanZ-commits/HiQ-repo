@@ -376,12 +376,15 @@ class CcrStorage:
             now = datetime.now(timezone.utc)
             results = []
             for m in mappings:
+                # Key on (cbu_code, customer_chain, customer_code, depot) — depot-granular
+                # because a single customer code can map to multiple depots.
                 row = (
                     db.query(CcrCicMappingModel)
                     .filter(
                         CcrCicMappingModel.cbu_code == m["cbuCode"],
                         CcrCicMappingModel.customer_chain == m["customerChain"],
                         CcrCicMappingModel.customer_code == m["customerCode"],
+                        CcrCicMappingModel.depot == m.get("depot"),
                     )
                     .first()
                 )

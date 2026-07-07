@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
@@ -268,6 +268,33 @@ export default function CcrMasterMaintenancePage() {
     existingCicMappings.forEach(m => { map[m.customerCode] = m; });
     return map;
   }, [existingCicMappings]);
+
+  // ── Hydrate centralized UI state from persisted mappings ────────────────────
+  // Track which CBU+chain combo we last hydrated so we only run once per selection
+  const hydratedKeyRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!existingCicMappings.length || !networkEntry) return;
+    const key = `${selectedCbu}::${selectedChain}`;
+    if (hydratedKeyRef.current === key) return; // already hydrated for this selection
+    hydratedKeyRef.current = key;
+
+    // Only hydrate centralized state (decentralized is auto-Mapped)
+    if (getSourcingMode(networkEntry) !== "centralized") return;
+
+    const newMapped = new Set<string>();
+    const newSourcingMap: Record<string, string> = {};
+    existingCicMappings.forEach(m => {
+      if (m.status === "Mapped") {
+        newMapped.add(m.customerCode);
+        if (m.sourcingDepot) newSourcingMap[m.customerCode] = m.sourcingDepot;
+      }
+    });
+    if (newMapped.size > 0) {
+      setCentralizedMappedSet(newMapped);
+      setSourcingDepotMap(newSourcingMap);
+    }
+  }, [existingCicMappings, networkEntry, selectedCbu, selectedChain]);
 
   const allDepots = useMemo(
     () => Array.from(new Set(codeMappings.map(m => m.depot))).sort(),
