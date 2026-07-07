@@ -386,6 +386,7 @@ class CcrCicMappingModel(Base):
     customer_chain = Column(String, nullable=False, index=True)
     customer_code = Column(String, nullable=False)
     cic = Column(String, nullable=True)
+    cic_description = Column(String, nullable=True)
     sales_org = Column(String, nullable=True, default="1000")
     channel = Column(String, nullable=True)
     depot = Column(String, nullable=True)
@@ -710,6 +711,7 @@ def run_migrations():
             "ALTER TABLE ftr_images ADD COLUMN IF NOT EXISTS image_filename VARCHAR",
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS customer_mapping JSONB",
             "ALTER TABLE ftr_images ALTER COLUMN image_url DROP NOT NULL",
+            "ALTER TABLE ccr_cic_mapping ADD COLUMN IF NOT EXISTS cic_description VARCHAR",
         ]:
             try:
                 conn.execute(text(col_sql))

@@ -49,6 +49,7 @@ type CicMapping = {
   customerChain: string;
   customerCode: string;
   cic: string | null;
+  cicDescription: string | null;
   salesOrg: string;
   channel: string;
   depot: string | null;
@@ -72,6 +73,7 @@ type DepotRow = {
   sourcingDepot: string;
   sourcingType: string;
   cic: string;
+  cicDescription: string;
   salesOrg: string;
   existingCicId?: string;
   pbOverridden: boolean;
@@ -162,6 +164,7 @@ export default function CcrConfigurePage() {
   // ── Local state ─────────────────────────────────────────────────────────────
   const [selectedChain, setSelectedChain] = useState<string>("");
   const [cicInput, setCicInput] = useState<string>("");
+  const [cicDescriptionInput, setCicDescriptionInput] = useState<string>("");
   const [sourcingDepotMap, setSourcingDepotMap] = useState<Record<string, string>>({});
 
   // ── Queries ─────────────────────────────────────────────────────────────────
@@ -286,6 +289,7 @@ export default function CcrConfigurePage() {
     return codeMappings.map(cm => {
       const existing = cicByKey[`${cm.customerCode}::${cm.depot}`];
       const effectiveCic = cicInput || existing?.cic || "";
+      const effectiveCicDescription = cicDescriptionInput || existing?.cicDescription || "";
       let status: DepotStatus, sourcingDepot: string, pbStatus: string | undefined;
       if (pbBlocked) {
         status = basepackStatus!; sourcingDepot = existing?.sourcingDepot ?? ""; pbStatus = basepackStatus;
@@ -302,11 +306,12 @@ export default function CcrConfigurePage() {
         id: cm.id, customerCode: cm.customerCode, depot: cm.depot,
         subChannel: cm.subChannel, channel: cm.channel || "MT",
         status, pricingStatus: rowPricing, sourcingDepot, sourcingType: srcType,
-        cic: effectiveCic, salesOrg: existing?.salesOrg ?? "1000",
+        cic: effectiveCic, cicDescription: effectiveCicDescription,
+        salesOrg: existing?.salesOrg ?? "1000",
         existingCicId: existing?.id, pbOverridden: pbBlocked, pbStatus,
       };
     });
-  }, [codeMappings, entry, cicInput, sourcingMode, sourcingDepotMap, cicByKey, pbBlocked, basepackStatus]);
+  }, [codeMappings, entry, cicInput, cicDescriptionInput, sourcingMode, sourcingDepotMap, cicByKey, pbBlocked, basepackStatus]);
 
   const mappedCount = rows.filter(r => !r.pbOverridden && r.status === "Mapped").length;
   const nonMappedCount = rows.filter(r => !r.pbOverridden && r.status === "Non-Mapped").length;
@@ -355,6 +360,7 @@ export default function CcrConfigurePage() {
         customerChain: selectedChain,
         customerCode: r.customerCode,
         cic: r.cic || null,
+        cicDescription: r.cicDescription || null,
         salesOrg: r.salesOrg,
         channel: r.channel,
         depot: r.depot,
@@ -400,6 +406,7 @@ export default function CcrConfigurePage() {
   function handleChainChange(chain: string) {
     setSelectedChain(chain);
     setSourcingDepotMap({});
+    setCicDescriptionInput("");
   }
 
   function handleSourcingDepotChange(rowId: string, depot: string) {
@@ -529,7 +536,7 @@ export default function CcrConfigurePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
               {/* Customer Chain */}
               <div className="space-y-1.5">
@@ -578,6 +585,24 @@ export default function CcrConfigurePage() {
                 </div>
                 {existingCicMappings.length > 0 && !cicInput && (
                   <p className="text-[10px] text-muted-foreground">Existing CIC values shown per row</p>
+                )}
+              </div>
+
+              {/* CIC Description */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide" htmlFor="cic-description-input">
+                  CIC Description
+                </Label>
+                <Input
+                  id="cic-description-input"
+                  data-testid="input-cic-description"
+                  value={cicDescriptionInput}
+                  onChange={e => setCicDescriptionInput(e.target.value)}
+                  placeholder={existingCicMappings[0]?.cicDescription ?? "e.g. Trade Desc…"}
+                  className="h-9 text-sm"
+                />
+                {existingCicMappings.length > 0 && !cicDescriptionInput && (
+                  <p className="text-[10px] text-muted-foreground">Existing description shown per row</p>
                 )}
               </div>
 

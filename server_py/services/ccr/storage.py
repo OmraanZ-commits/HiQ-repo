@@ -85,6 +85,7 @@ def _cic_mapping_to_dict(row: CcrCicMappingModel) -> dict:
         "customerChain": row.customer_chain,
         "customerCode": row.customer_code,
         "cic": row.cic,
+        "cicDescription": row.cic_description,
         "salesOrg": row.sales_org,
         "channel": row.channel,
         "depot": row.depot,
@@ -519,6 +520,7 @@ class CcrStorage:
                 if row:
                     row.basepack = m.get("basepack", row.basepack)
                     row.cic = m.get("cic", row.cic)
+                    row.cic_description = m.get("cicDescription", row.cic_description)
                     row.sales_org = m.get("salesOrg", row.sales_org)
                     row.channel = m.get("channel", row.channel)
                     row.depot = m.get("depot", row.depot)
@@ -535,6 +537,7 @@ class CcrStorage:
                         customer_chain=m["customerChain"],
                         customer_code=m["customerCode"],
                         cic=m.get("cic"),
+                        cic_description=m.get("cicDescription"),
                         sales_org=m.get("salesOrg", "1000"),
                         channel=m.get("channel", "MT"),
                         depot=m.get("depot"),
