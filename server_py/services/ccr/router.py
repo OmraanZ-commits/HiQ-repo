@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 from server_py.services.ccr.service import CcrService
 from server_py.db import SessionLocal, CcrCustomerMasterModel
@@ -146,3 +147,69 @@ async def trigger_engine_evaluate():
     """
     result = _svc().evaluate_triggers()
     return {"ok": True, **result}
+
+
+# ── Execution Engine ─────────────────────────────────────────────────────────
+
+class ExecuteLineItemRequest(BaseModel):
+    rulesetValues: dict = {}
+    overrides: List[str] = []
+    cicCode: Optional[str] = None
+    executionType: str = "Manual"
+    justification: Optional[str] = None
+    actor: Optional[str] = "system"
+
+
+class DelistingResponseRequest(BaseModel):
+    action: str            # "accept" | "reject"
+    justification: Optional[str] = None
+
+
+@router.post("/line-items/{item_id}/execute")
+async def execute_line_item(item_id: str, req: ExecuteLineItemRequest):
+    """
+    Execute CCR for a line item: applies MT listing logic to CIC mappings,
+    writes audit log, and marks the item Completed.
+    """
+    result = _svc().execute_line_item(item_id, req.model_dump())
+    if not result:
+        raise HTTPException(status_code=404, detail="CCR line item not found")
+    return result
+
+
+@router.get("/line-items/{item_id}/recommendation")
+async def get_recommendation(item_id: str):
+    """
+    Auto-CCR recommendation engine: returns Scenario A/B/C with rationale
+    derived from network entry DOH (ATP proxy).
+    """
+    result = _svc().get_recommendation(item_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="CCR line item not found")
+    return result
+
+
+@router.get("/line-items/{item_id}/export")
+async def get_export_data(item_id: str):
+    """
+    Return BRD-specified CIC mapping columns for download
+    (Customer Code, Customer Chain, CIC, Material Code, Depot,
+     Mapping Status, Sourcing Depot, Pricing Status).
+    """
+    data = _svc().get_export_data(item_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="CCR line item not found")
+    return data
+
+
+@router.post("/line-items/{item_id}/delisting-response")
+async def delisting_response(item_id: str, req: DelistingResponseRequest):
+    """
+    Handle Accept/Reject for a Paid Bible delisting intimation.
+    """
+    if req.action not in ("accept", "reject"):
+        raise HTTPException(status_code=400, detail="action must be 'accept' or 'reject'")
+    result = _svc().delisting_response(item_id, req.action, req.justification)
+    if not result:
+        raise HTTPException(status_code=404, detail="CCR line item not found")
+    return result

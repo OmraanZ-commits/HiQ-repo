@@ -66,6 +66,23 @@ class CcrService:
         )
         return self.storage.evaluate_triggers(network_entries)
 
+    # ── Execution Engine ────────────────────────────────────────
+
+    def execute_line_item(self, item_id: str, payload: dict) -> Optional[dict]:
+        return self.storage.execute_line_item(item_id, payload)
+
+    def get_recommendation(self, item_id: str) -> Optional[dict]:
+        network_entries: List[dict] = (
+            self._list_service.get_all() if self._list_service else []
+        )
+        return self.storage.get_recommendation(item_id, network_entries)
+
+    def get_export_data(self, item_id: str) -> List[dict]:
+        return self.storage.get_export_data(item_id)
+
+    def delisting_response(self, item_id: str, action: str, justification: Optional[str] = None) -> Optional[dict]:
+        return self.storage.delisting_response(item_id, action, justification)
+
     # ── Seed ────────────────────────────────────────────────────
 
     def seed_all(

@@ -260,9 +260,11 @@ function LineItemRow({
   item: CcrLineItem;
   networkEntry: NetworkEntry | undefined;
 }) {
+  const [, navigate] = useLocation();
   return (
     <TableRow
-      className="hover:bg-muted/40 transition-colors"
+      className="hover:bg-muted/40 transition-colors cursor-pointer"
+      onClick={() => navigate(`/ccr/line-items/${item.id}`)}
       data-testid={`row-ccr-line-item-${item.id}`}
     >
       <TableCell className="py-2.5 pl-4">

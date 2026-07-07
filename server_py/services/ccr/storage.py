@@ -623,6 +623,294 @@ class CcrStorage:
         finally:
             db.close()
 
+    # ── Execution Engine ────────────────────────────────────────
+
+    def execute_line_item(self, item_id: str, payload: dict) -> Optional[dict]:
+        """
+        Apply CCR execution: update MT listing (CIC mappings) per customer
+        classification, write audit log, and mark line item Completed.
+
+        MT listing logic:
+          Listing (Regional OR National):
+            Predecessor stays Mapped; Successor added as Mapped with same CIC.
+          Non-Listing (Regional):
+            Predecessor → Inactive; Successor → Mapped.
+          Non-Listing (National):
+            All depots shift; Predecessor → Inactive; Successor → Mapped.
+          New CIC required:
+            Old CBU rows in old CIC → Inactive; new CBU → Mapped with new CIC.
+        """
+        db = SessionLocal()
+        try:
+            item = db.query(CcrLineItemModel).filter(
+                CcrLineItemModel.id == uuid.UUID(item_id)
+            ).first()
+            if not item:
+                return None
+
+            # Customer classification
+            customer = db.query(CcrCustomerMasterModel).filter(
+                CcrCustomerMasterModel.customer_chain == item.customer_chain
+            ).first()
+            coverage  = customer.coverage_type  if customer else "National"
+            behaviour = customer.behaviour_type if customer else "Non-Listing"
+
+            new_cic_required = payload.get("rulesetValues", {}).get("newCicRequired", False)
+            cic_code         = payload.get("cicCode") or item.cic
+            execution_type   = payload.get("executionType", "Manual")
+            overrides_list   = payload.get("overrides", [])
+            ruleset_values   = payload.get("rulesetValues", {})
+            actor            = payload.get("actor", "system")
+            justification    = payload.get("justification")
+            now              = datetime.now(timezone.utc)
+
+            # ── Predecessor CIC rows ─────────────────────────────────
+            pred_rows = (
+                db.query(CcrCicMappingModel)
+                .filter(
+                    CcrCicMappingModel.cbu_code       == item.predecessor_cbu_code,
+                    CcrCicMappingModel.customer_chain == item.customer_chain,
+                )
+                .all()
+            )
+            # ── Successor CIC rows ───────────────────────────────────
+            succ_rows = (
+                db.query(CcrCicMappingModel)
+                .filter(
+                    CcrCicMappingModel.cbu_code       == item.successor_cbu_code,
+                    CcrCicMappingModel.customer_chain == item.customer_chain,
+                )
+                .all()
+            )
+
+            if new_cic_required:
+                # Old CBU rows in old CIC → Inactive; new CBU → Mapped with new CIC
+                for row in pred_rows:
+                    if row.cic == item.cic:
+                        row.status     = "Inactive"
+                        row.updated_at = now
+                for row in succ_rows:
+                    row.cic        = cic_code
+                    row.status     = "Mapped"
+                    row.updated_at = now
+            elif behaviour == "Listing":
+                # Predecessor stays Mapped; Successor → Mapped with same CIC
+                for row in succ_rows:
+                    row.cic        = cic_code
+                    row.status     = "Mapped"
+                    row.updated_at = now
+            else:
+                # Non-Listing (Regional or National): Predecessor → Inactive; Successor → Mapped
+                for row in pred_rows:
+                    row.status     = "Inactive"
+                    row.updated_at = now
+                for row in succ_rows:
+                    row.cic        = cic_code
+                    row.status     = "Mapped"
+                    row.updated_at = now
+
+            # ── Update line item ─────────────────────────────────────
+            item.ccr_status     = "Completed"
+            item.execution_type = execution_type
+            item.ruleset_outcome = ruleset_values
+            item.cic            = cic_code
+            if overrides_list:
+                item.overrides = overrides_list
+            item.updated_at = now
+
+            # ── Audit log ────────────────────────────────────────────
+            log = CcrAuditLogModel(
+                id=uuid.uuid4(),
+                ccr_line_item_id=uuid.UUID(item_id),
+                event_type="executed",
+                actor=actor,
+                payload={
+                    "executionType": execution_type,
+                    "rulesetValues": ruleset_values,
+                    "overrides": overrides_list,
+                    "cicCode": cic_code,
+                    "justification": justification,
+                    "coverage": coverage,
+                    "behaviour": behaviour,
+                    "newCicRequired": new_cic_required,
+                },
+                created_at=now,
+            )
+            db.add(log)
+            db.commit()
+            db.refresh(item)
+            return _line_item_to_dict(item)
+        finally:
+            db.close()
+
+    def get_recommendation(self, item_id: str, network_entries: List[dict]) -> Optional[dict]:
+        """
+        Auto-CCR recommendation engine: generates Scenario A/B/C for an item.
+        Uses successor_doh as a proxy for ATP score.
+        Scenario A: retain current successor (adequate ATP).
+        Scenario B: switch to a higher-ATP alternate sharing the same predecessor.
+        Scenario C: flag for manual — no good candidate found.
+        """
+        db = SessionLocal()
+        try:
+            item = db.query(CcrLineItemModel).filter(
+                CcrLineItemModel.id == uuid.UUID(item_id)
+            ).first()
+            if not item:
+                return None
+
+            entry_map: dict = {}
+            for e in network_entries:
+                cbu = e.get("cbuCode") or e.get("cbu_code")
+                if cbu:
+                    entry_map[cbu] = e
+
+            current_entry = entry_map.get(item.successor_cbu_code or "")
+            current_atp   = int(
+                current_entry.get("successorDoh") or current_entry.get("successor_doh") or 0
+            ) if current_entry else 0
+
+            # Find alternates: same predecessor CBU, different successor
+            alternates = []
+            for cbu_code, entry in entry_map.items():
+                if cbu_code == item.successor_cbu_code:
+                    continue
+                pred = entry.get("predecessorCode") or entry.get("predecessor_code")
+                if pred != item.predecessor_cbu_code:
+                    continue
+                atp = int(entry.get("successorDoh") or entry.get("successor_doh") or 0)
+                alternates.append({
+                    "cbuCode":     cbu_code,
+                    "basepack":    entry.get("basepack"),
+                    "description": entry.get("materialDescription") or entry.get("material_description"),
+                    "atpScore":    atp,
+                    "networkStatus": entry.get("networkStatus") or entry.get("network_status"),
+                })
+            alternates.sort(key=lambda x: x["atpScore"], reverse=True)
+
+            # Scenario selection
+            if alternates and alternates[0]["atpScore"] > current_atp * 1.2:
+                scenario = "B"
+                rationale = (
+                    f"Alternate CBU {alternates[0]['cbuCode']} has significantly higher ATP "
+                    f"({alternates[0]['atpScore']} vs {current_atp}). Recommend switching."
+                )
+            elif current_atp < 5:
+                scenario = "C"
+                rationale = (
+                    f"Current successor DOH/ATP ({current_atp}) is below threshold. "
+                    f"No adequate alternate found. Flag for manual review."
+                )
+            else:
+                scenario = "A"
+                rationale = (
+                    f"Current successor CBU {item.successor_cbu_code} has adequate ATP "
+                    f"({current_atp}). Retain current recommendation."
+                )
+
+            return {
+                "itemId": item_id,
+                "currentCbu": {
+                    "cbuCode":     item.successor_cbu_code,
+                    "basepack":    current_entry.get("basepack") if current_entry else None,
+                    "description": (
+                        current_entry.get("materialDescription")
+                        or current_entry.get("material_description")
+                    ) if current_entry else None,
+                    "atpScore": current_atp,
+                },
+                "alternates": alternates[:3],
+                "scenario":   scenario,
+                "rationale":  rationale,
+            }
+        finally:
+            db.close()
+
+    def get_export_data(self, item_id: str) -> List[dict]:
+        """
+        Return BRD-specified mapping columns for a completed line item.
+        Used by the 'Generate Mapping Output' button on the detail page.
+        """
+        db = SessionLocal()
+        try:
+            item = db.query(CcrLineItemModel).filter(
+                CcrLineItemModel.id == uuid.UUID(item_id)
+            ).first()
+            if not item:
+                return []
+            rows = (
+                db.query(CcrCicMappingModel)
+                .filter(
+                    CcrCicMappingModel.cbu_code       == item.successor_cbu_code,
+                    CcrCicMappingModel.customer_chain == item.customer_chain,
+                )
+                .all()
+            )
+            return [
+                {
+                    "CustomerCode":  r.customer_code,
+                    "CustomerChain": r.customer_chain,
+                    "CIC":           r.cic,
+                    "MaterialCode":  r.cbu_code,
+                    "Depot":         r.depot,
+                    "MappingStatus": r.status,
+                    "SourcingDepot": r.sourcing_depot,
+                    "PricingStatus": r.pricing_status,
+                }
+                for r in rows
+            ]
+        finally:
+            db.close()
+
+    def delisting_response(
+        self, item_id: str, action: str, justification: Optional[str]
+    ) -> Optional[dict]:
+        """
+        Handle Accept/Reject for a Paid Bible delisting intimation.
+        Accept: mark all CIC mapping rows for the successor CBU × chain as
+                'Stock Base Delisted'; set line item ccr_status = Completed.
+        Reject: require justification; log rejection; leave mapping unchanged.
+        """
+        db = SessionLocal()
+        try:
+            item = db.query(CcrLineItemModel).filter(
+                CcrLineItemModel.id == uuid.UUID(item_id)
+            ).first()
+            if not item:
+                return None
+
+            now = datetime.now(timezone.utc)
+
+            if action == "accept":
+                rows = (
+                    db.query(CcrCicMappingModel)
+                    .filter(
+                        CcrCicMappingModel.cbu_code       == item.successor_cbu_code,
+                        CcrCicMappingModel.customer_chain == item.customer_chain,
+                    )
+                    .all()
+                )
+                for row in rows:
+                    row.status     = "Stock Base Delisted"
+                    row.updated_at = now
+                item.ccr_status = "Completed"
+
+            log = CcrAuditLogModel(
+                id=uuid.uuid4(),
+                ccr_line_item_id=uuid.UUID(item_id),
+                event_type=f"delisting_{action}",
+                actor="system",
+                payload={"action": action, "justification": justification},
+                created_at=now,
+            )
+            db.add(log)
+            item.updated_at = now
+            db.commit()
+            db.refresh(item)
+            return _line_item_to_dict(item)
+        finally:
+            db.close()
+
     def seed_line_items(self, seeds: List[dict]) -> None:
         db = SessionLocal()
         try:

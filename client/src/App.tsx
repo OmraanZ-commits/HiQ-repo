@@ -16,6 +16,7 @@ import ServiceRequestDetailPage from "@/pages/service-request-detail";
 import AmendmentDetailPage from "@/pages/amendment-detail";
 import CcrMasterMaintenancePage from "@/pages/ccr-master-maintenance";
 import CcrWorkspacePage from "@/pages/ccr-workspace";
+import CcrDetailPage from "@/pages/ccr-detail";
 
 function Router() {
   return (
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/admin" component={AdminCenterPage} />
       <Route path="/ccr" component={CcrWorkspacePage} />
       <Route path="/ccr/master-maintenance" component={CcrMasterMaintenancePage} />
+      <Route path="/ccr/line-items/:id" component={CcrDetailPage} />
       <Route component={NotFound} />
     </Switch>
   );
