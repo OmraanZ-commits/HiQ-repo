@@ -483,48 +483,58 @@ export default function CcrConfigurePage() {
           </CardContent>
         </Card>
 
-        {/* ── Stats row ─────────────────────────────────────────────────────── */}
+        {/* ── Stats strip (HUL style) ───────────────────────────────────────── */}
         {!isLoading && entry && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Card>
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Link2 className="h-3.5 w-3.5" />
-                  <span className="text-[10px] uppercase font-semibold tracking-wide">Chain Mapping Completed</span>
+          <div className="rounded-xl overflow-hidden" style={{background: "linear-gradient(135deg, #0f2d6b 0%, #1a3a8c 50%, #2a2e7a 100%)"}}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/20">
+
+              {/* Chain Mapping Completed */}
+              <div className="px-8 py-6 flex flex-col gap-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-extrabold text-white leading-none">
+                    {chainCompletionStats.completed}
+                  </span>
+                  <span className="text-xl font-semibold text-white/60 leading-none">
+                    / {chainCompletionStats.applicable}
+                  </span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-600">
-                  {chainCompletionStats.completed}
-                  <span className="text-sm text-muted-foreground font-normal"> / {chainCompletionStats.applicable}</span>
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Package className="h-3.5 w-3.5" />
-                  <span className="text-[10px] uppercase font-semibold tracking-wide">Basepack Status</span>
-                </div>
-                <p className={`text-lg font-bold ${pbBlocked ? "text-red-500" : "text-emerald-600"}`}>
+                <p className="text-sm font-semibold text-white mt-1">chains mapped</p>
+                <p className="text-xs text-white/50 leading-snug">Chain Mapping Completed</p>
+              </div>
+
+              {/* Basepack Status */}
+              <div className="px-8 py-6 flex flex-col gap-1">
+                <span className={`text-3xl font-extrabold leading-none ${pbBlocked ? "text-red-300" : "text-emerald-300"}`}>
                   {basepackStatus ?? "Active"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  <span className="text-[10px] uppercase font-semibold tracking-wide">MSTN Cleared</span>
-                </div>
+                </span>
+                <p className="text-sm font-semibold text-white mt-1">current pack status</p>
+                <p className="text-xs text-white/50 leading-snug">Basepack Status</p>
+              </div>
+
+              {/* MSTN Cleared */}
+              <div className="px-8 py-6 flex flex-col gap-1">
                 {entry.mstnPercentage != null ? (
-                  <p className={`text-2xl font-bold ${entry.mstnPercentage >= 80 ? "text-emerald-600" : "text-red-500"}`}>
-                    {entry.mstnPercentage >= 80 ? "Yes" : "No"}
-                    <span className="text-sm text-muted-foreground font-normal ml-1">({entry.mstnPercentage}%)</span>
-                  </p>
+                  <>
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-4xl font-extrabold leading-none ${entry.mstnPercentage >= 80 ? "text-emerald-300" : "text-red-300"}`}>
+                        {entry.mstnPercentage >= 80 ? "Yes" : "No"}
+                      </span>
+                      <span className="text-xl font-semibold text-white/60 leading-none">
+                        {entry.mstnPercentage}%
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-white mt-1">MSTN threshold</p>
+                  </>
                 ) : (
-                  <p className="text-2xl font-bold text-muted-foreground">—</p>
+                  <>
+                    <span className="text-4xl font-extrabold text-white/40 leading-none">—</span>
+                    <p className="text-sm font-semibold text-white mt-1">no data available</p>
+                  </>
                 )}
-              </CardContent>
-            </Card>
+                <p className="text-xs text-white/50 leading-snug">MSTN Cleared</p>
+              </div>
+
+            </div>
           </div>
         )}
 
