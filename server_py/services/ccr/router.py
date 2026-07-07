@@ -111,15 +111,21 @@ async def get_cic_mapping_summary():
 
 
 @router.get("/cic-mappings/depot-change-summary")
-async def get_depot_change_summary():
+async def get_chain_completion_summary():
     """
-    Returns per-CBU depot-change status for CBUs with saved CIC mapping rows.
-    stale:   at least one saved row's status no longer matches the auto-derived status
-             based on the CBU's current NV depot array.
-    current: all saved rows match.
-    Absent keys = no saved CIC rows for that CBU.
+    Returns per-CBU chain-completion status for new-launch CBUs whose
+    customer_mapping contains at least one CCR-chain code.
+
+    Response shape:
+      { [cbuCode]: { applicable: string[], saved: string[], status: "complete"|"partial"|"none" } }
+
+    status meanings:
+      complete — every applicable chain has ≥1 saved CIC row
+      partial  — some (but not all) applicable chains have a saved CIC row
+      none     — no applicable chain has a saved CIC row yet
+    Absent keys = customer_mapping is null or contains no CCR-chain codes → CBU Overview.
     """
-    return _svc().get_depot_change_summary()
+    return _svc().get_chain_completion_summary()
 
 
 @router.get("/cic-mappings")

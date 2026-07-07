@@ -279,6 +279,8 @@ function PostingStatusBadge({ status }: { status: string }) {
 
 // ─── CBU Table (shared across tabs) ──────────────────────────────────────────
 
+type ChainProgress = { applicable: string[]; saved: string[]; status: string };
+
 type CbuTableProps = {
   entries: NetworkEntry[];
   emptyMessage: string;
@@ -289,9 +291,10 @@ type CbuTableProps = {
   postingStatusMap: Record<string, string>;
   onNavigate: (path: string) => void;
   highlightRows?: boolean;
+  chainSummary?: Record<string, ChainProgress>;
 };
 
-function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange, postingStatusMap, onNavigate, highlightRows }: CbuTableProps) {
+function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange, postingStatusMap, onNavigate, highlightRows, chainSummary }: CbuTableProps) {
   if (isLoading) {
     return (
       <div className="p-4 space-y-2">
@@ -343,6 +346,11 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               </TableCell>
               <TableCell className="text-sm">
                 <span className="truncate block">{entry.materialDescription || entry.basepackDescription || "—"}</span>
+                {chainSummary && chainSummary[entry.cbuCode ?? ""] && (
+                  <span className="text-[10px] text-amber-600 font-medium mt-0.5 block" data-testid={`text-chain-progress-${entry.cbuCode}`}>
+                    {chainSummary[entry.cbuCode ?? ""].saved.length} of {chainSummary[entry.cbuCode ?? ""].applicable.length} chains configured
+                  </span>
+                )}
               </TableCell>
               <TableCell className="text-sm font-semibold truncate">
                 {entry.brand || "—"}
@@ -439,7 +447,8 @@ export default function CcrMasterMaintenancePage() {
     queryKey: ["/api/ccr/cic-mappings/summary"],
   });
 
-  const { data: depotChangeSummary = {} } = useQuery<Record<string, "stale" | "current">>({
+  type ChainCompletionEntry = { applicable: string[]; saved: string[]; status: "complete" | "partial" | "none" };
+  const { data: depotChangeSummary = {} } = useQuery<Record<string, ChainCompletionEntry>>({
     queryKey: ["/api/ccr/cic-mappings/depot-change-summary"],
   });
 
@@ -451,17 +460,20 @@ export default function CcrMasterMaintenancePage() {
   );
 
   const newLaunchEntries = useMemo(
-    () => eligibleEntries.filter(e => !depotChangeSummary[e.cbuCode ?? ""]),
+    () => eligibleEntries.filter(e => {
+      const s = depotChangeSummary[e.cbuCode ?? ""];
+      return !s || s.status === "none";
+    }),
     [eligibleEntries, depotChangeSummary],
   );
 
   const networkChangeEntries = useMemo(
-    () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""] === "stale"),
+    () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""]?.status === "partial"),
     [eligibleEntries, depotChangeSummary],
   );
 
   const completedEntries = useMemo(
-    () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""] === "current"),
+    () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""]?.status === "complete"),
     [eligibleEntries, depotChangeSummary],
   );
 
@@ -819,15 +831,15 @@ export default function CcrMasterMaintenancePage() {
                   <Alert className="border-amber-200 bg-amber-50">
                     <RefreshCw className="h-4 w-4 text-amber-600" />
                     <AlertDescription className="text-amber-700 text-xs">
-                      These CBUs had their NV depot list updated after the mapping was saved.
-                      Open each CBU, review the grid, and save to move it to Completed.
+                      These CBUs have one or more applicable customer chains not yet configured.
+                      Open each CBU, configure all chains, and save to move it to Completed.
                     </AlertDescription>
                   </Alert>
                 </div>
               )}
               <CbuTable
                 entries={networkChangeEntries}
-                emptyMessage="No CBUs with pending depot changes."
+                emptyMessage="No CBUs with incomplete chain configurations."
                 testId="network-change"
                 isLoading={isLoading}
                 selectedCbu={selectedCbu}
@@ -835,6 +847,7 @@ export default function CcrMasterMaintenancePage() {
                 postingStatusMap={postingStatusMap}
                 onNavigate={navigate}
                 highlightRows
+                chainSummary={depotChangeSummary}
               />
             </TabsContent>
 

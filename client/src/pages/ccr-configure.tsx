@@ -350,6 +350,7 @@ export default function CcrConfigurePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", decodedCbu, selectedChain] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", decodedCbu] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
       toast({ title: "Mapping saved", description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-Mapped.` });
     },
     onError: (err: Error) => {

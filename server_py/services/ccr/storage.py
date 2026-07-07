@@ -14,6 +14,35 @@ from server_py.db import (
 )
 
 
+# ── NV-code → CCR chain mapping ───────────────────────────────────────────────
+# Mirrors NV_CODE_TO_CCR_CHAIN in client/src/lib/distribution-data.ts.
+# Maps 4-letter NV customer chain codes (stored in NetworkEntry.customer_mapping)
+# to CCR chain names (as used in ccr_customer_master / ccr_cic_mapping).
+# TODO: Add DMart code once confirmed (candidate MT Retail codes: DNCP, FSNB,
+#       HNGL, LSIP, MAX, MORE, SPEN, STAR, TIRV, WIRL, WRRL).
+_NV_CODE_TO_CCR_CHAIN: dict = {
+    "BLIT": "Blinkit",
+    "BIGB": "BigBasket",
+    "SWIN": "Swiggy Instamart",
+    "RELI": "Reliance Smart",
+}
+
+
+def _derive_applicable_chains(customer_mapping) -> set:
+    """
+    Given an entry's customer_mapping JSON (geo → [codes]), return the set of
+    applicable CCR chain names by mapping each code through _NV_CODE_TO_CCR_CHAIN.
+    Returns an empty set when customer_mapping is None or contains no known codes.
+    """
+    if not customer_mapping or not isinstance(customer_mapping, dict):
+        return set()
+    codes: set = set()
+    for code_list in customer_mapping.values():
+        if isinstance(code_list, list):
+            codes.update(code_list)
+    return {_NV_CODE_TO_CCR_CHAIN[c] for c in codes if c in _NV_CODE_TO_CCR_CHAIN}
+
+
 def _parse_dt(value) -> Optional[datetime]:
     """Safely parse an ISO datetime string or return None."""
     if value is None:
@@ -192,57 +221,71 @@ class CcrStorage:
         finally:
             db.close()
 
-    def get_depot_change_summary(self) -> dict:
+    def get_chain_completion_summary(self) -> dict:
         """
-        Returns per-CBU depot-change status for CBUs with saved CIC mapping rows.
-        Compares each row's saved status against the auto-derived status from
-        the NV entry's current depot array.
+        Returns per-CBU chain-completion status for new-launch CBUs whose
+        NetworkEntry has a customer_mapping with at least one CCR-chain code.
 
-        stale:   at least one saved row's status differs from what would be derived today
-        current: all saved rows match the derived status
+        Applicable chains are derived by mapping 4-letter NV codes from
+        entry.customer_mapping through _NV_CODE_TO_CCR_CHAIN.  CBUs with no
+        applicable chains (customer_mapping is null or contains no known codes)
+        are absent from the result — the frontend treats absence as CBU Overview.
 
-        CBUs with no CIC rows are absent from the result.
-        Decentralised rows derive as "Mapped" unconditionally; Centralised rows
-        derive as "Mapped" only when the row's depot appears in entry.depot.
+        Each value in the result dict is:
+          {
+            "applicable": [sorted chain names],
+            "saved":      [applicable chains that already have ≥1 CIC row],
+            "status":     "complete" | "partial" | "none"
+          }
+
+        status meanings:
+          complete — every applicable chain has at least one saved CIC row
+          partial  — some but not all applicable chains have a saved CIC row
+          none     — no applicable chain has a saved CIC row yet
         """
         db = SessionLocal()
         try:
-            cic_rows = db.query(
-                CcrCicMappingModel.cbu_code,
-                CcrCicMappingModel.depot,
-                CcrCicMappingModel.status,
-                CcrCicMappingModel.sourcing_type,
-            ).all()
-
-            if not cic_rows:
-                return {}
-
-            cbu_codes = list({r.cbu_code for r in cic_rows})
             ne_rows = db.query(
                 NetworkEntryModel.cbu_code,
-                NetworkEntryModel.depot,
-            ).filter(NetworkEntryModel.cbu_code.in_(cbu_codes)).all()
+                NetworkEntryModel.customer_mapping,
+            ).filter(
+                NetworkEntryModel.type_of_network == "NEW_LAUNCH"
+            ).all()
 
-            entry_depot_map: dict = {r.cbu_code: (r.depot or []) for r in ne_rows}
+            # Distinct (cbu_code, customer_chain) pairs that have saved CIC rows
+            cic_rows = db.query(
+                CcrCicMappingModel.cbu_code,
+                CcrCicMappingModel.customer_chain,
+            ).distinct().all()
 
-            cbu_row_groups: dict = {}
+            saved_by_cbu: dict = {}
             for r in cic_rows:
-                cbu_row_groups.setdefault(r.cbu_code, []).append(r)
+                saved_by_cbu.setdefault(r.cbu_code, set()).add(r.customer_chain)
 
             result = {}
-            for cbu, rows in cbu_row_groups.items():
-                nv_depots = entry_depot_map.get(cbu, [])
-                any_stale = False
-                for row in rows:
-                    # Both Decentralised and Centralised: expected status is
-                    # "Mapped" only when the row's depot is still in the NV
-                    # entry's current depot array.  A depot that was removed
-                    # from the NV list makes a previously-Mapped row stale.
-                    derived = "Mapped" if row.depot in nv_depots else "Non-Mapped"
-                    if row.status != derived:
-                        any_stale = True
-                        break
-                result[cbu] = "stale" if any_stale else "current"
+            for ne in ne_rows:
+                applicable = _derive_applicable_chains(ne.customer_mapping)
+                if not applicable:
+                    continue  # absent key → caller shows in CBU Overview
+
+                saved_chains = saved_by_cbu.get(ne.cbu_code, set())
+                saved_applicable = saved_chains & applicable
+
+                applicable_list = sorted(applicable)
+                saved_list = sorted(saved_applicable)
+
+                if saved_applicable >= applicable:
+                    status = "complete"
+                elif saved_applicable:
+                    status = "partial"
+                else:
+                    status = "none"
+
+                result[ne.cbu_code] = {
+                    "applicable": applicable_list,
+                    "saved": saved_list,
+                    "status": status,
+                }
 
             return result
         finally:

@@ -167,3 +167,21 @@ export const CUSTOMER_CHAINS: CustomerChainDef[] = [
   { code: "WMCC",  subChannel: "CNC" },
   { code: "WRMC",  subChannel: "CNC" },
 ];
+
+/**
+ * Maps 4-letter NV customer chain codes (stored in NetworkEntry.customer_mapping)
+ * to the corresponding CCR chain name (as used in ccr_customer_master / CIC mappings).
+ * Only codes that correspond to one of the 5 CCR chains are included; all others
+ * are silently ignored when deriving applicable chains for a CBU.
+ *
+ * TODO: Confirm the correct MT Retail code for DMart and add it here.
+ *       Candidates from MT Retail sub-channel: DNCP, FSNB, HNGL, LSIP, MAX,
+ *       MORE, SPEN, STAR, TIRV, WIRL, WRRL.
+ */
+export const NV_CODE_TO_CCR_CHAIN: Record<string, string> = {
+  BLIT: "Blinkit",
+  BIGB: "BigBasket",
+  SWIN: "Swiggy Instamart",
+  RELI: "Reliance Smart",
+  // DMart: add code here once confirmed
+};
