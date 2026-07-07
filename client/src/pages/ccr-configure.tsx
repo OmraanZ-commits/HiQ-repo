@@ -236,7 +236,8 @@ export default function CcrConfigurePage() {
     return map;
   }, [existingCicMappings]);
 
-  const allDepots = useMemo(() => Array.from(new Set(codeMappings.map(m => m.depot))).sort(), [codeMappings]);
+  // Sourcing depot options come from the CBU's assigned depots in Network Visibility
+  const allDepots = useMemo(() => [...(entry?.depot ?? [])].sort(), [entry]);
 
   // Hydrate centralized UI state from persisted mappings
   const hydratedKeyRef = useRef<string>("");
