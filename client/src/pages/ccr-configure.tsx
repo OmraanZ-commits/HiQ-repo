@@ -161,7 +161,6 @@ export default function CcrConfigurePage() {
   const [selectedChain, setSelectedChain] = useState<string>("");
   const [cicInput, setCicInput] = useState<string>("");
   const [sourcingDepotMap, setSourcingDepotMap] = useState<Record<string, string>>({});
-  const [centralizedMappedSet, setCentralizedMappedSet] = useState<Set<string>>(new Set());
 
   // ── Queries ─────────────────────────────────────────────────────────────────
   const { data: networkEntries = [], isLoading: entriesLoading } = useQuery<NetworkEntry[]>({
@@ -239,7 +238,7 @@ export default function CcrConfigurePage() {
   // Sourcing depot options come from the CBU's assigned depots in Network Visibility
   const allDepots = useMemo(() => [...(entry?.depot ?? [])].sort(), [entry]);
 
-  // Hydrate centralized UI state from persisted mappings
+  // Hydrate sourcing depot selections from persisted mappings
   const hydratedKeyRef = useRef<string>("");
   useEffect(() => {
     if (!existingCicMappings.length || !codeMappings.length || !entry) return;
@@ -249,15 +248,14 @@ export default function CcrConfigurePage() {
     if (getSourcingMode(entry) !== "centralized") return;
     const depotKeyToCmId: Record<string, string> = {};
     codeMappings.forEach(cm => { depotKeyToCmId[`${cm.customerCode}::${cm.depot}`] = cm.id; });
-    const newMapped = new Set<string>();
     const newSourcingMap: Record<string, string> = {};
     existingCicMappings.forEach(m => {
-      if (m.status === "Mapped") {
+      if (m.sourcingDepot) {
         const cmId = depotKeyToCmId[`${m.customerCode}::${m.depot ?? ""}`];
-        if (cmId) { newMapped.add(cmId); if (m.sourcingDepot) newSourcingMap[cmId] = m.sourcingDepot; }
+        if (cmId) newSourcingMap[cmId] = m.sourcingDepot;
       }
     });
-    if (newMapped.size > 0) { setCentralizedMappedSet(newMapped); setSourcingDepotMap(newSourcingMap); }
+    if (Object.keys(newSourcingMap).length > 0) setSourcingDepotMap(newSourcingMap);
   }, [existingCicMappings, codeMappings, entry, decodedCbu, selectedChain]);
 
   const rows: DepotRow[] = useMemo(() => {
@@ -274,7 +272,7 @@ export default function CcrConfigurePage() {
       } else if (srcMode === "decentralized") {
         status = "Mapped"; sourcingDepot = cm.depot;
       } else {
-        const isMapped = centralizedMappedSet.has(cm.id);
+        const isMapped = (entry.depot ?? []).includes(cm.depot);
         status = isMapped ? "Mapped" : "Non-Mapped";
         sourcingDepot = isMapped ? (sourcingDepotMap[cm.id] || "") : "";
       }
@@ -286,7 +284,7 @@ export default function CcrConfigurePage() {
         existingCicId: existing?.id, pbOverridden: pbBlocked, pbStatus,
       };
     });
-  }, [codeMappings, entry, cicInput, sourcingMode, sourcingDepotMap, centralizedMappedSet, cicByKey, pbBlocked, basepackStatus]);
+  }, [codeMappings, entry, cicInput, sourcingMode, sourcingDepotMap, cicByKey, pbBlocked, basepackStatus]);
 
   const mappedCount = rows.filter(r => !r.pbOverridden && r.status === "Mapped").length;
   const nonMappedCount = rows.filter(r => !r.pbOverridden && r.status === "Non-Mapped").length;
@@ -358,18 +356,6 @@ export default function CcrConfigurePage() {
   function handleChainChange(chain: string) {
     setSelectedChain(chain);
     setSourcingDepotMap({});
-    setCentralizedMappedSet(new Set());
-  }
-
-  function toggleCentralizedMapped(rowId: string) {
-    setCentralizedMappedSet(prev => {
-      const next = new Set(prev);
-      if (next.has(rowId)) {
-        next.delete(rowId);
-        setSourcingDepotMap(sm => { const n = { ...sm }; delete n[rowId]; return n; });
-      } else { next.add(rowId); }
-      return next;
-    });
   }
 
   function handleSourcingDepotChange(rowId: string, depot: string) {
@@ -664,9 +650,6 @@ export default function CcrConfigurePage() {
                 <Table data-testid="table-depot-grid">
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      {sourcingMode === "centralized" && (
-                        <TableHead className="w-10 text-center text-xs font-semibold sticky left-0 bg-muted/30">Map</TableHead>
-                      )}
                       <TableHead className="text-xs font-semibold whitespace-nowrap">CBU Code</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Basepack</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Customer Chain</TableHead>
@@ -688,18 +671,6 @@ export default function CcrConfigurePage() {
                         className={row.pbOverridden ? "bg-amber-50/50" : row.status === "Non-Mapped" ? "bg-muted/20" : ""}
                         data-testid={`row-grid-${row.customerCode}`}
                       >
-                        {sourcingMode === "centralized" && (
-                          <TableCell className="text-center">
-                            <input
-                              type="checkbox"
-                              checked={centralizedMappedSet.has(row.id)}
-                              onChange={() => toggleCentralizedMapped(row.id)}
-                              disabled={row.pbOverridden || !entry}
-                              className="h-4 w-4 accent-primary"
-                              data-testid={`checkbox-mapped-${row.customerCode}`}
-                            />
-                          </TableCell>
-                        )}
                         <TableCell className="font-mono text-xs" data-testid={`text-cbu-${row.customerCode}`}>{decodedCbu}</TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground" data-testid={`text-basepack-${row.customerCode}`}>{entry?.basepack ?? "—"}</TableCell>
                         <TableCell className="text-xs" data-testid={`text-chain-${row.customerCode}`}>{selectedChain}</TableCell>
@@ -719,7 +690,7 @@ export default function CcrConfigurePage() {
                         <TableCell data-testid={`cell-sourcing-depot-${row.customerCode}`}>
                           {sourcingMode === "decentralized" ? (
                             <span className="text-sm font-medium">{row.sourcingDepot || "—"}</span>
-                          ) : row.pbOverridden ? (
+                          ) : row.pbOverridden || row.status !== "Mapped" ? (
                             <span className="text-xs text-muted-foreground">—</span>
                           ) : (
                             <Select
