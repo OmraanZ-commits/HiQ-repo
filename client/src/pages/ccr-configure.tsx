@@ -483,58 +483,56 @@ export default function CcrConfigurePage() {
           </CardContent>
         </Card>
 
-        {/* ── Stats strip (HUL style) ───────────────────────────────────────── */}
+        {/* ── Stats cards (HUL light style) ────────────────────────────────── */}
         {!isLoading && entry && (
-          <div className="rounded-xl overflow-hidden" style={{background: "linear-gradient(135deg, #0f2d6b 0%, #1a3a8c 50%, #2a2e7a 100%)"}}>
-            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/20">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-              {/* Chain Mapping Completed */}
-              <div className="px-8 py-6 flex flex-col gap-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-extrabold text-white leading-none">
-                    {chainCompletionStats.completed}
-                  </span>
-                  <span className="text-xl font-semibold text-white/60 leading-none">
-                    / {chainCompletionStats.applicable}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-white mt-1">chains mapped</p>
-                <p className="text-xs text-white/50 leading-snug">Chain Mapping Completed</p>
-              </div>
-
-              {/* Basepack Status */}
-              <div className="px-8 py-6 flex flex-col gap-1">
-                <span className={`text-3xl font-extrabold leading-none ${pbBlocked ? "text-red-300" : "text-emerald-300"}`}>
-                  {basepackStatus ?? "Active"}
+            {/* Chain Mapping Completed */}
+            <div className="rounded-2xl border-2 border-primary bg-blue-50/60 px-6 py-5 flex flex-col gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-extrabold text-primary leading-none">
+                  {chainCompletionStats.completed}
                 </span>
-                <p className="text-sm font-semibold text-white mt-1">current pack status</p>
-                <p className="text-xs text-white/50 leading-snug">Basepack Status</p>
+                <span className="text-xl font-semibold text-primary/50 leading-none">
+                  / {chainCompletionStats.applicable}
+                </span>
               </div>
-
-              {/* MSTN Cleared */}
-              <div className="px-8 py-6 flex flex-col gap-1">
-                {entry.mstnPercentage != null ? (
-                  <>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-4xl font-extrabold leading-none ${entry.mstnPercentage >= 80 ? "text-emerald-300" : "text-red-300"}`}>
-                        {entry.mstnPercentage >= 80 ? "Yes" : "No"}
-                      </span>
-                      <span className="text-xl font-semibold text-white/60 leading-none">
-                        {entry.mstnPercentage}%
-                      </span>
-                    </div>
-                    <p className="text-sm font-semibold text-white mt-1">MSTN threshold</p>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-4xl font-extrabold text-white/40 leading-none">—</span>
-                    <p className="text-sm font-semibold text-white mt-1">no data available</p>
-                  </>
-                )}
-                <p className="text-xs text-white/50 leading-snug">MSTN Cleared</p>
-              </div>
-
+              <p className="text-sm font-bold text-primary/80">chains mapped</p>
+              <p className="text-xs text-muted-foreground">Chain Mapping Completed</p>
             </div>
+
+            {/* Basepack Status */}
+            <div className={`rounded-2xl border-2 bg-blue-50/60 px-6 py-5 flex flex-col gap-2 ${pbBlocked ? "border-red-400" : "border-primary"}`}>
+              <span className={`text-3xl font-extrabold leading-none ${pbBlocked ? "text-red-500" : "text-primary"}`}>
+                {basepackStatus ?? "Active"}
+              </span>
+              <p className={`text-sm font-bold ${pbBlocked ? "text-red-400" : "text-primary/80"}`}>current pack status</p>
+              <p className="text-xs text-muted-foreground">Basepack Status</p>
+            </div>
+
+            {/* MSTN Cleared */}
+            <div className={`rounded-2xl border-2 bg-blue-50/60 px-6 py-5 flex flex-col gap-2 ${entry.mstnPercentage != null && entry.mstnPercentage < 80 ? "border-red-400" : "border-primary"}`}>
+              {entry.mstnPercentage != null ? (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-4xl font-extrabold leading-none ${entry.mstnPercentage >= 80 ? "text-primary" : "text-red-500"}`}>
+                      {entry.mstnPercentage >= 80 ? "Yes" : "No"}
+                    </span>
+                    <span className={`text-xl font-semibold leading-none ${entry.mstnPercentage >= 80 ? "text-primary/50" : "text-red-400/70"}`}>
+                      {entry.mstnPercentage}%
+                    </span>
+                  </div>
+                  <p className={`text-sm font-bold ${entry.mstnPercentage >= 80 ? "text-primary/80" : "text-red-400"}`}>MSTN threshold</p>
+                </>
+              ) : (
+                <>
+                  <span className="text-4xl font-extrabold text-muted-foreground/40 leading-none">—</span>
+                  <p className="text-sm font-bold text-muted-foreground">no data available</p>
+                </>
+              )}
+              <p className="text-xs text-muted-foreground">MSTN Cleared</p>
+            </div>
+
           </div>
         )}
 
