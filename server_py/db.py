@@ -441,6 +441,40 @@ class CcrAuditLogModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+# ── CCR Ruleset Reference Tables ─────────────────────────────────────────────
+
+
+class CcrAccountModel(Base):
+    """Customer accounts for the CCR Ruleset (editable reference data)."""
+    __tablename__ = "ccr_accounts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    account_name = Column(String, nullable=False, unique=True)
+    ccr_action = Column(String, nullable=False)            # National | Regional
+    sbm_listing_based = Column(String, nullable=False)     # SBM | Listing Based | Non-Listing
+    pixel_required = Column(String, nullable=False)        # Y | N
+    content_required = Column(String, nullable=False)      # Y | N
+    customer_update_timeline = Column(String, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class CcrRuleModel(Base):
+    """Per-account, per-change-type CCR action rules (editable reference data)."""
+    __tablename__ = "ccr_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    account_id = Column(UUID(as_uuid=True), ForeignKey("ccr_accounts.id"), nullable=False, index=True)
+    change_type = Column(String, nullable=False)
+    ean_scenario = Column(String, nullable=False)          # with_ean | without_ean | na
+    new_cic_required = Column(String, nullable=False, default="N")
+    content_update_required = Column(String, nullable=False, default="N")
+    rundown = Column(String, nullable=False, default="N")
+    new_po_required = Column(String, nullable=True)        # Only for no-ean-change type
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
 def create_tables():
     Base.metadata.create_all(bind=engine)
 
@@ -783,6 +817,41 @@ def run_migrations():
         """))
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_ccr_al_item ON ccr_audit_log (ccr_line_item_id)"
+        ))
+
+        # ── CCR Ruleset reference tables ────────────────────────────
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ccr_accounts (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                account_name VARCHAR NOT NULL UNIQUE,
+                ccr_action VARCHAR NOT NULL,
+                sbm_listing_based VARCHAR NOT NULL,
+                pixel_required VARCHAR NOT NULL DEFAULT 'N',
+                content_required VARCHAR NOT NULL DEFAULT 'N',
+                customer_update_timeline VARCHAR,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ccr_rules (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                account_id UUID NOT NULL REFERENCES ccr_accounts(id) ON DELETE CASCADE,
+                change_type VARCHAR NOT NULL,
+                ean_scenario VARCHAR NOT NULL,
+                new_cic_required VARCHAR NOT NULL DEFAULT 'N',
+                content_update_required VARCHAR NOT NULL DEFAULT 'N',
+                rundown VARCHAR NOT NULL DEFAULT 'N',
+                new_po_required VARCHAR,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_rules_account ON ccr_rules (account_id)"
+        ))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_ccr_rules_cell ON ccr_rules (account_id, change_type, ean_scenario)"
         ))
         conn.commit()
 

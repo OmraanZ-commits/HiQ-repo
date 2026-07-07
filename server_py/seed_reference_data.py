@@ -183,3 +183,244 @@ NETWORK_CHANGE_TYPE_SEEDS = [
     {"code": "DELISTING", "name": "Delisting", "category": "Other"},
     {"code": "OTHERS", "name": "Others", "category": "Other"},
 ]
+
+
+# ── CCR Ruleset seed data ─────────────────────────────────────────────────────
+# 19 customer accounts with their CCR properties
+
+CCR_ACCOUNT_SEEDS = [
+    {"accountName": "BIGBASKET",         "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "CLOUD TAIL",        "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "FLIPKART",          "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "AMAZON",            "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "JIOMART",           "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "3 weeks"},
+    {"accountName": "BLINKIT",           "ccrAction": "National", "sbmListingBased": "SBM",           "pixelRequired": "Y", "contentRequired": "N", "customerUpdateTimeline": "2 weeks"},
+    {"accountName": "ZEPTO",             "ccrAction": "National", "sbmListingBased": "SBM",           "pixelRequired": "Y", "contentRequired": "N", "customerUpdateTimeline": "2 weeks"},
+    {"accountName": "SWIGGY INSTAMART",  "ccrAction": "National", "sbmListingBased": "SBM",           "pixelRequired": "Y", "contentRequired": "N", "customerUpdateTimeline": "2 weeks"},
+    {"accountName": "D-MART",            "ccrAction": "Regional", "sbmListingBased": "Non-Listing",   "pixelRequired": "N", "contentRequired": "N", "customerUpdateTimeline": "6 weeks"},
+    {"accountName": "MORE RETAIL",       "ccrAction": "Regional", "sbmListingBased": "Non-Listing",   "pixelRequired": "N", "contentRequired": "N", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "STAR BAZAAR",       "ccrAction": "Regional", "sbmListingBased": "Listing Based", "pixelRequired": "N", "contentRequired": "Y", "customerUpdateTimeline": "5 weeks"},
+    {"accountName": "SPENCERS",          "ccrAction": "Regional", "sbmListingBased": "Listing Based", "pixelRequired": "N", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "NATURES BASKET",    "ccrAction": "Regional", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "LULU HYPERMARKET",  "ccrAction": "Regional", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "6 weeks"},
+    {"accountName": "METRO C&C",         "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "N", "contentRequired": "N", "customerUpdateTimeline": "3 weeks"},
+    {"accountName": "RELIANCE FRESH",    "ccrAction": "Regional", "sbmListingBased": "Non-Listing",   "pixelRequired": "N", "contentRequired": "N", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "RELIANCE SMART",    "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "N", "contentRequired": "N", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "BIG BAZAAR",        "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "N", "contentRequired": "N", "customerUpdateTimeline": "5 weeks"},
+    {"accountName": "SPAR",              "ccrAction": "Regional", "sbmListingBased": "Listing Based", "pixelRequired": "N", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+]
+
+# ── Explicit CCR rules matrix — per account, per change type, per EAN scenario ─
+#
+# Each entry: (newCicRequired, contentUpdateRequired, rundown)
+# No EAN Change row:  (newCicRequired, contentUpdateRequired, rundown, newPoRequired)
+# Conditional string values (e.g. "Y if >10% change") indicate business conditions.
+#
+# Account groups used to avoid pure repetition:
+#   NAT_LIST  = national listing-based   (BigBasket, Cloud Tail, Flipkart, Amazon, JioMart)
+#   SBM       = quick-commerce SBM       (Blinkit, Zepto, Swiggy Instamart)
+#   REG_LIST  = regional listing-based   (Star Bazaar, Spencers, Natures Basket, Lulu, Spar)
+#   NON_LIST  = non-listing              (D-Mart, More Retail, Metro C&C, Reliance Fresh,
+#                                         Reliance Smart, Big Bazaar)
+#
+# Per-account deviations from the group matrix are expressed inline below.
+
+def _r(nc, cu, rd, po=None):
+    """Shorthand row builder. Returns a dict of rule fields."""
+    d = {"newCicRequired": nc, "contentUpdateRequired": cu, "rundown": rd}
+    if po is not None:
+        d["newPoRequired"] = po
+    return d
+
+
+# ── Group matrices ────────────────────────────────────────────────────────────
+# changeType → { "with_ean": (...), "without_ean": (...) }   (or "na" for No EAN Change)
+
+_NAT_LIST = {
+    "CP callout on FOP":              {"with_ean": _r("Y","Y","N"), "without_ean": _r("N","Y","N")},
+    "Grammage change":                {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","Y")},
+    "Pricing change <10%":            {"with_ean": _r("N","N","N"), "without_ean": _r("N","N","N")},
+    "Pricing change >10%":            {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    "Artwork change":                 {"with_ean": _r("Y","Y","N"), "without_ean": _r("N","Y","N")},
+    "Packaging change":               {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","Y")},
+    "Formulation change":             {"with_ean": _r("Y","Y","N"), "without_ean": _r("N","Y if claims change","N")},
+    "New launch":                     {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    "Relaunch \u2013 Artwork and Packaging": {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","Y")},
+    "Brand extension":                {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    "No EAN Change":                  {"na": _r("N","N","N","Y")},
+}
+
+_SBM = {
+    "CP callout on FOP":              {"with_ean": _r("Y","N","N"), "without_ean": _r("N","N","N")},
+    "Grammage change":                {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","Y")},
+    "Pricing change <10%":            {"with_ean": _r("N","N","N"), "without_ean": _r("N","N","N")},
+    "Pricing change >10%":            {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    "Artwork change":                 {"with_ean": _r("Y","N","N"), "without_ean": _r("N","N","N")},
+    "Packaging change":               {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","Y")},
+    "Formulation change":             {"with_ean": _r("Y","N","N"), "without_ean": _r("N","N","N")},
+    "New launch":                     {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    "Relaunch \u2013 Artwork and Packaging": {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","Y")},
+    "Brand extension":                {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    "No EAN Change":                  {"na": _r("N","N","N","Y")},
+}
+
+_REG_LIST = {
+    "CP callout on FOP":              {"with_ean": _r("Y","Y","N"), "without_ean": _r("N","Y","N")},
+    "Grammage change":                {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","Y")},
+    "Pricing change <10%":            {"with_ean": _r("N","N","N"), "without_ean": _r("N","N","N")},
+    "Pricing change >10%":            {"with_ean": _r("Y if national price change","N","N"), "without_ean": _r("Y if national price change","N","N")},
+    "Artwork change":                 {"with_ean": _r("Y","Y","N"), "without_ean": _r("N","Y","N")},
+    "Packaging change":               {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","N")},
+    "Formulation change":             {"with_ean": _r("Y","Y","N"), "without_ean": _r("N","Y if claims change","N")},
+    "New launch":                     {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    "Relaunch \u2013 Artwork and Packaging": {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","N")},
+    "Brand extension":                {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    "No EAN Change":                  {"na": _r("N","N","N","Y")},
+}
+
+_NON_LIST = {
+    "CP callout on FOP":              {"with_ean": _r("Y","N","N"), "without_ean": _r("N","N","N")},
+    "Grammage change":                {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","Y")},
+    "Pricing change <10%":            {"with_ean": _r("N","N","N"), "without_ean": _r("N","N","N")},
+    "Pricing change >10%":            {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    "Artwork change":                 {"with_ean": _r("Y","N","N"), "without_ean": _r("N","N","N")},
+    "Packaging change":               {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","N")},
+    "Formulation change":             {"with_ean": _r("Y","N","N"), "without_ean": _r("N","N","N")},
+    "New launch":                     {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    "Relaunch \u2013 Artwork and Packaging": {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","N")},
+    "Brand extension":                {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    "No EAN Change":                  {"na": _r("N","N","N","Y")},
+}
+
+# ── Per-account matrices (base group + explicit overrides) ────────────────────
+# Each account uses its group matrix as the base, with individual deviations noted.
+
+_ACCOUNT_MATRICES: dict = {
+    # ── National Listing ────────────────────────────────────────────────────
+    "BIGBASKET": {
+        **_NAT_LIST,
+        # BigBasket enforces price-change CIC for any MRP change
+        "Pricing change >10%": {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    },
+    "AMAZON": {
+        **_NAT_LIST,
+        # Amazon requires content update for formulation without-EAN as well (ASIN hygiene)
+        "Formulation change": {"with_ean": _r("Y","Y","N"), "without_ean": _r("N","Y","N")},
+    },
+    "FLIPKART": {
+        **_NAT_LIST,
+        # Flipkart: pricing >10% requires "Y if FASSAI/regulatory change" for content update
+        "Pricing change >10%": {"with_ean": _r("Y","Y if FSSAI change","N"), "without_ean": _r("Y","Y if FSSAI change","N")},
+    },
+    "CLOUD TAIL": {
+        **_NAT_LIST,
+    },
+    "JIOMART": {
+        **_NAT_LIST,
+        # JioMart: pricing <10% may need CIC if MSRP update published on platform
+        "Pricing change <10%": {"with_ean": _r("Y if MSRP update","N","N"), "without_ean": _r("Y if MSRP update","N","N")},
+        # JioMart: faster turnaround — no rundown required for packaging
+        "Packaging change": {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    },
+
+    # ── SBM (Quick Commerce) ─────────────────────────────────────────────────
+    "BLINKIT": {
+        **_SBM,
+        # Blinkit requires content update for new launches (product description)
+        "New launch": {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    },
+    "ZEPTO": {
+        **_SBM,
+        # Zepto: brand extension needs content update for search discoverability
+        "Brand extension": {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    },
+    "SWIGGY INSTAMART": {
+        **_SBM,
+        # Swiggy: new launch and brand extension need content
+        "New launch":    {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+        "Brand extension": {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    },
+
+    # ── Regional Listing ─────────────────────────────────────────────────────
+    "STAR BAZAAR": {
+        **_REG_LIST,
+        # Star Bazaar: packaging change without-EAN still requires rundown (store planogram)
+        "Packaging change": {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","Y")},
+    },
+    "SPENCERS": {
+        **_REG_LIST,
+        # Spencers: grammage without-EAN requires only category manager sign-off (no rundown)
+        "Grammage change": {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","N")},
+    },
+    "NATURES BASKET": {
+        **_REG_LIST,
+        # Natures Basket (premium): pricing >10% requires content update (shelf talkers)
+        "Pricing change >10%": {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+    },
+    "LULU HYPERMARKET": {
+        **_REG_LIST,
+        # Lulu: pricing >10% requires CIC + content update
+        "Pricing change >10%": {"with_ean": _r("Y","Y","N"), "without_ean": _r("Y","Y","N")},
+        # Lulu: relaunch without-EAN still needs rundown (POG reset)
+        "Relaunch \u2013 Artwork and Packaging": {"with_ean": _r("Y","Y","Y"), "without_ean": _r("Y","Y","Y")},
+    },
+    "SPAR": {
+        **_REG_LIST,
+    },
+
+    # ── Non-Listing ──────────────────────────────────────────────────────────
+    "D-MART": {
+        **_NON_LIST,
+        # D-Mart: long lead time — rundown is always required for packaging/relaunch
+        "Packaging change":               {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","Y")},
+        "Relaunch \u2013 Artwork and Packaging": {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","Y")},
+        "Grammage change":                {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","Y")},
+    },
+    "MORE RETAIL": {
+        **_NON_LIST,
+    },
+    "METRO C&C": {
+        **_NON_LIST,
+        # Metro C&C (B2B): pricing changes always need CIC (trade price update)
+        "Pricing change <10%": {"with_ean": _r("Y if trade price change","N","N"), "without_ean": _r("Y if trade price change","N","N")},
+        "Pricing change >10%": {"with_ean": _r("Y","N","N"), "without_ean": _r("Y","N","N")},
+    },
+    "RELIANCE FRESH": {
+        **_NON_LIST,
+    },
+    "RELIANCE SMART": {
+        **_NON_LIST,
+        # Reliance Smart (national): packaging rundown required
+        "Packaging change": {"with_ean": _r("Y","N","Y"), "without_ean": _r("Y","N","Y")},
+    },
+    "BIG BAZAAR": {
+        **_NON_LIST,
+        # Big Bazaar: pricing >10% needs content update (in-store signage)
+        "Pricing change >10%": {"with_ean": _r("Y","Y if in-store signage update","N"), "without_ean": _r("Y","Y if in-store signage update","N")},
+    },
+}
+
+# Validate all 19 accounts are explicitly present
+assert set(_ACCOUNT_MATRICES.keys()) == {a["accountName"] for a in CCR_ACCOUNT_SEEDS}, \
+    "Mismatch between CCR_ACCOUNT_SEEDS and _ACCOUNT_MATRICES — add missing accounts"
+
+
+def _build_ccr_rule_seeds() -> list:
+    """Generate explicit CCR rule seed rows from the per-account matrix definitions."""
+    rows = []
+    for acct_name, matrix in _ACCOUNT_MATRICES.items():
+        for change_type, scenarios in matrix.items():
+            for scenario, fields in scenarios.items():
+                rows.append({
+                    "accountName": acct_name,
+                    "changeType": change_type,
+                    "eanScenario": scenario,
+                    **fields,
+                })
+    assert len(rows) == len(CCR_ACCOUNT_SEEDS) * 21, (
+        f"Expected {len(CCR_ACCOUNT_SEEDS) * 21} rule rows, got {len(rows)}"
+    )
+    return rows
+
+
+CCR_RULE_SEEDS = _build_ccr_rule_seeds()

@@ -64,7 +64,7 @@ from server_py.services.ccr.storage import CcrStorage
 from server_py.services.ccr.service import CcrService
 from server_py.services.ccr.router import router as ccr_router, set_service as set_ccr_service
 
-from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS, CLUSTER_REGION_STATE_SEEDS
+from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS, CLUSTER_REGION_STATE_SEEDS, CCR_ACCOUNT_SEEDS, CCR_RULE_SEEDS
 from server_py.seed_users import USER_SEEDS
 from server_py.seed_service_requests import SR_SEEDS
 from server_py.seed_ccr import (
@@ -122,7 +122,10 @@ async def startup():
     ref_storage = ReferenceDataStorage()
     ref_service = ReferenceDataService(ref_storage)
     set_ref_service(ref_service)
-    ref_service.seed_all(CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS, CLUSTER_REGION_STATE_SEEDS)
+    ref_service.seed_all(
+        CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS,
+        CLUSTER_REGION_STATE_SEEDS, CCR_ACCOUNT_SEEDS, CCR_RULE_SEEDS,
+    )
 
     users_storage = UsersStorage()
     users_service = UsersService(users_storage)

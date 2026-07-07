@@ -480,3 +480,90 @@ class ClearanceCheckMaterial(BaseModel):
 
 class ClearanceCheckRequest(BaseModel):
     materials: List[ClearanceCheckMaterial]
+
+
+# ── CCR Ruleset Reference Models ─────────────────────────────────────────────
+
+CCR_CHANGE_TYPES = [
+    "CP callout on FOP",
+    "Grammage change",
+    "Pricing change <10%",
+    "Pricing change >10%",
+    "Artwork change",
+    "Packaging change",
+    "Formulation change",
+    "New launch",
+    "Relaunch – Artwork and Packaging",
+    "Brand extension",
+    "No EAN Change",
+]
+
+CCR_EAN_SCENARIOS = ["with_ean", "without_ean", "na"]
+
+
+class CcrAccountBase(BaseModel):
+    accountName: str
+    ccrAction: str                        # National | Regional
+    sbmListingBased: str                  # SBM | Listing Based | Non-Listing
+    pixelRequired: str                    # Y | N
+    contentRequired: str                  # Y | N
+    customerUpdateTimeline: Optional[str] = None
+    isActive: Optional[bool] = True
+
+
+class InsertCcrAccount(CcrAccountBase):
+    pass
+
+
+class CcrAccountEntry(CcrAccountBase):
+    id: str
+    createdAt: Optional[str] = None
+
+
+class UpdateCcrAccount(BaseModel):
+    accountName: Optional[str] = None
+    ccrAction: Optional[str] = None
+    sbmListingBased: Optional[str] = None
+    pixelRequired: Optional[str] = None
+    contentRequired: Optional[str] = None
+    customerUpdateTimeline: Optional[str] = None
+    isActive: Optional[bool] = None
+
+
+class CreateCcrAccountWithAuditRequest(CcrAccountBase, _RefDataAuditMixin):
+    pass
+
+
+class UpdateCcrAccountWithAuditRequest(UpdateCcrAccount, _RefDataAuditMixin):
+    pass
+
+
+class CcrRuleBase(BaseModel):
+    accountId: str
+    changeType: str
+    eanScenario: str                      # with_ean | without_ean | na
+    newCicRequired: str = "N"
+    contentUpdateRequired: str = "N"
+    rundown: str = "N"
+    newPoRequired: Optional[str] = None
+
+
+class InsertCcrRule(CcrRuleBase):
+    pass
+
+
+class CreateCcrRuleWithAuditRequest(CcrRuleBase, _RefDataAuditMixin):
+    pass
+
+
+class CcrRuleEntry(CcrRuleBase):
+    id: str
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+
+class UpdateCcrRuleWithAuditRequest(_RefDataAuditMixin):
+    newCicRequired: Optional[str] = None
+    contentUpdateRequired: Optional[str] = None
+    rundown: Optional[str] = None
+    newPoRequired: Optional[str] = None

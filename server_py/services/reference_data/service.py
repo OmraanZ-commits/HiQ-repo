@@ -12,8 +12,14 @@ from server_py.models import (
     CreateClusterWithAuditRequest,
     CreateDepotWithAuditRequest,
     CreateNetworkChangeTypeWithAuditRequest,
+    CreateCcrAccountWithAuditRequest,
+    UpdateCcrAccountWithAuditRequest,
+    UpdateCcrRuleWithAuditRequest,
+    InsertCcrRule,
+    CreateCcrRuleWithAuditRequest,
 )
 from server_py.services.reference_data.storage import ReferenceDataStorage
+from server_py.services.reference_data.ccr_ruleset_storage import CcrRulesetStorage
 
 VALID_STATUSES = {"Active", "Inactive"}
 _AUDIT_EXCLUDE = {"attachmentFilename", "attachmentUrl", "changedByUserId", "notes"}
@@ -24,6 +30,7 @@ class ReferenceDataService:
 
     def __init__(self, storage: ReferenceDataStorage):
         self.storage = storage
+        self.ccr_storage = CcrRulesetStorage()
 
     # ── Shared validation helpers ────────────────────────────────
 
@@ -275,6 +282,130 @@ class ReferenceDataService:
     def delete_network_change_type(self, type_id: str) -> bool:
         return self.storage.delete_network_change_type(type_id)
 
+    # ── CCR Ruleset Accounts ─────────────────────────────────────
+
+    def get_all_ccr_accounts(self) -> List[dict]:
+        return self.ccr_storage.get_all_accounts()
+
+    def get_ccr_account_by_id(self, account_id: str) -> Optional[dict]:
+        return self.ccr_storage.get_account_by_id(account_id)
+
+    def create_ccr_account_with_audit(self, data: CreateCcrAccountWithAuditRequest) -> dict:
+        user = self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
+        entity_data = {k: v for k, v in data.model_dump().items() if k not in _AUDIT_EXCLUDE}
+        created = self.ccr_storage.create_account(entity_data)
+        self.storage.create_audit_entry(
+            entity_type="ccr_account",
+            entity_id=created["id"],
+            entity_code=created["accountName"],
+            action="create",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=None,
+            new_status="Active" if data.isActive else "Inactive",
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return created
+
+    def update_ccr_account_with_audit(self, account_id: str, data: UpdateCcrAccountWithAuditRequest) -> dict:
+        user = self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
+        existing = self.ccr_storage.get_account_by_id(account_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="CCR account not found")
+        entity_data = {k: v for k, v in data.model_dump(exclude_unset=True).items() if k not in _AUDIT_EXCLUDE}
+        updated = self.ccr_storage.update_account(account_id, entity_data)
+        self.storage.create_audit_entry(
+            entity_type="ccr_account",
+            entity_id=account_id,
+            entity_code=existing["accountName"],
+            action="update",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=None,
+            new_status=None,
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return updated
+
+    def update_ccr_account_status(self, account_id: str, data: RefDataStatusUpdateRequest) -> dict:
+        user = self._validate_status_update(data)
+        existing = self.ccr_storage.get_account_by_id(account_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="CCR account not found")
+        old_status = "Active" if existing["isActive"] else "Inactive"
+        updated = self.ccr_storage.update_account_status(account_id, data.status == "Active")
+        self.storage.create_audit_entry(
+            entity_type="ccr_account",
+            entity_id=account_id,
+            entity_code=existing["accountName"],
+            action="update_status",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=old_status,
+            new_status=data.status,
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return updated
+
+    # ── CCR Ruleset Rules ─────────────────────────────────────────
+
+    def get_all_ccr_rules(self) -> List[dict]:
+        return self.ccr_storage.get_all_rules()
+
+    def get_ccr_rule_by_id(self, rule_id: str) -> Optional[dict]:
+        return self.ccr_storage.get_rule_by_id(rule_id)
+
+    def create_ccr_rule(self, data: CreateCcrRuleWithAuditRequest) -> dict:
+        user = self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
+        entity_data = {k: v for k, v in data.model_dump().items() if k not in _AUDIT_EXCLUDE}
+        created = self.ccr_storage.create_rule(entity_data)
+        acct = self.ccr_storage.get_account_by_id(created["accountId"])
+        label = f"{acct['accountName'] if acct else created['accountId']} / {created['changeType']} / {created['eanScenario']}"
+        self.storage.create_audit_entry(
+            entity_type="ccr_rule",
+            entity_id=created["id"],
+            entity_code=label,
+            action="create",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=None,
+            new_status=None,
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return created
+
+    def update_ccr_rule_with_audit(self, rule_id: str, data: UpdateCcrRuleWithAuditRequest) -> dict:
+        user = self._validate_admin_and_attachment(data.changedByUserId, data.attachmentFilename)
+        existing = self.ccr_storage.get_rule_by_id(rule_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="CCR rule not found")
+        update_data = {k: v for k, v in data.model_dump(exclude_unset=True).items() if k not in _AUDIT_EXCLUDE}
+        updated = self.ccr_storage.update_rule(rule_id, update_data)
+        acct = self.ccr_storage.get_account_by_id(existing["accountId"])
+        label = f"{acct['accountName'] if acct else existing['accountId']} / {existing['changeType']} / {existing['eanScenario']}"
+        self.storage.create_audit_entry(
+            entity_type="ccr_rule",
+            entity_id=rule_id,
+            entity_code=label,
+            action="update",
+            changed_by_name=user["name"],
+            changed_by_user_id=data.changedByUserId,
+            old_status=None,
+            new_status=None,
+            attachment_filename=data.attachmentFilename,
+            attachment_url=data.attachmentUrl,
+            notes=data.notes,
+        )
+        return updated
+
     # ── Seed (no audit — internal operation) ─────────────────────
 
     def seed_all(
@@ -284,6 +415,8 @@ class ReferenceDataService:
         depots: List[dict],
         network_change_types: List[dict] = None,
         cluster_region_states: List[dict] = None,
+        ccr_accounts: List[dict] = None,
+        ccr_rules: List[dict] = None,
     ):
         self.storage.seed_channels(channels)
         self.storage.seed_clusters(clusters)
@@ -292,6 +425,16 @@ class ReferenceDataService:
             self.storage.seed_network_change_types(network_change_types)
         if cluster_region_states:
             self.storage.seed_cluster_region_states(cluster_region_states)
+        if ccr_accounts:
+            account_id_map = self.ccr_storage.seed_accounts(ccr_accounts)
+            if ccr_rules and account_id_map:
+                resolved_rules = []
+                for rule in ccr_rules:
+                    acct_name = rule.get("accountName")
+                    acct_id = account_id_map.get(acct_name)
+                    if acct_id:
+                        resolved_rules.append({**rule, "accountId": acct_id})
+                self.ccr_storage.seed_rules(resolved_rules)
 
     # ── Cluster-Region-State Mapping ─────────────────────────────
 

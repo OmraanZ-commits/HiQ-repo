@@ -12,6 +12,11 @@ from server_py.models import (
     CreateClusterWithAuditRequest,
     CreateDepotWithAuditRequest,
     CreateNetworkChangeTypeWithAuditRequest,
+    CreateCcrAccountWithAuditRequest,
+    UpdateCcrAccountWithAuditRequest,
+    UpdateCcrRuleWithAuditRequest,
+    InsertCcrRule,
+    CreateCcrRuleWithAuditRequest,
 )
 from server_py.services.reference_data.service import ReferenceDataService
 from server_py.services.reference_data.storage import ReferenceDataStorage
@@ -220,3 +225,50 @@ async def get_geography_depot_map():
 async def get_cluster_region_map():
     """Return the cluster to region code + state mapping."""
     return _svc().get_cluster_region_map()
+
+
+# ── CCR Ruleset – Accounts ──────────────────────────────────────
+
+@router.get("/ccr-accounts")
+async def get_ccr_accounts():
+    return _svc().get_all_ccr_accounts()
+
+
+@router.get("/ccr-accounts/{account_id}")
+async def get_ccr_account(account_id: str):
+    entry = _svc().get_ccr_account_by_id(account_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="CCR account not found")
+    return entry
+
+
+@router.post("/ccr-accounts", status_code=201)
+async def create_ccr_account(data: CreateCcrAccountWithAuditRequest):
+    return _svc().create_ccr_account_with_audit(data)
+
+
+@router.patch("/ccr-accounts/{account_id}/status")
+async def update_ccr_account_status(account_id: str, data: RefDataStatusUpdateRequest):
+    return _svc().update_ccr_account_status(account_id, data)
+
+
+@router.patch("/ccr-accounts/{account_id}")
+async def update_ccr_account(account_id: str, data: UpdateCcrAccountWithAuditRequest):
+    return _svc().update_ccr_account_with_audit(account_id, data)
+
+
+# ── CCR Ruleset – Rules ─────────────────────────────────────────
+
+@router.get("/ccr-rules")
+async def get_ccr_rules():
+    return _svc().get_all_ccr_rules()
+
+
+@router.post("/ccr-rules", status_code=201)
+async def create_ccr_rule(data: CreateCcrRuleWithAuditRequest):
+    return _svc().create_ccr_rule(data)
+
+
+@router.patch("/ccr-rules/{rule_id}")
+async def update_ccr_rule(rule_id: str, data: UpdateCcrRuleWithAuditRequest):
+    return _svc().update_ccr_rule_with_audit(rule_id, data)
