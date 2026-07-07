@@ -193,6 +193,7 @@ export default function EditEntry() {
     toggleGeoChannel, toggleAllGeoChannels, toggleColumnChannel, toggleAllColumnsAllGeos, applyChannelsToAllGeos,
     toggleAllClusters, toggleAllDepots,
     handleSubmit, handleSaveDraft, handleConfirmSubmit, isPending, navigate,
+    nextStatus, handleAdvanceStatus, isAdvancePending,
     selectedGeo, selectedDepots, selectedChannels, channelMapping,
     customerMapping, updateCustomerMapping, selectAllCustomerChains, clearAllCustomerChains, mtGeos,
     allClustersSelected, allDepotsSelected,
