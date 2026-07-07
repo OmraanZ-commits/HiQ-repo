@@ -674,16 +674,20 @@ class CcrStorage:
             justification    = payload.get("justification")
             now              = datetime.now(timezone.utc)
 
-            # ── Derive execution mode server-side from ruleset values ─────────
+            # ── Derive execution mode server-side from ruleset AND customer type ──
             # Client-supplied executionType is ignored; mode is always determined here.
+            # Must mirror client-side derivedMode logic in TakeActionDialog.
             auto_ccr         = bool(ruleset_values.get("autoCcr", False))
             rundown_required = bool(ruleset_values.get("rundownRequired", False))
-            if auto_ccr:
-                execution_type = "Auto"
-            elif not new_cic_required and not rundown_required:
-                execution_type = "Semi-Auto"
-            else:
+            if new_cic_required or rundown_required:
                 execution_type = "Manual"
+            elif coverage == "National" and behaviour == "Non-Listing":
+                # National Non-Listing requires manual coordination (depot-level complexity)
+                execution_type = "Manual"
+            elif auto_ccr and coverage != "National":
+                execution_type = "Auto"
+            else:
+                execution_type = "Semi-Auto"
 
             # ── DOH / CLOT gating for National Non-Listing ───────────
             # Required per BRD: "all depots shift only after DOH/CLOT"

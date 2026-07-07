@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
@@ -319,6 +319,10 @@ interface TakeActionDialogProps {
   item: CcrLineItem;
   networkEntry: NetworkEntry | undefined;
   ruleset: RulesetEntry[];
+  /** Customer coverage type: "National" | "Regional" */
+  coverageType: string;
+  /** Customer behaviour type: "Listing" | "Non-Listing" */
+  behaviourType: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -328,6 +332,8 @@ function TakeActionDialog({
   item,
   networkEntry,
   ruleset,
+  coverageType,
+  behaviourType,
   onClose,
   onSuccess,
 }: TakeActionDialogProps) {
@@ -370,12 +376,16 @@ function TakeActionDialog({
     if (newCicRequired) setCicMode("new");
   }, [newCicRequired]);
 
-  // Step 3: Execution mode
+  // Step 3: Execution mode — derived from ruleset AND customer type.
+  // Mirrors the server-side logic in storage.execute_line_item.
+  // National Non-Listing always requires Manual (complex coordination);
+  // autoCcr is only effective for non-National or non-Non-Listing customers.
   const derivedMode = useMemo<"Auto" | "Semi-Auto" | "Manual">(() => {
-    if (autoCcr) return "Auto";
-    if (!newCicRequired && !rundownRequired) return "Semi-Auto";
-    return "Manual";
-  }, [autoCcr, newCicRequired, rundownRequired]);
+    if (newCicRequired || rundownRequired) return "Manual";
+    if (coverageType === "National" && behaviourType === "Non-Listing") return "Manual";
+    if (autoCcr && !(coverageType === "National")) return "Auto";
+    return "Semi-Auto";
+  }, [autoCcr, newCicRequired, rundownRequired, coverageType, behaviourType]);
   // Execution mode is system-determined (derivedMode). No user-editable state needed.
   const [justification, setJustification] = useState("");
 
@@ -950,9 +960,25 @@ export default function CcrDetailPage() {
     queryFn: () => fetch("/api/ccr/ruleset").then(r => r.json()),
   });
 
+  // Customer master: needed to derive execution mode per customer type
+  interface CustomerMaster {
+    customerChain: string;
+    coverageType: string;
+    behaviourType: string;
+  }
+  const { data: customers = [] } = useQuery<CustomerMaster[]>({
+    queryKey: ["/api/ccr/customers"],
+    queryFn: () => fetch("/api/ccr/customers").then(r => r.json()),
+  });
+
   const networkEntry = useMemo(
     () => networkEntries.find(e => e.cbuCode === item?.successorCbuCode),
     [networkEntries, item]
+  );
+
+  const customerMaster = useMemo(
+    () => customers.find(c => c.customerChain === item?.customerChain),
+    [customers, item]
   );
 
   // ── Export handler ────────────────────────────────────────────────────────
@@ -1312,6 +1338,8 @@ export default function CcrDetailPage() {
           item={item}
           networkEntry={networkEntry}
           ruleset={ruleset}
+          coverageType={customerMaster?.coverageType ?? "National"}
+          behaviourType={customerMaster?.behaviourType ?? "Non-Listing"}
           onClose={() => setDialogOpen(false)}
           onSuccess={refreshItem}
         />
