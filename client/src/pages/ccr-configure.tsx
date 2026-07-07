@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { NV_CODE_TO_CCR_CHAIN } from "@/lib/distribution-data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -221,6 +222,24 @@ export default function CcrConfigurePage() {
   const clearedCount = mstnValues.filter(v => v >= MSTN_THRESHOLD).length;
   const totalWithData = mstnValues.length;
   const mappedDepotCount = allDepotCodes.filter(d => cicByDepot.has(d)).length;
+
+  // ── Derived: applicable CCR chains from NV customer_mapping ─────────────────
+  // Only chains whose NV code appears in the CBU's customer_mapping are shown.
+  // An empty / null customer_mapping → no applicable chains → dropdown is empty.
+  const applicableChains = useMemo<Set<string>>(() => {
+    const cm = entry?.customerMapping;
+    if (!cm || typeof cm !== "object") return new Set();
+    const result = new Set<string>();
+    for (const codes of Object.values(cm)) {
+      if (Array.isArray(codes)) {
+        for (const code of codes) {
+          const chain = NV_CODE_TO_CCR_CHAIN[code];
+          if (chain) result.add(chain);
+        }
+      }
+    }
+    return result;
+  }, [entry]);
 
   // ── Derived: mapping grid ────────────────────────────────────────────────────
   const sourcingMode = useMemo(() => entry ? getSourcingMode(entry) : "decentralized", [entry]);
@@ -515,19 +534,27 @@ export default function CcrConfigurePage() {
               {/* Customer Chain */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer Chain</Label>
-                {customersLoading ? (
+                {customersLoading || entriesLoading ? (
                   <Skeleton className="h-9 w-full" />
+                ) : applicableChains.size === 0 ? (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2" data-testid="text-no-applicable-chains">
+                    <p className="text-xs text-amber-700 leading-snug">
+                      No applicable chains — fill in the <span className="font-semibold">Customer Mapping</span> tab in Network Planning first.
+                    </p>
+                  </div>
                 ) : (
                   <Select value={selectedChain} onValueChange={handleChainChange}>
                     <SelectTrigger data-testid="select-customer-chain" className="h-9">
                       <SelectValue placeholder="Select chain…" />
                     </SelectTrigger>
                     <SelectContent>
-                      {customers.map(c => (
-                        <SelectItem key={c.id} value={c.customerChain} data-testid={`option-chain-${c.customerChain}`}>
-                          {c.customerChain}
-                        </SelectItem>
-                      ))}
+                      {customers
+                        .filter(c => applicableChains.has(c.customerChain))
+                        .map(c => (
+                          <SelectItem key={c.id} value={c.customerChain} data-testid={`option-chain-${c.customerChain}`}>
+                            {c.customerChain}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 )}
