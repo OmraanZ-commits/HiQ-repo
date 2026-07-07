@@ -78,7 +78,9 @@ type DepotRow = {
   pbStatus?: string;         // exact PB status value if blocking
 };
 
-// ─── Relaunch / Successor filter ─────────────────────────────────────────────
+// ─── New Launch filter ────────────────────────────────────────────────────────
+// Per BRD §8: Master Maintenance is applicable only for new launch CBUs.
+// CCR (relaunch / predecessor-successor transitions) is handled separately.
 
 const RELAUNCH_TYPES = new Set([
   "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM",
@@ -86,7 +88,8 @@ const RELAUNCH_TYPES = new Set([
 ]);
 
 function isEligibleCbu(entry: NetworkEntry): boolean {
-  return RELAUNCH_TYPES.has(entry.typeOfNetwork ?? "") || !!entry.predecessorCode;
+  // New launches only: no predecessor CBU and not a relaunch change type
+  return !entry.predecessorCode && !RELAUNCH_TYPES.has(entry.typeOfNetwork ?? "");
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -507,9 +510,20 @@ export default function CcrMasterMaintenancePage() {
         <div>
           <h2 className="text-xl font-bold text-foreground">CCR Master Maintenance</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Configure Customer Code-to-CIC depot mappings for relaunch and successor CBUs
+            Configure Customer Code-to-CIC depot mappings for new launch CBUs
           </p>
         </div>
+
+        {/* Scope banner */}
+        <Alert className="border-sky-200 bg-sky-50 text-sky-800">
+          <Info className="h-4 w-4 text-sky-600" />
+          <AlertDescription className="text-sm">
+            <span className="font-semibold">New Launch CBUs only.</span>{" "}
+            Master Maintenance covers initial CIC creation and depot-level mapping activation for new launches.
+            Relaunch / predecessor–successor transitions are handled through the{" "}
+            <a href="/ccr" className="underline font-medium">CCR Workspace</a>.
+          </AlertDescription>
+        </Alert>
 
         {/* ── Mapping Configuration panel ───────────────────────────────────── */}
         <Card>
