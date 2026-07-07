@@ -17,8 +17,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft, CheckCircle2, XCircle, Warehouse,
-  MapPin, Activity, TrendingUp, Save, Download, AlertTriangle,
-  Info, Hash, Tag,
+  MapPin, Save, Download, AlertTriangle,
+  Info, Hash, Tag, Link2,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -82,8 +82,6 @@ type DepotRow = {
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const MSTN_THRESHOLD = 80;
 
 const STATUS_IDX: Record<string, number> = {
   "Draft": 0, "Active": 1, "Pricing Updated": 2, "Production Started": 3,
@@ -221,9 +219,6 @@ export default function CcrConfigurePage() {
     return m;
   }, [allCicMappings]);
 
-  const mstnValues = Object.values(mstnByDepot ?? {});
-  const clearedCount = mstnValues.filter(v => v >= MSTN_THRESHOLD).length;
-  const totalWithData = mstnValues.length;
   const mappedDepotCount = allDepotCodes.filter(d => cicByDepot.has(d)).length;
 
   // ── Derived: applicable CCR chains from NV customer_mapping ─────────────────
@@ -243,6 +238,21 @@ export default function CcrConfigurePage() {
     }
     return result;
   }, [entry]);
+
+  const chainCompletionStats = useMemo(() => {
+    const byChain = new Map<string, { mapped: number; total: number }>();
+    for (const m of allCicMappings) {
+      const s = byChain.get(m.customerChain) ?? { mapped: 0, total: 0 };
+      s.total++;
+      if (m.status === "Mapped") s.mapped++;
+      byChain.set(m.customerChain, s);
+    }
+    let completed = 0;
+    for (const [, s] of byChain) {
+      if (s.total > 0 && s.mapped === s.total) completed++;
+    }
+    return { applicable: applicableChains.size, completed };
+  }, [allCicMappings, applicableChains]);
 
   // ── Derived: mapping grid ────────────────────────────────────────────────────
   const sourcingMode = useMemo(() => entry ? getSourcingMode(entry) : "decentralized", [entry]);
@@ -467,14 +477,8 @@ export default function CcrConfigurePage() {
                   <div className="mt-0.5"><NetworkStatusBadge status={entry.networkStatus} /></div>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-0.5">Overall MSTN</p>
-                  <p className={`text-sm font-bold ${(entry.mstnPercentage ?? 0) >= MSTN_THRESHOLD ? "text-emerald-600" : "text-red-500"}`}>
-                    {entry.mstnPercentage != null ? `${entry.mstnPercentage}%` : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-0.5">Assigned Depots</p>
-                  <p className="text-sm font-medium">{assignedDepots.length || "—"}</p>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-0.5">Customer Chains</p>
+                  <p className="text-sm font-medium">{chainCompletionStats.applicable || "—"}</p>
                 </div>
               </div>
             ) : (
@@ -498,19 +502,13 @@ export default function CcrConfigurePage() {
             <Card>
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  <span className="text-[10px] uppercase font-semibold tracking-wide">MSTN Cleared</span>
+                  <Link2 className="h-3.5 w-3.5" />
+                  <span className="text-[10px] uppercase font-semibold tracking-wide">Chain Mapping Completed</span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-600">{clearedCount} <span className="text-sm text-muted-foreground font-normal">/ {totalWithData}</span></p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Activity className="h-3.5 w-3.5" />
-                  <span className="text-[10px] uppercase font-semibold tracking-wide">Not Cleared</span>
-                </div>
-                <p className="text-2xl font-bold text-red-500">{totalWithData - clearedCount}</p>
+                <p className="text-2xl font-bold text-emerald-600">
+                  {chainCompletionStats.completed}
+                  <span className="text-sm text-muted-foreground font-normal"> / {chainCompletionStats.applicable}</span>
+                </p>
               </CardContent>
             </Card>
             <Card>
