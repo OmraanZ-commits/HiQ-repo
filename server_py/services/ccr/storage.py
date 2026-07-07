@@ -436,17 +436,16 @@ class CcrStorage:
         this method, so no client-supplied data influences the evaluation.
 
         Mapping rules (applied only to non-Completed items with a CIC):
-          Production Started        → First Intimation  (Amber)
-          FTR Approved              → Second Intimation (Amber)
-          Stock Movement Initiated  → Third Intimation  (Red)
-          DOH threshold             → Fourth Intimation (Blinking Red)
+          FTR Approved              → First Intimation  (Amber)
+          Stock Movement Initiated  → Second Intimation (Red)
+          DOH threshold             → Third Intimation  (Blinking Red)
 
         DOH / CLOT gating policy:
-          National customers: Fourth Intimation fires only for depots that sit in
+          National customers: Third Intimation fires only for depots that sit in
             the top-70% of the customer chain's depots ranked by CLOT volume.
             CLOT values are stored in ccr_customer_code_mapping.clot (seeded via
             run_migrations). Each line item's depot is looked up via customer_code.
-          Regional / SBM customers: Fourth Intimation applied for all depots without
+          Regional / SBM customers: Third Intimation applied for all depots without
             CLOT gating.
 
         Escalation semantics:
@@ -469,9 +468,8 @@ class CcrStorage:
                 entry_map[cbu] = e
 
         STATUS_TO_STAGE = {
-            "Production Started":       ("First",  "Amber"),
-            "FTR Approved":             ("Second", "Amber"),
-            "Stock Movement Initiated": ("Third",  "Red"),
+            "FTR Approved":             ("First",  "Amber"),
+            "Stock Movement Initiated": ("Second", "Red"),
         }
 
         db = SessionLocal()
@@ -537,23 +535,22 @@ class CcrStorage:
 
                 # ── Stage mapping: lifecycle status → trigger stage ───────────
                 # Stages MUST follow the required progression order:
-                #   First ← Production Started
-                #   Second ← FTR Approved
-                #   Third  ← Stock Movement Initiated
-                #   Fourth ← DOH threshold (only from Third-stage context)
+                #   First  ← FTR Approved
+                #   Second ← Stock Movement Initiated
+                #   Third  ← DOH threshold (only from Second-stage context)
                 #
-                # DOH Fourth Intimation is gated: it may only fire when the network
-                # status is already "Stock Movement Initiated" (Third stage context)
-                # OR the line item is already at Third/Fourth stage.  This prevents
-                # an item jumping from First/Second directly to Fourth out of sequence.
+                # DOH Third Intimation is gated: it may only fire when the network
+                # status is already "Stock Movement Initiated" (Second stage context)
+                # OR the line item is already at Second/Third stage.  This prevents
+                # an item jumping from First directly to Third out of sequence.
                 if net_status in STATUS_TO_STAGE:
                     new_stage, new_color = STATUS_TO_STAGE[net_status]
 
-                # DOH gate: can only promote to Fourth from a Third-stage context
+                # DOH gate: can only promote to Third from a Second-stage context
                 basic_doh_met = bool(succ_doh) and succ_doh > 5 and (pred_doh or 0) < 3
                 doh_context_ok = (
                     net_status == "Stock Movement Initiated"
-                    or current_stage in ("Third", "Fourth")
+                    or current_stage in ("Second", "Third")
                 )
                 if basic_doh_met and doh_context_ok:
                     if coverage == "National":
@@ -571,7 +568,7 @@ class CcrStorage:
 
                     if doh_eligible:
                         # DOH overrides the lifecycle-status stage (highest severity)
-                        new_stage, new_color = "Fourth", "Blinking Red"
+                        new_stage, new_color = "Third", "Blinking Red"
 
                 if new_stage is None:
                     continue

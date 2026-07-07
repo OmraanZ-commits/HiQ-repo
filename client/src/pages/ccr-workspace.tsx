@@ -77,21 +77,19 @@ const STATUS_IDX: Record<string, number> = {
 };
 const FTR_APPROVED_IDX = 4;
 
-const TRIGGER_STAGE_ORDER = ["First", "Second", "Third", "Fourth", "None"];
+const TRIGGER_STAGE_ORDER = ["First", "Second", "Third", "None"];
 
 const TRIGGER_STAGE_LABEL: Record<string, string> = {
   First:  "1st Intimation",
   Second: "2nd Intimation",
   Third:  "3rd Intimation",
-  Fourth: "4th Intimation",
   None:   "—",
 };
 
 const TRIGGER_STAGE_COLOR: Record<string, string> = {
-  First:  "bg-blue-100 text-blue-700 border-blue-200",
-  Second: "bg-amber-100 text-amber-700 border-amber-200",
-  Third:  "bg-orange-100 text-orange-700 border-orange-200",
-  Fourth: "bg-red-100 text-red-700 border-red-200",
+  First:  "bg-amber-100 text-amber-700 border-amber-200",
+  Second: "bg-red-100 text-red-700 border-red-200",
+  Third:  "bg-rose-100 text-rose-800 border-rose-400",
   None:   "bg-muted text-muted-foreground border-border",
 };
 

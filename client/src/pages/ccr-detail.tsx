@@ -127,15 +127,13 @@ const TRIGGER_STAGE_LABEL: Record<string, string> = {
   First: "1st Intimation",
   Second: "2nd Intimation",
   Third: "3rd Intimation",
-  Fourth: "4th Intimation",
 };
 
 const TRIGGER_STAGE_COLOR: Record<string, string> = {
   None: "bg-slate-50 text-slate-500 border-slate-200",
   First: "bg-amber-50 text-amber-700 border-amber-300",
-  Second: "bg-amber-50 text-amber-700 border-amber-300",
-  Third: "bg-red-50 text-red-700 border-red-300",
-  Fourth: "bg-rose-100 text-rose-800 border-rose-400",
+  Second: "bg-red-50 text-red-700 border-red-300",
+  Third: "bg-rose-100 text-rose-800 border-rose-400",
 };
 
 const URGENCY_DOT: Record<string, string> = {
