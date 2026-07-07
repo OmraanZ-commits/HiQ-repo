@@ -338,14 +338,13 @@ function LineItemRow({
 
       <TableCell className="py-2.5 pr-4">
         {item.escalatedAt ? (
-          <Badge
-            variant="outline"
-            className="text-[10px] bg-rose-50 text-rose-700 border-rose-300 gap-1"
+          <span
+            className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-rose-600 text-white text-[11px] font-bold select-none"
+            title="Escalated"
             data-testid={`badge-escalated-${item.id}`}
           >
-            <AlertTriangle className="h-2.5 w-2.5" />
-            Escalated
-          </Badge>
+            !
+          </span>
         ) : (
           <span className="text-[10px] text-muted-foreground/40">—</span>
         )}
