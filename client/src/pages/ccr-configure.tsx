@@ -271,7 +271,9 @@ export default function CcrConfigurePage() {
       if (pbBlocked) {
         status = basepackStatus!; sourcingDepot = existing?.sourcingDepot ?? ""; pbStatus = basepackStatus;
       } else if (srcMode === "decentralized") {
-        status = "Mapped"; sourcingDepot = cm.depot;
+        const isMapped = (entry.depot ?? []).includes(cm.depot);
+        status = isMapped ? "Mapped" : "Non-Mapped";
+        sourcingDepot = isMapped ? cm.depot : "";
       } else {
         const isMapped = (entry.depot ?? []).includes(cm.depot);
         status = isMapped ? "Mapped" : "Non-Mapped";
