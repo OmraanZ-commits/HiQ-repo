@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
@@ -280,6 +281,7 @@ function PostingStatusBadge({ status }: { status: string }) {
 export default function CcrMasterMaintenancePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const [selectedChain, setSelectedChain] = useState<string>("");
   const [selectedCbu, setSelectedCbu] = useState<string>("");
@@ -697,10 +699,7 @@ export default function CcrMasterMaintenancePage() {
                             data-testid={`btn-configure-${entry.cbuCode}`}
                             onClick={e => {
                               e.stopPropagation();
-                              handleCbuChange(entry.cbuCode ?? "");
-                              setTimeout(() => {
-                                document.getElementById("mapping-config-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                              }, 50);
+                              navigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`);
                             }}
                           >
                             Configure
