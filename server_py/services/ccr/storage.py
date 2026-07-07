@@ -528,12 +528,31 @@ class CcrStorage:
                 succ_doh    = entry.get("successorDoh")   or entry.get("successor_doh")   or 0
                 coverage    = coverage_by_chain.get(row.customer_chain, "National")
 
+                current_stage = row.trigger_stage or "None"
                 new_stage: str | None = None
                 new_color: str | None = None
 
-                # DOH Fourth Intimation
+                # ── Stage mapping: lifecycle status → trigger stage ───────────
+                # Stages MUST follow the required progression order:
+                #   First ← Production Started
+                #   Second ← FTR Approved
+                #   Third  ← Stock Movement Initiated
+                #   Fourth ← DOH threshold (only from Third-stage context)
+                #
+                # DOH Fourth Intimation is gated: it may only fire when the network
+                # status is already "Stock Movement Initiated" (Third stage context)
+                # OR the line item is already at Third/Fourth stage.  This prevents
+                # an item jumping from First/Second directly to Fourth out of sequence.
+                if net_status in STATUS_TO_STAGE:
+                    new_stage, new_color = STATUS_TO_STAGE[net_status]
+
+                # DOH gate: can only promote to Fourth from a Third-stage context
                 basic_doh_met = bool(succ_doh) and succ_doh > 5 and (pred_doh or 0) < 3
-                if basic_doh_met:
+                doh_context_ok = (
+                    net_status == "Stock Movement Initiated"
+                    or current_stage in ("Third", "Fourth")
+                )
+                if basic_doh_met and doh_context_ok:
                     if coverage == "National":
                         # Gate on CLOT: only fire if this line item's depot is in top 70%
                         depot = code_to_depot.get(row.customer_code)
@@ -548,16 +567,13 @@ class CcrStorage:
                         doh_eligible = True
 
                     if doh_eligible:
+                        # DOH overrides the lifecycle-status stage (highest severity)
                         new_stage, new_color = "Fourth", "Blinking Red"
-
-                if new_stage is None and net_status in STATUS_TO_STAGE:
-                    new_stage, new_color = STATUS_TO_STAGE[net_status]
 
                 if new_stage is None:
                     continue
 
                 changed = False
-                current_stage = row.trigger_stage or "None"
                 stage_advanced = current_stage != new_stage
 
                 if stage_advanced:
@@ -573,7 +589,17 @@ class CcrStorage:
                         row.urgency_color = new_color
                         changed = True
 
-                # Back-fill: active row missing escalation_due_at (pre-existing data)
+                # ── Sync ccr_status with trigger activation ───────────────────
+                # Any active trigger stage (First–Fourth) promotes the item to
+                # "Action Required" so the workspace Action Required tab is accurate.
+                # Completed items are never demoted.
+                if new_stage != "None" and row.ccr_status not in ("Completed",):
+                    if row.ccr_status != "Action Required":
+                        row.ccr_status = "Action Required"
+                        changed = True
+
+                # ── Escalation back-fill and expiry ───────────────────────────
+                # Back-fill escalation_due_at for pre-existing active rows
                 if new_stage != "None" and not row.escalation_due_at:
                     activation_ts = row.updated_at or now
                     row.escalation_due_at = activation_ts + timedelta(days=3)

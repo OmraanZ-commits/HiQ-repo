@@ -621,27 +621,41 @@ export default function CcrWorkspacePage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* CSE scope selector */}
+            {/* CSE scope identifier / admin selector */}
             <div className="flex items-center gap-1.5">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <Select value={selectedCse || "all"} onValueChange={handleCseChange}>
-                <SelectTrigger className="h-8 w-[210px] text-xs" data-testid="select-cse-scope">
-                  <SelectValue placeholder="Loading…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    <span className="text-muted-foreground italic">All CSEs (Admin view)</span>
-                  </SelectItem>
-                  {cseOptions.map(opt => (
-                    <SelectItem key={opt.cseId} value={opt.cseId}>
-                      <span className="font-medium">{opt.cseId.split("@")[0]}</span>
-                      <span className="text-muted-foreground text-[10px] ml-1">
-                        ({opt.chains.join(", ")})
-                      </span>
+              {currentUser?.isAdmin ? (
+                /* Admin: full CSE override dropdown */
+                <Select value={selectedCse || "all"} onValueChange={handleCseChange}>
+                  <SelectTrigger className="h-8 w-[210px] text-xs" data-testid="select-cse-scope">
+                    <SelectValue placeholder="Loading…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <span className="text-muted-foreground italic">All CSEs (Admin view)</span>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {cseOptions.map(opt => (
+                      <SelectItem key={opt.cseId} value={opt.cseId}>
+                        <span className="font-medium">{opt.cseId.split("@")[0]}</span>
+                        <span className="text-muted-foreground text-[10px] ml-1">
+                          ({opt.chains.join(", ")})
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                /* Non-admin CSE: read-only identity badge */
+                <div
+                  className="h-8 px-3 flex items-center border border-border rounded-md text-xs bg-muted/40 text-muted-foreground gap-1"
+                  data-testid="badge-cse-identity"
+                >
+                  <span className="font-medium text-foreground">
+                    {currentUser?.name ?? currentUser?.email?.split("@")[0] ?? "Loading…"}
+                  </span>
+                  <span className="opacity-60">— My Workspace</span>
+                </div>
+              )}
             </div>
 
             <Button
