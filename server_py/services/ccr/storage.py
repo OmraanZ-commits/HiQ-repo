@@ -13,6 +13,18 @@ from server_py.db import (
 )
 
 
+def _parse_dt(value) -> Optional[datetime]:
+    """Safely parse an ISO datetime string or return None."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+
+
 def _customer_to_dict(row: CcrCustomerMasterModel) -> dict:
     return {
         "id": str(row.id),
@@ -228,9 +240,9 @@ class CcrStorage:
             if "overrides" in data:
                 row.overrides = data["overrides"]
             if "escalationDueAt" in data:
-                row.escalation_due_at = data["escalationDueAt"]
+                row.escalation_due_at = _parse_dt(data["escalationDueAt"])
             if "escalatedAt" in data:
-                row.escalated_at = data["escalatedAt"]
+                row.escalated_at = _parse_dt(data["escalatedAt"])
             row.updated_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(row)
