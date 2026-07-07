@@ -16,11 +16,11 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  ArrowLeft, CheckCircle2, XCircle, AlertCircle, Warehouse,
+  ArrowLeft, CheckCircle2, XCircle, Warehouse,
   MapPin, Activity, TrendingUp, Save, Download, AlertTriangle,
   Info, Hash, Tag,
 } from "lucide-react";
-import type { NetworkEntry, DepotsMaster } from "@shared/schema";
+import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -146,54 +146,6 @@ function PricingBadge({ status }: { status: PricingStatus }) {
   return <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">Partial</Badge>;
 }
 
-function MstnBar({ pct }: { pct: number }) {
-  const cleared = pct >= MSTN_THRESHOLD;
-  return (
-    <div className="flex items-center gap-2 min-w-[120px]">
-      <div className="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${cleared ? "bg-emerald-500" : pct >= 60 ? "bg-amber-400" : "bg-red-500"}`}
-          style={{ width: `${Math.min(pct, 100)}%` }} />
-      </div>
-      <span className={`text-sm font-semibold tabular-nums w-10 text-right ${cleared ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-red-500"}`}>
-        {pct}%
-      </span>
-    </div>
-  );
-}
-
-function MstnStatusBadge({ pct }: { pct: number }) {
-  if (pct >= MSTN_THRESHOLD) return (
-    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs gap-1">
-      <CheckCircle2 className="h-3 w-3" />Cleared
-    </Badge>
-  );
-  if (pct >= 60) return (
-    <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs gap-1">
-      <AlertCircle className="h-3 w-3" />In Progress
-    </Badge>
-  );
-  return (
-    <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-xs gap-1">
-      <XCircle className="h-3 w-3" />Not Cleared
-    </Badge>
-  );
-}
-
-function MappingStatusBadge({ mapped, cic }: { mapped: boolean; cic?: string | null }) {
-  if (mapped && cic) return (
-    <div className="flex flex-col gap-0.5">
-      <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 text-xs gap-1 w-fit">
-        <CheckCircle2 className="h-3 w-3" />Mapped
-      </Badge>
-      <span className="text-[10px] font-mono text-muted-foreground">{cic}</span>
-    </div>
-  );
-  return (
-    <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs gap-1">
-      <XCircle className="h-3 w-3" />Not Mapped
-    </Badge>
-  );
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -220,11 +172,6 @@ export default function CcrConfigurePage() {
     queryKey: ["/api/ccr/customers"],
   });
 
-  const { data: depotsData = [] } = useQuery<DepotsMaster[]>({
-    queryKey: ["/api/reference-data/depots"],
-    staleTime: Infinity,
-  });
-
   const { data: codeMappings = [], isLoading: codeMappingsLoading } = useQuery<CodeMapping[]>({
     queryKey: ["/api/ccr/customers", selectedChain, "code-mapping"],
     queryFn: () =>
@@ -239,7 +186,7 @@ export default function CcrConfigurePage() {
     enabled: !!decodedCbu && !!selectedChain,
   });
 
-  // Read-only: all CIC mappings for this CBU (for MSTN depot view)
+  // All CIC mappings for this CBU — powers the Mapped depot count in the stats strip
   const { data: allCicMappings = [] } = useQuery<CicMapping[]>({
     queryKey: ["/api/ccr/cic-mappings", decodedCbu],
     queryFn: () =>
@@ -255,7 +202,6 @@ export default function CcrConfigurePage() {
 
   // ── Derived: entry + MSTN ────────────────────────────────────────────────────
   const entry = useMemo(() => networkEntries.find(e => e.cbuCode === decodedCbu) ?? null, [networkEntries, decodedCbu]);
-  const depotMap = useMemo(() => new Map<string, DepotsMaster>((depotsData).map(d => [d.code, d])), [depotsData]);
 
   const mstnByDepot = useMemo(() => (entry as any)?.mstnByDepot as Record<string, number> | undefined, [entry]);
   const assignedDepots: string[] = entry?.depot ?? [];
@@ -541,68 +487,6 @@ export default function CcrConfigurePage() {
           </div>
         )}
 
-        {/* ── MSTN Level by Depot (read-only overview) ──────────────────────── */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Warehouse className="h-4 w-4 text-primary" />
-              MSTN Level by Depot
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-0 pb-0">
-            {isLoading ? (
-              <div className="px-6 pb-6 space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div>
-            ) : allDepotCodes.length === 0 ? (
-              <div className="px-6 pb-6 text-sm text-muted-foreground flex items-center gap-2 py-8 justify-center">
-                <AlertCircle className="h-4 w-4" />No depot data available for this CBU yet.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table data-testid="table-mstn-depot">
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="text-xs font-semibold pl-6 whitespace-nowrap">Depot Code</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Depot Name</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Cluster</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">MSTN Level</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">MSTN Status</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Mapping Status</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Customer Chain</TableHead>
-                      <TableHead className="text-xs font-semibold pr-6 whitespace-nowrap">Sourcing Depot</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allDepotCodes.map(depotCode => {
-                      const depotInfo = depotMap.get(depotCode);
-                      const mstnPct = mstnByDepot?.[depotCode];
-                      const cicMapping = cicByDepot.get(depotCode);
-                      return (
-                        <TableRow key={depotCode} data-testid={`row-depot-${depotCode}`} className="hover:bg-muted/30">
-                          <TableCell className="pl-6 font-mono text-xs font-semibold text-slate-700 whitespace-nowrap">{depotCode}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{depotInfo?.name ?? "—"}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{depotInfo?.clusterId ?? "—"}</TableCell>
-                          <TableCell>
-                            {mstnPct != null ? <MstnBar pct={mstnPct} /> : <span className="text-sm text-muted-foreground">—</span>}
-                          </TableCell>
-                          <TableCell>
-                            {mstnPct != null
-                              ? <MstnStatusBadge pct={mstnPct} />
-                              : <Badge variant="outline" className="text-xs text-slate-400">No data</Badge>}
-                          </TableCell>
-                          <TableCell>
-                            <MappingStatusBadge mapped={!!cicMapping} cic={cicMapping?.cic} />
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{cicMapping?.customerChain ?? "—"}</TableCell>
-                          <TableCell className="pr-6 text-sm font-mono text-muted-foreground whitespace-nowrap">{cicMapping?.sourcingDepot ?? "—"}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* ── Mapping Configuration ─────────────────────────────────────────── */}
         <Card>
