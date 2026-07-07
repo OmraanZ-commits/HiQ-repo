@@ -322,7 +322,6 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
             <TableHead className="text-xs font-semibold w-[7%]">Brand</TableHead>
             <TableHead className="text-xs font-semibold w-[8%]">BG</TableHead>
             <TableHead className="text-xs font-semibold w-[8%]">Type of Network</TableHead>
-            <TableHead className="text-xs font-semibold w-[12%]">Assigned Person</TableHead>
             <TableHead className="text-xs font-semibold w-[8%]">Network Start Date</TableHead>
             <TableHead className="text-xs font-semibold w-[16%]">Network Status</TableHead>
             <TableHead className="text-xs font-semibold text-center w-[4%]">Trigger</TableHead>
@@ -363,9 +362,6 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               </TableCell>
               <TableCell className="text-xs font-mono truncate">
                 {getNetworkChangeTypeName(entry.typeOfNetwork)}
-              </TableCell>
-              <TableCell>
-                <AssignedPersonCell name={(entry as any).assignedPerson} />
               </TableCell>
               <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                 {formatCbuDate((entry as any).startDate)}
