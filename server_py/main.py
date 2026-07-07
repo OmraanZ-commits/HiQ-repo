@@ -46,7 +46,7 @@ from server_py.services.mstn_doh.storage import MstnDohStorage
 from server_py.services.mstn_doh.service import MstnDohService
 from server_py.services.mstn_doh.router import router as mstn_doh_router, set_service as set_mstn_doh_service
 
-from server_py.saga.router import router as saga_router, init_saga_services
+from server_py.saga.router import router as saga_router, init_saga_services, set_saga_ccr_service
 from server_py.saga.transition_saga import build_transition_saga
 
 from server_py.services.ftr.storage import FtrStorage
@@ -166,6 +166,7 @@ async def startup():
     ccr_service = CcrService(ccr_storage)
     ccr_service.set_list_service(list_service)   # server-side trigger evaluation
     set_ccr_service(ccr_service)
+    set_saga_ccr_service(ccr_service)  # post-transition re-evaluation in saga router
     ccr_service.seed_all(
         CCR_CUSTOMER_SEEDS,
         CCR_CODE_MAPPING_SEEDS,
@@ -207,6 +208,40 @@ async def startup():
                 logging.warning(f"[CCR trigger engine] error: {exc}")
 
     asyncio.create_task(_ccr_trigger_loop())
+
+
+@app.get("/api/me")
+async def get_current_user():
+    """
+    Returns the simulated 'logged-in' user for this demo portal.
+
+    In a production deployment this would derive identity from a JWT / session cookie.
+    For the demo the current user is the first CSE found in the CCR customer master so
+    that the CCR workspace is scoped correctly out of the box. Admin users may override
+    the scope via the CSE dropdown.
+    """
+    from server_py.db import SessionLocal
+    from server_py.db import CcrCustomerMasterModel
+    db = SessionLocal()
+    try:
+        # Find the first CSE in the customer master (stable demo user)
+        cse_row = db.query(CcrCustomerMasterModel).filter(
+            CcrCustomerMasterModel.cse_id.isnot(None)
+        ).order_by(CcrCustomerMasterModel.cse_id).first()
+        cse_id = cse_row.cse_id if cse_row else None
+    finally:
+        db.close()
+
+    # Derive display name from email prefix
+    display_name = cse_id.split("@")[0].replace(".", " ").title() if cse_id else "Portal User"
+    return {
+        "id": "demo-session",
+        "name": display_name,
+        "email": cse_id or "admin@unilever.com",
+        "cseId": cse_id,
+        "role": "Customer Sales Executive" if cse_id else "Admin",
+        "isAdmin": cse_id is None,
+    }
 
 
 @app.get("/api/health")

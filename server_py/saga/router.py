@@ -22,6 +22,7 @@ _ref_service: ReferenceDataService | None = None
 _sr_service: ServiceRequestService | None = None
 _bp_status_service: BasepakStatusService | None = None
 _paid_bible_service = None
+_ccr_service = None   # injected after CCR setup; used to re-evaluate on status change
 
 
 def init_saga_services(
@@ -44,6 +45,12 @@ def init_saga_services(
     _paid_bible_service = paid_bible_service
 
 
+def set_saga_ccr_service(ccr_service) -> None:
+    """Inject the CcrService into the saga router for post-transition trigger evaluation."""
+    global _ccr_service
+    _ccr_service = ccr_service
+
+
 class TransitionSagaRequest(BaseModel):
     toStatus: str
     triggeredBy: Optional[str] = None
@@ -52,6 +59,9 @@ class TransitionSagaRequest(BaseModel):
 
 @router.post("/transition/{entry_id}")
 async def execute_transition_saga(entry_id: str, req: TransitionSagaRequest):
+    import asyncio
+    import logging
+
     if not _state_service or not _list_service or not _lifecycle_service:
         raise HTTPException(status_code=503, detail="Saga services not initialized")
 
@@ -70,6 +80,21 @@ async def execute_transition_saga(entry_id: str, req: TransitionSagaRequest):
     status_code = 200 if result["status"] == "completed" else 400
     if result["status"] != "completed":
         raise HTTPException(status_code=status_code, detail=result)
+
+    # Re-evaluate CCR triggers immediately after a successful status transition.
+    # Fired as a background task so it does not block the saga response.
+    if _ccr_service is not None:
+        async def _run_ccr_eval():
+            try:
+                eval_result = _ccr_service.evaluate_triggers()
+                logging.info(
+                    "[CCR trigger engine] post-transition eval: "
+                    f"updated={eval_result['updated']} escalated={eval_result['escalated']}"
+                )
+            except Exception as exc:
+                logging.warning(f"[CCR trigger engine] post-transition eval error: {exc}")
+
+        asyncio.create_task(_run_ccr_eval())
 
     return result
 

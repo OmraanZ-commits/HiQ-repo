@@ -402,8 +402,9 @@ export default function CcrWorkspacePage() {
 
   // ── Parse URL params into local filter state ──────────────────────────────
   const initialParams = new URLSearchParams(rawSearch);
-  // Default to the URL param value; "" means "pending auto-default to first CSE".
-  const [selectedCse, setSelectedCse] = useState(initialParams.get("cse") ?? "");
+  const urlCse = initialParams.get("cse") ?? "";
+  // "" = resolved from /api/me (pending); real cse_id = explicit URL override
+  const [selectedCse, setSelectedCse] = useState(urlCse);
   const [filterStages, setFilterStages] = useState<string[]>(parseMulti(initialParams.get("stage")));
   const [filterNwTypes, setFilterNwTypes] = useState<string[]>(parseMulti(initialParams.get("nwType")));
   const [filterEscalated, setFilterEscalated] = useState(initialParams.get("escalated") === "1");
@@ -417,7 +418,6 @@ export default function CcrWorkspacePage() {
     escalated: boolean,
   ) => {
     const p = new URLSearchParams();
-    // "" = pending auto-default (don't write to URL); any real value gets written
     if (cse && cse !== "all") p.set("cse", cse);
     if (stages.length > 0) p.set("stage", stages.join(","));
     if (nwTypes.length > 0) p.set("nwType", nwTypes.join(","));
@@ -425,6 +425,24 @@ export default function CcrWorkspacePage() {
     const qs = p.toString();
     navigate(`/ccr${qs ? `?${qs}` : ""}`, { replace: true });
   }, [navigate]);
+
+  // ── Current user — used for default CSE scope ────────────────────────────
+  type CurrentUser = { id: string; name: string; email: string; cseId: string | null; role: string; isAdmin: boolean };
+  const { data: currentUser } = useQuery<CurrentUser>({
+    queryKey: ["/api/me"],
+    queryFn: () => fetch("/api/me").then(r => r.json()),
+  });
+
+  // When /api/me resolves and no URL override is present, scope to logged-in CSE.
+  useEffect(() => {
+    if (urlCse) return;  // URL param takes precedence
+    if (!currentUser) return;
+    const cseId = currentUser.cseId ?? "all";
+    if (cseId !== selectedCse) {
+      setSelectedCse(cseId);
+      syncUrl(cseId, filterStages, filterNwTypes, filterEscalated);
+    }
+  }, [currentUser]);
 
   function handleCseChange(v: string) {
     setSelectedCse(v);
@@ -443,17 +461,13 @@ export default function CcrWorkspacePage() {
     syncUrl(selectedCse, filterStages, filterNwTypes, v);
   }
   function clearFilters() {
-    // Restore default CSE scope (first available CSE) rather than showing all data
-    const firstCseId = customers.find(c => c.cseId)?.cseId ?? "";
-    setSelectedCse(firstCseId);
+    // Restore logged-in CSE scope, not "all"
+    const defaultCse = currentUser?.cseId ?? "all";
+    setSelectedCse(defaultCse);
     setFilterStages([]);
     setFilterNwTypes([]);
     setFilterEscalated(false);
-    if (firstCseId) {
-      navigate(`/ccr?cse=${firstCseId}`, { replace: true });
-    } else {
-      navigate("/ccr", { replace: true });
-    }
+    syncUrl(defaultCse, [], [], false);
   }
 
   // ── Queries ───────────────────────────────────────────────────────────────
@@ -461,17 +475,6 @@ export default function CcrWorkspacePage() {
     queryKey: ["/api/ccr/customers"],
     queryFn: () => fetch("/api/ccr/customers").then(r => r.json()),
   });
-
-  // Auto-default to the first available CSE when the page loads without a URL param.
-  // This enforces a CSE-scoped view by default (simulating a logged-in CSE session).
-  useEffect(() => {
-    if (selectedCse !== "") return;  // already set (from URL or previous effect)
-    const firstCseId = customers.find(c => c.cseId)?.cseId;
-    if (firstCseId) {
-      setSelectedCse(firstCseId);
-      syncUrl(firstCseId, filterStages, filterNwTypes, filterEscalated);
-    }
-  }, [customers]);  // only runs when customers list changes
 
   // Unique CSE IDs from customer master for the CSE selector
   const cseOptions = useMemo(() => {
