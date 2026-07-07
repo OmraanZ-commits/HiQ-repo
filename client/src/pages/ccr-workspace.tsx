@@ -58,6 +58,25 @@ type CcrCustomer = {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+// Relaunch change types — CCR is only applicable for relaunch / predecessor–successor CBUs
+const RELAUNCH_TYPES = new Set([
+  "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM",
+  "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
+]);
+
+// Network status index for gating: only FTR Approved (idx 4) and above are shown
+// in Action Required / Completed; all pre-FTR entries are routed to Upcoming.
+const STATUS_IDX: Record<string, number> = {
+  "Draft": 0,
+  "Active": 1,
+  "Pricing Updated": 2,
+  "Production Started": 3,
+  "FTR Approved": 4,
+  "Stock Movement Initiated": 5,
+  "Network transition complete": 6,
+};
+const FTR_APPROVED_IDX = 4;
+
 const TRIGGER_STAGE_ORDER = ["First", "Second", "Third", "Fourth", "None"];
 
 const TRIGGER_STAGE_LABEL: Record<string, string> = {
@@ -537,18 +556,31 @@ export default function CcrWorkspacePage() {
 
   const allItems = lineItemsData?.items ?? [];
 
+  // Relaunch-only: CCR applies to relaunch / predecessor–successor CBUs only.
+  // New launch CBUs are handled in Master Maintenance, not here.
+  const relaunchItems = useMemo(() => {
+    return allItems.filter(item => {
+      const entry = entryMap.get(item.successorCbuCode ?? "");
+      return (
+        RELAUNCH_TYPES.has(entry?.typeOfNetwork ?? "") ||
+        !!entry?.predecessorCode ||
+        !!item.predecessorCbuCode
+      );
+    });
+  }, [allItems, entryMap]);
+
   const nwTypeOptions = useMemo(() => {
     const types = new Set<string>();
-    for (const item of allItems) {
+    for (const item of relaunchItems) {
       const entry = entryMap.get(item.successorCbuCode ?? "");
       if (entry?.typeOfNetwork) types.add(entry.typeOfNetwork);
     }
     return Array.from(types).sort();
-  }, [allItems, entryMap]);
+  }, [relaunchItems, entryMap]);
 
   // ── Client-side filtering ─────────────────────────────────────────────────
   const filteredItems = useMemo(() => {
-    return allItems.filter(item => {
+    return relaunchItems.filter(item => {
       if (filterStages.length > 0 && !filterStages.includes(item.triggerStage)) return false;
       if (filterEscalated && !item.escalatedAt) return false;
       if (filterNwTypes.length > 0) {
@@ -557,11 +589,24 @@ export default function CcrWorkspacePage() {
       }
       return true;
     });
-  }, [allItems, filterStages, filterEscalated, filterNwTypes, entryMap]);
+  }, [relaunchItems, filterStages, filterEscalated, filterNwTypes, entryMap]);
 
-  const actionRequired = filteredItems.filter(i => i.ccrStatus === "Action Required");
-  const upcoming      = filteredItems.filter(i => i.ccrStatus === "Upcoming");
-  const completed     = filteredItems.filter(i => i.ccrStatus === "Completed");
+  // ── Status gating ─────────────────────────────────────────────────────────
+  // Items whose successor CBU has reached FTR Approved (idx ≥ 4) are shown in
+  // Action Required / Completed based on their ccrStatus.
+  // Items whose successor CBU is still pre-FTR are always routed to Upcoming.
+  const postFtrItems = filteredItems.filter(item => {
+    const entry = entryMap.get(item.successorCbuCode ?? "");
+    return (STATUS_IDX[entry?.networkStatus ?? ""] ?? 0) >= FTR_APPROVED_IDX;
+  });
+  const preFtrItems = filteredItems.filter(item => {
+    const entry = entryMap.get(item.successorCbuCode ?? "");
+    return (STATUS_IDX[entry?.networkStatus ?? ""] ?? 0) < FTR_APPROVED_IDX;
+  });
+
+  const actionRequired = postFtrItems.filter(i => i.ccrStatus === "Action Required");
+  const upcoming       = [...preFtrItems, ...postFtrItems.filter(i => i.ccrStatus === "Upcoming")];
+  const completed      = postFtrItems.filter(i => i.ccrStatus === "Completed");
 
   // "Active filters" only tracks the filter-panel knobs (not CSE scope, which is
   // a persistent scope selector shown separately from the Filters panel).
@@ -628,7 +673,7 @@ export default function CcrWorkspacePage() {
             <div>
               <h2 className="text-xl font-bold" data-testid="text-page-title">CCR Workspace</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Customer Change Request lifecycle — trigger stages, SLA tracking, and escalation
+                Relaunch CBU transitions (FTR Approved+) — trigger stages, SLA tracking, and escalation
               </p>
             </div>
           </div>
