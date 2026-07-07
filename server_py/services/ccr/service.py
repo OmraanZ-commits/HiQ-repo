@@ -48,6 +48,12 @@ class CcrService:
     def append_audit_log(self, item_id: str, data: dict) -> dict:
         return self.storage.append_audit_log(item_id, data)
 
+    # ── Trigger Engine ──────────────────────────────────────────
+
+    def evaluate_triggers(self, network_entries: List[dict]) -> dict:
+        """Evaluate and update CCR trigger stages from current network entry statuses."""
+        return self.storage.evaluate_triggers(network_entries)
+
     # ── Seed ────────────────────────────────────────────────────
 
     def seed_all(

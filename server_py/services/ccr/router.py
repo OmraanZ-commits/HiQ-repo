@@ -40,6 +40,10 @@ class AppendAuditLogRequest(BaseModel):
     payload: Optional[Any] = None
 
 
+class TriggerEngineRequest(BaseModel):
+    networkEntries: list[Any] = []
+
+
 @router.get("/customers")
 async def get_customers():
     return _svc().get_all_customers()
@@ -100,3 +104,13 @@ async def append_audit_log(item_id: str, req: AppendAuditLogRequest):
     if not item:
         raise HTTPException(status_code=404, detail="CCR line item not found")
     return _svc().append_audit_log(item_id, req.model_dump())
+
+
+@router.post("/trigger-engine/evaluate")
+async def trigger_engine_evaluate(req: TriggerEngineRequest):
+    """
+    Evaluate CCR trigger stages against the provided network entries.
+    Maps network_status → trigger_stage + urgency_color, sets escalation timestamps.
+    """
+    result = _svc().evaluate_triggers(req.networkEntries)
+    return {"ok": True, **result}

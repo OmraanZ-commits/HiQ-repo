@@ -1,4 +1,6 @@
 import os
+import asyncio
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -192,6 +194,19 @@ async def startup():
         transition_fn=_trigger_ftr_transition,
     )
     set_ftr_service(ftr_service)
+
+    async def _ccr_trigger_loop():
+        """Background task: re-evaluate CCR triggers every 30 minutes."""
+        while True:
+            try:
+                await asyncio.sleep(30 * 60)
+                entries = list_service.get_all()
+                result = ccr_service.evaluate_triggers(entries)
+                logging.info(f"[CCR trigger engine] updated={result['updated']} escalated={result['escalated']}")
+            except Exception as exc:
+                logging.warning(f"[CCR trigger engine] error: {exc}")
+
+    asyncio.create_task(_ccr_trigger_loop())
 
 
 @app.get("/api/health")

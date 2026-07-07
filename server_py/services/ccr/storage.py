@@ -425,6 +425,100 @@ class CcrStorage:
         finally:
             db.close()
 
+    # ── Trigger Engine ──────────────────────────────────────────
+
+    def evaluate_triggers(self, network_entries: List[dict]) -> dict:
+        """
+        Cross-reference CCR line items against network entries and update
+        trigger_stage, urgency_color, escalation_due_at, and escalated_at.
+
+        Mapping rules (applied only to non-Completed items with a CIC):
+          Production Started        → First Intimation  (Amber)
+          FTR Approved              → Second Intimation (Amber)
+          Stock Movement Initiated  → Third Intimation  (Red)
+          DOH: succDoh > 5 & predDoh < 3 → Fourth Intimation (Blinking Red)
+
+        Escalation: when trigger first fires, set escalation_due_at = now + 3 days.
+        If escalation_due_at is past and escalated_at is None, set escalated_at = now.
+
+        Returns {updated, escalated} counts.
+        """
+        from datetime import timedelta
+
+        entry_map: dict = {}
+        for e in network_entries:
+            cbu = e.get("cbuCode") or e.get("cbu_code")
+            if cbu:
+                entry_map[cbu] = e
+
+        STATUS_TO_STAGE = {
+            "Production Started":       ("First",  "Amber"),
+            "FTR Approved":             ("Second", "Amber"),
+            "Stock Movement Initiated": ("Third",  "Red"),
+        }
+
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(CcrLineItemModel)
+                .filter(CcrLineItemModel.ccr_status != "Completed")
+                .all()
+            )
+            now = datetime.now(timezone.utc)
+            updated = 0
+            escalated = 0
+
+            for row in rows:
+                if not row.cic:
+                    continue
+
+                entry = entry_map.get(row.successor_cbu_code or "")
+                if not entry:
+                    continue
+
+                net_status = entry.get("networkStatus") or entry.get("network_status") or ""
+                pred_doh = entry.get("predecessorDoh") or entry.get("predecessor_doh") or 0
+                succ_doh = entry.get("successorDoh") or entry.get("successor_doh") or 0
+
+                new_stage: str | None = None
+                new_color: str | None = None
+
+                if succ_doh > 5 and (pred_doh or 0) < 3:
+                    new_stage, new_color = "Fourth", "Blinking Red"
+                elif net_status in STATUS_TO_STAGE:
+                    new_stage, new_color = STATUS_TO_STAGE[net_status]
+
+                if new_stage is None:
+                    continue
+
+                changed = False
+                was_none = (row.trigger_stage or "None") == "None"
+
+                if row.trigger_stage != new_stage:
+                    row.trigger_stage = new_stage
+                    changed = True
+                if row.urgency_color != new_color:
+                    row.urgency_color = new_color
+                    changed = True
+
+                if was_none and new_stage != "None" and not row.escalation_due_at:
+                    row.escalation_due_at = now + timedelta(days=3)
+                    changed = True
+
+                if row.escalation_due_at and now > row.escalation_due_at and not row.escalated_at:
+                    row.escalated_at = now
+                    escalated += 1
+                    changed = True
+
+                if changed:
+                    row.updated_at = now
+                    updated += 1
+
+            db.commit()
+            return {"updated": updated, "escalated": escalated}
+        finally:
+            db.close()
+
     def seed_line_items(self, seeds: List[dict]) -> None:
         db = SessionLocal()
         try:
