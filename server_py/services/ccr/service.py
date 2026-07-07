@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from server_py.services.ccr.storage import CcrStorage
 
@@ -6,6 +6,11 @@ from server_py.services.ccr.storage import CcrStorage
 class CcrService:
     def __init__(self, storage: CcrStorage):
         self.storage = storage
+        self._list_service: Any = None  # injected after startup
+
+    def set_list_service(self, list_service: Any) -> None:
+        """Inject the ListMasterService so trigger evaluation is fully server-side."""
+        self._list_service = list_service
 
     # ── Customer Master ─────────────────────────────────────────
 
@@ -50,8 +55,15 @@ class CcrService:
 
     # ── Trigger Engine ──────────────────────────────────────────
 
-    def evaluate_triggers(self, network_entries: List[dict]) -> dict:
-        """Evaluate and update CCR trigger stages from current network entry statuses."""
+    def evaluate_triggers(self) -> dict:
+        """
+        Evaluate and update CCR trigger stages.
+        Network entries are fetched server-side from the injected ListMasterService,
+        so evaluation is fully controlled by the backend and not client-influenced.
+        """
+        network_entries: List[dict] = (
+            self._list_service.get_all() if self._list_service else []
+        )
         return self.storage.evaluate_triggers(network_entries)
 
     # ── Seed ────────────────────────────────────────────────────

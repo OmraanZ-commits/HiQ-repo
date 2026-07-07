@@ -40,8 +40,6 @@ class AppendAuditLogRequest(BaseModel):
     payload: Optional[Any] = None
 
 
-class TriggerEngineRequest(BaseModel):
-    networkEntries: list[Any] = []
 
 
 @router.get("/customers")
@@ -107,10 +105,10 @@ async def append_audit_log(item_id: str, req: AppendAuditLogRequest):
 
 
 @router.post("/trigger-engine/evaluate")
-async def trigger_engine_evaluate(req: TriggerEngineRequest):
+async def trigger_engine_evaluate():
     """
-    Evaluate CCR trigger stages against the provided network entries.
-    Maps network_status → trigger_stage + urgency_color, sets escalation timestamps.
+    Evaluate CCR trigger stages against current network entry state.
+    Network entries are fetched server-side — no client input is accepted.
     """
-    result = _svc().evaluate_triggers(req.networkEntries)
+    result = _svc().evaluate_triggers()
     return {"ok": True, **result}

@@ -402,7 +402,8 @@ export default function CcrWorkspacePage() {
 
   // ── Parse URL params into local filter state ──────────────────────────────
   const initialParams = new URLSearchParams(rawSearch);
-  const [selectedCse, setSelectedCse] = useState(initialParams.get("cse") ?? "all");
+  // Default to the URL param value; "" means "pending auto-default to first CSE".
+  const [selectedCse, setSelectedCse] = useState(initialParams.get("cse") ?? "");
   const [filterStages, setFilterStages] = useState<string[]>(parseMulti(initialParams.get("stage")));
   const [filterNwTypes, setFilterNwTypes] = useState<string[]>(parseMulti(initialParams.get("nwType")));
   const [filterEscalated, setFilterEscalated] = useState(initialParams.get("escalated") === "1");
@@ -416,6 +417,7 @@ export default function CcrWorkspacePage() {
     escalated: boolean,
   ) => {
     const p = new URLSearchParams();
+    // "" = pending auto-default (don't write to URL); any real value gets written
     if (cse && cse !== "all") p.set("cse", cse);
     if (stages.length > 0) p.set("stage", stages.join(","));
     if (nwTypes.length > 0) p.set("nwType", nwTypes.join(","));
@@ -441,11 +443,17 @@ export default function CcrWorkspacePage() {
     syncUrl(selectedCse, filterStages, filterNwTypes, v);
   }
   function clearFilters() {
-    setSelectedCse("all");
+    // Restore default CSE scope (first available CSE) rather than showing all data
+    const firstCseId = customers.find(c => c.cseId)?.cseId ?? "";
+    setSelectedCse(firstCseId);
     setFilterStages([]);
     setFilterNwTypes([]);
     setFilterEscalated(false);
-    navigate("/ccr", { replace: true });
+    if (firstCseId) {
+      navigate(`/ccr?cse=${firstCseId}`, { replace: true });
+    } else {
+      navigate("/ccr", { replace: true });
+    }
   }
 
   // ── Queries ───────────────────────────────────────────────────────────────
@@ -453,6 +461,17 @@ export default function CcrWorkspacePage() {
     queryKey: ["/api/ccr/customers"],
     queryFn: () => fetch("/api/ccr/customers").then(r => r.json()),
   });
+
+  // Auto-default to the first available CSE when the page loads without a URL param.
+  // This enforces a CSE-scoped view by default (simulating a logged-in CSE session).
+  useEffect(() => {
+    if (selectedCse !== "") return;  // already set (from URL or previous effect)
+    const firstCseId = customers.find(c => c.cseId)?.cseId;
+    if (firstCseId) {
+      setSelectedCse(firstCseId);
+      syncUrl(firstCseId, filterStages, filterNwTypes, filterEscalated);
+    }
+  }, [customers]);  // only runs when customers list changes
 
   // Unique CSE IDs from customer master for the CSE selector
   const cseOptions = useMemo(() => {
@@ -477,9 +496,12 @@ export default function CcrWorkspacePage() {
     queryKey: lineItemsQueryKey,
     queryFn: () => {
       const p = new URLSearchParams({ limit: "500" });
+      // Only scope by CSE when a real email is selected ("" = pending, "all" = admin)
       if (selectedCse && selectedCse !== "all") p.set("cse_id", selectedCse);
       return fetch(`/api/ccr/line-items?${p}`).then(r => r.json());
     },
+    // Wait until we know which CSE to scope to (avoids showing all items on first flash)
+    enabled: selectedCse !== "",
   });
 
   const { data: networkEntries = [], isLoading: entriesLoading } = useQuery<NetworkEntry[]>({
@@ -524,8 +546,9 @@ export default function CcrWorkspacePage() {
   const upcoming      = filteredItems.filter(i => i.ccrStatus === "Upcoming");
   const completed     = filteredItems.filter(i => i.ccrStatus === "Completed");
 
+  // "Active filters" only tracks the filter-panel knobs (not CSE scope, which is
+  // a persistent scope selector shown separately from the Filters panel).
   const hasActiveFilters =
-    selectedCse !== "all" ||
     filterStages.length > 0 ||
     filterNwTypes.length > 0 ||
     filterEscalated;
@@ -533,9 +556,8 @@ export default function CcrWorkspacePage() {
   // ── Trigger engine mutation ───────────────────────────────────────────────
   const evaluateMutation = useMutation({
     mutationFn: () =>
-      apiRequest("POST", "/api/ccr/trigger-engine/evaluate", {
-        networkEntries: networkEntries,
-      }).then(r => r.json()),
+      // No body: backend fetches network entries server-side (tamper-resistant)
+      apiRequest("POST", "/api/ccr/trigger-engine/evaluate").then(r => r.json()),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["/api/ccr/line-items"] });
       toast({
@@ -599,12 +621,14 @@ export default function CcrWorkspacePage() {
             {/* CSE scope selector */}
             <div className="flex items-center gap-1.5">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <Select value={selectedCse} onValueChange={handleCseChange}>
-                <SelectTrigger className="h-8 w-[200px] text-xs" data-testid="select-cse-scope">
-                  <SelectValue placeholder="All CSEs" />
+              <Select value={selectedCse || "all"} onValueChange={handleCseChange}>
+                <SelectTrigger className="h-8 w-[210px] text-xs" data-testid="select-cse-scope">
+                  <SelectValue placeholder="Loading…" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All CSEs</SelectItem>
+                  <SelectItem value="all">
+                    <span className="text-muted-foreground italic">All CSEs (Admin view)</span>
+                  </SelectItem>
                   {cseOptions.map(opt => (
                     <SelectItem key={opt.cseId} value={opt.cseId}>
                       <span className="font-medium">{opt.cseId.split("@")[0]}</span>

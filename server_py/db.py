@@ -574,6 +574,24 @@ def run_migrations():
               AND array_length(depot, 1) > 0
               AND (mstn_by_depot IS NULL OR mstn_by_depot = '{}')
         """))
+        # ── CCR: CLOT (Customer Level of Trade) per depot per chain ────────────
+        conn.execute(text(
+            "ALTER TABLE ccr_customer_code_mapping ADD COLUMN IF NOT EXISTS clot FLOAT DEFAULT 1.0"
+        ))
+        # Seed representative CLOT volumes so top-70% National depot gating works.
+        # Values reflect relative throughput; real data would come from MIS / DMS.
+        for depot_code, clot_val in [
+            ("MMDH", 2500.0), ("DLGH", 2000.0), ("CHKH", 1500.0),
+            ("VJDH", 1200.0), ("VABH",  900.0), ("JPRH",  800.0),
+            ("SHAH",  750.0), ("BNDH",  700.0), ("KOPH",  600.0),
+            ("RJ2H",  500.0), ("AMDH",  450.0),
+        ]:
+            conn.execute(text(
+                "UPDATE ccr_customer_code_mapping SET clot = :v "
+                "WHERE depot = :d AND (clot IS NULL OR clot = 1.0)"
+            ), {"d": depot_code, "v": clot_val})
+        # ─────────────────────────────────────────────────────────────────────
+
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS basepack_status_history (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

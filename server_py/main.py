@@ -164,6 +164,7 @@ async def startup():
 
     ccr_storage = CcrStorage()
     ccr_service = CcrService(ccr_storage)
+    ccr_service.set_list_service(list_service)   # server-side trigger evaluation
     set_ccr_service(ccr_service)
     ccr_service.seed_all(
         CCR_CUSTOMER_SEEDS,
@@ -200,8 +201,7 @@ async def startup():
         while True:
             try:
                 await asyncio.sleep(30 * 60)
-                entries = list_service.get_all()
-                result = ccr_service.evaluate_triggers(entries)
+                result = ccr_service.evaluate_triggers()  # fetches entries server-side
                 logging.info(f"[CCR trigger engine] updated={result['updated']} escalated={result['escalated']}")
             except Exception as exc:
                 logging.warning(f"[CCR trigger engine] error: {exc}")

@@ -432,27 +432,34 @@ class CcrStorage:
         Cross-reference CCR line items against network entries and update
         trigger_stage, urgency_color, escalation_due_at, and escalated_at.
 
+        Network entries are fetched server-side by the CcrService before calling
+        this method, so no client-supplied data influences the evaluation.
+
         Mapping rules (applied only to non-Completed items with a CIC):
           Production Started        → First Intimation  (Amber)
           FTR Approved              → Second Intimation (Amber)
           Stock Movement Initiated  → Third Intimation  (Red)
           DOH threshold             → Fourth Intimation (Blinking Red)
 
-        DOH policy:
-          National customers: DOH check applies. Full CLOT-based top-70%-depot gating
-            requires per-depot CLOT values (ccr_customer_code_mapping.clot column, not
-            yet seeded). Until that data is available the same threshold is applied.
-          Regional / SBM customers: DOH check applied across all depots.
+        DOH / CLOT gating policy:
+          National customers: Fourth Intimation fires only for depots that sit in
+            the top-70% of the customer chain's depots ranked by CLOT volume.
+            CLOT values are stored in ccr_customer_code_mapping.clot (seeded via
+            run_migrations). Each line item's depot is looked up via customer_code.
+          Regional / SBM customers: Fourth Intimation applied for all depots without
+            CLOT gating.
 
         Escalation semantics:
-          • When trigger_stage changes to a non-None stage, escalation_due_at is
+          • When trigger_stage advances to a new non-None stage, escalation_due_at is
             (re-)set to now + 3 calendar days and escalated_at is cleared, giving a
-            fresh 3-day window at each new stage.
-          • If escalation_due_at < now and escalated_at is still None, escalated_at
-            is set to now.
+            fresh window at each new stage.
+          • Back-fill: active-stage rows that somehow have no escalation_due_at get it
+            set from their updated_at timestamp + 3 days (proxy for activation time).
+          • If escalation_due_at < now and escalated_at is still None → set escalated_at.
 
         Returns {updated, escalated} counts.
         """
+        import math
         from datetime import timedelta
 
         entry_map: dict = {}
@@ -469,12 +476,36 @@ class CcrStorage:
 
         db = SessionLocal()
         try:
-            # Build coverage_type lookup from customer master
-            customers = {
+            # ── 1. Coverage-type per chain ────────────────────────────────────
+            coverage_by_chain = {
                 r.customer_chain: r.coverage_type
                 for r in db.query(CcrCustomerMasterModel).all()
             }
 
+            # ── 2. CLOT lookup & top-70% threshold per chain ─────────────────
+            # {chain: {depot: clot}}
+            from sqlalchemy import text as _text
+            clot_rows = db.execute(_text(
+                "SELECT customer_chain, depot, COALESCE(clot, 1.0) "
+                "FROM ccr_customer_code_mapping"
+            )).fetchall()
+            chain_depot_clot: dict[str, dict[str, float]] = {}
+            for chain_val, depot_val, clot_val in clot_rows:
+                chain_depot_clot.setdefault(chain_val, {})[depot_val] = float(clot_val or 1.0)
+
+            # Top-70% threshold: minimum CLOT value of a depot that qualifies
+            chain_top70: dict[str, float] = {}
+            for chain_val, depot_clot_map in chain_depot_clot.items():
+                vals = sorted(depot_clot_map.values(), reverse=True)
+                top_n = max(1, math.ceil(len(vals) * 0.70))
+                chain_top70[chain_val] = vals[top_n - 1] if top_n <= len(vals) else 0.0
+
+            # ── 3. customer_code → depot lookup ───────────────────────────────
+            code_to_depot: dict[str, str] = {}
+            for r in db.query(CcrCustomerCodeMappingModel).all():
+                code_to_depot[r.customer_code] = r.depot
+
+            # ── 4. Evaluate each active line item ─────────────────────────────
             rows = (
                 db.query(CcrLineItemModel)
                 .filter(CcrLineItemModel.ccr_status != "Completed")
@@ -492,45 +523,63 @@ class CcrStorage:
                 if not entry:
                     continue
 
-                net_status = entry.get("networkStatus") or entry.get("network_status") or ""
-                pred_doh = entry.get("predecessorDoh") or entry.get("predecessor_doh") or 0
-                succ_doh = entry.get("successorDoh") or entry.get("successor_doh") or 0
-                coverage_type = customers.get(row.customer_chain, "National")
+                net_status  = entry.get("networkStatus")  or entry.get("network_status")  or ""
+                pred_doh    = entry.get("predecessorDoh") or entry.get("predecessor_doh") or 0
+                succ_doh    = entry.get("successorDoh")   or entry.get("successor_doh")   or 0
+                coverage    = coverage_by_chain.get(row.customer_chain, "National")
 
                 new_stage: str | None = None
                 new_color: str | None = None
 
-                # DOH Fourth Intimation — applies to both National and Regional/SBM.
-                # National: ideally gates on top-70% CLOT depots; using aggregate DOH
-                # until depot-level CLOT data is seeded into ccr_customer_code_mapping.
-                # Regional/SBM: all-depot evaluation (same threshold).
-                doh_threshold_met = bool(succ_doh) and succ_doh > 5 and (pred_doh or 0) < 3
+                # DOH Fourth Intimation
+                basic_doh_met = bool(succ_doh) and succ_doh > 5 and (pred_doh or 0) < 3
+                if basic_doh_met:
+                    if coverage == "National":
+                        # Gate on CLOT: only fire if this line item's depot is in top 70%
+                        depot = code_to_depot.get(row.customer_code)
+                        if depot:
+                            threshold = chain_top70.get(row.customer_chain, 0.0)
+                            depot_clot = chain_depot_clot.get(row.customer_chain, {}).get(depot, 1.0)
+                            doh_eligible = depot_clot >= threshold
+                        else:
+                            doh_eligible = False   # no depot mapping → skip
+                    else:
+                        # Regional / SBM: all depots eligible
+                        doh_eligible = True
 
-                if doh_threshold_met:
-                    new_stage, new_color = "Fourth", "Blinking Red"
-                elif net_status in STATUS_TO_STAGE:
+                    if doh_eligible:
+                        new_stage, new_color = "Fourth", "Blinking Red"
+
+                if new_stage is None and net_status in STATUS_TO_STAGE:
                     new_stage, new_color = STATUS_TO_STAGE[net_status]
 
                 if new_stage is None:
                     continue
 
                 changed = False
-                stage_advanced = (row.trigger_stage or "None") != new_stage
+                current_stage = row.trigger_stage or "None"
+                stage_advanced = current_stage != new_stage
 
                 if stage_advanced:
                     row.trigger_stage = new_stage
+                    row.urgency_color = new_color
+                    # Fresh 3-day SLA window at each new stage
+                    row.escalation_due_at = now + timedelta(days=3)
+                    row.escalated_at = None
                     changed = True
-                    # Reset SLA window whenever stage advances to a new level
-                    if new_stage != "None":
-                        row.escalation_due_at = now + timedelta(days=3)
-                        row.escalated_at = None   # fresh window at new stage
+                else:
+                    # Stage unchanged — only sync urgency_color if it drifted
+                    if row.urgency_color != new_color:
+                        row.urgency_color = new_color
                         changed = True
 
-                if row.urgency_color != new_color:
-                    row.urgency_color = new_color
+                # Back-fill: active row missing escalation_due_at (pre-existing data)
+                if new_stage != "None" and not row.escalation_due_at:
+                    activation_ts = row.updated_at or now
+                    row.escalation_due_at = activation_ts + timedelta(days=3)
                     changed = True
 
-                # Mark escalated if SLA window has expired and not yet flagged
+                # Mark escalated once the SLA window has expired
                 if row.escalation_due_at and now > row.escalation_due_at and not row.escalated_at:
                     row.escalated_at = now
                     escalated += 1
