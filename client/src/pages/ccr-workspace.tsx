@@ -599,7 +599,6 @@ export default function CcrWorkspacePage() {
         "Trigger Stage":       TRIGGER_STAGE_LABEL[item.triggerStage] ?? item.triggerStage,
         "Urgency Color":       item.urgencyColor,
         "CCR Status":          item.ccrStatus,
-        "Execution Type":      item.executionType,
         "Basepack":            entry?.basepack ?? "",
         "Network Change Type": entry?.typeOfNetwork ?? "",
         "SLA Days":            days !== null ? days : "",

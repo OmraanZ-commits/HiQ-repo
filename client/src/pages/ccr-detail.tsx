@@ -60,7 +60,6 @@ interface CcrLineItem {
   triggerStage: string;
   urgencyColor: string;
   ccrStatus: string;
-  executionType: string;
   rulesetOutcome: Record<string, unknown> | null;
   overrides: unknown;
   escalationDueAt: string | null;
@@ -215,9 +214,6 @@ function AuditTimeline({ logs }: { logs: AuditLogEntry[] }) {
                   {log.payload.justification && (
                     <p>"{String(log.payload.justification)}"</p>
                   )}
-                  {log.payload.executionType && (
-                    <p>Mode: <span className="font-medium">{String(log.payload.executionType)}</span></p>
-                  )}
                   {log.payload.cicCode && (
                     <p>CIC: <span className="font-mono">{String(log.payload.cicCode)}</span></p>
                   )}
@@ -319,10 +315,6 @@ interface TakeActionDialogProps {
   item: CcrLineItem;
   networkEntry: NetworkEntry | undefined;
   ruleset: RulesetEntry[];
-  /** Customer coverage type: "National" | "Regional" */
-  coverageType: string;
-  /** Customer behaviour type: "Listing" | "Non-Listing" */
-  behaviourType: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -332,8 +324,6 @@ function TakeActionDialog({
   item,
   networkEntry,
   ruleset,
-  coverageType,
-  behaviourType,
   onClose,
   onSuccess,
 }: TakeActionDialogProps) {
@@ -361,7 +351,6 @@ function TakeActionDialog({
   const [newCicRequired, setNewCicRequired] = useState(matchedRule?.newCicRequired ?? false);
   const [contentUpdateRequired, setContentUpdateRequired] = useState(matchedRule?.contentUpdateRequired ?? false);
   const [rundownRequired, setRundownRequired] = useState(matchedRule?.rundownRequired ?? false);
-  const [autoCcr, setAutoCcr] = useState(matchedRule?.autoCcr ?? false);
   const [overrides, setOverrides] = useState<Override[]>([]);
 
   // Step 2: CIC decision.
@@ -376,17 +365,6 @@ function TakeActionDialog({
     if (newCicRequired) setCicMode("new");
   }, [newCicRequired]);
 
-  // Step 3: Execution mode — derived from ruleset AND customer type.
-  // Mirrors the server-side logic in storage.execute_line_item.
-  // National Non-Listing always requires Manual (complex coordination);
-  // autoCcr is only effective for non-National or non-Non-Listing customers.
-  const derivedMode = useMemo<"Auto" | "Semi-Auto" | "Manual">(() => {
-    if (newCicRequired || rundownRequired) return "Manual";
-    if (coverageType === "National" && behaviourType === "Non-Listing") return "Manual";
-    if (autoCcr && !(coverageType === "National")) return "Auto";
-    return "Semi-Auto";
-  }, [autoCcr, newCicRequired, rundownRequired, coverageType, behaviourType]);
-  // Execution mode is system-determined (derivedMode). No user-editable state needed.
   const [justification, setJustification] = useState("");
 
   const [step, setStep] = useState(1);
@@ -427,11 +405,9 @@ function TakeActionDialog({
         newCicRequired,
         contentUpdateRequired,
         rundownRequired,
-        autoCcr,
       },
       overrides,
       cicCode,
-      executionType: derivedMode,
       justification: justification || undefined,
       // Actor is NOT sent to the server — it is always derived server-side.
     });
@@ -445,7 +421,6 @@ function TakeActionDialog({
       setNewCicRequired(matchedRule?.newCicRequired ?? false);
       setContentUpdateRequired(matchedRule?.contentUpdateRequired ?? false);
       setRundownRequired(matchedRule?.rundownRequired ?? false);
-      setAutoCcr(matchedRule?.autoCcr ?? false);
       setCicMode(newCicRequired ? "new" : "reuse");
       setNewCicCode("");
       setJustification("");
@@ -455,12 +430,10 @@ function TakeActionDialog({
 
   const canProceedStep1 = true;
   const canProceedStep2 = cicMode === "reuse" || newCicCode.trim().length > 2;
-  const canProceedStep3 = derivedMode !== "Manual" || justification.trim().length > 5;
 
   const stepTitles = [
     "Ruleset Evaluation",
     "CIC Decision",
-    "Execution Mode",
     "Review & Confirm",
   ];
 
@@ -538,7 +511,6 @@ function TakeActionDialog({
                   { key: "newCicRequired", label: "New CIC Required", value: newCicRequired, setter: setNewCicRequired },
                   { key: "contentUpdateRequired", label: "Content Update Required", value: contentUpdateRequired, setter: setContentUpdateRequired },
                   { key: "rundownRequired", label: "Predecessor Rundown Required", value: rundownRequired, setter: setRundownRequired },
-                  { key: "autoCcr", label: "Auto-CCR Eligible", value: autoCcr, setter: setAutoCcr },
                 ].map(({ key, label, value, setter }) => {
                   const isOverridden = overrides.some(o => o.field === key);
                   return (
@@ -649,90 +621,8 @@ function TakeActionDialog({
             </div>
           )}
 
-          {/* ── Step 3: Execution Mode (system-determined, read-only) ── */}
+          {/* ── Step 3: Review & Confirm ── */}
           {step === 3 && (
-            <div className="space-y-4" data-testid="step-execution-mode">
-              <div className="rounded bg-sky-50 border border-sky-200 px-3 py-2 text-xs text-sky-800">
-                The execution mode is <strong>system-determined</strong> from the ruleset
-                parameters set in Step 1. It cannot be overridden here.
-              </div>
-
-              {/* Read-only mode display cards */}
-              {([
-                {
-                  value: "Auto",
-                  label: "Auto — Automatic Execution",
-                  description: "CCR will be submitted and processed automatically.",
-                  color: "emerald",
-                },
-                {
-                  value: "Semi-Auto",
-                  label: "Semi-Auto — Channel Development Approval",
-                  description: "CCR submitted; requires Channel Development sign-off.",
-                  color: "sky",
-                },
-                {
-                  value: "Manual",
-                  label: "Manual — Full Manual Review Required",
-                  description: "CCR flagged; requires full manual coordination and justification.",
-                  color: "amber",
-                },
-              ] as const).map(opt => {
-                const isSelected = derivedMode === opt.value;
-                const colorMap: Record<string, string> = {
-                  emerald: "border-emerald-400 bg-emerald-50",
-                  sky: "border-sky-400 bg-sky-50",
-                  amber: "border-amber-400 bg-amber-50",
-                };
-                return (
-                  <div
-                    key={opt.value}
-                    className={`flex items-start gap-3 rounded border px-3 py-2.5 transition-colors ${
-                      isSelected ? colorMap[opt.color] : "border-border opacity-40"
-                    }`}
-                    data-testid={`mode-card-${opt.value}`}
-                  >
-                    <div className={`mt-0.5 h-3.5 w-3.5 rounded-full border-2 shrink-0 flex items-center justify-center ${
-                      isSelected ? "border-primary" : "border-muted-foreground"
-                    }`}>
-                      {isSelected && (
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                      )}
-                    </div>
-                    <div className="space-y-0.5">
-                      <p className="font-medium text-sm">{opt.label}</p>
-                      <p className="text-xs text-muted-foreground">{opt.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Justification input is always available for audit context */}
-              <div className="space-y-1.5">
-                <Label htmlFor="justification" className="text-xs">
-                  Justification / Context{derivedMode === "Manual" && (
-                    <span className="text-red-500 ml-1">*</span>
-                  )}
-                </Label>
-                <Textarea
-                  id="justification"
-                  placeholder={
-                    derivedMode === "Manual"
-                      ? "Explain why manual handling is required…"
-                      : "Optional: add context or notes for this CCR execution…"
-                  }
-                  value={justification}
-                  onChange={e => setJustification(e.target.value)}
-                  rows={3}
-                  className="text-xs resize-none"
-                  data-testid="textarea-justification"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 4: Review & Confirm ── */}
-          {step === 4 && (
             <div className="space-y-3" data-testid="step-review">
               <p className="text-xs text-muted-foreground">
                 Review all decisions before executing the CCR. This action will update CIC mappings
@@ -749,11 +639,8 @@ function TakeActionDialog({
                   ["New CIC Required", newCicRequired ? "Yes" : "No"],
                   ["Content Update", contentUpdateRequired ? "Yes" : "No"],
                   ["Predecessor Rundown", rundownRequired ? "Yes" : "No"],
-                  ["Auto-CCR", autoCcr ? "Yes" : "No"],
                   ["CIC Code", cicCode],
-                  ["Execution Mode", `${derivedMode} (system-determined)`],
                   ["Overrides", overrides.length > 0 ? overrides.map(o => o.field).join(", ") : "None"],
-                  justification ? ["Justification", justification] : null,
                 ]
                   .filter(Boolean)
                   .map(([label, value]) => (
@@ -775,6 +662,18 @@ function TakeActionDialog({
                   </span>
                 </div>
               )}
+              <div className="space-y-1.5">
+                <Label htmlFor="justification" className="text-xs">Justification / Context (optional)</Label>
+                <Textarea
+                  id="justification"
+                  placeholder="Add context or notes for this CCR execution…"
+                  value={justification}
+                  onChange={e => setJustification(e.target.value)}
+                  rows={3}
+                  className="text-xs resize-none"
+                  data-testid="textarea-justification"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -791,21 +690,20 @@ function TakeActionDialog({
             {step === 1 ? "Cancel" : "← Back"}
           </Button>
           <div className="flex items-center gap-2">
-            {step < 4 && (
+            {step < 3 && (
               <Button
                 size="sm"
                 onClick={() => setStep(s => s + 1)}
                 disabled={
                   (step === 1 && !canProceedStep1) ||
-                  (step === 2 && !canProceedStep2) ||
-                  (step === 3 && !canProceedStep3)
+                  (step === 2 && !canProceedStep2)
                 }
                 data-testid="btn-dialog-next"
               >
                 Next →
               </Button>
             )}
-            {step === 4 && (
+            {step === 3 && (
               <Button
                 size="sm"
                 onClick={handleExecute}
@@ -960,25 +858,9 @@ export default function CcrDetailPage() {
     queryFn: () => fetch("/api/ccr/ruleset").then(r => r.json()),
   });
 
-  // Customer master: needed to derive execution mode per customer type
-  interface CustomerMaster {
-    customerChain: string;
-    coverageType: string;
-    behaviourType: string;
-  }
-  const { data: customers = [] } = useQuery<CustomerMaster[]>({
-    queryKey: ["/api/ccr/customers"],
-    queryFn: () => fetch("/api/ccr/customers").then(r => r.json()),
-  });
-
   const networkEntry = useMemo(
     () => networkEntries.find(e => e.cbuCode === item?.successorCbuCode),
     [networkEntries, item]
-  );
-
-  const customerMaster = useMemo(
-    () => customers.find(c => c.customerChain === item?.customerChain),
-    [customers, item]
   );
 
   // ── Export handler ────────────────────────────────────────────────────────
@@ -1187,9 +1069,6 @@ export default function CcrDetailPage() {
               <p className="text-xs font-mono font-semibold" data-testid="text-cic">
                 {item.cic ?? "Non-Mapped"}
               </p>
-              <p className="text-[10px] text-muted-foreground">
-                Exec type: <span className="font-medium">{item.executionType}</span>
-              </p>
             </CardContent>
           </Card>
         </div>
@@ -1241,20 +1120,6 @@ export default function CcrDetailPage() {
               </Card>
             )}
 
-            {/* Recommendation panel (auto-CCR items) */}
-            {item.executionType === "Auto" && !isCompleted && (
-              <Card className="shadow-none border-border">
-                <CardHeader className="py-3 px-4 border-b border-border">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Zap className="h-3.5 w-3.5 text-amber-500" />
-                    Auto-CCR Recommendation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-3 pb-4 px-4">
-                  <RecommendationPanel itemId={itemId} />
-                </CardContent>
-              </Card>
-            )}
 
             {/* Ruleset outcome (if completed) */}
             {isCompleted && item.rulesetOutcome && (
@@ -1338,8 +1203,6 @@ export default function CcrDetailPage() {
           item={item}
           networkEntry={networkEntry}
           ruleset={ruleset}
-          coverageType={customerMaster?.coverageType ?? "National"}
-          behaviourType={customerMaster?.behaviourType ?? "Non-Listing"}
           onClose={() => setDialogOpen(false)}
           onSuccess={refreshItem}
         />
