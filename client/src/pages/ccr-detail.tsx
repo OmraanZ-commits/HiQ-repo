@@ -194,7 +194,7 @@ function AuditTimeline({ logs }: { logs: AuditLogEntry[] }) {
 
   return (
     <ol className="space-y-0">
-      {[...logs].reverse().map((log, idx) => {
+      {logs.map((log, idx) => {
         const Icon = EVENT_ICON[log.eventType] ?? Info;
         const isLast = idx === logs.length - 1;
         return (
@@ -343,14 +343,24 @@ function TakeActionDialog({
     ) ?? ruleset[0] ?? null;
   }, [ruleset, networkEntry]);
 
+  // Structured override type: tracks each parameter change with old/new/timestamp
+  type Override = {
+    field: string;
+    originalValue: boolean;
+    overrideValue: boolean;
+    timestamp: string;
+  };
+
   // Step 1: Ruleset values (pre-filled from matched rule, user can override)
   const [newCicRequired, setNewCicRequired] = useState(matchedRule?.newCicRequired ?? false);
   const [contentUpdateRequired, setContentUpdateRequired] = useState(matchedRule?.contentUpdateRequired ?? false);
   const [rundownRequired, setRundownRequired] = useState(matchedRule?.rundownRequired ?? false);
   const [autoCcr, setAutoCcr] = useState(matchedRule?.autoCcr ?? false);
-  const [overrides, setOverrides] = useState<string[]>([]);
+  const [overrides, setOverrides] = useState<Override[]>([]);
 
-  // Step 2: CIC decision
+  // Step 2: CIC decision.
+  // When newCicRequired=true, mode is locked to "new" per BRD.
+  const cicModeLocked = newCicRequired;
   const [cicMode, setCicMode] = useState<"reuse" | "new">(newCicRequired ? "new" : "reuse");
   const [newCicCode, setNewCicCode] = useState("");
 
@@ -380,12 +390,18 @@ function TakeActionDialog({
 
   function handleToggle(field: string, value: boolean) {
     const orig = matchedRule as Record<string, unknown> | null;
-    const origVal = orig ? orig[field] : null;
-    setOverrides(prev =>
-      value !== origVal
-        ? [...new Set([...prev, field])]
-        : prev.filter(f => f !== field)
-    );
+    const originalValue = orig ? Boolean(orig[field]) : false;
+    if (value !== originalValue) {
+      setOverrides(prev => {
+        const without = prev.filter(o => o.field !== field);
+        return [
+          ...without,
+          { field, originalValue, overrideValue: value, timestamp: new Date().toISOString() },
+        ];
+      });
+    } else {
+      setOverrides(prev => prev.filter(o => o.field !== field));
+    }
   }
 
   function handleExecute() {
@@ -401,7 +417,7 @@ function TakeActionDialog({
       cicCode,
       executionType: executionMode,
       justification: justification || undefined,
-      actor: "current_user",
+      // Actor is NOT sent to the server — it is always derived server-side.
     });
   }
 
@@ -503,7 +519,7 @@ function TakeActionDialog({
                   { key: "rundownRequired", label: "Predecessor Rundown Required", value: rundownRequired, setter: setRundownRequired },
                   { key: "autoCcr", label: "Auto-CCR Eligible", value: autoCcr, setter: setAutoCcr },
                 ].map(({ key, label, value, setter }) => {
-                  const isOverridden = overrides.includes(key);
+                  const isOverridden = overrides.some(o => o.field === key);
                   return (
                     <div key={key} className="flex items-center justify-between gap-3">
                       <Label
@@ -536,20 +552,54 @@ function TakeActionDialog({
           {/* ── Step 2: CIC Decision ── */}
           {step === 2 && (
             <div className="space-y-4" data-testid="step-cic">
+              {cicModeLocked && (
+                <div className="flex items-start gap-2 rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    The matched ruleset requires a <strong>New CIC</strong> for this network change.
+                    Reuse is not permitted.{" "}
+                    <a
+                      href="/master-maintenance"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline font-semibold text-amber-900"
+                      data-testid="link-master-maintenance"
+                    >
+                      Open Master Maintenance ↗
+                    </a>{" "}
+                    to register the new CIC before proceeding.
+                  </span>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                {newCicRequired
-                  ? "A new CIC is required for this network change type. Provide the new CIC code."
+                {cicModeLocked
+                  ? "Provide the new CIC code below. The existing CIC will be retired."
                   : "No new CIC required. Confirm reuse of the existing CIC or provide an alternate."}
               </p>
               <RadioGroup
                 value={cicMode}
-                onValueChange={v => setCicMode(v as "reuse" | "new")}
+                onValueChange={v => !cicModeLocked && setCicMode(v as "reuse" | "new")}
                 className="space-y-2"
                 data-testid="radio-cic-mode"
               >
-                <div className={`flex items-start gap-3 rounded border px-3 py-2.5 cursor-pointer transition-colors ${cicMode === "reuse" ? "border-primary bg-primary/5" : "border-border"}`}>
-                  <RadioGroupItem value="reuse" id="cic-reuse" className="mt-0.5" />
-                  <Label htmlFor="cic-reuse" className="cursor-pointer space-y-0.5">
+                {/* Reuse option — disabled when newCicRequired=true */}
+                <div
+                  className={`flex items-start gap-3 rounded border px-3 py-2.5 transition-colors ${
+                    cicModeLocked
+                      ? "border-border opacity-40 cursor-not-allowed"
+                      : `cursor-pointer ${cicMode === "reuse" ? "border-primary bg-primary/5" : "border-border"}`
+                  }`}
+                >
+                  <RadioGroupItem
+                    value="reuse"
+                    id="cic-reuse"
+                    className="mt-0.5"
+                    disabled={cicModeLocked}
+                  />
+                  <Label
+                    htmlFor="cic-reuse"
+                    className={`space-y-0.5 ${cicModeLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  >
                     <p className="font-medium text-sm">Reuse Existing CIC</p>
                     <p className="text-xs text-muted-foreground font-mono">{item.cic ?? "None assigned"}</p>
                   </Label>
@@ -660,7 +710,7 @@ function TakeActionDialog({
                   ["Auto-CCR", autoCcr ? "Yes" : "No"],
                   ["CIC Code", cicCode],
                   ["Execution Mode", executionMode],
-                  ["Overrides", overrides.length > 0 ? overrides.join(", ") : "None"],
+                  ["Overrides", overrides.length > 0 ? overrides.map(o => o.field).join(", ") : "None"],
                   justification ? ["Justification", justification] : null,
                 ]
                   .filter(Boolean)
@@ -887,7 +937,7 @@ export default function CcrDetailPage() {
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "CIC Mapping Output");
-      XLSX.writeFile(wb, `CCR_Mapping_${item?.successorCbuCode ?? itemId}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSX.writeFile(wb, `CCR_Output_${item?.id ?? itemId}_${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast({ title: "Mapping output downloaded" });
     } catch {
       toast({ title: "Export failed", variant: "destructive" });

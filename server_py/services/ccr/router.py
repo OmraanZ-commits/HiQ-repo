@@ -153,11 +153,12 @@ async def trigger_engine_evaluate():
 
 class ExecuteLineItemRequest(BaseModel):
     rulesetValues: dict = {}
-    overrides: List[str] = []
+    overrides: List[Any] = []   # structured: [{field, originalValue, overrideValue, timestamp}]
     cicCode: Optional[str] = None
     executionType: str = "Manual"
     justification: Optional[str] = None
-    actor: Optional[str] = "system"
+    # NOTE: 'actor' is intentionally not accepted from the client.
+    # Actor identity is always derived server-side via _get_session_user.
 
 
 class DelistingResponseRequest(BaseModel):
@@ -166,19 +167,31 @@ class DelistingResponseRequest(BaseModel):
 
 
 @router.post("/line-items/{item_id}/execute")
-async def execute_line_item(item_id: str, req: ExecuteLineItemRequest):
+async def execute_line_item(
+    item_id: str,
+    req: ExecuteLineItemRequest,
+    session_user: dict = Depends(_get_session_user),
+):
     """
-    Execute CCR for a line item: applies MT listing logic to CIC mappings,
-    writes audit log, and marks the item Completed.
+    Execute CCR for a line item: applies MT listing logic to CIC mappings
+    (including National Non-Listing DOH/CLOT gating), writes audit log,
+    and marks the item Completed.
+    Actor identity is derived server-side — never accepted from the client.
     """
-    result = _svc().execute_line_item(item_id, req.model_dump())
+    payload = req.model_dump()
+    # Inject server-derived actor so storage.execute_line_item cannot be spoofed
+    payload["_serverActor"] = session_user.get("cseId") or "system"
+    result = _svc().execute_line_item(item_id, payload)
     if not result:
         raise HTTPException(status_code=404, detail="CCR line item not found")
     return result
 
 
 @router.get("/line-items/{item_id}/recommendation")
-async def get_recommendation(item_id: str):
+async def get_recommendation(
+    item_id: str,
+    session_user: dict = Depends(_get_session_user),
+):
     """
     Auto-CCR recommendation engine: returns Scenario A/B/C with rationale
     derived from network entry DOH (ATP proxy).
@@ -190,7 +203,10 @@ async def get_recommendation(item_id: str):
 
 
 @router.get("/line-items/{item_id}/export")
-async def get_export_data(item_id: str):
+async def get_export_data(
+    item_id: str,
+    session_user: dict = Depends(_get_session_user),
+):
     """
     Return BRD-specified CIC mapping columns for download
     (Customer Code, Customer Chain, CIC, Material Code, Depot,
@@ -203,12 +219,22 @@ async def get_export_data(item_id: str):
 
 
 @router.post("/line-items/{item_id}/delisting-response")
-async def delisting_response(item_id: str, req: DelistingResponseRequest):
+async def delisting_response(
+    item_id: str,
+    req: DelistingResponseRequest,
+    session_user: dict = Depends(_get_session_user),
+):
     """
     Handle Accept/Reject for a Paid Bible delisting intimation.
+    Reject requires a non-empty justification (enforced server-side).
     """
     if req.action not in ("accept", "reject"):
         raise HTTPException(status_code=400, detail="action must be 'accept' or 'reject'")
+    if req.action == "reject" and not (req.justification or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Justification is required when rejecting a delisting intimation",
+        )
     result = _svc().delisting_response(item_id, req.action, req.justification)
     if not result:
         raise HTTPException(status_code=404, detail="CCR line item not found")

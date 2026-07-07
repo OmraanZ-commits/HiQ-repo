@@ -625,7 +625,9 @@ class CcrStorage:
 
     # ── Execution Engine ────────────────────────────────────────
 
-    def execute_line_item(self, item_id: str, payload: dict) -> Optional[dict]:
+    def execute_line_item(
+        self, item_id: str, payload: dict, network_entries: List[dict]
+    ) -> Optional[dict]:
         """
         Apply CCR execution: update MT listing (CIC mappings) per customer
         classification, write audit log, and mark line item Completed.
@@ -636,10 +638,19 @@ class CcrStorage:
           Non-Listing (Regional):
             Predecessor → Inactive; Successor → Mapped.
           Non-Listing (National):
-            All depots shift; Predecessor → Inactive; Successor → Mapped.
+            All depots shift — only applied when DOH/CLOT gate is met:
+              succ_doh > 5 AND pred_doh < 3 AND depot is in top-70% CLOT.
+            If gate not met: depot-shift is deferred; outcome records
+            pendingDohClotGate=True so downstream processes can retry.
           New CIC required:
             Old CBU rows in old CIC → Inactive; new CBU → Mapped with new CIC.
+
+        overrides must be a list of structured objects:
+          [{field, originalValue, overrideValue, timestamp}]
+
+        actor is always derived server-side (not accepted from client payload).
         """
+        import math
         db = SessionLocal()
         try:
             item = db.query(CcrLineItemModel).filter(
@@ -648,7 +659,7 @@ class CcrStorage:
             if not item:
                 return None
 
-            # Customer classification
+            # ── Customer classification ──────────────────────────────
             customer = db.query(CcrCustomerMasterModel).filter(
                 CcrCustomerMasterModel.customer_chain == item.customer_chain
             ).first()
@@ -658,13 +669,57 @@ class CcrStorage:
             new_cic_required = payload.get("rulesetValues", {}).get("newCicRequired", False)
             cic_code         = payload.get("cicCode") or item.cic
             execution_type   = payload.get("executionType", "Manual")
-            overrides_list   = payload.get("overrides", [])
+            overrides_list   = payload.get("overrides", [])  # structured [{field,orig,new,ts}]
             ruleset_values   = payload.get("rulesetValues", {})
-            actor            = payload.get("actor", "system")
+            actor            = payload.get("_serverActor", "system")  # always server-derived
             justification    = payload.get("justification")
             now              = datetime.now(timezone.utc)
 
-            # ── Predecessor CIC rows ─────────────────────────────────
+            # ── DOH / CLOT gating for National Non-Listing ───────────
+            # Required per BRD: "all depots shift only after DOH/CLOT"
+            pending_doh_clot_gate = False
+            if coverage == "National" and behaviour == "Non-Listing" and not new_cic_required:
+                entry_map = {
+                    e.get("cbuCode") or e.get("cbu_code"): e
+                    for e in network_entries
+                }
+                entry = entry_map.get(item.successor_cbu_code or "")
+                succ_doh = int(entry.get("successorDoh") or entry.get("successor_doh") or 0) if entry else 0
+                pred_doh = int(entry.get("predecessorDoh") or entry.get("predecessor_doh") or 0) if entry else 0
+
+                # Basic DOH gate: successor has meaningful stock, predecessor is running down
+                basic_doh_met = succ_doh > 5 and pred_doh < 3
+
+                # CLOT gating: depot must be in top-70% of chain's depots by CLOT volume
+                from sqlalchemy import text as _text
+                clot_rows = db.execute(_text(
+                    "SELECT customer_chain, depot, COALESCE(clot, 1.0) "
+                    "FROM ccr_customer_code_mapping"
+                )).fetchall()
+                chain_depot_clot: dict = {}
+                for ch, dp, cl in clot_rows:
+                    chain_depot_clot.setdefault(ch, {})[dp] = float(cl or 1.0)
+
+                depot_clot_map = chain_depot_clot.get(item.customer_chain, {})
+                if depot_clot_map:
+                    vals = sorted(depot_clot_map.values(), reverse=True)
+                    top_n = max(1, math.ceil(len(vals) * 0.70))
+                    threshold = vals[top_n - 1] if top_n <= len(vals) else 0.0
+                else:
+                    threshold = 0.0
+
+                # Look up this item's depot via its customer_code
+                code_row = db.query(CcrCustomerCodeMappingModel).filter(
+                    CcrCustomerCodeMappingModel.customer_code == item.customer_code
+                ).first()
+                item_depot = code_row.depot if code_row else None
+                item_clot  = depot_clot_map.get(item_depot, 1.0) if item_depot else 0.0
+                clot_gate_met = item_clot >= threshold if item_depot else False
+
+                if not (basic_doh_met and clot_gate_met):
+                    pending_doh_clot_gate = True
+
+            # ── Predecessor / Successor CIC rows ────────────────────
             pred_rows = (
                 db.query(CcrCicMappingModel)
                 .filter(
@@ -673,7 +728,6 @@ class CcrStorage:
                 )
                 .all()
             )
-            # ── Successor CIC rows ───────────────────────────────────
             succ_rows = (
                 db.query(CcrCicMappingModel)
                 .filter(
@@ -694,13 +748,14 @@ class CcrStorage:
                     row.status     = "Mapped"
                     row.updated_at = now
             elif behaviour == "Listing":
+                # Regional OR National Listing:
                 # Predecessor stays Mapped; Successor → Mapped with same CIC
                 for row in succ_rows:
                     row.cic        = cic_code
                     row.status     = "Mapped"
                     row.updated_at = now
-            else:
-                # Non-Listing (Regional or National): Predecessor → Inactive; Successor → Mapped
+            elif coverage == "National" and not pending_doh_clot_gate:
+                # National Non-Listing, DOH/CLOT gate MET: full depot shift
                 for row in pred_rows:
                     row.status     = "Inactive"
                     row.updated_at = now
@@ -708,12 +763,29 @@ class CcrStorage:
                     row.cic        = cic_code
                     row.status     = "Mapped"
                     row.updated_at = now
+            elif coverage != "National":
+                # Regional Non-Listing: Predecessor → Inactive; Successor → Mapped
+                for row in pred_rows:
+                    row.status     = "Inactive"
+                    row.updated_at = now
+                for row in succ_rows:
+                    row.cic        = cic_code
+                    row.status     = "Mapped"
+                    row.updated_at = now
+            # else: National Non-Listing, gate NOT met → no mapping changes; deferred
+
+            # ── Build enriched ruleset outcome ───────────────────────
+            outcome = {**ruleset_values}
+            outcome["coverage"]             = coverage
+            outcome["behaviour"]            = behaviour
+            outcome["pendingDohClotGate"]   = pending_doh_clot_gate
 
             # ── Update line item ─────────────────────────────────────
-            item.ccr_status     = "Completed"
-            item.execution_type = execution_type
-            item.ruleset_outcome = ruleset_values
-            item.cic            = cic_code
+            item.ccr_status      = "Completed"
+            item.execution_type  = execution_type
+            item.ruleset_outcome = outcome
+            item.cic             = cic_code
+            # Persist structured overrides; keep existing if no new ones provided
             if overrides_list:
                 item.overrides = overrides_list
             item.updated_at = now
@@ -725,14 +797,15 @@ class CcrStorage:
                 event_type="executed",
                 actor=actor,
                 payload={
-                    "executionType": execution_type,
-                    "rulesetValues": ruleset_values,
-                    "overrides": overrides_list,
-                    "cicCode": cic_code,
-                    "justification": justification,
-                    "coverage": coverage,
-                    "behaviour": behaviour,
-                    "newCicRequired": new_cic_required,
+                    "executionType":        execution_type,
+                    "rulesetValues":        ruleset_values,
+                    "overrides":            overrides_list,
+                    "cicCode":              cic_code,
+                    "justification":        justification,
+                    "coverage":             coverage,
+                    "behaviour":            behaviour,
+                    "newCicRequired":       new_cic_required,
+                    "pendingDohClotGate":   pending_doh_clot_gate,
                 },
                 created_at=now,
             )

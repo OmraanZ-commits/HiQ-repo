@@ -69,7 +69,10 @@ class CcrService:
     # ── Execution Engine ────────────────────────────────────────
 
     def execute_line_item(self, item_id: str, payload: dict) -> Optional[dict]:
-        return self.storage.execute_line_item(item_id, payload)
+        network_entries: List[dict] = (
+            self._list_service.get_all() if self._list_service else []
+        )
+        return self.storage.execute_line_item(item_id, payload, network_entries)
 
     def get_recommendation(self, item_id: str) -> Optional[dict]:
         network_entries: List[dict] = (
