@@ -234,10 +234,11 @@ class CcrStorage:
                 nv_depots = entry_depot_map.get(cbu, [])
                 any_stale = False
                 for row in rows:
-                    if row.sourcing_type == "Decentralized":
-                        derived = "Mapped"
-                    else:
-                        derived = "Mapped" if row.depot in nv_depots else "Non-Mapped"
+                    # Both Decentralised and Centralised: expected status is
+                    # "Mapped" only when the row's depot is still in the NV
+                    # entry's current depot array.  A depot that was removed
+                    # from the NV list makes a previously-Mapped row stale.
+                    derived = "Mapped" if row.depot in nv_depots else "Non-Mapped"
                     if row.status != derived:
                         any_stale = True
                         break

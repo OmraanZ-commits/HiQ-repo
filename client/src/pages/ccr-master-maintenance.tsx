@@ -762,7 +762,7 @@ export default function CcrMasterMaintenancePage() {
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
                   data-testid="tab-new-launch"
                 >
-                  New Launch
+                  CBU Overview
                   {newLaunchEntries.length > 0 && (
                     <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">
                       {newLaunchEntries.length}
