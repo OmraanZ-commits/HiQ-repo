@@ -18,7 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft, CheckCircle2, XCircle, Warehouse,
   MapPin, Save, Download, AlertTriangle,
-  Info, Hash, Tag, Link2,
+  Hash, Tag, Link2,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -538,7 +538,7 @@ export default function CcrConfigurePage() {
 
               {/* Customer Chain */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer Chain</Label>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer Chain <span className="text-red-500">*</span></Label>
                 {customersLoading || entriesLoading ? (
                   <Skeleton className="h-9 w-full" />
                 ) : applicableChains.size === 0 ? (
@@ -568,7 +568,7 @@ export default function CcrConfigurePage() {
               {/* CIC Code */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide" htmlFor="cic-input">
-                  CIC Code
+                  CIC Code <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative">
                   <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -708,17 +708,6 @@ export default function CcrConfigurePage() {
               </div>
             )}
 
-            {/* Validation errors */}
-            {validationErrors.length > 0 && (
-              <div className="px-4 pb-3 pt-3">
-                <Alert className="border-blue-200 bg-blue-50">
-                  <Info className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-700 text-xs space-y-0.5">
-                    {validationErrors.map((e, i) => <div key={i}>• {e}</div>)}
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
 
             {/* Grid loading */}
             {gridLoading && selectedChain && (
