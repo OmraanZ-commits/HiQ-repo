@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearch, useLocation } from "wouter";
 import * as XLSX from "xlsx";
@@ -6,15 +6,17 @@ import { UnileverHeader } from "@/components/unilever-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
   GitCompareArrows, Download, RefreshCw, Filter, X, AlertTriangle,
-  Clock, CheckCircle2, Zap,
+  Clock, CheckCircle2, Zap, ChevronDown, User,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -46,9 +48,18 @@ type LineItemsResponse = {
   items: CcrLineItem[];
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+type CcrCustomer = {
+  id: string;
+  customerChain: string;
+  coverageType: string;
+  behaviourType: string;
+  cseId: string | null;
+};
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const TRIGGER_STAGE_ORDER = ["First", "Second", "Third", "Fourth", "None"];
+
 const TRIGGER_STAGE_LABEL: Record<string, string> = {
   First:  "1st Intimation",
   Second: "2nd Intimation",
@@ -56,6 +67,7 @@ const TRIGGER_STAGE_LABEL: Record<string, string> = {
   Fourth: "4th Intimation",
   None:   "—",
 };
+
 const TRIGGER_STAGE_COLOR: Record<string, string> = {
   First:  "bg-blue-100 text-blue-700 border-blue-200",
   Second: "bg-amber-100 text-amber-700 border-amber-200",
@@ -63,6 +75,19 @@ const TRIGGER_STAGE_COLOR: Record<string, string> = {
   Fourth: "bg-red-100 text-red-700 border-red-200",
   None:   "bg-muted text-muted-foreground border-border",
 };
+
+// ─── URL filter helpers ───────────────────────────────────────────────────────
+
+function parseMulti(value: string | null): string[] {
+  if (!value || value === "all") return [];
+  return value.split(",").map(v => v.trim()).filter(Boolean);
+}
+
+function serializeMulti(values: string[]): string {
+  return values.length === 0 ? "all" : values.join(",");
+}
+
+// ─── Small UI components ──────────────────────────────────────────────────────
 
 function UrgencyDot({ color }: { color: string }) {
   if (color === "Blinking Red") {
@@ -101,34 +126,39 @@ function UrgencyDot({ color }: { color: string }) {
   );
 }
 
+function slaDaysLeft(escalationDueAt: string | null): number | null {
+  if (!escalationDueAt) return null;
+  const due = new Date(escalationDueAt);
+  return Math.ceil((due.getTime() - Date.now()) / 86_400_000);
+}
+
 function SlaChip({ escalationDueAt }: { escalationDueAt: string | null }) {
-  if (!escalationDueAt) {
+  const days = slaDaysLeft(escalationDueAt);
+  if (days === null) {
     return <span className="text-xs text-muted-foreground" data-testid="chip-sla-none">—</span>;
   }
-  const due = new Date(escalationDueAt);
-  const daysLeft = Math.ceil((due.getTime() - Date.now()) / 86_400_000);
-  if (daysLeft < 0) {
+  if (days < 0) {
     return (
       <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-300" data-testid="chip-sla-overdue">
-        {Math.abs(daysLeft)}d overdue
+        {Math.abs(days)}d overdue
       </Badge>
     );
   }
-  if (daysLeft === 0) {
+  if (days === 0) {
     return (
       <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-300" data-testid="chip-sla-today">
         Due today
       </Badge>
     );
   }
-  const cls = daysLeft <= 1
+  const cls = days <= 1
     ? "bg-red-50 text-red-700 border-red-300"
-    : daysLeft <= 2
+    : days <= 2
     ? "bg-orange-50 text-orange-700 border-orange-300"
     : "bg-green-50 text-green-700 border-green-300";
   return (
     <Badge variant="outline" className={`text-[10px] ${cls}`} data-testid="chip-sla-countdown">
-      {daysLeft}d left
+      {days}d left
     </Badge>
   );
 }
@@ -147,7 +177,81 @@ function CcrStatusChip({ status }: { status: string }) {
   );
 }
 
-// ─── Row component ────────────────────────────────────────────────────────────
+// ─── Multi-select popover ────────────────────────────────────────────────────
+
+function MultiSelectFilter({
+  label,
+  options,
+  selected,
+  onChange,
+  testId,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+  testId: string;
+}) {
+  function toggle(val: string) {
+    if (selected.includes(val)) {
+      onChange(selected.filter(v => v !== val));
+    } else {
+      onChange([...selected, val]);
+    }
+  }
+
+  const displayLabel =
+    selected.length === 0
+      ? `All ${label}`
+      : selected.length === 1
+      ? selected[0]
+      : `${selected.length} selected`;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs gap-1.5 min-w-[140px] justify-between font-normal"
+          data-testid={testId}
+        >
+          <span className="truncate">{displayLabel}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start">
+        <div className="space-y-1 max-h-52 overflow-y-auto">
+          {options.map(opt => (
+            <label
+              key={opt}
+              className="flex items-center gap-2 px-2 py-1.5 rounded text-xs hover:bg-muted cursor-pointer"
+              data-testid={`filter-option-${testId}-${opt}`}
+            >
+              <Checkbox
+                checked={selected.includes(opt)}
+                onCheckedChange={() => toggle(opt)}
+                className="h-3.5 w-3.5"
+              />
+              <span>{opt}</span>
+            </label>
+          ))}
+        </div>
+        {selected.length > 0 && (
+          <button
+            onClick={() => onChange([])}
+            className="mt-2 w-full text-[10px] text-muted-foreground hover:text-foreground text-center py-1 border-t border-border"
+            data-testid={`${testId}-clear`}
+          >
+            Clear selection
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─── Table row ───────────────────────────────────────────────────────────────
 
 function LineItemRow({
   item,
@@ -231,7 +335,7 @@ function LineItemRow({
   );
 }
 
-// ─── Tab panel ────────────────────────────────────────────────────────────────
+// ─── Tab panel ───────────────────────────────────────────────────────────────
 
 function TabPanel({
   items,
@@ -288,23 +392,94 @@ function TabPanel({
   );
 }
 
-// ─── Main Page ───────────────────────────────────────────────────────────────
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CcrWorkspacePage() {
   const [, navigate] = useLocation();
-  const search = useSearch();
-  const params = new URLSearchParams(search);
+  const rawSearch = useSearch();
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const [filterNwType, setFilterNwType] = useState(params.get("nwType") ?? "all");
-  const [filterStage, setFilterStage] = useState(params.get("stage") ?? "all");
-  const [filterEscalated, setFilterEscalated] = useState(params.get("escalated") === "true");
+  // ── Parse URL params into local filter state ──────────────────────────────
+  const initialParams = new URLSearchParams(rawSearch);
+  const [selectedCse, setSelectedCse] = useState(initialParams.get("cse") ?? "all");
+  const [filterStages, setFilterStages] = useState<string[]>(parseMulti(initialParams.get("stage")));
+  const [filterNwTypes, setFilterNwTypes] = useState<string[]>(parseMulti(initialParams.get("nwType")));
+  const [filterEscalated, setFilterEscalated] = useState(initialParams.get("escalated") === "1");
   const [showFilters, setShowFilters] = useState(false);
 
+  // ── Sync filter changes back to URL ──────────────────────────────────────
+  const syncUrl = useCallback((
+    cse: string,
+    stages: string[],
+    nwTypes: string[],
+    escalated: boolean,
+  ) => {
+    const p = new URLSearchParams();
+    if (cse && cse !== "all") p.set("cse", cse);
+    if (stages.length > 0) p.set("stage", stages.join(","));
+    if (nwTypes.length > 0) p.set("nwType", nwTypes.join(","));
+    if (escalated) p.set("escalated", "1");
+    const qs = p.toString();
+    navigate(`/ccr${qs ? `?${qs}` : ""}`, { replace: true });
+  }, [navigate]);
+
+  function handleCseChange(v: string) {
+    setSelectedCse(v);
+    syncUrl(v, filterStages, filterNwTypes, filterEscalated);
+  }
+  function handleStagesChange(v: string[]) {
+    setFilterStages(v);
+    syncUrl(selectedCse, v, filterNwTypes, filterEscalated);
+  }
+  function handleNwTypesChange(v: string[]) {
+    setFilterNwTypes(v);
+    syncUrl(selectedCse, filterStages, v, filterEscalated);
+  }
+  function handleEscalatedChange(v: boolean) {
+    setFilterEscalated(v);
+    syncUrl(selectedCse, filterStages, filterNwTypes, v);
+  }
+  function clearFilters() {
+    setSelectedCse("all");
+    setFilterStages([]);
+    setFilterNwTypes([]);
+    setFilterEscalated(false);
+    navigate("/ccr", { replace: true });
+  }
+
+  // ── Queries ───────────────────────────────────────────────────────────────
+  const { data: customers = [] } = useQuery<CcrCustomer[]>({
+    queryKey: ["/api/ccr/customers"],
+    queryFn: () => fetch("/api/ccr/customers").then(r => r.json()),
+  });
+
+  // Unique CSE IDs from customer master for the CSE selector
+  const cseOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { cseId: string; chains: string[] }[] = [];
+    for (const c of customers) {
+      if (!c.cseId || seen.has(c.cseId)) {
+        if (c.cseId) {
+          const existing = out.find(o => o.cseId === c.cseId);
+          if (existing) existing.chains.push(c.customerChain);
+        }
+        continue;
+      }
+      seen.add(c.cseId);
+      out.push({ cseId: c.cseId, chains: [c.customerChain] });
+    }
+    return out;
+  }, [customers]);
+
+  const lineItemsQueryKey = ["/api/ccr/line-items", selectedCse];
   const { data: lineItemsData, isLoading: itemsLoading } = useQuery<LineItemsResponse>({
-    queryKey: ["/api/ccr/line-items"],
-    queryFn: () => fetch("/api/ccr/line-items?limit=500").then(r => r.json()),
+    queryKey: lineItemsQueryKey,
+    queryFn: () => {
+      const p = new URLSearchParams({ limit: "500" });
+      if (selectedCse && selectedCse !== "all") p.set("cse_id", selectedCse);
+      return fetch(`/api/ccr/line-items?${p}`).then(r => r.json());
+    },
   });
 
   const { data: networkEntries = [], isLoading: entriesLoading } = useQuery<NetworkEntry[]>({
@@ -332,22 +507,30 @@ export default function CcrWorkspacePage() {
     return Array.from(types).sort();
   }, [allItems, entryMap]);
 
+  // ── Client-side filtering ─────────────────────────────────────────────────
   const filteredItems = useMemo(() => {
     return allItems.filter(item => {
-      if (filterStage !== "all" && item.triggerStage !== filterStage) return false;
+      if (filterStages.length > 0 && !filterStages.includes(item.triggerStage)) return false;
       if (filterEscalated && !item.escalatedAt) return false;
-      if (filterNwType !== "all") {
+      if (filterNwTypes.length > 0) {
         const entry = entryMap.get(item.successorCbuCode ?? "");
-        if ((entry?.typeOfNetwork ?? "") !== filterNwType) return false;
+        if (!filterNwTypes.includes(entry?.typeOfNetwork ?? "")) return false;
       }
       return true;
     });
-  }, [allItems, filterStage, filterEscalated, filterNwType, entryMap]);
+  }, [allItems, filterStages, filterEscalated, filterNwTypes, entryMap]);
 
   const actionRequired = filteredItems.filter(i => i.ccrStatus === "Action Required");
-  const upcoming = filteredItems.filter(i => i.ccrStatus === "Upcoming");
-  const completed = filteredItems.filter(i => i.ccrStatus === "Completed");
+  const upcoming      = filteredItems.filter(i => i.ccrStatus === "Upcoming");
+  const completed     = filteredItems.filter(i => i.ccrStatus === "Completed");
 
+  const hasActiveFilters =
+    selectedCse !== "all" ||
+    filterStages.length > 0 ||
+    filterNwTypes.length > 0 ||
+    filterEscalated;
+
+  // ── Trigger engine mutation ───────────────────────────────────────────────
   const evaluateMutation = useMutation({
     mutationFn: () =>
       apiRequest("POST", "/api/ccr/trigger-engine/evaluate", {
@@ -363,23 +546,26 @@ export default function CcrWorkspacePage() {
     onError: () => toast({ title: "Evaluation failed", variant: "destructive" }),
   });
 
+  // ── Export ────────────────────────────────────────────────────────────────
   function handleDownload() {
     const rows = filteredItems.map(item => {
       const entry = entryMap.get(item.successorCbuCode ?? "");
+      const days = slaDaysLeft(item.escalationDueAt);
       return {
-        "Successor CBU": item.successorCbuCode ?? "",
-        "Predecessor CBU": item.predecessorCbuCode ?? "",
-        "Customer Chain": item.customerChain,
-        "Customer Code": item.customerCode,
-        "CIC": item.cic ?? "",
-        "Trigger Stage": TRIGGER_STAGE_LABEL[item.triggerStage] ?? item.triggerStage,
-        "Urgency Color": item.urgencyColor,
-        "CCR Status": item.ccrStatus,
-        "Execution Type": item.executionType,
-        "Basepack": entry?.basepack ?? "",
+        "Successor CBU":       item.successorCbuCode ?? "",
+        "Predecessor CBU":     item.predecessorCbuCode ?? "",
+        "Customer Chain":      item.customerChain,
+        "Customer Code":       item.customerCode,
+        "CIC":                 item.cic ?? "",
+        "Trigger Stage":       TRIGGER_STAGE_LABEL[item.triggerStage] ?? item.triggerStage,
+        "Urgency Color":       item.urgencyColor,
+        "CCR Status":          item.ccrStatus,
+        "Execution Type":      item.executionType,
+        "Basepack":            entry?.basepack ?? "",
         "Network Change Type": entry?.typeOfNetwork ?? "",
-        "Escalation Due": item.escalationDueAt ?? "",
-        "Escalated At": item.escalatedAt ?? "",
+        "SLA Days":            days !== null ? days : "",
+        "Escalation Due":      item.escalationDueAt ?? "",
+        "Escalated At":        item.escalatedAt ?? "",
       };
     });
 
@@ -387,14 +573,6 @@ export default function CcrWorkspacePage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "CCR Workspace");
     XLSX.writeFile(wb, `CCR_Workspace_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }
-
-  const hasActiveFilters = filterNwType !== "all" || filterStage !== "all" || filterEscalated;
-
-  function clearFilters() {
-    setFilterNwType("all");
-    setFilterStage("all");
-    setFilterEscalated(false);
   }
 
   return (
@@ -418,6 +596,27 @@ export default function CcrWorkspacePage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* CSE scope selector */}
+            <div className="flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5 text-muted-foreground" />
+              <Select value={selectedCse} onValueChange={handleCseChange}>
+                <SelectTrigger className="h-8 w-[200px] text-xs" data-testid="select-cse-scope">
+                  <SelectValue placeholder="All CSEs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All CSEs</SelectItem>
+                  {cseOptions.map(opt => (
+                    <SelectItem key={opt.cseId} value={opt.cseId}>
+                      <span className="font-medium">{opt.cseId.split("@")[0]}</span>
+                      <span className="text-muted-foreground text-[10px] ml-1">
+                        ({opt.chains.join(", ")})
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button
               variant="outline"
               size="sm"
@@ -428,7 +627,7 @@ export default function CcrWorkspacePage() {
               <Filter className="h-4 w-4 mr-1.5" />
               Filters
               {hasActiveFilters && (
-                <span className="ml-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">
+                <span className="ml-1.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">
                   !
                 </span>
               )}
@@ -465,45 +664,36 @@ export default function CcrWorkspacePage() {
         {showFilters && (
           <Card data-testid="filters-panel">
             <CardContent className="p-4">
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="space-y-1">
+              <div className="flex items-start gap-4 flex-wrap">
+                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Network Change Type</label>
-                  <Select value={filterNwType} onValueChange={setFilterNwType}>
-                    <SelectTrigger className="w-[220px] h-8 text-xs" data-testid="select-filter-nw-type">
-                      <SelectValue placeholder="All types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      {nwTypeOptions.map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <MultiSelectFilter
+                    label="Types"
+                    options={nwTypeOptions}
+                    selected={filterNwTypes}
+                    onChange={handleNwTypesChange}
+                    testId="filter-nw-type"
+                  />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Trigger Stage</label>
-                  <Select value={filterStage} onValueChange={setFilterStage}>
-                    <SelectTrigger className="w-[180px] h-8 text-xs" data-testid="select-filter-stage">
-                      <SelectValue placeholder="All stages" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Stages</SelectItem>
-                      {TRIGGER_STAGE_ORDER.filter(s => s !== "None").map(s => (
-                        <SelectItem key={s} value={s}>{TRIGGER_STAGE_LABEL[s]}</SelectItem>
-                      ))}
-                      <SelectItem value="None">Not Triggered</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <MultiSelectFilter
+                    label="Stages"
+                    options={TRIGGER_STAGE_ORDER.filter(s => s !== "None").map(s => s)}
+                    selected={filterStages}
+                    onChange={handleStagesChange}
+                    testId="filter-stage"
+                  />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Escalation</label>
                   <Button
                     variant={filterEscalated ? "secondary" : "outline"}
                     size="sm"
                     className="h-8 text-xs gap-1.5"
-                    onClick={() => setFilterEscalated(e => !e)}
+                    onClick={() => handleEscalatedChange(!filterEscalated)}
                     data-testid="button-filter-escalated"
                   >
                     <AlertTriangle className={`h-3 w-3 ${filterEscalated ? "text-rose-600" : "text-muted-foreground"}`} />
@@ -512,8 +702,8 @@ export default function CcrWorkspacePage() {
                 </div>
 
                 {hasActiveFilters && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground opacity-0">x</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground opacity-0 select-none">x</label>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -522,11 +712,39 @@ export default function CcrWorkspacePage() {
                       data-testid="button-clear-filters"
                     >
                       <X className="h-3 w-3" />
-                      Clear filters
+                      Clear all
                     </Button>
                   </div>
                 )}
               </div>
+
+              {/* Active filter tags */}
+              {(filterStages.length > 0 || filterNwTypes.length > 0) && (
+                <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border/60">
+                  {filterStages.map(s => (
+                    <Badge
+                      key={s}
+                      variant="secondary"
+                      className="text-[10px] gap-1 cursor-pointer"
+                      onClick={() => handleStagesChange(filterStages.filter(x => x !== s))}
+                      data-testid={`filter-tag-stage-${s}`}
+                    >
+                      {TRIGGER_STAGE_LABEL[s]} <X className="h-2.5 w-2.5" />
+                    </Badge>
+                  ))}
+                  {filterNwTypes.map(t => (
+                    <Badge
+                      key={t}
+                      variant="secondary"
+                      className="text-[10px] gap-1 cursor-pointer"
+                      onClick={() => handleNwTypesChange(filterNwTypes.filter(x => x !== t))}
+                      data-testid={`filter-tag-nwtype-${t}`}
+                    >
+                      {t} <X className="h-2.5 w-2.5" />
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -535,10 +753,10 @@ export default function CcrWorkspacePage() {
         {!isLoading && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="summary-strip">
             {[
-              { label: "Total Items",     value: filteredItems.length,    accent: "from-[#1f36c7] to-[#0d8ecf]", testId: "metric-total" },
-              { label: "Action Required", value: actionRequired.length,  accent: "from-red-600 to-red-400",       testId: "metric-action-required" },
-              { label: "Upcoming",        value: upcoming.length,         accent: "from-amber-500 to-amber-400",   testId: "metric-upcoming" },
-              { label: "Completed",       value: completed.length,        accent: "from-emerald-600 to-emerald-400", testId: "metric-completed" },
+              { label: "Total Items",     value: filteredItems.length,   accent: "from-[#1f36c7] to-[#0d8ecf]",      testId: "metric-total" },
+              { label: "Action Required", value: actionRequired.length,  accent: "from-red-600 to-red-400",           testId: "metric-action-required" },
+              { label: "Upcoming",        value: upcoming.length,        accent: "from-amber-500 to-amber-400",       testId: "metric-upcoming" },
+              { label: "Completed",       value: completed.length,       accent: "from-emerald-600 to-emerald-400",   testId: "metric-completed" },
             ].map(m => (
               <div
                 key={m.label}
@@ -565,7 +783,10 @@ export default function CcrWorkspacePage() {
                   <Clock className="h-3.5 w-3.5" />
                   Action Required
                   {actionRequired.length > 0 && (
-                    <span className="ml-1 min-w-[18px] h-4.5 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center" data-testid="badge-action-required-count">
+                    <span
+                      className="ml-1 min-w-[18px] px-1 h-[18px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
+                      data-testid="badge-action-required-count"
+                    >
                       {actionRequired.length}
                     </span>
                   )}
@@ -578,7 +799,10 @@ export default function CcrWorkspacePage() {
                 >
                   <GitCompareArrows className="h-3.5 w-3.5" />
                   Upcoming
-                  <span className="ml-1 min-w-[18px] h-4.5 px-1 bg-muted text-muted-foreground text-[9px] font-bold rounded-full flex items-center justify-center" data-testid="badge-upcoming-count">
+                  <span
+                    className="ml-1 min-w-[18px] px-1 h-[18px] bg-muted text-muted-foreground text-[9px] font-bold rounded-full flex items-center justify-center"
+                    data-testid="badge-upcoming-count"
+                  >
                     {upcoming.length}
                   </span>
                 </TabsTrigger>
@@ -590,7 +814,10 @@ export default function CcrWorkspacePage() {
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Completed
-                  <span className="ml-1 min-w-[18px] h-4.5 px-1 bg-muted text-muted-foreground text-[9px] font-bold rounded-full flex items-center justify-center" data-testid="badge-completed-count">
+                  <span
+                    className="ml-1 min-w-[18px] px-1 h-[18px] bg-muted text-muted-foreground text-[9px] font-bold rounded-full flex items-center justify-center"
+                    data-testid="badge-completed-count"
+                  >
                     {completed.length}
                   </span>
                 </TabsTrigger>

@@ -436,10 +436,20 @@ class CcrStorage:
           Production Started        → First Intimation  (Amber)
           FTR Approved              → Second Intimation (Amber)
           Stock Movement Initiated  → Third Intimation  (Red)
-          DOH: succDoh > 5 & predDoh < 3 → Fourth Intimation (Blinking Red)
+          DOH threshold             → Fourth Intimation (Blinking Red)
 
-        Escalation: when trigger first fires, set escalation_due_at = now + 3 days.
-        If escalation_due_at is past and escalated_at is None, set escalated_at = now.
+        DOH policy:
+          National customers: DOH check applies. Full CLOT-based top-70%-depot gating
+            requires per-depot CLOT values (ccr_customer_code_mapping.clot column, not
+            yet seeded). Until that data is available the same threshold is applied.
+          Regional / SBM customers: DOH check applied across all depots.
+
+        Escalation semantics:
+          • When trigger_stage changes to a non-None stage, escalation_due_at is
+            (re-)set to now + 3 calendar days and escalated_at is cleared, giving a
+            fresh 3-day window at each new stage.
+          • If escalation_due_at < now and escalated_at is still None, escalated_at
+            is set to now.
 
         Returns {updated, escalated} counts.
         """
@@ -459,6 +469,12 @@ class CcrStorage:
 
         db = SessionLocal()
         try:
+            # Build coverage_type lookup from customer master
+            customers = {
+                r.customer_chain: r.coverage_type
+                for r in db.query(CcrCustomerMasterModel).all()
+            }
+
             rows = (
                 db.query(CcrLineItemModel)
                 .filter(CcrLineItemModel.ccr_status != "Completed")
@@ -479,11 +495,18 @@ class CcrStorage:
                 net_status = entry.get("networkStatus") or entry.get("network_status") or ""
                 pred_doh = entry.get("predecessorDoh") or entry.get("predecessor_doh") or 0
                 succ_doh = entry.get("successorDoh") or entry.get("successor_doh") or 0
+                coverage_type = customers.get(row.customer_chain, "National")
 
                 new_stage: str | None = None
                 new_color: str | None = None
 
-                if succ_doh > 5 and (pred_doh or 0) < 3:
+                # DOH Fourth Intimation — applies to both National and Regional/SBM.
+                # National: ideally gates on top-70% CLOT depots; using aggregate DOH
+                # until depot-level CLOT data is seeded into ccr_customer_code_mapping.
+                # Regional/SBM: all-depot evaluation (same threshold).
+                doh_threshold_met = bool(succ_doh) and succ_doh > 5 and (pred_doh or 0) < 3
+
+                if doh_threshold_met:
                     new_stage, new_color = "Fourth", "Blinking Red"
                 elif net_status in STATUS_TO_STAGE:
                     new_stage, new_color = STATUS_TO_STAGE[net_status]
@@ -492,19 +515,22 @@ class CcrStorage:
                     continue
 
                 changed = False
-                was_none = (row.trigger_stage or "None") == "None"
+                stage_advanced = (row.trigger_stage or "None") != new_stage
 
-                if row.trigger_stage != new_stage:
+                if stage_advanced:
                     row.trigger_stage = new_stage
                     changed = True
+                    # Reset SLA window whenever stage advances to a new level
+                    if new_stage != "None":
+                        row.escalation_due_at = now + timedelta(days=3)
+                        row.escalated_at = None   # fresh window at new stage
+                        changed = True
+
                 if row.urgency_color != new_color:
                     row.urgency_color = new_color
                     changed = True
 
-                if was_none and new_stage != "None" and not row.escalation_due_at:
-                    row.escalation_due_at = now + timedelta(days=3)
-                    changed = True
-
+                # Mark escalated if SLA window has expired and not yet flagged
                 if row.escalation_due_at and now > row.escalation_due_at and not row.escalated_at:
                     row.escalated_at = now
                     escalated += 1
