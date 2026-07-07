@@ -288,9 +288,10 @@ type CbuTableProps = {
   onCbuChange: (cbu: string) => void;
   postingStatusMap: Record<string, string>;
   onNavigate: (path: string) => void;
+  highlightRows?: boolean;
 };
 
-function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange, postingStatusMap, onNavigate }: CbuTableProps) {
+function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange, postingStatusMap, onNavigate, highlightRows }: CbuTableProps) {
   if (isLoading) {
     return (
       <div className="p-4 space-y-2">
@@ -330,8 +331,10 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               onClick={() => onCbuChange(entry.cbuCode ?? "")}
               className={
                 selectedCbu === entry.cbuCode
-                  ? "bg-primary/5 border-l-2 border-l-primary cursor-pointer"
-                  : "cursor-pointer hover:bg-muted/40"
+                  ? "bg-amber-100 border-l-2 border-l-amber-500 cursor-pointer"
+                  : highlightRows
+                    ? "bg-amber-50 border-l-2 border-l-amber-300 cursor-pointer hover:bg-amber-100"
+                    : "cursor-pointer hover:bg-muted/40"
               }
               data-testid={`row-cbu-${entry.cbuCode}`}
             >
@@ -831,6 +834,7 @@ export default function CcrMasterMaintenancePage() {
                 onCbuChange={handleCbuChange}
                 postingStatusMap={postingStatusMap}
                 onNavigate={navigate}
+                highlightRows
               />
             </TabsContent>
 
