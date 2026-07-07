@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { TOP_CHANNELS as STATIC_TOP_CHANNELS, MT_SUB_CHANNELS as STATIC_MT_SUB_CHANNELS, GEOGRAPHY_DEPOT_MAP as STATIC_GEOGRAPHY_DEPOT_MAP, CLUSTERS as STATIC_CLUSTERS, CUSTOMER_CHAINS, type ClusterDef } from "@/lib/distribution-data";
 import { addDays, computeYear } from "@/lib/date-utils";
 import type { NetworkEntry, InsertNetworkEntry } from "@shared/schema";
+import { STATUS_FLOW } from "@shared/schema";
 import type { GeographyDepotMap, ChannelDef } from "@/controllers/useReferenceData";
 
 interface UseNetworkEntryFormOptions {
@@ -375,6 +376,33 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     },
   });
 
+  // ── Advance-status mutation (Active → Pricing Updated → … → Network transition complete) ─
+  const currentStatusIdx = STATUS_FLOW.indexOf((entry?.networkStatus ?? "Draft") as any);
+  const nextStatus: string | null = currentStatusIdx >= 0 && currentStatusIdx < STATUS_FLOW.length - 1
+    ? STATUS_FLOW[currentStatusIdx + 1]
+    : null;
+
+  const advanceStatusMutation = useMutation({
+    mutationFn: async () => {
+      if (!id || !nextStatus) throw new Error("No next status available");
+      return apiRequest("POST", `/api/saga/transition/${id}`, {
+        toStatus: nextStatus,
+        triggeredBy: form?.assignedPerson || "System",
+        metadata: {},
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/network-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lifecycle"] });
+      toast({ title: "Status advanced", description: `Now: ${nextStatus}` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Transition failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleAdvanceStatus = () => { advanceStatusMutation.mutate(); };
+
   const handleConfirmSubmit = () => {
     if (!form || !id) return;
     setShowConfirmDialog(false);
@@ -477,6 +505,9 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     handleSaveDraft,
     handleConfirmSubmit,
     isPending: updateMutation.isPending || transitionMutation.isPending,
+    nextStatus,
+    handleAdvanceStatus,
+    isAdvancePending: advanceStatusMutation.isPending,
     navigate,
 
     selectedGeo,

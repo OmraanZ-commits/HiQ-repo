@@ -673,10 +673,29 @@ export default function EditEntry() {
                 </Button>
               </>
             ) : (
-              <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-save">
-                {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                Save Changes
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleFormSubmit}
+                  disabled={isPending || isAdvancePending}
+                  data-testid="button-save"
+                >
+                  {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Changes
+                </Button>
+                {nextStatus && (
+                  <Button
+                    onClick={handleAdvanceStatus}
+                    disabled={isAdvancePending || isPending}
+                    data-testid="button-advance-status"
+                  >
+                    {isAdvancePending
+                      ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      : <ChevronRight className="h-4 w-4 mr-1.5" />}
+                    Mark {nextStatus}
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
