@@ -263,38 +263,51 @@ export default function CcrMasterMaintenancePage() {
 
   const pbBlocked = isBpBlocked(basepackStatus);
 
-  const cicByCustomerCode = useMemo(() => {
+  // Keyed by `${customerCode}::${depot}` — depot-granular so multiple depots
+  // per customer code each have their own entry (no overwrite collision).
+  const cicByKey = useMemo(() => {
     const map: Record<string, CicMapping> = {};
-    existingCicMappings.forEach(m => { map[m.customerCode] = m; });
+    existingCicMappings.forEach(m => {
+      const k = `${m.customerCode}::${m.depot ?? ""}`;
+      map[k] = m;
+    });
     return map;
   }, [existingCicMappings]);
 
   // ── Hydrate centralized UI state from persisted mappings ────────────────────
-  // Track which CBU+chain combo we last hydrated so we only run once per selection
+  // State keys are cm.id (code-mapping row ID) — depot-granular, never collides.
   const hydratedKeyRef = useRef<string>("");
 
   useEffect(() => {
-    if (!existingCicMappings.length || !networkEntry) return;
+    if (!existingCicMappings.length || !codeMappings.length || !networkEntry) return;
     const key = `${selectedCbu}::${selectedChain}`;
-    if (hydratedKeyRef.current === key) return; // already hydrated for this selection
+    if (hydratedKeyRef.current === key) return;
     hydratedKeyRef.current = key;
 
-    // Only hydrate centralized state (decentralized is auto-Mapped)
     if (getSourcingMode(networkEntry) !== "centralized") return;
+
+    // Build composite → cm.id lookup from loaded code mappings
+    const depotKeyToCmId: Record<string, string> = {};
+    codeMappings.forEach(cm => {
+      depotKeyToCmId[`${cm.customerCode}::${cm.depot}`] = cm.id;
+    });
 
     const newMapped = new Set<string>();
     const newSourcingMap: Record<string, string> = {};
     existingCicMappings.forEach(m => {
       if (m.status === "Mapped") {
-        newMapped.add(m.customerCode);
-        if (m.sourcingDepot) newSourcingMap[m.customerCode] = m.sourcingDepot;
+        const cmId = depotKeyToCmId[`${m.customerCode}::${m.depot ?? ""}`];
+        if (cmId) {
+          newMapped.add(cmId);
+          if (m.sourcingDepot) newSourcingMap[cmId] = m.sourcingDepot;
+        }
       }
     });
     if (newMapped.size > 0) {
       setCentralizedMappedSet(newMapped);
       setSourcingDepotMap(newSourcingMap);
     }
-  }, [existingCicMappings, networkEntry, selectedCbu, selectedChain]);
+  }, [existingCicMappings, codeMappings, networkEntry, selectedCbu, selectedChain]);
 
   const allDepots = useMemo(
     () => Array.from(new Set(codeMappings.map(m => m.depot))).sort(),
@@ -312,7 +325,8 @@ export default function CcrMasterMaintenancePage() {
     const srcType = srcMode === "decentralized" ? "Decentralized" : "Centralized";
 
     return codeMappings.map(cm => {
-      const existing = cicByCustomerCode[cm.customerCode];
+      // Depot-granular lookup: one entry per customerCode::depot combo
+      const existing = cicByKey[`${cm.customerCode}::${cm.depot}`];
       const effectiveCic = cicInput || existing?.cic || "";
 
       let status: DepotStatus;
@@ -320,7 +334,6 @@ export default function CcrMasterMaintenancePage() {
       let pbStatus: string | undefined;
 
       if (pbBlocked) {
-        // Reflect exact PB status on every row
         status = basepackStatus!;
         sourcingDepot = existing?.sourcingDepot ?? "";
         pbStatus = basepackStatus;
@@ -328,9 +341,10 @@ export default function CcrMasterMaintenancePage() {
         status = "Mapped";
         sourcingDepot = cm.depot;
       } else {
-        const isMapped = centralizedMappedSet.has(cm.customerCode);
+        // Use cm.id as the row key — depot-granular, no customerCode collision
+        const isMapped = centralizedMappedSet.has(cm.id);
         status = isMapped ? "Mapped" : "Non-Mapped";
-        sourcingDepot = isMapped ? (sourcingDepotMap[cm.customerCode] || "") : "";
+        sourcingDepot = isMapped ? (sourcingDepotMap[cm.id] || "") : "";
       }
 
       return {
@@ -352,7 +366,7 @@ export default function CcrMasterMaintenancePage() {
     });
   }, [
     codeMappings, networkEntry, cicInput, sourcingMode,
-    sourcingDepotMap, centralizedMappedSet, cicByCustomerCode,
+    sourcingDepotMap, centralizedMappedSet, cicByKey,
     pbBlocked, basepackStatus,
   ]);
 
@@ -370,8 +384,15 @@ export default function CcrMasterMaintenancePage() {
       errs.push("Enter a CIC code");
     }
     if (pbBlocked) errs.push(`Paid Bible status "${basepackStatus}" blocks mapping — resolve in Paid Bible first`);
+    // In centralized mode, every Mapped row must have a sourcing depot selected
+    if (sourcingMode === "centralized" && rows.length > 0) {
+      const missingDepot = rows.filter(r => !r.pbOverridden && r.status === "Mapped" && !r.sourcingDepot);
+      if (missingDepot.length > 0) {
+        errs.push(`${missingDepot.length} Mapped row(s) are missing a Sourcing Depot selection`);
+      }
+    }
     return errs;
-  }, [selectedChain, selectedCbu, cbuIsEligible, cicInput, existingCicMappings, pbBlocked, basepackStatus]);
+  }, [selectedChain, selectedCbu, cbuIsEligible, cicInput, existingCicMappings, pbBlocked, basepackStatus, sourcingMode, rows]);
 
   // ── Save Mutation ───────────────────────────────────────────────────────────
 
@@ -447,25 +468,27 @@ export default function CcrMasterMaintenancePage() {
     setCentralizedMappedSet(new Set());
   }
 
-  function toggleCentralizedMapped(customerCode: string) {
+  // Handlers use cm.id (depot-granular) — not customerCode — so each depot row
+  // is independently toggleable even when multiple share the same customer code.
+  function toggleCentralizedMapped(rowId: string) {
     setCentralizedMappedSet(prev => {
       const next = new Set(prev);
-      if (next.has(customerCode)) {
-        next.delete(customerCode);
+      if (next.has(rowId)) {
+        next.delete(rowId);
         setSourcingDepotMap(sm => {
           const n = { ...sm };
-          delete n[customerCode];
+          delete n[rowId];
           return n;
         });
       } else {
-        next.add(customerCode);
+        next.add(rowId);
       }
       return next;
     });
   }
 
-  function handleSourcingDepotChange(customerCode: string, depot: string) {
-    setSourcingDepotMap(prev => ({ ...prev, [customerCode]: depot }));
+  function handleSourcingDepotChange(rowId: string, depot: string) {
+    setSourcingDepotMap(prev => ({ ...prev, [rowId]: depot }));
   }
 
   const isLoading = customersLoading || entriesLoading;
@@ -771,8 +794,8 @@ export default function CcrMasterMaintenancePage() {
                           <TableCell className="text-center">
                             <input
                               type="checkbox"
-                              checked={centralizedMappedSet.has(row.customerCode)}
-                              onChange={() => toggleCentralizedMapped(row.customerCode)}
+                              checked={centralizedMappedSet.has(row.id)}
+                              onChange={() => toggleCentralizedMapped(row.id)}
                               disabled={row.pbOverridden || !selectedCbu}
                               className="h-4 w-4 accent-primary"
                               data-testid={`checkbox-mapped-${row.customerCode}`}
@@ -819,10 +842,10 @@ export default function CcrMasterMaintenancePage() {
                         <TableCell data-testid={`cell-sourcing-depot-${row.customerCode}`}>
                           {sourcingMode === "decentralized" ? (
                             <span className="text-sm font-medium">{row.sourcingDepot || "—"}</span>
-                          ) : centralizedMappedSet.has(row.customerCode) && !row.pbOverridden ? (
+                          ) : centralizedMappedSet.has(row.id) && !row.pbOverridden ? (
                             <Select
-                              value={sourcingDepotMap[row.customerCode] || ""}
-                              onValueChange={v => handleSourcingDepotChange(row.customerCode, v)}
+                              value={sourcingDepotMap[row.id] || ""}
+                              onValueChange={v => handleSourcingDepotChange(row.id, v)}
                             >
                               <SelectTrigger
                                 className="h-7 text-xs w-36"
