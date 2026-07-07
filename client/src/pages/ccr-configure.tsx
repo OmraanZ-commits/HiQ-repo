@@ -673,7 +673,6 @@ export default function CcrConfigurePage() {
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Customer Code</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">CIC</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sales Org</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Channel</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Depot</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sub Channel</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Status</TableHead>
@@ -709,7 +708,6 @@ export default function CcrConfigurePage() {
                           {row.cic || <span className="text-muted-foreground italic">—</span>}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.salesOrg}</TableCell>
-                        <TableCell className="text-xs">{row.channel}</TableCell>
                         <TableCell className="text-sm font-medium" data-testid={`text-depot-${row.customerCode}`}>{row.depot}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.subChannel}</TableCell>
                         <TableCell data-testid={`cell-status-${row.customerCode}`}>
