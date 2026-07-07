@@ -476,10 +476,6 @@ export default function CcrConfigurePage() {
                   <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-0.5">Network Status</p>
                   <div className="mt-0.5"><NetworkStatusBadge status={entry.networkStatus} /></div>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-0.5">Customer Chains</p>
-                  <p className="text-sm font-medium">{chainCompletionStats.applicable || "—"}</p>
-                </div>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">CBU <span className="font-mono">{decodedCbu}</span> not found.</p>
