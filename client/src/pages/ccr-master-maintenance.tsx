@@ -641,9 +641,10 @@ export default function CcrMasterMaintenancePage() {
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Type of Network</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Assigned Person</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">CBU Created Date</TableHead>
-                      <TableHead className="text-xs font-semibold">Status</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">Network Status</TableHead>
                       <TableHead className="text-xs font-semibold text-center">Trigger</TableHead>
-                      <TableHead className="text-xs font-semibold pr-4">Status</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">Posting Status</TableHead>
+                      <TableHead className="text-xs font-semibold pr-4 text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -685,8 +686,25 @@ export default function CcrMasterMaintenancePage() {
                         <TableCell className="text-center">
                           <TriggerDot status={entry.networkStatus} />
                         </TableCell>
-                        <TableCell className="pr-4">
+                        <TableCell>
                           <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
+                        </TableCell>
+                        <TableCell className="pr-4 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs px-2.5"
+                            data-testid={`btn-configure-${entry.cbuCode}`}
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleCbuChange(entry.cbuCode ?? "");
+                              setTimeout(() => {
+                                document.getElementById("mapping-config-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }, 50);
+                            }}
+                          >
+                            Configure
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -699,7 +717,7 @@ export default function CcrMasterMaintenancePage() {
 
         {/* ── Mapping Configuration — appears after CBU selected ───────────── */}
         {selectedCbu && (
-          <Card>
+          <Card id="mapping-config-panel">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Tag className="h-4 w-4 text-primary" />
