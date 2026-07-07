@@ -75,6 +75,7 @@ type DepotRow = {
   existingCicId?: string;
   pbOverridden: boolean;
   pbStatus?: string;
+  isStale?: boolean;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -288,6 +289,27 @@ export default function CcrConfigurePage() {
 
   const mappedCount = rows.filter(r => !r.pbOverridden && r.status === "Mapped").length;
   const nonMappedCount = rows.filter(r => !r.pbOverridden && r.status === "Non-Mapped").length;
+
+  // ── Stale mapping detection ───────────────────────────────────────────────────
+  // Applies only in centralized mode: a depot being added/removed from the CBU's
+  // NV list changes the auto-derived Mapped/Non-Mapped status.  If the saved
+  // status in the DB differs from today's derived status the mapping is stale.
+  const staleRowIds = useMemo(() => {
+    if (pbBlocked || sourcingMode !== "centralized" || !existingCicMappings.length || !rows.length) {
+      return new Set<string>();
+    }
+    const staleIds = new Set<string>();
+    for (const row of rows) {
+      if (!row.existingCicId) continue;
+      const savedStatus = cicByKey[`${row.customerCode}::${row.depot}`]?.status;
+      if (savedStatus && savedStatus !== row.status) {
+        staleIds.add(row.id);
+      }
+    }
+    return staleIds;
+  }, [rows, cicByKey, pbBlocked, sourcingMode, existingCicMappings.length]);
+
+  const staleGridRef = useRef<HTMLDivElement>(null);
 
   // ── Validation ───────────────────────────────────────────────────────────────
   const validationErrors: string[] = useMemo(() => {
@@ -611,9 +633,31 @@ export default function CcrConfigurePage() {
           </CardHeader>
 
           <CardContent className="p-0">
+            {/* Stale mapping banner */}
+            {staleRowIds.size > 0 && (
+              <div className="px-4 pt-3 pb-0" data-testid="alert-stale-mappings">
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-700 text-xs flex items-center justify-between gap-2">
+                    <span>
+                      <strong>{staleRowIds.size} row{staleRowIds.size !== 1 ? "s" : ""}</strong> have changed mapping status since last save — review and save to update.
+                    </span>
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 whitespace-nowrap hover:text-amber-900 transition-colors"
+                      onClick={() => staleGridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      data-testid="link-scroll-to-stale"
+                    >
+                      View affected rows ↓
+                    </button>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
             {/* Validation errors */}
             {validationErrors.length > 0 && (
-              <div className="px-4 pb-3">
+              <div className="px-4 pb-3 pt-3">
                 <Alert className="border-blue-200 bg-blue-50">
                   <Info className="h-4 w-4 text-blue-600" />
                   <AlertDescription className="text-blue-700 text-xs space-y-0.5">
@@ -646,7 +690,7 @@ export default function CcrConfigurePage() {
 
             {/* Mapping grid table */}
             {!gridLoading && rows.length > 0 && (
-              <div className="overflow-x-auto">
+              <div ref={staleGridRef} className="overflow-x-auto">
                 <Table data-testid="table-depot-grid">
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -668,8 +712,17 @@ export default function CcrConfigurePage() {
                     {rows.map(row => (
                       <TableRow
                         key={row.id}
-                        className={row.pbOverridden ? "bg-amber-50/50" : row.status === "Non-Mapped" ? "bg-muted/20" : ""}
+                        className={
+                          row.pbOverridden
+                            ? "bg-amber-50/50"
+                            : staleRowIds.has(row.id)
+                            ? "bg-yellow-50 border-l-2 border-l-amber-400"
+                            : row.status === "Non-Mapped"
+                            ? "bg-muted/20"
+                            : ""
+                        }
                         data-testid={`row-grid-${row.customerCode}`}
+                        data-stale={staleRowIds.has(row.id) ? "true" : undefined}
                       >
                         <TableCell className="font-mono text-xs" data-testid={`text-cbu-${row.customerCode}`}>{decodedCbu}</TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground" data-testid={`text-basepack-${row.customerCode}`}>{entry?.basepack ?? "—"}</TableCell>
