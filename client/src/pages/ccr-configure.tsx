@@ -721,7 +721,9 @@ export default function CcrConfigurePage() {
                         <TableCell data-testid={`cell-sourcing-depot-${row.customerCode}`}>
                           {sourcingMode === "decentralized" ? (
                             <span className="text-sm font-medium">{row.sourcingDepot || "—"}</span>
-                          ) : centralizedMappedSet.has(row.id) && !row.pbOverridden ? (
+                          ) : row.pbOverridden ? (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          ) : (
                             <Select
                               value={sourcingDepotMap[row.id] || ""}
                               onValueChange={v => handleSourcingDepotChange(row.id, v)}
@@ -735,8 +737,6 @@ export default function CcrConfigurePage() {
                                 ))}
                               </SelectContent>
                             </Select>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.sourcingType}</TableCell>
