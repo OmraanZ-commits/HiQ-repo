@@ -642,7 +642,7 @@ export default function CcrMasterMaintenancePage() {
                       <TableHead className="text-xs font-semibold">BG</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Type of Network</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Assigned Person</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">CBU Created Date</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">Network Start Date</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Network Status</TableHead>
                       <TableHead className="text-xs font-semibold text-center">Trigger</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Posting Status</TableHead>
@@ -680,7 +680,7 @@ export default function CcrMasterMaintenancePage() {
                           <AssignedPersonCell name={(entry as any).assignedPerson} />
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatCbuDate(entry.cbuCreatedDate)}
+                          {formatCbuDate((entry as any).startDate)}
                         </TableCell>
                         <TableCell>
                           <LifecycleStatusCell status={entry.networkStatus} />
