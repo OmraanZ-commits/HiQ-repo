@@ -17,7 +17,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Download, Save, AlertTriangle, CheckCircle2, XCircle, Info,
+  Download, Save, AlertTriangle, CheckCircle2, XCircle,
   Warehouse, Hash, MapPin, Tag, RefreshCw,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
@@ -752,17 +752,6 @@ export default function CcrMasterMaintenancePage() {
             Configure Customer Code-to-CIC depot mappings for new launch CBUs
           </p>
         </div>
-
-        {/* Scope banner */}
-        <Alert className="border-sky-200 bg-sky-50 text-sky-800">
-          <Info className="h-4 w-4 text-sky-600" />
-          <AlertDescription className="text-sm">
-            <span className="font-semibold">New Launch CBUs only.</span>{" "}
-            Master Maintenance covers initial CIC creation and depot-level mapping activation for new launches.
-            Relaunch / predecessor–successor transitions are handled through the{" "}
-            <a href="/ccr" className="underline font-medium">CCR Workspace</a>.
-          </AlertDescription>
-        </Alert>
 
         {/* ── CBU Overview Tabs ────────────────────────────────────────────────── */}
         <Card>
