@@ -632,21 +632,21 @@ export default function CcrMasterMaintenancePage() {
                 No eligible new launch CBUs found.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table data-testid="table-cbu-overview">
+              <div>
+                <Table data-testid="table-cbu-overview" className="w-full table-fixed">
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      <TableHead className="text-xs font-semibold whitespace-nowrap pl-4">CBU Code</TableHead>
-                      <TableHead className="text-xs font-semibold">Material Description</TableHead>
-                      <TableHead className="text-xs font-semibold">Brand</TableHead>
-                      <TableHead className="text-xs font-semibold">BG</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Type of Network</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Assigned Person</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Network Start Date</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Network Status</TableHead>
-                      <TableHead className="text-xs font-semibold text-center">Trigger</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Posting Status</TableHead>
-                      <TableHead className="text-xs font-semibold pr-4 text-right">Action</TableHead>
+                      <TableHead className="text-xs font-semibold pl-4 w-[10%]">CBU Code</TableHead>
+                      <TableHead className="text-xs font-semibold w-[16%]">Material Description</TableHead>
+                      <TableHead className="text-xs font-semibold w-[8%]">Brand</TableHead>
+                      <TableHead className="text-xs font-semibold w-[10%]">BG</TableHead>
+                      <TableHead className="text-xs font-semibold w-[9%]">Type of Network</TableHead>
+                      <TableHead className="text-xs font-semibold w-[12%]">Assigned Person</TableHead>
+                      <TableHead className="text-xs font-semibold w-[9%]">Network Start Date</TableHead>
+                      <TableHead className="text-xs font-semibold w-[12%]">Network Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-center w-[5%]">Trigger</TableHead>
+                      <TableHead className="text-xs font-semibold w-[9%]">Posting Status</TableHead>
+                      <TableHead className="text-xs font-semibold pr-4 text-right w-[8%]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -661,19 +661,19 @@ export default function CcrMasterMaintenancePage() {
                         }
                         data-testid={`row-cbu-${entry.cbuCode}`}
                       >
-                        <TableCell className="font-mono text-xs font-medium pl-4 whitespace-nowrap">
+                        <TableCell className="font-mono text-xs font-medium pl-4 truncate">
                           {entry.cbuCode}
                         </TableCell>
-                        <TableCell className="text-sm max-w-[200px]">
-                          <span className="line-clamp-1">{entry.materialDescription || entry.basepackDescription || "—"}</span>
+                        <TableCell className="text-sm">
+                          <span className="truncate block">{entry.materialDescription || entry.basepackDescription || "—"}</span>
                         </TableCell>
-                        <TableCell className="text-sm font-semibold whitespace-nowrap">
+                        <TableCell className="text-sm font-semibold truncate">
                           {entry.brand || "—"}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        <TableCell className="text-sm text-muted-foreground truncate">
                           {entry.bg || "—"}
                         </TableCell>
-                        <TableCell className="text-xs font-mono whitespace-nowrap">
+                        <TableCell className="text-xs font-mono truncate">
                           {getNetworkChangeTypeName(entry.typeOfNetwork)}
                         </TableCell>
                         <TableCell>
