@@ -73,51 +73,13 @@ CCR_CODE_MAPPING_SEEDS = [
     {"customer_chain": "BigBasket", "customer_code": "BBK-WB-001", "depot": "KOPH", "sub_channel": "BigBasket", "channel": "MT"},
 ]
 
-# CIC mappings for relaunch CBUs CBU-50019001 through CBU-50019007 (all Production Started)
-# plus additional mappings for other relaunch CBUs in the system for completeness.
-CCR_CIC_MAPPING_SEEDS = [
-    # ── CBU-50019001 (Lifebuoy Total 10 Soap 100g, depots: DLGH, VABH, JPRH) ──
-    {"cbu_code": "CBU-50019001", "basepack": "BP-FTR1", "customer_chain": "DMart",          "customer_code": "DMT-DL-001", "cic": "CIC-FTR1-DL-DMT", "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Mapped",      "sourcing_depot": "DLGH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019001", "basepack": "BP-FTR1", "customer_chain": "DMart",          "customer_code": "DMT-UP-001", "cic": "CIC-FTR1-UP-DMT", "sales_org": "1000", "channel": "MT", "depot": "VABH", "status": "Mapped",      "sourcing_depot": "VABH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019001", "basepack": "BP-FTR1", "customer_chain": "Reliance Smart", "customer_code": "RLI-DL-001", "cic": "CIC-FTR1-DL-RLI", "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Mapped",      "sourcing_depot": "DLGH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019001", "basepack": "BP-FTR1", "customer_chain": "Blinkit",        "customer_code": "BLK-DL-001", "cic": None,               "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Non-Mapped",  "sourcing_depot": None,   "sourcing_type": "Decentralized", "pricing_status": "Not Available"},
-
-    # ── CBU-50019002 (Sunsilk Shampoo 340ml, depots: MMDH, CHKH, BNDH, HYRH) ──
-    {"cbu_code": "CBU-50019002", "basepack": "BP-FTR2", "customer_chain": "DMart",          "customer_code": "DMT-MH-001", "cic": "CIC-FTR2-MH-DMT", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Mapped",      "sourcing_depot": "MMDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019002", "basepack": "BP-FTR2", "customer_chain": "DMart",          "customer_code": "DMT-TN-001", "cic": "CIC-FTR2-TN-DMT", "sales_org": "1000", "channel": "MT", "depot": "CHKH", "status": "Mapped",      "sourcing_depot": "CHKH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019002", "basepack": "BP-FTR2", "customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "cic": "CIC-FTR2-MH-RLI", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Non-Mapped",  "sourcing_depot": None,   "sourcing_type": "Decentralized", "pricing_status": "Not Available"},
-    {"cbu_code": "CBU-50019002", "basepack": "BP-FTR2", "customer_chain": "BigBasket",      "customer_code": "BBK-MH-001", "cic": "CIC-FTR2-MH-BBK", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Mapped",      "sourcing_depot": "MMDH", "sourcing_type": "Decentralized", "pricing_status": "Partial"},
-
-    # ── CBU-50019003 (Dove Shampoo 650ml, depots: MMDH, DLGH, BNDH, CHKH, AMDH) ──
-    {"cbu_code": "CBU-50019003", "basepack": "BP-FTR3", "customer_chain": "DMart",          "customer_code": "DMT-MH-001", "cic": "CIC-FTR3-MH-DMT", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Mapped",      "sourcing_depot": "MMDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019003", "basepack": "BP-FTR3", "customer_chain": "DMart",          "customer_code": "DMT-DL-001", "cic": "CIC-FTR3-DL-DMT", "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Mapped",      "sourcing_depot": "DLGH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019003", "basepack": "BP-FTR3", "customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "cic": "CIC-FTR3-MH-RLI", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Mapped",      "sourcing_depot": "MMDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019003", "basepack": "BP-FTR3", "customer_chain": "BigBasket",      "customer_code": "BBK-MH-001", "cic": None,               "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Non-Mapped",  "sourcing_depot": None,   "sourcing_type": "Decentralized", "pricing_status": "Not Available"},
-    {"cbu_code": "CBU-50019003", "basepack": "BP-FTR3", "customer_chain": "Blinkit",        "customer_code": "BLK-MH-001", "cic": "CIC-FTR3-MH-BLK", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Mapped",      "sourcing_depot": "MMDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-
-    # ── CBU-50019004 (Surf Excel Liquid 1L, depots: DLGH, VABH, KOPH, MMDH) ──
-    {"cbu_code": "CBU-50019004", "basepack": "BP-FTR4", "customer_chain": "DMart",          "customer_code": "DMT-DL-001", "cic": "CIC-FTR4-DL-DMT", "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Mapped",      "sourcing_depot": "DLGH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019004", "basepack": "BP-FTR4", "customer_chain": "DMart",          "customer_code": "DMT-MH-001", "cic": "CIC-FTR4-MH-DMT", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Mapped",      "sourcing_depot": "MMDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019004", "basepack": "BP-FTR4", "customer_chain": "Reliance Smart", "customer_code": "RLI-DL-001", "cic": "CIC-FTR4-DL-RLI", "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Mapped",      "sourcing_depot": "DLGH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019004", "basepack": "BP-FTR4", "customer_chain": "BigBasket",      "customer_code": "BBK-DL-001", "cic": None,               "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Non-Mapped",  "sourcing_depot": None,   "sourcing_type": "Decentralized", "pricing_status": "Not Available"},
-
-    # ── CBU-50019005 (Knorr Soupy Noodles 68g, depots: DLGH, VABH, JPRH) ──
-    {"cbu_code": "CBU-50019005", "basepack": "BP-FTR5", "customer_chain": "DMart",          "customer_code": "DMT-DL-001", "cic": "CIC-FTR5-DL-DMT", "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Mapped",      "sourcing_depot": "DLGH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019005", "basepack": "BP-FTR5", "customer_chain": "Reliance Smart", "customer_code": "RLI-DL-001", "cic": "CIC-FTR5-DL-RLI", "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Mapped",      "sourcing_depot": "DLGH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019005", "basepack": "BP-FTR5", "customer_chain": "Blinkit",        "customer_code": "BLK-DL-001", "cic": None,               "sales_org": "1000", "channel": "MT", "depot": "DLGH", "status": "Non-Mapped",  "sourcing_depot": None,   "sourcing_type": "Decentralized", "pricing_status": "Not Available"},
-
-    # ── CBU-50019006 (Lux Soap 150g, depots: CHKH, BNDH, HYRH, COCH) ──
-    {"cbu_code": "CBU-50019006", "basepack": "BP-FTR6", "customer_chain": "DMart",          "customer_code": "DMT-TN-001", "cic": "CIC-FTR6-TN-DMT", "sales_org": "1000", "channel": "MT", "depot": "CHKH", "status": "Mapped",      "sourcing_depot": "CHKH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019006", "basepack": "BP-FTR6", "customer_chain": "DMart",          "customer_code": "DMT-KA-001", "cic": "CIC-FTR6-KA-DMT", "sales_org": "1000", "channel": "MT", "depot": "BNDH", "status": "Mapped",      "sourcing_depot": "BNDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019006", "basepack": "BP-FTR6", "customer_chain": "Reliance Smart", "customer_code": "RLI-TN-001", "cic": "CIC-FTR6-TN-RLI", "sales_org": "1000", "channel": "MT", "depot": "CHKH", "status": "Non-Mapped",  "sourcing_depot": None,   "sourcing_type": "Decentralized", "pricing_status": "Not Available"},
-    {"cbu_code": "CBU-50019006", "basepack": "BP-FTR6", "customer_chain": "BigBasket",      "customer_code": "BBK-TN-001", "cic": "CIC-FTR6-TN-BBK", "sales_org": "1000", "channel": "MT", "depot": "CHKH", "status": "Mapped",      "sourcing_depot": "CHKH", "sourcing_type": "Decentralized", "pricing_status": "Partial"},
-
-    # ── CBU-50019007 (Domex Floor Cleaner 500ml, depots: MMDH, AMDH) ──
-    {"cbu_code": "CBU-50019007", "basepack": "BP-FTR7", "customer_chain": "DMart",          "customer_code": "DMT-MH-001", "cic": "CIC-FTR7-MH-DMT", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Mapped",      "sourcing_depot": "MMDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019007", "basepack": "BP-FTR7", "customer_chain": "DMart",          "customer_code": "DMT-GJ-001", "cic": "CIC-FTR7-GJ-DMT", "sales_org": "1000", "channel": "MT", "depot": "AMDH", "status": "Mapped",      "sourcing_depot": "AMDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019007", "basepack": "BP-FTR7", "customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "cic": "CIC-FTR7-MH-RLI", "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Mapped",      "sourcing_depot": "MMDH", "sourcing_type": "Decentralized", "pricing_status": "Available"},
-    {"cbu_code": "CBU-50019007", "basepack": "BP-FTR7", "customer_chain": "Swiggy Instamart","customer_code": "SWG-MH-001", "cic": None,               "sales_org": "1000", "channel": "MT", "depot": "MMDH", "status": "Non-Mapped",  "sourcing_depot": None,   "sourcing_type": "Decentralized", "pricing_status": "Not Available"},
-]
+# NOTE: CIC mappings for CBU-50019001 through CBU-50019007 are intentionally NOT
+# hardcoded here. These CBUs are real Master Maintenance network entries, and their
+# Posting Status must reflect genuine configuration (via the Configure page) or
+# genuine trigger-engine evaluation — not pre-seeded demo data that never went
+# through either path. Only seed mappings below that represent completeness data
+# for other relaunch CBUs unrelated to the master maintenance demo set.
+CCR_CIC_MAPPING_SEEDS = []
 
 # 9 ruleset rows from BRD section 12
 CCR_RULESET_SEEDS = [
