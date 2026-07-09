@@ -45,6 +45,68 @@ const TONE_BADGE: Record<string, string> = {
   neutral: "bg-amber-100 text-amber-700 border-amber-300",
 };
 
+function DemandVisibilityTable({ rows }: { rows: import("@/lib/sr-store").DemandVisibilityByCbu[] }) {
+  const months = Array.from(
+    new Set(rows.flatMap(r => (r.byMonth ?? []).map(m => m.mocMonth)))
+  ).sort();
+
+  const formatMonth = (m: string) => {
+    const parts = m.split("-");
+    if (parts.length !== 2) return m;
+    const date = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+    return date.toLocaleString("en-US", { month: "short", year: "2-digit" });
+  };
+
+  return (
+    <div className="rounded-xl border shadow-sm overflow-hidden" data-testid="table-demand-visibility">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/40">
+            <TableHead className="text-xs">CBU</TableHead>
+            <TableHead className="text-xs">Status</TableHead>
+            {months.map(m => (
+              <TableHead key={m} className="text-xs text-right whitespace-nowrap">{formatMonth(m)}</TableHead>
+            ))}
+            <TableHead className="text-xs text-right whitespace-nowrap">Total</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((d, i) => {
+            const tone = _checkTone(d.status);
+            const monthMap = new Map((d.byMonth ?? []).map(m => [m.mocMonth, m.totalUnits]));
+            return (
+              <TableRow key={d.cbuCode || i} data-testid={`row-demand-visibility-${d.cbuCode || i}`}>
+                <TableCell className="text-xs">
+                  <div className="font-semibold text-foreground">{d.cbuCode || "—"}</div>
+                  {d.cbuDescription && (
+                    <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">{d.cbuDescription}</div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className={`text-xs border ${TONE_BADGE[tone]}`}>
+                    {d.status}
+                  </Badge>
+                </TableCell>
+                {months.map(m => {
+                  const val = monthMap.get(m);
+                  return (
+                    <TableCell key={m} className="text-xs text-right tabular-nums text-muted-foreground">
+                      {val ? val.toLocaleString("en-IN") : "—"}
+                    </TableCell>
+                  );
+                })}
+                <TableCell className="text-xs text-right font-semibold tabular-nums">
+                  {(d.totalUnits ?? 0).toLocaleString("en-IN")}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 function ValidationCheckCard({
   icon: Icon, title, subtitle, status, detail, testId,
 }: { icon: any; title: string; subtitle?: string; status?: string; detail?: string; testId: string }) {
@@ -207,29 +269,16 @@ export default function ServiceRequestDetailPage() {
                     Validation Checks
                   </h2>
 
-                  {/* Demand Visibility — one card per CBU sharing this basepack */}
+                  {/* Demand Visibility — condensed monthly table, one row per CBU sharing this basepack */}
                   <div>
-                    <h3 className="text-[11px] font-medium text-muted-foreground mb-2">
+                    <h3 className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5" />
                       Demand Visibility{hasMultiCbuDemand && demandByCbu!.length > 1 ? ` (${demandByCbu!.length} CBUs)` : ""}
                     </h3>
-                    <div className="grid grid-cols-4 gap-4">
-                      {hasMultiCbuDemand ? (
-                        demandByCbu!.map((d, i) => (
-                          <ValidationCheckCard
-                            key={d.cbuCode || i}
-                            icon={TrendingUp}
-                            title={d.cbuCode || "Demand"}
-                            subtitle={d.cbuDescription}
-                            status={d.status}
-                            detail={
-                              d.totalUnits
-                                ? `${d.totalUnits.toLocaleString("en-IN")} units · ${d.mocMonths ?? 0} mo MOC`
-                                : undefined
-                            }
-                            testId={`check-demand-visibility-${d.cbuCode || i}`}
-                          />
-                        ))
-                      ) : (
+                    {hasMultiCbuDemand ? (
+                      <DemandVisibilityTable rows={demandByCbu!} />
+                    ) : (
+                      <div className="grid grid-cols-4 gap-4">
                         <ValidationCheckCard
                           icon={TrendingUp}
                           title="Demand Visibility"
@@ -241,8 +290,8 @@ export default function ServiceRequestDetailPage() {
                           }
                           testId="check-demand-visibility"
                         />
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Sourcing / Price / MSTN — CBU-level checks tied to this SR's own CBU */}

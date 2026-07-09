@@ -92,13 +92,22 @@ def _compute_validation_checks(cbu_code: Optional[str], basepack_code: Optional[
                     cbu_rows = [r for r in all_rows if r.depot in cbu_depots] if cbu_depots else []
                     if cbu_rows:
                         total_units = sum(r.qty_units or 0 for r in cbu_rows)
-                        moc_months = len({r.moc_month for r in cbu_rows if r.moc_month})
+                        month_totals: dict = {}
+                        for r in cbu_rows:
+                            if not r.moc_month:
+                                continue
+                            month_totals[r.moc_month] = month_totals.get(r.moc_month, 0) + (r.qty_units or 0)
+                        by_month = [
+                            {"mocMonth": m, "totalUnits": round(month_totals[m])}
+                            for m in sorted(month_totals.keys())
+                        ]
                         demand_by_cbu.append({
                             "cbuCode": cbu_entry.cbu_code,
                             "cbuDescription": cbu_entry.material_description or cbu_entry.basepack_description,
                             "status": "Available",
                             "totalUnits": round(total_units),
-                            "mocMonths": moc_months,
+                            "mocMonths": len(by_month),
+                            "byMonth": by_month,
                         })
                     else:
                         demand_by_cbu.append({

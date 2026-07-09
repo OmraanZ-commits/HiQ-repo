@@ -79,12 +79,18 @@ export interface ValidationCheck {
   [key: string]: any;
 }
 
+export interface DemandVisibilityMonth {
+  mocMonth: string;
+  totalUnits: number;
+}
+
 export interface DemandVisibilityByCbu {
   cbuCode?: string;
   cbuDescription?: string;
   status: string;
   totalUnits?: number;
   mocMonths?: number;
+  byMonth?: DemandVisibilityMonth[];
 }
 
 export interface ValidationSummary {
