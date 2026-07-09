@@ -108,12 +108,19 @@ function DemandVisibilityTable({ rows }: { rows: import("@/lib/sr-store").Demand
 }
 
 function ValidationCheckCard({
-  icon: Icon, title, subtitle, status, detail, testId,
-}: { icon: any; title: string; subtitle?: string; status?: string; detail?: string; testId: string }) {
+  icon: Icon, title, subtitle, status, detail, testId, onClick, linkLabel,
+}: { icon: any; title: string; subtitle?: string; status?: string; detail?: string; testId: string; onClick?: () => void; linkLabel?: string }) {
   const tone = _checkTone(status);
   const ToneIcon = tone === "pass" ? CheckCircle2 : tone === "fail" ? XCircle : AlertTriangle;
+  const clickable = !!onClick;
   return (
-    <div className={`rounded-xl border shadow-sm px-4 py-3.5 ${TONE_STYLES[tone]}`} data-testid={testId}>
+    <div
+      className={`rounded-xl border shadow-sm px-4 py-3.5 ${TONE_STYLES[tone]} ${clickable ? "cursor-pointer hover:shadow-md hover:brightness-[0.98] transition-all" : ""}`}
+      data-testid={testId}
+      onClick={onClick}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+    >
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground min-w-0">
           <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -128,6 +135,11 @@ function ValidationCheckCard({
         {status || "—"}
       </Badge>
       {detail && <p className="text-xs text-muted-foreground mt-2 leading-snug">{detail}</p>}
+      {clickable && (
+        <p className="text-xs text-blue-600 font-medium mt-2 hover:underline" data-testid={`link-${testId}`}>
+          {linkLabel || "View details →"}
+        </p>
+      )}
     </div>
   );
 }
@@ -184,6 +196,9 @@ export default function ServiceRequestDetailPage() {
   const relevantCbus = isCbu && request.cbuCode
     ? allCbus.filter(c => c.cbuCode === request.cbuCode)
     : allCbus;
+  const primaryCbuEntry = request.cbuCode
+    ? allCbus.find(c => c.cbuCode === request.cbuCode)
+    : undefined;
 
   const pageTitle  = isCbu ? (request.cbuDescription || request.cbuCode || "—") : request.basepackName;
   const pageSubtitle = isCbu ? request.cbuCode : request.basepackCode;
@@ -302,6 +317,8 @@ export default function ServiceRequestDetailPage() {
                       status={request.validationSummary.sourcingMatrixCheck.status}
                       detail={request.validationSummary.sourcingMatrixCheck.details}
                       testId="check-sourcing-matrix"
+                      onClick={primaryCbuEntry ? () => navigate(`/edit/${primaryCbuEntry.id}?tab=sourcing`) : undefined}
+                      linkLabel="View sourcing matrix →"
                     />
                     <ValidationCheckCard
                       icon={IndianRupee}
@@ -309,6 +326,8 @@ export default function ServiceRequestDetailPage() {
                       status={request.validationSummary.priceCheck.status}
                       detail={request.validationSummary.priceCheck.details}
                       testId="check-price"
+                      onClick={primaryCbuEntry ? () => navigate(`/edit/${primaryCbuEntry.id}?tab=pricing`) : undefined}
+                      linkLabel="View pricing →"
                     />
                     <ValidationCheckCard
                       icon={ShieldCheck}
@@ -316,6 +335,8 @@ export default function ServiceRequestDetailPage() {
                       status={request.validationSummary.mstnCheck.status}
                       detail={`${request.validationSummary.mstnCheck.coverage ?? 0}% coverage (≥ ${request.validationSummary.mstnCheck.threshold ?? 80}% required)`}
                       testId="check-mstn"
+                      onClick={bpCode ? () => navigate(`/paid-bible/basepacks/${bpCode}`) : undefined}
+                      linkLabel="View basepack details →"
                     />
                   </div>
                 </div>

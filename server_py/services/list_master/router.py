@@ -15,12 +15,14 @@ def set_service(service: ListMasterService):
 
 @router.get("")
 @router.get("/")
-async def get_all_entries(launchType: Optional[str] = Query(None)):
+async def get_all_entries(launchType: Optional[str] = Query(None), cbuCode: Optional[str] = Query(None)):
     if not _service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     entries = _service.get_all()
     if launchType:
         entries = [e for e in entries if e.get("launchType") == launchType]
+    if cbuCode:
+        entries = [e for e in entries if e.get("cbuCode") == cbuCode]
     return entries
 
 

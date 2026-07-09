@@ -37,7 +37,8 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
   });
 
   const [form, setForm] = useState<InsertNetworkEntry | null>(null);
-  const [activeTab, setActiveTab] = useState("basic");
+  const initialTab = new URLSearchParams(window.location.search).get("tab");
+  const [activeTab, setActiveTab] = useState(initialTab || "basic");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   useEffect(() => {
