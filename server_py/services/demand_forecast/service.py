@@ -14,3 +14,7 @@ class DemandForecastService:
         if self.storage.has_any_data():
             return 0
         return self.storage.bulk_insert(entries)
+
+    def reseed(self, entries: List[dict]) -> int:
+        self.storage.delete_all()
+        return self.storage.bulk_insert(entries)

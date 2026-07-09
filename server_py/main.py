@@ -190,7 +190,7 @@ async def startup():
     demand_forecast_storage = DemandForecastStorage()
     demand_forecast_service = DemandForecastService(demand_forecast_storage)
     set_demand_forecast_service(demand_forecast_service)
-    demand_forecast_service.seed_if_empty(generate_demand_forecast_seeds(entries))
+    demand_forecast_service.reseed(generate_demand_forecast_seeds(entries))
 
     ftr_storage = FtrStorage()
     ftr_service = FtrService(ftr_storage)

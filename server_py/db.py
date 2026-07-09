@@ -218,6 +218,7 @@ class DemandForecastEntryModel(Base):
     moc_month = Column(String, nullable=False)
     channel_type = Column(String, nullable=False)
     forecast_channel = Column(String, nullable=True)
+    sub_channel = Column(String, nullable=True)
     qty_cases = Column(Float, nullable=True, default=0)
     qty_rpm = Column(Float, nullable=True, default=0)
     qty_units = Column(Float, nullable=True, default=0)
@@ -505,6 +506,9 @@ def run_migrations():
     with engine.connect() as conn:
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS launch_type VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE demand_forecast_entries ADD COLUMN IF NOT EXISTS sub_channel VARCHAR"
         ))
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS successor_doh INTEGER"

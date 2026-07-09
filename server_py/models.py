@@ -242,6 +242,7 @@ class DemandForecastEntryBase(BaseModel):
     mocMonth: str
     channelType: str
     forecastChannel: Optional[str] = None
+    subChannel: Optional[str] = None
     qtyCases: Optional[float] = 0
     qtyRpm: Optional[float] = 0
     qtyUnits: Optional[float] = 0

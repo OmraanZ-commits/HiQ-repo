@@ -17,6 +17,9 @@ MOC_MONTHS = ["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]
 # approximate relative share, used to pick a realistic label per Non-MT row.
 NON_MT_CHANNELS = ["GT", "CSD", "OH", "FR"]
 
+# Sub-channel labels observed in the MT source file's "Sub Channel 1" column.
+MT_SUB_CHANNELS = ["MT ECOMM", "Modern Trade Retail", "Cash & Carry", "Hyper/Super Market"]
+
 
 def _seeded_rand(*parts: str) -> float:
     """Deterministic pseudo-random float in [0, 1) based on the given parts."""
@@ -56,6 +59,8 @@ def generate_demand_forecast_seeds(entries: List[dict]) -> List[dict]:
                 mt_cases = round(5 + r1 * 115, 2)
                 mt_rpm = round(mt_cases * (0.005 + _seeded_rand(basepack, depot, moc_month, "mt-rpm") * 0.02), 4)
                 mt_units = round(mt_cases * (8 + _seeded_rand(basepack, depot, moc_month, "mt-units") * 12), 2)
+                sc_idx = int(_seeded_rand(basepack, depot, moc_month, "mt-subchannel") * len(MT_SUB_CHANNELS))
+                mt_sub_channel = MT_SUB_CHANNELS[min(sc_idx, len(MT_SUB_CHANNELS) - 1)]
 
                 rows.append({
                     "basepack": basepack,
@@ -63,6 +68,7 @@ def generate_demand_forecast_seeds(entries: List[dict]) -> List[dict]:
                     "mocMonth": moc_month,
                     "channelType": "MT",
                     "forecastChannel": "MT",
+                    "subChannel": mt_sub_channel,
                     "qtyCases": mt_cases,
                     "qtyRpm": mt_rpm,
                     "qtyUnits": mt_units,
