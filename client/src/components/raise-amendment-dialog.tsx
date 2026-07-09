@@ -11,6 +11,7 @@ import {
   Map as MapIcon, Radio, PackageSearch, AlertTriangle,
   ChevronRight, ChevronLeft, CheckCircle2, ExternalLink,
   MapPin, Check, Plus, X, Lock, Users, CalendarClock,
+  Upload, FileSpreadsheet, Trash2,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -1161,6 +1162,7 @@ function SummaryView({
   currentNetworkChangeDate, requestedDate, mstnNote,
   justification, setJustification, cbuNetworkStatus,
   effectiveDate, setEffectiveDate, minEffectiveDate, effectiveDateValid,
+  demandEstimateFile, setDemandEstimateFile,
 }: {
   amendmentType: SrType;
   currentGeo: string[];
@@ -1188,6 +1190,8 @@ function SummaryView({
   setEffectiveDate: (v: string) => void;
   minEffectiveDate: string;
   effectiveDateValid: boolean;
+  demandEstimateFile: File | null;
+  setDemandEstimateFile: (f: File | null) => void;
 }) {
   const keptGeos = currentGeo.filter(g => !removedGeos.includes(g));
 
@@ -1398,6 +1402,65 @@ function SummaryView({
         )}
       </div>
 
+      {/* Demand Estimate Upload — channel amendment only */}
+      {amendmentType === "channel-extension" && (
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium flex items-center gap-1.5">
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+            Demand Estimate
+            <span className="text-xs font-normal text-muted-foreground ml-1">(optional)</span>
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Upload your demand forecast Excel (.xlsx / .xls) to support this channel amendment. The file will be reviewed by the Demand Planner.
+          </p>
+          {demandEstimateFile ? (
+            <div
+              className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3"
+              data-testid="container-demand-file-attached"
+            >
+              <FileSpreadsheet className="h-5 w-5 text-emerald-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-emerald-800 truncate">{demandEstimateFile.name}</p>
+                <p className="text-xs text-emerald-600">
+                  {(demandEstimateFile.size / 1024).toFixed(1)} KB · Excel
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDemandEstimateFile(null)}
+                className="text-emerald-600 hover:text-red-600 transition-colors p-1 rounded"
+                data-testid="button-remove-demand-file"
+                title="Remove file"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <label
+              className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-emerald-300 hover:bg-emerald-50/40 transition-all cursor-pointer py-5 px-4"
+              data-testid="dropzone-demand-estimate"
+            >
+              <Upload className="h-6 w-6 text-muted-foreground/60" />
+              <span className="text-sm text-muted-foreground text-center">
+                <span className="font-medium text-foreground">Click to upload</span> or drag & drop
+              </span>
+              <span className="text-xs text-muted-foreground">.xlsx or .xls files only</span>
+              <input
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="sr-only"
+                data-testid="input-demand-estimate-file"
+                onChange={e => {
+                  const f = e.target.files?.[0] ?? null;
+                  setDemandEstimateFile(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
+        </div>
+      )}
+
       {/* Justification */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
@@ -1548,9 +1611,10 @@ export function RaiseAmendmentDialog({
   const [requestedDate, setRequestedDate] = useState("");
   const [mstnNote,      setMstnNote]      = useState("");
 
-  const [justification, setJustification] = useState("");
-  const [effectiveDate, setEffectiveDate] = useState("");
-  const [submitting,    setSubmitting]    = useState(false);
+  const [justification,       setJustification]       = useState("");
+  const [effectiveDate,       setEffectiveDate]       = useState("");
+  const [demandEstimateFile,  setDemandEstimateFile]  = useState<File | null>(null);
+  const [submitting,          setSubmitting]          = useState(false);
 
   const minEffectiveDate = useMemo(() => {
     const d = new Date();
@@ -1598,6 +1662,7 @@ export function RaiseAmendmentDialog({
     setMstnNote("");
     setJustification("");
     setEffectiveDate("");
+    setDemandEstimateFile(null);
   };
 
   const handleClose = () => { onOpenChange(false); reset(); };
@@ -1924,6 +1989,8 @@ export function RaiseAmendmentDialog({
               setEffectiveDate={setEffectiveDate}
               minEffectiveDate={minEffectiveDate}
               effectiveDateValid={effectiveDateValid}
+              demandEstimateFile={demandEstimateFile}
+              setDemandEstimateFile={setDemandEstimateFile}
             />
           )}
         </div>
