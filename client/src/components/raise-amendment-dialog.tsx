@@ -1402,6 +1402,57 @@ function SummaryView({
         )}
       </div>
 
+      {/* Justification */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">
+          Business Justification <span className="text-red-500">*</span>
+        </Label>
+        <Textarea
+          value={justification}
+          onChange={e => setJustification(e.target.value)}
+          placeholder="Explain why this change is needed (market dynamics, business case, compliance, etc.)…"
+          rows={3}
+          className="resize-none text-sm"
+          data-testid="input-justification"
+        />
+      </div>
+
+      {/* Effective Date */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">
+          Effective Date <span className="text-red-500">*</span>
+        </Label>
+        <input
+          type="date"
+          value={effectiveDate}
+          min={minEffectiveDate}
+          onChange={e => setEffectiveDate(e.target.value)}
+          className="h-9 w-full max-w-[220px] rounded-md border border-input bg-background px-3 text-sm"
+          data-testid="input-effective-date"
+        />
+        <p className="text-xs text-muted-foreground">
+          Must be a future date. The Supply Planner may adjust this during feasibility review.
+        </p>
+        {effectiveDate && !effectiveDateValid && (
+          <p className="text-xs text-red-600">Effective date must be later than today.</p>
+        )}
+      </div>
+
+      {/* Approval chain */}
+      <div className="rounded-lg border bg-muted/20 px-4 py-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Approval Chain
+        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {["Supply Planner", "Demand Planner", "Network Planner", "NCSM"].map((role, i, arr) => (
+            <span key={role} className="flex items-center gap-1.5">
+              <span className="text-xs bg-white border rounded-full px-2.5 py-0.5 font-medium">{role}</span>
+              {i < arr.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* Demand Estimate Upload — channel amendment only */}
       {amendmentType === "channel-extension" && (
         <div className="space-y-1.5">
@@ -1460,57 +1511,6 @@ function SummaryView({
           )}
         </div>
       )}
-
-      {/* Justification */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Business Justification <span className="text-red-500">*</span>
-        </Label>
-        <Textarea
-          value={justification}
-          onChange={e => setJustification(e.target.value)}
-          placeholder="Explain why this change is needed (market dynamics, business case, compliance, etc.)…"
-          rows={3}
-          className="resize-none text-sm"
-          data-testid="input-justification"
-        />
-      </div>
-
-      {/* Effective Date */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Effective Date <span className="text-red-500">*</span>
-        </Label>
-        <input
-          type="date"
-          value={effectiveDate}
-          min={minEffectiveDate}
-          onChange={e => setEffectiveDate(e.target.value)}
-          className="h-9 w-full max-w-[220px] rounded-md border border-input bg-background px-3 text-sm"
-          data-testid="input-effective-date"
-        />
-        <p className="text-xs text-muted-foreground">
-          Must be a future date. The Supply Planner may adjust this during feasibility review.
-        </p>
-        {effectiveDate && !effectiveDateValid && (
-          <p className="text-xs text-red-600">Effective date must be later than today.</p>
-        )}
-      </div>
-
-      {/* Approval chain */}
-      <div className="rounded-lg border bg-muted/20 px-4 py-3">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          Approval Chain
-        </p>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {["Supply Planner", "Demand Planner", "Network Planner", "NCSM"].map((role, i, arr) => (
-            <span key={role} className="flex items-center gap-1.5">
-              <span className="text-xs bg-white border rounded-full px-2.5 py-0.5 font-medium">{role}</span>
-              {i < arr.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
-            </span>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
