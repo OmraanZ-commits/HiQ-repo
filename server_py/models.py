@@ -293,7 +293,10 @@ class CreateNetworkChangeTypeWithAuditRequest(NetworkChangeTypeMasterBase, _RefD
 
 # ── Paid Bible Models ───────────────────────────────────────────
 
-SR_TYPES = ["basepack-status-change", "geo-extension", "channel-extension", "sourcing-amendment"]
+SR_TYPES = [
+    "basepack-status-change", "geo-extension", "channel-extension", "sourcing-amendment",
+    "customer-chain-amendment", "network-change-date-amendment",
+]
 
 APPROVER_CHAIN_TEMPLATE = [
     {"role": "Network Planner",      "label": "Network Planner",      "subLabel": "Network Review"},
@@ -364,6 +367,10 @@ class ServiceRequestBase(BaseModel):
     sourcingMode: Optional[str] = None
     centralizedGeo: Optional[List[str]] = Field(default_factory=list)
     centralizedDepots: Optional[List[str]] = Field(default_factory=list)
+    addedChains: Optional[List[str]] = Field(default_factory=list)
+    removedChains: Optional[List[str]] = Field(default_factory=list)
+    requestedCustomerMapping: Optional[dict] = None
+    requestedDate: Optional[str] = None
 
 
 class InsertServiceRequest(ServiceRequestBase):

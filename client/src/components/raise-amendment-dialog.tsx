@@ -10,12 +10,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Map as MapIcon, Radio, PackageSearch, AlertTriangle,
   ChevronRight, ChevronLeft, CheckCircle2, ExternalLink,
-  MapPin, Check, Plus, X, Lock,
+  MapPin, Check, Plus, X, Lock, Users, CalendarClock,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { PortalUser } from "@/lib/users-data";
-import type { ChannelDef } from "@/lib/distribution-data";
+import type { ChannelDef, CustomerChainDef } from "@/lib/distribution-data";
+import { CUSTOMER_CHAINS, MT_SUB_CHANNELS } from "@/lib/distribution-data";
 import {
   SR_TYPE_META, addRequest,
   type SrType, type ServiceRequest, type ApproverStep,
@@ -50,6 +51,18 @@ const AMENDMENT_TYPES = [
     icon: PackageSearch,
     label: "Sourcing Amendment",
     desc: "Change the sourcing mode or centralized geography / depot scope",
+  },
+  {
+    value: "customer-chain-amendment" as SrType,
+    icon: Users,
+    label: "Customer Chain Amendment",
+    desc: "Amend MT sub-channel customer chains mapped against a cluster",
+  },
+  {
+    value: "network-change-date-amendment" as SrType,
+    icon: CalendarClock,
+    label: "Network Change Date Amendment",
+    desc: "Request a revised network change date due to MSTN clearance not met",
   },
 ];
 
@@ -974,6 +987,175 @@ function SourcingEditor({
   );
 }
 
+// ─── Customer Chain Editor ────────────────────────────────────────────────────
+
+function CustomerChainEditor({
+  mtGeos, channelMapping, customerMapping,
+  requestedCustomerMapping, setRequestedCustomerMapping,
+}: {
+  mtGeos: string[];
+  channelMapping: Record<string, string[]>;
+  customerMapping: Record<string, string[]>;
+  requestedCustomerMapping: Record<string, string[]>;
+  setRequestedCustomerMapping: (v: Record<string, string[]>) => void;
+}) {
+  const getReq = (geo: string) => requestedCustomerMapping[geo] ?? customerMapping[geo] ?? [];
+
+  const activeSubsFor = (geo: string) => {
+    const geoChans = channelMapping[geo] || [];
+    return MT_SUB_CHANNELS.filter(sc => geoChans.includes(sc.code)).map(sc => sc.code);
+  };
+
+  const chainsFor = (geo: string): CustomerChainDef[] => {
+    const activeSubs = activeSubsFor(geo);
+    return CUSTOMER_CHAINS.filter(c => activeSubs.includes(c.subChannel));
+  };
+
+  const toggleChain = (geo: string, code: string) => {
+    const req = [...getReq(geo)];
+    const next = { ...requestedCustomerMapping };
+    next[geo] = req.includes(code) ? req.filter(c => c !== code) : [...req, code];
+    setRequestedCustomerMapping(next);
+  };
+
+  const toggleGeoAll = (geo: string) => {
+    const codes = chainsFor(geo).map(c => c.code);
+    const req = getReq(geo);
+    const allOn = codes.length > 0 && codes.every(c => req.includes(c));
+    const next = { ...requestedCustomerMapping };
+    next[geo] = allOn ? [] : codes;
+    setRequestedCustomerMapping(next);
+  };
+
+  if (mtGeos.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-6 text-center">
+        No clusters have an MT sub-channel selected against them — customer chain amendment is not applicable.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Toggle customer chains per cluster. Only chains belonging to the MT sub-channels already active
+        for that cluster are shown.
+      </p>
+      {mtGeos.map(geo => {
+        const chains = chainsFor(geo);
+        const req = getReq(geo);
+        const grouped = chains.reduce<Record<string, CustomerChainDef[]>>((acc, c) => {
+          (acc[c.subChannel] ??= []).push(c);
+          return acc;
+        }, {});
+        const allOn = chains.length > 0 && chains.every(c => req.includes(c.code));
+        return (
+          <div key={geo} className="rounded-lg border p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 text-[#0d8ecf] shrink-0" />
+                <span className="text-sm font-medium text-[#00b0d7] capitalize">{geo.toLowerCase()}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleGeoAll(geo)}
+                className={cn(
+                  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all",
+                  allOn ? "bg-[#00b0d7] border-[#00b0d7] text-white" : "bg-white border-border text-muted-foreground hover:border-[#00b0d7]/40",
+                )}
+                data-testid={`button-toggle-all-chains-${geo.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                {allOn ? "Clear all" : "Select all"}
+              </button>
+            </div>
+            {chains.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No customer chains available for the active MT sub-channels in this cluster.</p>
+            ) : (
+              Object.entries(grouped).map(([subChannel, list]) => (
+                <div key={subChannel} className="space-y-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{subChannel}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {list.map(c => {
+                      const isOn = req.includes(c.code);
+                      const wasOn = (customerMapping[geo] || []).includes(c.code);
+                      return (
+                        <Chip
+                          key={c.code}
+                          label={c.code}
+                          state={isOn ? (wasOn ? "existing" : "new") : (wasOn ? "removing" : "available")}
+                          onClick={() => toggleChain(geo, c.code)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Network Change Date Editor ───────────────────────────────────────────────
+
+function NetworkChangeDateEditor({
+  currentNetworkChangeDate, requestedDate, setRequestedDate,
+  mstnNote, setMstnNote,
+}: {
+  currentNetworkChangeDate?: string | null;
+  requestedDate: string;
+  setRequestedDate: (v: string) => void;
+  mstnNote: string;
+  setMstnNote: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border bg-amber-50 border-amber-200 px-4 py-3 flex gap-2.5">
+        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-800">
+          Use this amendment when MSTN clearance was not met during the MOC cycle check, requiring the
+          network change date to be pushed out.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">Current Network Change Date</Label>
+          <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm font-mono">
+            {currentNetworkChangeDate || "Not set"}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">
+            Requested Network Change Date <span className="text-red-500">*</span>
+          </Label>
+          <input
+            type="date"
+            value={requestedDate}
+            onChange={e => setRequestedDate(e.target.value)}
+            className="h-9 w-full rounded-md border px-3 text-sm font-mono"
+            data-testid="input-requested-network-change-date"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">MSTN Clearance Note</Label>
+        <Textarea
+          value={mstnNote}
+          onChange={e => setMstnNote(e.target.value)}
+          placeholder="Describe the MSTN clearance gap identified during the MOC cycle check…"
+          rows={2}
+          className="resize-none text-sm"
+          data-testid="input-mstn-note"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Summary View ─────────────────────────────────────────────────────────────
 
 function SummaryView({
@@ -982,6 +1164,8 @@ function SummaryView({
   removedGeos, removedDepots,
   channelMapping, requestedChannelMapping,
   newMode, sourcingDepotMapping,
+  customerMapping, requestedCustomerMapping,
+  currentNetworkChangeDate, requestedDate, mstnNote,
   justification, setJustification, cbuNetworkStatus,
 }: {
   amendmentType: SrType;
@@ -998,6 +1182,11 @@ function SummaryView({
   requestedChannelMapping: Record<string, string[]>;
   newMode: "decentralized" | "centralized";
   sourcingDepotMapping: Record<string, string>;
+  customerMapping: Record<string, string[]>;
+  requestedCustomerMapping: Record<string, string[]>;
+  currentNetworkChangeDate?: string | null;
+  requestedDate: string;
+  mstnNote: string;
   justification: string;
   setJustification: (v: string) => void;
   cbuNetworkStatus?: string;
@@ -1154,6 +1343,61 @@ function SummaryView({
             )}
           </div>
         )}
+
+        {amendmentType === "customer-chain-amendment" && (
+          <div className="space-y-2 text-sm">
+            {Object.keys(requestedCustomerMapping).map(geo => {
+              const original = customerMapping[geo] || [];
+              const requested = requestedCustomerMapping[geo] ?? original;
+              const added = requested.filter(c => !original.includes(c));
+              const removed = original.filter(c => !requested.includes(c));
+              if (added.length === 0 && removed.length === 0) return null;
+              return (
+                <div key={geo} className="rounded-lg border border-fuchsia-200 bg-fuchsia-50/30 px-3 py-2.5 space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-700 capitalize">{geo.toLowerCase()}</p>
+                  {added.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {added.map(c => <Badge key={c} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal">+ {c}</Badge>)}
+                    </div>
+                  )}
+                  {removed.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {removed.map(c => <Badge key={c} className="bg-red-100 text-red-700 border border-red-300 text-xs font-normal line-through">− {c}</Badge>)}
+                    </div>
+                  )}
+                </div>
+              );
+            }).filter(Boolean)}
+            {Object.keys(requestedCustomerMapping).length === 0 && (
+              <p className="text-xs text-muted-foreground italic">No customer chain changes</p>
+            )}
+          </div>
+        )}
+
+        {amendmentType === "network-change-date-amendment" && (
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Current Network Change Date</p>
+                <Badge className="bg-blue-100 text-blue-700 border border-blue-300 text-xs font-normal font-mono">
+                  {currentNetworkChangeDate || "Not set"}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Requested Network Change Date</p>
+                <Badge className="bg-amber-100 text-amber-700 border border-amber-300 text-xs font-normal font-mono">
+                  {requestedDate || "—"}
+                </Badge>
+              </div>
+            </div>
+            {mstnNote && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">MSTN Clearance Note</p>
+                <p className="text-xs bg-white border rounded-md px-3 py-2">{mstnNote}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Justification */}
@@ -1222,6 +1466,9 @@ export interface RaiseAmendmentDialogProps {
   leafChannels: ChannelDef[];
   geographyDepotMap: Record<string, string[]>;
   pendingSrs?: PendingAmendmentRef[];
+  mtGeos?: string[];
+  customerMapping?: Record<string, string[]>;
+  currentNetworkChangeDate?: string | null;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -1235,6 +1482,9 @@ export function RaiseAmendmentDialog({
   channelMapping,
   clusters, leafChannels, geographyDepotMap,
   pendingSrs = [],
+  mtGeos = [],
+  customerMapping = {},
+  currentNetworkChangeDate,
 }: RaiseAmendmentDialogProps) {
   const [step,          setStep]          = useState<Step>("type");
   const [amendmentType, setAmendmentType] = useState<SrType | "">("");
@@ -1275,6 +1525,13 @@ export function RaiseAmendmentDialog({
   const [newMode,              setNewMode]              = useState<"decentralized" | "centralized">("decentralized");
   const [sourcingDepotMapping, setSourcingDepotMapping] = useState<Record<string, string>>({});
 
+  // Customer chain amendment state: full per-geo requested mapping
+  const [requestedCustomerMapping, setRequestedCustomerMapping] = useState<Record<string, string[]>>({});
+
+  // Network change date amendment state
+  const [requestedDate, setRequestedDate] = useState("");
+  const [mstnNote,      setMstnNote]      = useState("");
+
   const [justification, setJustification] = useState("");
   const [submitting,    setSubmitting]    = useState(false);
 
@@ -1288,8 +1545,18 @@ export function RaiseAmendmentDialog({
       // Centralized: all current depots must have a sourcing depot assigned
       return currentDepots.length > 0 && currentDepots.every(d => !!sourcingDepotMapping[d]);
     }
+    if (amendmentType === "customer-chain-amendment") {
+      return mtGeos.some(geo => {
+        const orig = customerMapping[geo] || [];
+        const req = requestedCustomerMapping[geo] ?? orig;
+        return orig.length !== req.length || orig.some(c => !req.includes(c)) || req.some(c => !orig.includes(c));
+      });
+    }
+    if (amendmentType === "network-change-date-amendment") {
+      return !!requestedDate && requestedDate !== currentNetworkChangeDate;
+    }
     return false;
-  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, currentDepots]);
+  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, currentDepots, mtGeos, customerMapping, requestedCustomerMapping, requestedDate, currentNetworkChangeDate]);
 
   const reset = () => {
     setStep("type");
@@ -1301,6 +1568,9 @@ export function RaiseAmendmentDialog({
     setRemovedDepots([]);
     setNewMode("decentralized");
     setSourcingDepotMapping({});
+    setRequestedCustomerMapping({});
+    setRequestedDate("");
+    setMstnNote("");
     setJustification("");
   };
 
@@ -1327,7 +1597,7 @@ export function RaiseAmendmentDialog({
       const addStr   = addedChannels.length   > 0 ? `Adding: ${addedChannels.join(", ")}`   : "";
       const rmvStr   = removedChannels.length > 0 ? `Removing: ${removedChannels.join(", ")}` : "";
       requestedValue = [addStr, rmvStr].filter(Boolean).join("; ") || currentValue;
-    } else {
+    } else if (amendmentType === "sourcing-amendment") {
       currentValue   = `Decentralized — ${currentGeo.length} geo(s), ${currentDepots.length} depot(s)`;
       if (newMode === "decentralized") {
         requestedValue = currentValue;
@@ -1337,6 +1607,12 @@ export function RaiseAmendmentDialog({
           .join(", ");
         requestedValue = `Centralized — ${pairs}`;
       }
+    } else if (amendmentType === "customer-chain-amendment") {
+      currentValue = mtGeos.map(g => `${g}: ${(customerMapping[g] || []).join(", ") || "None"}`).join("; ");
+      requestedValue = mtGeos.map(g => `${g}: ${(requestedCustomerMapping[g] ?? customerMapping[g] ?? []).join(", ") || "None"}`).join("; ");
+    } else {
+      currentValue = currentNetworkChangeDate || "Not set";
+      requestedValue = requestedDate;
     }
 
     const raisedBy = raisedByProp || users.find(u => u.role === "Paid Bible Owner" && u.isActive)?.name || "PB SPOC";
@@ -1367,6 +1643,9 @@ export function RaiseAmendmentDialog({
       sourcingDepotMapping: amendmentType === "sourcing-amendment" ? sourcingDepotMapping : undefined,
       centralizedGeos: [],
       centralizedDepots: [],
+      requestedCustomerMapping: amendmentType === "customer-chain-amendment" ? requestedCustomerMapping : undefined,
+      requestedDate: amendmentType === "network-change-date-amendment" ? requestedDate : undefined,
+      currentNetworkChangeDate: amendmentType === "network-change-date-amendment" ? currentNetworkChangeDate : undefined,
     };
 
     try {
@@ -1392,6 +1671,8 @@ export function RaiseAmendmentDialog({
         sourcingDepotMapping: amendmentType === "sourcing-amendment" ? sourcingDepotMapping : undefined,
         centralizedGeo: [],
         centralizedDepots: [],
+        requestedCustomerMapping: amendmentType === "customer-chain-amendment" ? requestedCustomerMapping : undefined,
+        requestedDate: amendmentType === "network-change-date-amendment" ? requestedDate : undefined,
         approvers,
       });
     } catch {
@@ -1566,6 +1847,26 @@ export function RaiseAmendmentDialog({
             />
           )}
 
+          {step === "edit" && amendmentType === "customer-chain-amendment" && (
+            <CustomerChainEditor
+              mtGeos={mtGeos}
+              channelMapping={channelMapping}
+              customerMapping={customerMapping}
+              requestedCustomerMapping={requestedCustomerMapping}
+              setRequestedCustomerMapping={setRequestedCustomerMapping}
+            />
+          )}
+
+          {step === "edit" && amendmentType === "network-change-date-amendment" && (
+            <NetworkChangeDateEditor
+              currentNetworkChangeDate={currentNetworkChangeDate}
+              requestedDate={requestedDate}
+              setRequestedDate={setRequestedDate}
+              mstnNote={mstnNote}
+              setMstnNote={setMstnNote}
+            />
+          )}
+
           {/* ── Step 3: Summary ── */}
           {step === "summary" && amendmentType && (
             <SummaryView
@@ -1583,6 +1884,11 @@ export function RaiseAmendmentDialog({
               removedDepots={removedDepots}
               newMode={newMode}
               sourcingDepotMapping={sourcingDepotMapping}
+              customerMapping={customerMapping}
+              requestedCustomerMapping={requestedCustomerMapping}
+              currentNetworkChangeDate={currentNetworkChangeDate}
+              requestedDate={requestedDate}
+              mstnNote={mstnNote}
               justification={justification}
               setJustification={setJustification}
               cbuNetworkStatus={cbuNetworkStatus}

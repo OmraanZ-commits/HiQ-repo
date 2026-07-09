@@ -53,3 +53,9 @@ class ListMasterService:
     def update_sourcing(self, entry_id: str, sourcing_mode: str,
                         centralized_geos: list, centralized_depots: list) -> Optional[dict]:
         return self.storage.update_sourcing(entry_id, sourcing_mode, centralized_geos, centralized_depots)
+
+    def merge_customer_mapping(self, entry_id: str, requested_customer_mapping: dict) -> Optional[dict]:
+        return self.storage.merge_customer_mapping(entry_id, requested_customer_mapping)
+
+    def update_network_change_date(self, entry_id: str, new_date: str) -> Optional[dict]:
+        return self.storage.update_network_change_date(entry_id, new_date)

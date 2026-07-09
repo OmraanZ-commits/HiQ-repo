@@ -8,7 +8,9 @@ export type SrType =
   | "basepack-status-change"
   | "geo-extension"
   | "channel-extension"
-  | "sourcing-amendment";
+  | "sourcing-amendment"
+  | "customer-chain-amendment"
+  | "network-change-date-amendment";
 
 export interface SrTypeMeta {
   label: string;
@@ -37,12 +39,24 @@ export const SR_TYPE_META: Record<SrType, SrTypeMeta> = {
     description: "Change sourcing mode or centralized depot scope",
     colorClass: "bg-amber-100 text-amber-700 border-amber-300",
   },
+  "customer-chain-amendment": {
+    label: "Customer Chain Amendment",
+    description: "Amend MT sub-channel customer chains mapped against a cluster",
+    colorClass: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300",
+  },
+  "network-change-date-amendment": {
+    label: "Network Change Date Amendment",
+    description: "Amend the network change date due to MSTN clearance not met",
+    colorClass: "bg-orange-100 text-orange-700 border-orange-300",
+  },
 };
 
 export const CBU_SR_TYPES: SrType[] = [
   "geo-extension",
   "channel-extension",
   "sourcing-amendment",
+  "customer-chain-amendment",
+  "network-change-date-amendment",
 ];
 
 export interface MaterialCriteria {
@@ -104,6 +118,11 @@ export interface ServiceRequest {
   sourcingDepotMapping?: Record<string, string>;
   centralizedGeos?: string[];
   centralizedDepots?: string[];
+  addedChains?: string[];
+  removedChains?: string[];
+  requestedCustomerMapping?: Record<string, string[]>;
+  currentNetworkChangeDate?: string | null;
+  requestedDate?: string;
 
   // ── Common ─────────────────────────────────────────────────────────────────
   brand: string;
@@ -196,6 +215,10 @@ export function mapBackendSrToFrontend(sr: any): ServiceRequest {
     sourcingMode: (sr.sourcingMode ?? undefined) as ServiceRequest["sourcingMode"],
     centralizedGeos: sr.centralizedGeo ?? [],
     centralizedDepots: sr.centralizedDepots ?? [],
+    addedChains: sr.addedChains ?? [],
+    removedChains: sr.removedChains ?? [],
+    requestedCustomerMapping: sr.requestedCustomerMapping ?? {},
+    requestedDate: sr.requestedDate ?? undefined,
     brand: sr.brand || "",
     bg: sr.businessGroup || "",
     raisedBy: sr.raisedBy || "",
@@ -230,6 +253,10 @@ function _mapFrontendSrToBackend(sr: ServiceRequest): any {
     sourcingMode: sr.sourcingMode,
     centralizedGeo: sr.centralizedGeos ?? [],
     centralizedDepots: sr.centralizedDepots ?? [],
+    addedChains: sr.addedChains ?? [],
+    removedChains: sr.removedChains ?? [],
+    requestedCustomerMapping: sr.requestedCustomerMapping ?? undefined,
+    requestedDate: sr.requestedDate ?? undefined,
     approvers: (sr.approvers ?? []).map(_mapApproverToBackend),
   };
 }
@@ -241,6 +268,8 @@ let _bpStatusOverrides: Record<string, string> = {};
 let _channelOverrides: Record<string, string[]> = {};
 let _sourcingOverrides: Record<string, { mode: "decentralized" | "centralized"; depotMapping: Record<string, string>; centralizedGeos: string[]; centralizedDepots: string[] }> = {};
 let _geoRemovalOverrides: Record<string, { removedGeos: string[]; removedDepots: string[] }> = {};
+let _customerMappingOverrides: Record<string, Record<string, string[]>> = {};
+let _networkChangeDateOverrides: Record<string, string> = {};
 let _bpDates: Record<string, BpDates> = {};
 let _initialised = false;
 const _listeners = new Set<() => void>();
@@ -324,6 +353,14 @@ export function getGeoRemovalOverrides(): Record<string, { removedGeos: string[]
   return _geoRemovalOverrides;
 }
 
+export function getCustomerMappingOverrides(): Record<string, Record<string, string[]>> {
+  return _customerMappingOverrides;
+}
+
+export function getNetworkChangeDateOverrides(): Record<string, string> {
+  return _networkChangeDateOverrides;
+}
+
 export function getBpDates(): Record<string, BpDates> { return _bpDates; }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -396,6 +433,16 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
             centralizedDepots: sr.centralizedDepots ?? [],
           },
         };
+      }
+      if (sr.srType === "customer-chain-amendment" && sr.cbuId && sr.requestedCustomerMapping) {
+        const prev = _customerMappingOverrides[sr.cbuId] ?? {};
+        _customerMappingOverrides = {
+          ..._customerMappingOverrides,
+          [sr.cbuId]: { ...prev, ...sr.requestedCustomerMapping },
+        };
+      }
+      if (sr.srType === "network-change-date-amendment" && sr.cbuId && sr.requestedDate) {
+        _networkChangeDateOverrides = { ..._networkChangeDateOverrides, [sr.cbuId]: sr.requestedDate };
       }
       fullyApprovedSr = { ...sr, approvers, overallStatus: "approved" };
     }
@@ -512,6 +559,8 @@ export function useSrStore() {
   const [channelOverrides, setChannelOverrides] = useState<Record<string, string[]>>(getChannelOverrides);
   const [sourcingOverrides, setSourcingOverrides] = useState<Record<string, { mode: "decentralized" | "centralized"; depotMapping: Record<string, string>; centralizedGeos: string[]; centralizedDepots: string[] }>>(getSourcingOverrides);
   const [geoRemovalOverrides, setGeoRemovalOverrides] = useState<Record<string, { removedGeos: string[]; removedDepots: string[] }>>(getGeoRemovalOverrides);
+  const [customerMappingOverrides, setCustomerMappingOverrides] = useState<Record<string, Record<string, string[]>>>(getCustomerMappingOverrides);
+  const [networkChangeDateOverrides, setNetworkChangeDateOverrides] = useState<Record<string, string>>(getNetworkChangeDateOverrides);
   const [bpDates, setBpDatesState] = useState<Record<string, BpDates>>(getBpDates);
 
   useEffect(() => {
@@ -526,9 +575,14 @@ export function useSrStore() {
       setChannelOverrides({ ...getChannelOverrides() });
       setSourcingOverrides({ ...getSourcingOverrides() });
       setGeoRemovalOverrides({ ...getGeoRemovalOverrides() });
+      setCustomerMappingOverrides({ ...getCustomerMappingOverrides() });
+      setNetworkChangeDateOverrides({ ...getNetworkChangeDateOverrides() });
       setBpDatesState({ ...getBpDates() });
     });
   }, []);
 
-  return { requests, bpStatusOverrides, channelOverrides, sourcingOverrides, geoRemovalOverrides, bpDates };
+  return {
+    requests, bpStatusOverrides, channelOverrides, sourcingOverrides, geoRemovalOverrides,
+    customerMappingOverrides, networkChangeDateOverrides, bpDates,
+  };
 }

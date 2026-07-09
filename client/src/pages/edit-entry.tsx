@@ -2672,6 +2672,9 @@ export default function EditEntry() {
             leafChannels={LEAF_CHANNELS}
             geographyDepotMap={GEOGRAPHY_DEPOT_MAP}
             pendingSrs={cbuPendingSrs}
+            mtGeos={mtGeos}
+            customerMapping={customerMapping}
+            currentNetworkChangeDate={entry.networkChangeDate}
           />
         )}
       </main>

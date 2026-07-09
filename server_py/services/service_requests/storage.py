@@ -40,6 +40,10 @@ def _row_to_dict(row: ServiceRequestModel) -> dict:
         "sourcingMode": row.sourcing_mode,
         "centralizedGeo": row.centralized_geo or [],
         "centralizedDepots": row.centralized_depots or [],
+        "addedChains": getattr(row, "added_chains", None) or [],
+        "removedChains": getattr(row, "removed_chains", None) or [],
+        "requestedCustomerMapping": getattr(row, "requested_customer_mapping", None) or {},
+        "requestedDate": getattr(row, "requested_date", None),
         "createdAt": row.created_at.isoformat() if row.created_at else None,
         "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
     }
@@ -106,6 +110,10 @@ class ServiceRequestStorage:
                 centralized_geo=data.get("centralizedGeo", []),
                 centralized_depots=data.get("centralizedDepots", []),
                 target_status=data.get("targetStatus"),
+                added_chains=data.get("addedChains", []),
+                removed_chains=data.get("removedChains", []),
+                requested_customer_mapping=data.get("requestedCustomerMapping"),
+                requested_date=data.get("requestedDate"),
                 created_at=now,
                 updated_at=now,
             )

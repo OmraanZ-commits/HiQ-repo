@@ -142,6 +142,40 @@ class ListMasterStorage:
         finally:
             db.close()
 
+    def merge_customer_mapping(self, entry_id: str, requested_customer_mapping: dict) -> Optional[dict]:
+        """Merge/overwrite per-geo customer chain mapping into the CBU record."""
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return None
+            existing = dict(row.customer_mapping or {})
+            existing.update(requested_customer_mapping or {})
+            row.customer_mapping = existing
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
+    def update_network_change_date(self, entry_id: str, new_date: str) -> Optional[dict]:
+        """Update the network change date for a CBU record."""
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).first()
+            if not row:
+                return None
+            row.network_change_date = new_date
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
     def merge_geo_depots(self, entry_id: str, added_geos: list, added_depots: list) -> Optional[dict]:
         """Merge new geographies and depots into the CBU record without duplication."""
         db = SessionLocal()

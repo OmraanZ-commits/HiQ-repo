@@ -81,6 +81,10 @@ class SrApprovalSaga:
                     self._apply_channel_extension(sr, actioned_by)
                 elif sr_type == "sourcing-amendment":
                     self._apply_sourcing_amendment(sr, actioned_by)
+                elif sr_type == "customer-chain-amendment":
+                    self._apply_customer_chain_amendment(sr, actioned_by)
+                elif sr_type == "network-change-date-amendment":
+                    self._apply_network_change_date_amendment(sr, actioned_by)
 
             return self._result("completed")
 
@@ -293,6 +297,66 @@ class SrApprovalSaga:
             "sourcingMode": sourcing_mode,
             "centralizedGeos": centralized_geos,
             "centralizedDepots": centralized_depots,
+        })
+
+    # ── Effect: customer-chain-amendment ──────────────────────────────────────
+
+    def _apply_customer_chain_amendment(self, sr: dict, actioned_by: str):
+        cbu_id = sr.get("cbuId")
+        requested_customer_mapping = sr.get("requestedCustomerMapping") or {}
+
+        if not cbu_id:
+            self._log_step("apply_customer_chain_amendment", "skipped",
+                           result={"reason": "No cbuId on SR"})
+            return
+
+        if not requested_customer_mapping:
+            self._log_step("apply_customer_chain_amendment", "skipped",
+                           result={"reason": "No customer mapping to apply"})
+            return
+
+        if not self.list_master_service:
+            self._log_step("apply_customer_chain_amendment", "skipped",
+                           result={"reason": "ListMasterService not available"})
+            return
+
+        result = self.list_master_service.merge_customer_mapping(cbu_id, requested_customer_mapping)
+        if not result:
+            raise LookupError(f"CBU {cbu_id} not found when applying customer chain amendment")
+
+        self._log_step("apply_customer_chain_amendment", "completed", result={
+            "cbuId": cbu_id,
+            "requestedCustomerMapping": requested_customer_mapping,
+        })
+
+    # ── Effect: network-change-date-amendment ─────────────────────────────────
+
+    def _apply_network_change_date_amendment(self, sr: dict, actioned_by: str):
+        cbu_id = sr.get("cbuId")
+        requested_date = sr.get("requestedDate")
+
+        if not cbu_id:
+            self._log_step("apply_network_change_date_amendment", "skipped",
+                           result={"reason": "No cbuId on SR"})
+            return
+
+        if not requested_date:
+            self._log_step("apply_network_change_date_amendment", "skipped",
+                           result={"reason": "No requestedDate on SR"})
+            return
+
+        if not self.list_master_service:
+            self._log_step("apply_network_change_date_amendment", "skipped",
+                           result={"reason": "ListMasterService not available"})
+            return
+
+        result = self.list_master_service.update_network_change_date(cbu_id, requested_date)
+        if not result:
+            raise LookupError(f"CBU {cbu_id} not found when applying network change date amendment")
+
+        self._log_step("apply_network_change_date_amendment", "completed", result={
+            "cbuId": cbu_id,
+            "requestedDate": requested_date,
         })
 
     # ── Compensation ──────────────────────────────────────────────────────────
