@@ -233,6 +233,29 @@ class UpdateDepotsMaster(BaseModel):
     isActive: Optional[bool] = None
 
 
+# ── Demand Forecast (Demand Visibility) Models ──────────────────
+
+
+class DemandForecastEntryBase(BaseModel):
+    basepack: str
+    depot: str
+    mocMonth: str
+    channelType: str
+    forecastChannel: Optional[str] = None
+    qtyCases: Optional[float] = 0
+    qtyRpm: Optional[float] = 0
+    qtyUnits: Optional[float] = 0
+
+
+class InsertDemandForecastEntry(DemandForecastEntryBase):
+    pass
+
+
+class DemandForecastEntry(DemandForecastEntryBase):
+    id: str
+    createdAt: Optional[str] = None
+
+
 # ── Network Change Type Master Models ───────────────────────────
 
 

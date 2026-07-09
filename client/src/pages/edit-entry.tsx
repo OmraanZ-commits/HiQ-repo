@@ -12,10 +12,11 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DemandVisibilityTab } from "@/components/demand-visibility-tab";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, AlertCircle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText, Plus, ExternalLink, FileSpreadsheet, ChevronsUpDown, X, Eye, Upload, ImageIcon, Link2, FileCheck2 } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Package, MapPin, Ruler, Info, Lock, Check, Globe, Building2, Radio, AlertTriangle, AlertCircle, Tag, ChevronDown, ChevronRight, IndianRupee, Network, Boxes, ReceiptText, Plus, ExternalLink, FileSpreadsheet, ChevronsUpDown, X, Eye, Upload, ImageIcon, Link2, FileCheck2, LineChart } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -756,6 +757,9 @@ export default function EditEntry() {
                 {(ftrLinks.length > 0 || ftrImages.length > 0) && (
                   <span className="ml-1 h-1.5 w-1.5 rounded-full bg-cyan-500" />
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="demand-visibility" className="gap-2" data-testid="tab-demand-visibility">
+                <LineChart className="h-4 w-4" /> Demand Visibility
               </TabsTrigger>
             </TabsList>
 
@@ -2368,6 +2372,11 @@ export default function EditEntry() {
 
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* ── Demand Visibility Tab ───────────────────────────────────── */}
+            <TabsContent value="demand-visibility" className="mt-0">
+              <DemandVisibilityTab basepack={entry?.basepack ?? ""} cbuCode={cbuCode} isDraft={isDraft} />
             </TabsContent>
 
           </Tabs>

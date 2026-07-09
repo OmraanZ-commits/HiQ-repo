@@ -209,6 +209,21 @@ class DepotsMasterModel(Base):
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+class DemandForecastEntryModel(Base):
+    __tablename__ = "demand_forecast_entries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    basepack = Column(String, nullable=False)
+    depot = Column(String, nullable=False)
+    moc_month = Column(String, nullable=False)
+    channel_type = Column(String, nullable=False)
+    forecast_channel = Column(String, nullable=True)
+    qty_cases = Column(Float, nullable=True, default=0)
+    qty_rpm = Column(Float, nullable=True, default=0)
+    qty_units = Column(Float, nullable=True, default=0)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
 class NetworkChangeTypeMasterModel(Base):
     __tablename__ = "network_change_types_master"
 

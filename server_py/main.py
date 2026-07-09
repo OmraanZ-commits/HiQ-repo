@@ -64,6 +64,14 @@ from server_py.services.ccr.storage import CcrStorage
 from server_py.services.ccr.service import CcrService
 from server_py.services.ccr.router import router as ccr_router, set_service as set_ccr_service
 
+from server_py.services.demand_forecast.storage import DemandForecastStorage
+from server_py.services.demand_forecast.service import DemandForecastService
+from server_py.services.demand_forecast.router import (
+    router as demand_forecast_router,
+    set_service as set_demand_forecast_service,
+)
+from server_py.seed_demand_forecast import generate_demand_forecast_seeds
+
 from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS, CLUSTER_REGION_STATE_SEEDS, CCR_ACCOUNT_SEEDS, CCR_RULE_SEEDS
 from server_py.seed_users import USER_SEEDS
 from server_py.seed_service_requests import SR_SEEDS
@@ -98,6 +106,7 @@ app.include_router(mstn_doh_router, prefix="/api/mstn-doh", tags=["MSTN & DOH"])
 app.include_router(paid_bible_router, prefix="/api/paid-bible", tags=["Paid Bible"])
 app.include_router(ftr_router, prefix="/api/ftr", tags=["FTR"])
 app.include_router(ccr_router, prefix="/api/ccr", tags=["CCR"])
+app.include_router(demand_forecast_router, prefix="/api/demand-forecast", tags=["Demand Visibility"])
 
 
 @app.on_event("startup")
@@ -177,6 +186,11 @@ async def startup():
         CCR_RULESET_SEEDS,
         CCR_LINE_ITEM_SEEDS,
     )
+
+    demand_forecast_storage = DemandForecastStorage()
+    demand_forecast_service = DemandForecastService(demand_forecast_storage)
+    set_demand_forecast_service(demand_forecast_service)
+    demand_forecast_service.seed_if_empty(generate_demand_forecast_seeds(entries))
 
     ftr_storage = FtrStorage()
     ftr_service = FtrService(ftr_storage)

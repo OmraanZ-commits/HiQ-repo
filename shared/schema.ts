@@ -141,3 +141,25 @@ export const insertDepotsMasterSchema = createInsertSchema(depotsMaster).omit({
 });
 export type InsertDepotsMaster = z.infer<typeof insertDepotsMasterSchema>;
 export type DepotsMaster = typeof depotsMaster.$inferSelect;
+
+// ── Demand Visibility (Dynamic Forecast) ──────────────────────────
+
+export const demandForecastEntries = pgTable("demand_forecast_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  basepack: text("basepack").notNull(),
+  depot: text("depot").notNull(),
+  mocMonth: text("moc_month").notNull(),        // e.g. "2026-07"
+  channelType: text("channel_type").notNull(),  // "MT" | "Non-MT"
+  forecastChannel: text("forecast_channel"),    // e.g. "MT", "GT", "CSD", "OH", "FR"
+  qtyCases: real("qty_cases").default(0),
+  qtyRpm: real("qty_rpm").default(0),
+  qtyUnits: real("qty_units").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDemandForecastEntrySchema = createInsertSchema(demandForecastEntries).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertDemandForecastEntry = z.infer<typeof insertDemandForecastEntrySchema>;
+export type DemandForecastEntry = typeof demandForecastEntries.$inferSelect;
