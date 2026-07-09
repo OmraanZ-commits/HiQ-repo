@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, ListChecks, CheckCircle2, XCircle, LayoutDashboard, GitBranch, FileEdit,
+  TrendingUp, Network, IndianRupee, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,46 @@ function FieldCell({ label, children }: { label: string; children: React.ReactNo
     <div className="flex items-start gap-3 py-3 min-w-0 border-b last:border-b-0">
       <span className="w-40 flex-shrink-0 text-sm text-muted-foreground pt-0.5">{label}</span>
       <span className="flex-1 text-sm font-medium text-foreground">{children}</span>
+    </div>
+  );
+}
+
+function _checkTone(status?: string): "pass" | "fail" | "neutral" {
+  const s = (status || "").toLowerCase();
+  if (["available", "complete", "pass"].includes(s)) return "pass";
+  if (["not available", "incomplete", "fail"].includes(s)) return "fail";
+  return "neutral";
+}
+
+const TONE_STYLES: Record<string, string> = {
+  pass: "border-emerald-200 bg-emerald-50/60",
+  fail: "border-red-200 bg-red-50/50",
+  neutral: "border-amber-200 bg-amber-50/50",
+};
+
+const TONE_BADGE: Record<string, string> = {
+  pass: "bg-emerald-100 text-emerald-700 border-emerald-300",
+  fail: "bg-red-100 text-red-700 border-red-300",
+  neutral: "bg-amber-100 text-amber-700 border-amber-300",
+};
+
+function ValidationCheckCard({
+  icon: Icon, title, status, detail, testId,
+}: { icon: any; title: string; status?: string; detail?: string; testId: string }) {
+  const tone = _checkTone(status);
+  const ToneIcon = tone === "pass" ? CheckCircle2 : tone === "fail" ? XCircle : AlertTriangle;
+  return (
+    <div className={`rounded-xl border shadow-sm px-4 py-3.5 ${TONE_STYLES[tone]}`} data-testid={testId}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Icon className="h-4 w-4 text-muted-foreground" /> {title}
+        </div>
+        <ToneIcon className={`h-4 w-4 ${tone === "pass" ? "text-emerald-600" : tone === "fail" ? "text-red-600" : "text-amber-600"}`} />
+      </div>
+      <Badge variant="secondary" className={`text-xs border ${TONE_BADGE[tone]}`} data-testid={`badge-${testId}`}>
+        {status || "—"}
+      </Badge>
+      {detail && <p className="text-xs text-muted-foreground mt-2 leading-snug">{detail}</p>}
     </div>
   );
 }
@@ -151,6 +192,49 @@ export default function ServiceRequestDetailPage() {
                 </div>
               </span>
             </div>
+
+            {/* Validation checks (snapshotted from Network Visibility at raise time) */}
+            {request.validationSummary && (
+              <div>
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+                  Validation Checks
+                </h2>
+                <div className="grid grid-cols-4 gap-4">
+                  <ValidationCheckCard
+                    icon={TrendingUp}
+                    title="Demand Visibility"
+                    status={request.validationSummary.demandVisibility.status}
+                    detail={
+                      request.validationSummary.demandVisibility.totalUnits
+                        ? `${request.validationSummary.demandVisibility.totalUnits.toLocaleString("en-IN")} units · ${request.validationSummary.demandVisibility.mocMonths ?? 0} mo MOC`
+                        : undefined
+                    }
+                    testId="check-demand-visibility"
+                  />
+                  <ValidationCheckCard
+                    icon={Network}
+                    title="Sourcing Matrix Check"
+                    status={request.validationSummary.sourcingMatrixCheck.status}
+                    detail={request.validationSummary.sourcingMatrixCheck.details}
+                    testId="check-sourcing-matrix"
+                  />
+                  <ValidationCheckCard
+                    icon={IndianRupee}
+                    title="Price Check"
+                    status={request.validationSummary.priceCheck.status}
+                    detail={request.validationSummary.priceCheck.details}
+                    testId="check-price"
+                  />
+                  <ValidationCheckCard
+                    icon={ShieldCheck}
+                    title="MSTN Check"
+                    status={request.validationSummary.mstnCheck.status}
+                    detail={`${request.validationSummary.mstnCheck.coverage ?? 0}% coverage (≥ ${request.validationSummary.mstnCheck.threshold ?? 80}% required)`}
+                    testId="check-mstn"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* ── CBU SR: two-card summary + change table + justification ── */}
             {isCbu && (

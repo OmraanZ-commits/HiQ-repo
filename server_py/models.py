@@ -398,6 +398,9 @@ class ServiceRequestBase(BaseModel):
     requestedCustomerMapping: Optional[dict] = None
     requestedDate: Optional[str] = None
     effectiveDate: Optional[str] = None  # captured at raise time by Paid Bible Owner; must be > today
+    validationSummary: Optional[dict] = None  # demandVisibility / sourcingMatrixCheck / priceCheck / mstnCheck, computed at raise time
+    pricingComplete: Optional[bool] = None
+    sourcingComplete: Optional[bool] = None
 
 
 class InsertServiceRequest(ServiceRequestBase):

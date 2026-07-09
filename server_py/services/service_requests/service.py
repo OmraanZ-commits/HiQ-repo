@@ -9,10 +9,88 @@ from server_py.models import (
     SR_TYPES,
 )
 from server_py.services.service_requests.storage import ServiceRequestStorage
+from server_py.db import SessionLocal, NetworkEntryModel, DemandForecastEntryModel
+
+MSTN_THRESHOLD = 80
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _compute_validation_checks(cbu_code: Optional[str], basepack_code: Optional[str]) -> dict:
+    """
+    Compute the four Overview-page validation checks at SR-raise time:
+    demand visibility, sourcing matrix check, price check, MSTN check.
+    Snapshotted onto the SR so later data changes don't rewrite history.
+    """
+    demand_visibility = {"status": "Not Available", "totalUnits": 0, "mocMonths": 0}
+    sourcing_matrix_check = {"status": "Incomplete", "mode": None, "details": "No network entry found for this CBU"}
+    price_check = {"status": "Not Available", "details": "No network entry found for this CBU"}
+    mstn_check = {"status": "Fail", "coverage": 0, "threshold": MSTN_THRESHOLD}
+
+    db = SessionLocal()
+    try:
+        entry = None
+        if cbu_code:
+            entry = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.cbu_code == cbu_code
+            ).order_by(NetworkEntryModel.created_at.desc()).first()
+
+        if entry is not None:
+            mode = entry.sourcing_mode or "decentralized"
+            if mode == "centralized":
+                mapped = bool(entry.centralized_depots) and bool(entry.centralized_geos)
+                sourcing_matrix_check = {
+                    "status": "Complete" if mapped else "Incomplete",
+                    "mode": "Centralized",
+                    "details": "Centralized depot mapping present" if mapped else "Centralized depot mapping is missing",
+                }
+            else:
+                mapped = bool(entry.channel_mapping) or bool(entry.depot)
+                sourcing_matrix_check = {
+                    "status": "Complete" if mapped else "Incomplete",
+                    "mode": "Decentralized",
+                    "details": "Geo-channel distribution matrix configured" if mapped else "Distribution matrix is not configured",
+                }
+
+            if entry.price_active is True:
+                price_check = {"status": "Available", "details": "Pricing is active for this CBU"}
+            elif entry.price_active is False:
+                price_check = {"status": "Not Available", "details": "Pricing has not been activated for this CBU"}
+            else:
+                price_check = {"status": "Partial", "details": "Pricing status has not been confirmed"}
+
+            coverage = entry.mstn_percentage or 0
+            mstn_check = {
+                "status": "Pass" if coverage >= MSTN_THRESHOLD else "Fail",
+                "coverage": coverage,
+                "threshold": MSTN_THRESHOLD,
+            }
+
+            basepack_code = basepack_code or entry.basepack
+
+        if basepack_code:
+            rows = db.query(DemandForecastEntryModel).filter(
+                DemandForecastEntryModel.basepack == basepack_code
+            ).all()
+            if rows:
+                total_units = sum(r.qty_units or 0 for r in rows)
+                moc_months = len({r.moc_month for r in rows if r.moc_month})
+                demand_visibility = {
+                    "status": "Available",
+                    "totalUnits": round(total_units),
+                    "mocMonths": moc_months,
+                }
+    finally:
+        db.close()
+
+    return {
+        "demandVisibility": demand_visibility,
+        "sourcingMatrixCheck": sourcing_matrix_check,
+        "priceCheck": price_check,
+        "mstnCheck": mstn_check,
+    }
 
 
 def _build_approvers(assigned_users: Optional[dict] = None) -> list:
@@ -65,6 +143,13 @@ class ServiceRequestService:
         approvers = _build_approvers(assigned_users)
         payload = data.model_dump()
         payload["approvers"] = approvers
+
+        basepack_code = payload.get("basepackCode") or payload.get("basepakCode")
+        validation_summary = _compute_validation_checks(payload.get("cbuCode"), basepack_code)
+        payload["validationSummary"] = validation_summary
+        payload["pricingComplete"] = validation_summary["priceCheck"]["status"] == "Available"
+        payload["sourcingComplete"] = validation_summary["sourcingMatrixCheck"]["status"] == "Complete"
+
         return self.storage.create(payload)
 
     def approve_step(self, sr_id: str, req: ApproveStepRequest) -> dict:
@@ -126,8 +211,22 @@ class ServiceRequestService:
         )
 
     def seed_requests(self, seeds: list) -> None:
-        """Insert seed SRs if they don't already exist (idempotent by id)."""
-        self.storage.seed_requests(seeds)
+        """
+        Insert seed SRs if they don't already exist (idempotent by id).
+        Validation checks (demand visibility, sourcing, price, MSTN) are always
+        computed from the live Network Visibility data (network entries + demand
+        forecast entries), never hardcoded, so seed SRs mirror real CBU state.
+        """
+        enriched = []
+        for seed in seeds:
+            seed = dict(seed)
+            basepack_code = seed.get("basepackCode") or seed.get("basepakCode")
+            validation_summary = _compute_validation_checks(seed.get("cbuCode"), basepack_code)
+            seed["validationSummary"] = validation_summary
+            seed["pricingComplete"] = validation_summary["priceCheck"]["status"] == "Available"
+            seed["sourcingComplete"] = validation_summary["sourcingMatrixCheck"]["status"] == "Complete"
+            enriched.append(seed)
+        self.storage.seed_requests(enriched)
 
     def reject_step(self, sr_id: str, req: RejectStepRequest) -> dict:
         sr = self.storage.get_by_id(sr_id)

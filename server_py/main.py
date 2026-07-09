@@ -159,8 +159,6 @@ async def startup():
     paid_bible_service = PaidBibleService(paid_bible_storage, sr_service=sr_service)
     set_paid_bible_service(paid_bible_service)
 
-    sr_service.seed_requests(SR_SEEDS)
-
     state_service = get_state_service()
     lifecycle_service = get_lifecycle_service()
 
@@ -192,6 +190,8 @@ async def startup():
     demand_forecast_service = DemandForecastService(demand_forecast_storage)
     set_demand_forecast_service(demand_forecast_service)
     demand_forecast_service.reseed(generate_demand_forecast_seeds(entries))
+
+    sr_service.seed_requests(SR_SEEDS)
 
     ftr_storage = FtrStorage()
     ftr_service = FtrService(ftr_storage)

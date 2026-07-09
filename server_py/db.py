@@ -287,6 +287,9 @@ class ServiceRequestModel(Base):
     requested_customer_mapping = Column(JSONB, nullable=True)
     requested_date = Column(String, nullable=True)
     effective_date = Column(String, nullable=True)
+    validation_summary = Column(JSONB, nullable=True)
+    pricing_complete = Column(Boolean, nullable=True)
+    sourcing_complete = Column(Boolean, nullable=True)
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
@@ -579,6 +582,15 @@ def run_migrations():
         ))
         conn.execute(text(
             "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS effective_date VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS validation_summary JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS pricing_complete BOOLEAN"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS sourcing_complete BOOLEAN"
         ))
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS sourcing_mode VARCHAR"

@@ -45,6 +45,9 @@ def _row_to_dict(row: ServiceRequestModel) -> dict:
         "requestedCustomerMapping": getattr(row, "requested_customer_mapping", None) or {},
         "requestedDate": getattr(row, "requested_date", None),
         "effectiveDate": getattr(row, "effective_date", None),
+        "validationSummary": getattr(row, "validation_summary", None),
+        "pricingComplete": getattr(row, "pricing_complete", None),
+        "sourcingComplete": getattr(row, "sourcing_complete", None),
         "createdAt": row.created_at.isoformat() if row.created_at else None,
         "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
     }
@@ -116,6 +119,9 @@ class ServiceRequestStorage:
                 requested_customer_mapping=data.get("requestedCustomerMapping"),
                 requested_date=data.get("requestedDate"),
                 effective_date=data.get("effectiveDate"),
+                validation_summary=data.get("validationSummary"),
+                pricing_complete=data.get("pricingComplete"),
+                sourcing_complete=data.get("sourcingComplete"),
                 created_at=now,
                 updated_at=now,
             )
@@ -184,6 +190,10 @@ class ServiceRequestStorage:
                     centralized_geo=seed.get("centralizedGeo", []),
                     centralized_depots=seed.get("centralizedDepots", []),
                     target_status=seed.get("targetStatus"),
+                    effective_date=seed.get("effectiveDate"),
+                    validation_summary=seed.get("validationSummary"),
+                    pricing_complete=seed.get("pricingComplete"),
+                    sourcing_complete=seed.get("sourcingComplete"),
                     created_at=now,
                     updated_at=now,
                 )

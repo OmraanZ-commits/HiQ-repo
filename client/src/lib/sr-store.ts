@@ -74,6 +74,18 @@ export interface BpDates {
   delistDate?: string;
 }
 
+export interface ValidationCheck {
+  status: string;
+  [key: string]: any;
+}
+
+export interface ValidationSummary {
+  demandVisibility: ValidationCheck & { totalUnits?: number; mocMonths?: number };
+  sourcingMatrixCheck: ValidationCheck & { mode?: string | null; details?: string };
+  priceCheck: ValidationCheck & { details?: string };
+  mstnCheck: ValidationCheck & { coverage?: number; threshold?: number };
+}
+
 export interface ApproverStep {
   role: string;
   label: string;
@@ -126,6 +138,11 @@ export interface ServiceRequest {
   currentNetworkChangeDate?: string | null;
   requestedDate?: string;
   effectiveDate?: string;
+
+  // ── Overview validation checks (snapshotted from Network Visibility at raise time) ──
+  validationSummary?: ValidationSummary;
+  pricingComplete?: boolean;
+  sourcingComplete?: boolean;
 
   // ── Common ─────────────────────────────────────────────────────────────────
   brand: string;
@@ -227,6 +244,9 @@ export function mapBackendSrToFrontend(sr: any): ServiceRequest {
     requestedCustomerMapping: sr.requestedCustomerMapping ?? {},
     requestedDate: sr.requestedDate ?? undefined,
     effectiveDate: sr.effectiveDate ?? undefined,
+    validationSummary: sr.validationSummary ?? undefined,
+    pricingComplete: sr.pricingComplete ?? undefined,
+    sourcingComplete: sr.sourcingComplete ?? undefined,
     brand: sr.brand || "",
     bg: sr.businessGroup || "",
     raisedBy: sr.raisedBy || "",

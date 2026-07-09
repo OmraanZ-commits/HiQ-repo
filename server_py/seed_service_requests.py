@@ -47,11 +47,12 @@ SR_SEEDS = [
         "addedGeos": ["HYDERABAD-A", "HYDERABAD-B"],
         "addedDepots": ["HYD-01"],
         "businessJustification": "Expanding to Hyderabad cluster per Q2 distribution plan.",
+        "effectiveDate": "2026-08-15",
         "approvers": [
-            {"label": "Network Planner",      "assignedTo": "Meera Nair",   "subLabel": "Network Review",        "status": "approved", "actionedAt": "2026-04-04T09:30:00Z", "rejectionReason": None},
-            {"label": "Supply Planner",       "assignedTo": "Rohan Das",    "subLabel": "Production Activities", "status": "pending",  "actionedAt": None,                    "rejectionReason": None},
-            {"label": "Distribution Planner", "assignedTo": "Anita Rao",    "subLabel": "Distribution Review",   "status": "waiting",  "actionedAt": None,                    "rejectionReason": None},
-            {"label": "NCSM",                 "assignedTo": "Suresh Kumar", "subLabel": "Final Approval",        "status": "waiting",  "actionedAt": None,                    "rejectionReason": None},
+            {"label": "Supply Planner",  "assignedTo": "Rohan Das",     "subLabel": "Feasibility Validation",        "status": "pending", "actionedAt": None, "rejectionReason": None, "comments": None, "effectiveDate": None},
+            {"label": "Demand Planner",  "assignedTo": "Meera Nair",    "subLabel": "Demand Signal Alignment",       "status": "waiting",  "actionedAt": None, "rejectionReason": None, "comments": None, "effectiveDate": None},
+            {"label": "Network Planner", "assignedTo": "Meera Nair",    "subLabel": "Pricing & Sourcing Validation", "status": "waiting",  "actionedAt": None, "rejectionReason": None, "comments": None, "effectiveDate": None},
+            {"label": "NCSM",            "assignedTo": "Suresh Kumar",  "subLabel": "Final Approval",                "status": "waiting",  "actionedAt": None, "rejectionReason": None, "comments": None, "effectiveDate": None},
         ],
     },
 
