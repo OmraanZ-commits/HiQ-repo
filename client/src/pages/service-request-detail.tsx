@@ -46,17 +46,21 @@ const TONE_BADGE: Record<string, string> = {
 };
 
 function ValidationCheckCard({
-  icon: Icon, title, status, detail, testId,
-}: { icon: any; title: string; status?: string; detail?: string; testId: string }) {
+  icon: Icon, title, subtitle, status, detail, testId,
+}: { icon: any; title: string; subtitle?: string; status?: string; detail?: string; testId: string }) {
   const tone = _checkTone(status);
   const ToneIcon = tone === "pass" ? CheckCircle2 : tone === "fail" ? XCircle : AlertTriangle;
   return (
     <div className={`rounded-xl border shadow-sm px-4 py-3.5 ${TONE_STYLES[tone]}`} data-testid={testId}>
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Icon className="h-4 w-4 text-muted-foreground" /> {title}
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground min-w-0">
+          <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">
+            {title}
+            {subtitle && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{subtitle}</span>}
+          </span>
         </div>
-        <ToneIcon className={`h-4 w-4 ${tone === "pass" ? "text-emerald-600" : tone === "fail" ? "text-red-600" : "text-amber-600"}`} />
+        <ToneIcon className={`h-4 w-4 flex-shrink-0 ${tone === "pass" ? "text-emerald-600" : tone === "fail" ? "text-red-600" : "text-amber-600"}`} />
       </div>
       <Badge variant="secondary" className={`text-xs border ${TONE_BADGE[tone]}`} data-testid={`badge-${testId}`}>
         {status || "—"}
@@ -194,47 +198,80 @@ export default function ServiceRequestDetailPage() {
             </div>
 
             {/* Validation checks (snapshotted from Network Visibility at raise time) */}
-            {request.validationSummary && (
-              <div>
-                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                  Validation Checks
-                </h2>
-                <div className="grid grid-cols-4 gap-4">
-                  <ValidationCheckCard
-                    icon={TrendingUp}
-                    title="Demand Visibility"
-                    status={request.validationSummary.demandVisibility.status}
-                    detail={
-                      request.validationSummary.demandVisibility.totalUnits
-                        ? `${request.validationSummary.demandVisibility.totalUnits.toLocaleString("en-IN")} units · ${request.validationSummary.demandVisibility.mocMonths ?? 0} mo MOC`
-                        : undefined
-                    }
-                    testId="check-demand-visibility"
-                  />
-                  <ValidationCheckCard
-                    icon={Network}
-                    title="Sourcing Matrix Check"
-                    status={request.validationSummary.sourcingMatrixCheck.status}
-                    detail={request.validationSummary.sourcingMatrixCheck.details}
-                    testId="check-sourcing-matrix"
-                  />
-                  <ValidationCheckCard
-                    icon={IndianRupee}
-                    title="Price Check"
-                    status={request.validationSummary.priceCheck.status}
-                    detail={request.validationSummary.priceCheck.details}
-                    testId="check-price"
-                  />
-                  <ValidationCheckCard
-                    icon={ShieldCheck}
-                    title="MSTN Check"
-                    status={request.validationSummary.mstnCheck.status}
-                    detail={`${request.validationSummary.mstnCheck.coverage ?? 0}% coverage (≥ ${request.validationSummary.mstnCheck.threshold ?? 80}% required)`}
-                    testId="check-mstn"
-                  />
+            {request.validationSummary && (() => {
+              const demandByCbu = request.validationSummary.demandVisibility.byCbu;
+              const hasMultiCbuDemand = Array.isArray(demandByCbu) && demandByCbu.length > 0;
+              return (
+                <div className="space-y-4">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                    Validation Checks
+                  </h2>
+
+                  {/* Demand Visibility — one card per CBU sharing this basepack */}
+                  <div>
+                    <h3 className="text-[11px] font-medium text-muted-foreground mb-2">
+                      Demand Visibility{hasMultiCbuDemand && demandByCbu!.length > 1 ? ` (${demandByCbu!.length} CBUs)` : ""}
+                    </h3>
+                    <div className="grid grid-cols-4 gap-4">
+                      {hasMultiCbuDemand ? (
+                        demandByCbu!.map((d, i) => (
+                          <ValidationCheckCard
+                            key={d.cbuCode || i}
+                            icon={TrendingUp}
+                            title={d.cbuCode || "Demand"}
+                            subtitle={d.cbuDescription}
+                            status={d.status}
+                            detail={
+                              d.totalUnits
+                                ? `${d.totalUnits.toLocaleString("en-IN")} units · ${d.mocMonths ?? 0} mo MOC`
+                                : undefined
+                            }
+                            testId={`check-demand-visibility-${d.cbuCode || i}`}
+                          />
+                        ))
+                      ) : (
+                        <ValidationCheckCard
+                          icon={TrendingUp}
+                          title="Demand Visibility"
+                          status={request.validationSummary.demandVisibility.status}
+                          detail={
+                            request.validationSummary.demandVisibility.totalUnits
+                              ? `${request.validationSummary.demandVisibility.totalUnits.toLocaleString("en-IN")} units · ${request.validationSummary.demandVisibility.mocMonths ?? 0} mo MOC`
+                              : undefined
+                          }
+                          testId="check-demand-visibility"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sourcing / Price / MSTN — CBU-level checks tied to this SR's own CBU */}
+                  <div className="grid grid-cols-4 gap-4">
+                    <ValidationCheckCard
+                      icon={Network}
+                      title="Sourcing Matrix Check"
+                      status={request.validationSummary.sourcingMatrixCheck.status}
+                      detail={request.validationSummary.sourcingMatrixCheck.details}
+                      testId="check-sourcing-matrix"
+                    />
+                    <ValidationCheckCard
+                      icon={IndianRupee}
+                      title="Price Check"
+                      status={request.validationSummary.priceCheck.status}
+                      detail={request.validationSummary.priceCheck.details}
+                      testId="check-price"
+                    />
+                    <ValidationCheckCard
+                      icon={ShieldCheck}
+                      title="MSTN Check"
+                      status={request.validationSummary.mstnCheck.status}
+                      detail={`${request.validationSummary.mstnCheck.coverage ?? 0}% coverage (≥ ${request.validationSummary.mstnCheck.threshold ?? 80}% required)`}
+                      testId="check-mstn"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ── CBU SR: two-card summary + change table + justification ── */}
             {isCbu && (

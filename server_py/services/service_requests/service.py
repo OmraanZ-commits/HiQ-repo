@@ -70,17 +70,63 @@ def _compute_validation_checks(cbu_code: Optional[str], basepack_code: Optional[
 
             basepack_code = basepack_code or entry.basepack
 
+        demand_by_cbu = []
         if basepack_code:
-            rows = db.query(DemandForecastEntryModel).filter(
+            all_rows = db.query(DemandForecastEntryModel).filter(
                 DemandForecastEntryModel.basepack == basepack_code
             ).all()
-            if rows:
-                total_units = sum(r.qty_units or 0 for r in rows)
-                moc_months = len({r.moc_month for r in rows if r.moc_month})
-                demand_visibility = {
+
+            # All CBUs (network entries) that share this basepack — demand is
+            # broken out per CBU since each CBU has its own depot footprint.
+            cbu_entries = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.basepack == basepack_code
+            ).order_by(NetworkEntryModel.created_at.asc()).all()
+
+            if cbu_entries:
+                seen_cbus = set()
+                for cbu_entry in cbu_entries:
+                    if not cbu_entry.cbu_code or cbu_entry.cbu_code in seen_cbus:
+                        continue
+                    seen_cbus.add(cbu_entry.cbu_code)
+                    cbu_depots = set(cbu_entry.depot or [])
+                    cbu_rows = [r for r in all_rows if r.depot in cbu_depots] if cbu_depots else []
+                    if cbu_rows:
+                        total_units = sum(r.qty_units or 0 for r in cbu_rows)
+                        moc_months = len({r.moc_month for r in cbu_rows if r.moc_month})
+                        demand_by_cbu.append({
+                            "cbuCode": cbu_entry.cbu_code,
+                            "cbuDescription": cbu_entry.material_description or cbu_entry.basepack_description,
+                            "status": "Available",
+                            "totalUnits": round(total_units),
+                            "mocMonths": moc_months,
+                        })
+                    else:
+                        demand_by_cbu.append({
+                            "cbuCode": cbu_entry.cbu_code,
+                            "cbuDescription": cbu_entry.material_description or cbu_entry.basepack_description,
+                            "status": "Not Available",
+                            "totalUnits": 0,
+                            "mocMonths": 0,
+                        })
+            elif all_rows:
+                # No CBU/network-entry breakdown available — fall back to a
+                # single basepack-level aggregate.
+                total_units = sum(r.qty_units or 0 for r in all_rows)
+                moc_months = len({r.moc_month for r in all_rows if r.moc_month})
+                demand_by_cbu.append({
+                    "cbuCode": cbu_code,
                     "status": "Available",
                     "totalUnits": round(total_units),
                     "mocMonths": moc_months,
+                })
+
+            if demand_by_cbu:
+                available = [d for d in demand_by_cbu if d["status"] == "Available"]
+                demand_visibility = {
+                    "status": "Available" if available else "Not Available",
+                    "totalUnits": round(sum(d["totalUnits"] for d in demand_by_cbu)),
+                    "mocMonths": max((d["mocMonths"] for d in demand_by_cbu), default=0),
+                    "byCbu": demand_by_cbu,
                 }
     finally:
         db.close()

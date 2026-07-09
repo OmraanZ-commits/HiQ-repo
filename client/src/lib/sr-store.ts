@@ -79,8 +79,20 @@ export interface ValidationCheck {
   [key: string]: any;
 }
 
+export interface DemandVisibilityByCbu {
+  cbuCode?: string;
+  cbuDescription?: string;
+  status: string;
+  totalUnits?: number;
+  mocMonths?: number;
+}
+
 export interface ValidationSummary {
-  demandVisibility: ValidationCheck & { totalUnits?: number; mocMonths?: number };
+  demandVisibility: ValidationCheck & {
+    totalUnits?: number;
+    mocMonths?: number;
+    byCbu?: DemandVisibilityByCbu[];
+  };
   sourcingMatrixCheck: ValidationCheck & { mode?: string | null; details?: string };
   priceCheck: ValidationCheck & { details?: string };
   mstnCheck: ValidationCheck & { coverage?: number; threshold?: number };

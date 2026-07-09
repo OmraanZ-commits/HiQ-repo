@@ -1,4 +1,5 @@
 - [Paid Bible Summary Tab](paid-bible-summary-tab.md) — summary page derives basepacks from NetworkEntry directly; PbBasepack/PbMaterial not exported from paid-bible.tsx
 - [MultiSelectFilter checkbox testid placement](multiselect-filter-checkbox-testid.md) — put data-testid/click target on the row div, not the (pointer-events-none) checkbox
 - [drizzle-kit push vs SQLAlchemy create_all](drizzle-push-vs-sqlalchemy.md) — new tables don't need drizzle-kit push here; backend create_tables() already handles it, and push can get stuck on an unrelated interactive prompt
-- [SR approval chain blocking semantics](sr-approval-chain-blocking.md) — Network Planner block only fires on explicit False pricingComplete/sourcingComplete; nothing populates those fields yet
+- [SR approval chain blocking semantics](sr-approval-chain-blocking.md) — Network Planner block only fires on explicit False pricingComplete/sourcingComplete; now populated at raise/seed time from real Network Visibility data
+- [SR Demand Visibility is per-CBU](sr-demand-visibility-by-cbu.md) — a basepack can have multiple CBUs; Demand Visibility must show one card per CBU, not a single basepack-level aggregate
