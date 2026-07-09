@@ -36,27 +36,48 @@ export function SrStatusBadge({ status }: { status: "pending" | "approved" | "re
 export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
   approvers: ApproverStep[];
   requestId: string;
-  onApprove: (id: string, idx: number, comment?: string) => void;
+  onApprove: (id: string, idx: number, comment?: string, effectiveDate?: string) => void;
   onReject: (id: string, idx: number, reason: string) => void;
 }) {
   const [rejectingIdx, setRejectingIdx] = useState<number | null>(null);
   const [approvingIdx, setApprovingIdx] = useState<number | null>(null);
   const [approvalComment, setApprovalComment] = useState("");
+  const [approvalEffectiveDate, setApprovalEffectiveDate] = useState("");
   const [selectedReason, setSelectedReason] = useState("");
   const [otherComment, setOtherComment] = useState("");
 
   const isOther = selectedReason === OTHER_REASON;
   const canSubmit = !!selectedReason && (!isOther || otherComment.trim().length > 0);
 
+  const isSupplyPlannerStep = (idx: number) => approvers[idx]?.label === "Supply Planner";
+  const currentSrEffectiveDate = approvers.find(a => a.effectiveDate)?.effectiveDate;
+  const effectiveDateChanged = (idx: number) =>
+    isSupplyPlannerStep(idx) && !!approvalEffectiveDate &&
+    approvalEffectiveDate !== (approvers[idx]?.effectiveDate ?? currentSrEffectiveDate);
+
+  const approveCommentRequired = (idx: number) =>
+    isSupplyPlannerStep(idx) && effectiveDateChanged(idx);
+
+  const canSubmitApprove = (idx: number) =>
+    !approveCommentRequired(idx) || approvalComment.trim().length > 0;
+
   const submitApprove = (idx: number) => {
-    onApprove(requestId, idx, approvalComment);
+    if (!canSubmitApprove(idx)) return;
+    onApprove(
+      requestId,
+      idx,
+      approvalComment,
+      isSupplyPlannerStep(idx) ? (approvalEffectiveDate || undefined) : undefined,
+    );
     setApprovingIdx(null);
     setApprovalComment("");
+    setApprovalEffectiveDate("");
   };
 
   const cancelApprove = () => {
     setApprovingIdx(null);
     setApprovalComment("");
+    setApprovalEffectiveDate("");
   };
 
   const submitReject = (idx: number) => {
@@ -134,7 +155,11 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
                       className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => { setApprovingIdx(idx); setApprovalComment(""); }}
+                      onClick={() => {
+                        setApprovingIdx(idx);
+                        setApprovalComment("");
+                        setApprovalEffectiveDate(step.effectiveDate ?? currentSrEffectiveDate ?? "");
+                      }}
                       data-testid={`button-approve-${requestId}-${idx}`}
                     >
                       <ThumbsUp className="h-4 w-4" /> Approve
@@ -155,9 +180,33 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
               {step.status === "pending" && approvingIdx === idx && (
                 <div className="mt-3 p-4 rounded-lg border border-emerald-200 bg-emerald-50 space-y-3">
                   <p className="text-sm font-medium text-emerald-800">Confirm approval</p>
+
+                  {isSupplyPlannerStep(idx) && (
+                    <div>
+                      <Label className="text-xs font-medium text-emerald-800 mb-1.5 block">
+                        Effective Date
+                      </Label>
+                      <input
+                        type="date"
+                        value={approvalEffectiveDate}
+                        onChange={e => setApprovalEffectiveDate(e.target.value)}
+                        className="h-9 w-full max-w-[220px] rounded-md border border-emerald-200 bg-white px-3 text-sm"
+                        data-testid={`input-approve-effective-date-${requestId}-${idx}`}
+                      />
+                      {effectiveDateChanged(idx) && (
+                        <p className="text-xs text-amber-700 mt-1">
+                          Effective date is being modified — a comment is required below.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <Label className="text-xs font-medium text-emerald-800 mb-1.5 block">
-                      Comment <span className="font-normal text-emerald-600">(optional)</span>
+                      Comment{" "}
+                      <span className={approveCommentRequired(idx) ? "font-normal text-red-600" : "font-normal text-emerald-600"}>
+                        {approveCommentRequired(idx) ? "(required)" : "(optional)"}
+                      </span>
                     </Label>
                     <Textarea
                       value={approvalComment}
@@ -171,6 +220,7 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
                   <div className="flex items-center gap-2 pt-1">
                     <Button
                       className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      disabled={!canSubmitApprove(idx)}
                       onClick={() => submitApprove(idx)}
                       data-testid={`button-confirm-approve-${requestId}-${idx}`}
                     >

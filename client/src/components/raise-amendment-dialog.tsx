@@ -86,20 +86,13 @@ function buildApprovers(
               ?? assignedPerson
               ?? "Unassigned";
 
-  const networkPlanner: ApproverStep = {
-    role: "network-planner", label: "Network Planner", subLabel: "Network Review",
-    assignedTo: npName, status: "pending",
-  };
-
-  if (cbuNetworkStatus !== "Network transition complete") {
-    return [networkPlanner];
-  }
-
+  // New unified 4-stage approval chain for all amendments / manual SRs:
+  // Supply Planner -> Demand Planner -> Network Planner -> NCSM.
   return [
-    networkPlanner,
-    { role: "supply-planner",       label: "Supply Planner",       subLabel: "Production Activities", assignedTo: byRole("Supply Planner"),       status: "waiting" },
-    { role: "distribution-planner", label: "Distribution Planner", subLabel: "Logistics Activities",  assignedTo: byRole("Distribution Planner"), status: "waiting" },
-    { role: "ncsm",                 label: "NCSM",                 subLabel: "Final Approval",        assignedTo: byRole("NCSM"),                status: "waiting" },
+    { role: "supply-planner", label: "Supply Planner", subLabel: "Feasibility Validation", assignedTo: byRole("Supply Planner"), status: "pending" },
+    { role: "demand-planner", label: "Demand Planner", subLabel: "Demand Signal Alignment", assignedTo: byRole("Demand Planner"), status: "waiting" },
+    { role: "network-planner", label: "Network Planner", subLabel: "Pricing & Sourcing Validation", assignedTo: npName, status: "waiting" },
+    { role: "ncsm", label: "NCSM", subLabel: "Final Approval", assignedTo: byRole("NCSM"), status: "waiting" },
   ];
 }
 
@@ -1167,6 +1160,7 @@ function SummaryView({
   customerMapping, requestedCustomerMapping,
   currentNetworkChangeDate, requestedDate, mstnNote,
   justification, setJustification, cbuNetworkStatus,
+  effectiveDate, setEffectiveDate, minEffectiveDate, effectiveDateValid,
 }: {
   amendmentType: SrType;
   currentGeo: string[];
@@ -1190,6 +1184,10 @@ function SummaryView({
   justification: string;
   setJustification: (v: string) => void;
   cbuNetworkStatus?: string;
+  effectiveDate: string;
+  setEffectiveDate: (v: string) => void;
+  minEffectiveDate: string;
+  effectiveDateValid: boolean;
 }) {
   const keptGeos = currentGeo.filter(g => !removedGeos.includes(g));
 
@@ -1415,16 +1413,34 @@ function SummaryView({
         />
       </div>
 
+      {/* Effective Date */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">
+          Effective Date <span className="text-red-500">*</span>
+        </Label>
+        <input
+          type="date"
+          value={effectiveDate}
+          min={minEffectiveDate}
+          onChange={e => setEffectiveDate(e.target.value)}
+          className="h-9 w-full max-w-[220px] rounded-md border border-input bg-background px-3 text-sm"
+          data-testid="input-effective-date"
+        />
+        <p className="text-xs text-muted-foreground">
+          Must be a future date. The Supply Planner may adjust this during feasibility review.
+        </p>
+        {effectiveDate && !effectiveDateValid && (
+          <p className="text-xs text-red-600">Effective date must be later than today.</p>
+        )}
+      </div>
+
       {/* Approval chain */}
       <div className="rounded-lg border bg-muted/20 px-4 py-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
           Approval Chain
         </p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {(cbuNetworkStatus === "Network transition complete"
-            ? ["Network Planner", "Supply Planner", "Distribution Planner", "NCSM"]
-            : ["Network Planner"]
-          ).map((role, i, arr) => (
+          {["Supply Planner", "Demand Planner", "Network Planner", "NCSM"].map((role, i, arr) => (
             <span key={role} className="flex items-center gap-1.5">
               <span className="text-xs bg-white border rounded-full px-2.5 py-0.5 font-medium">{role}</span>
               {i < arr.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
@@ -1533,7 +1549,16 @@ export function RaiseAmendmentDialog({
   const [mstnNote,      setMstnNote]      = useState("");
 
   const [justification, setJustification] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState("");
   const [submitting,    setSubmitting]    = useState(false);
+
+  const minEffectiveDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const effectiveDateValid = !!effectiveDate && effectiveDate >= minEffectiveDate;
 
   const currentStepIdx = STEPS.indexOf(step);
 
@@ -1572,12 +1597,13 @@ export function RaiseAmendmentDialog({
     setRequestedDate("");
     setMstnNote("");
     setJustification("");
+    setEffectiveDate("");
   };
 
   const handleClose = () => { onOpenChange(false); reset(); };
 
   const handleSubmit = async () => {
-    if (!amendmentType || !justification.trim()) return;
+    if (!amendmentType || !justification.trim() || !effectiveDateValid) return;
     setSubmitting(true);
 
     let currentValue = "";
@@ -1646,6 +1672,7 @@ export function RaiseAmendmentDialog({
       requestedCustomerMapping: amendmentType === "customer-chain-amendment" ? requestedCustomerMapping : undefined,
       requestedDate: amendmentType === "network-change-date-amendment" ? requestedDate : undefined,
       currentNetworkChangeDate: amendmentType === "network-change-date-amendment" ? currentNetworkChangeDate : undefined,
+      effectiveDate,
     };
 
     try {
@@ -1673,6 +1700,7 @@ export function RaiseAmendmentDialog({
         centralizedDepots: [],
         requestedCustomerMapping: amendmentType === "customer-chain-amendment" ? requestedCustomerMapping : undefined,
         requestedDate: amendmentType === "network-change-date-amendment" ? requestedDate : undefined,
+        effectiveDate,
         approvers,
       });
     } catch {
@@ -1892,6 +1920,10 @@ export function RaiseAmendmentDialog({
               justification={justification}
               setJustification={setJustification}
               cbuNetworkStatus={cbuNetworkStatus}
+              effectiveDate={effectiveDate}
+              setEffectiveDate={setEffectiveDate}
+              minEffectiveDate={minEffectiveDate}
+              effectiveDateValid={effectiveDateValid}
             />
           )}
         </div>
@@ -1934,7 +1966,7 @@ export function RaiseAmendmentDialog({
 
           {step === "summary" && (
             <Button
-              disabled={!justification.trim() || submitting}
+              disabled={!justification.trim() || !effectiveDateValid || submitting}
               onClick={handleSubmit}
               className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
               data-testid="button-submit-amendment"

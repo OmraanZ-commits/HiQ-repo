@@ -323,10 +323,10 @@ SR_TYPES = [
 ]
 
 APPROVER_CHAIN_TEMPLATE = [
-    {"role": "Network Planner",      "label": "Network Planner",      "subLabel": "Network Review"},
-    {"role": "Supply Planner",       "label": "Supply Planner",       "subLabel": "Production Activities"},
-    {"role": "Distribution Planner", "label": "Distribution Planner", "subLabel": "Distribution Review"},
-    {"role": "NCSM",                 "label": "NCSM",                 "subLabel": "Final Approval"},
+    {"role": "Supply Planner",  "label": "Supply Planner",  "subLabel": "Feasibility Validation"},
+    {"role": "Demand Planner",  "label": "Demand Planner",  "subLabel": "Demand Signal Alignment"},
+    {"role": "Network Planner", "label": "Network Planner", "subLabel": "Pricing & Sourcing Validation"},
+    {"role": "NCSM",            "label": "NCSM",             "subLabel": "Final Approval"},
 ]
 
 MSTN_ACTIVE_STATUSES = {
@@ -361,6 +361,8 @@ class ApproverStep(BaseModel):
     status: str = "waiting"  # "pending" | "approved" | "rejected" | "waiting"
     actionedAt: Optional[str] = None
     rejectionReason: Optional[str] = None
+    comments: Optional[str] = None
+    effectiveDate: Optional[str] = None  # captured/validated at Supply Planner step; may be modified there
 
 
 class ServiceRequestBase(BaseModel):
@@ -395,6 +397,7 @@ class ServiceRequestBase(BaseModel):
     removedChains: Optional[List[str]] = Field(default_factory=list)
     requestedCustomerMapping: Optional[dict] = None
     requestedDate: Optional[str] = None
+    effectiveDate: Optional[str] = None  # captured at raise time by Paid Bible Owner; must be > today
 
 
 class InsertServiceRequest(ServiceRequestBase):
@@ -412,6 +415,8 @@ class ServiceRequestResponse(ServiceRequestBase):
 class ApproveStepRequest(BaseModel):
     stepIndex: int
     actionedBy: str
+    comments: Optional[str] = None
+    effectiveDate: Optional[str] = None  # Supply Planner may modify the effective date on approval
 
 
 class RejectStepRequest(BaseModel):

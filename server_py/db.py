@@ -286,6 +286,7 @@ class ServiceRequestModel(Base):
     removed_chains = Column(JSONB, nullable=True, default=[])
     requested_customer_mapping = Column(JSONB, nullable=True)
     requested_date = Column(String, nullable=True)
+    effective_date = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
@@ -575,6 +576,9 @@ def run_migrations():
         ))
         conn.execute(text(
             "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS requested_date VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS effective_date VARCHAR"
         ))
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS sourcing_mode VARCHAR"
@@ -891,6 +895,60 @@ def run_migrations():
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_ccr_rules_cell ON ccr_rules (account_id, change_type, ean_scenario)"
         ))
         conn.commit()
+
+
+def migrate_sr_approval_chain():
+    """
+    One-time migration: remap any in-flight (status='pending') service requests
+    from the old approval chain shape (Network Planner -> Supply Planner ->
+    Distribution Planner -> NCSM, or single-step Network Planner) to the new
+    4-stage chain (Supply Planner -> Demand Planner -> Network Planner -> NCSM).
+
+    Strategy: preserve assignedTo per role where the role name matches between
+    old and new chains (Supply Planner, Network Planner, NCSM); "Demand Planner"
+    has no equivalent in the old chain so it is left "Unassigned". The chain is
+    restarted at step 0 (Supply Planner pending) since feasibility validation
+    must occur before any of the other new-chain checks are meaningful.
+    """
+    from server_py.models import APPROVER_CHAIN_TEMPLATE
+
+    db = SessionLocal()
+    try:
+        rows = db.query(ServiceRequestModel).filter(
+            ServiceRequestModel.status == "pending"
+        ).all()
+        new_role_labels = {step["label"] for step in APPROVER_CHAIN_TEMPLATE}
+        for row in rows:
+            approvers = row.approvers or []
+            already_migrated = (
+                len(approvers) == len(APPROVER_CHAIN_TEMPLATE)
+                and all(a.get("label") in new_role_labels for a in approvers)
+                and [a.get("label") for a in approvers] == [s["label"] for s in APPROVER_CHAIN_TEMPLATE]
+            )
+            if already_migrated:
+                continue
+
+            old_by_label = {a.get("label"): a for a in approvers}
+            rebuilt = []
+            for i, step in enumerate(APPROVER_CHAIN_TEMPLATE):
+                old_step = old_by_label.get(step["label"])
+                assigned_to = (old_step or {}).get("assignedTo") or step["role"]
+                rebuilt.append({
+                    "label": step["label"],
+                    "assignedTo": assigned_to,
+                    "subLabel": step["subLabel"],
+                    "status": "pending" if i == 0 else "waiting",
+                    "actionedAt": None,
+                    "rejectionReason": None,
+                    "comments": None,
+                    "effectiveDate": None,
+                })
+            row.approvers = rebuilt
+            if not row.effective_date and row.requested_date:
+                row.effective_date = row.requested_date
+        db.commit()
+    finally:
+        db.close()
 
 
 FIELD_MAP_TO_DB = {

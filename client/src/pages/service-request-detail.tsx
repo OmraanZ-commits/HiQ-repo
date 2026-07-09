@@ -175,6 +175,11 @@ export default function ServiceRequestDetailPage() {
                   <div className="rounded-xl border bg-white shadow-sm px-5 py-4 divide-y divide-border/60">
                     <FieldCell label="Raised By">{request.raisedBy}</FieldCell>
                     <FieldCell label="Created On">{request.raisedAt}</FieldCell>
+                    {request.effectiveDate && (
+                      <FieldCell label="Effective Date">
+                        <span className="font-mono" data-testid="text-effective-date">{request.effectiveDate}</span>
+                      </FieldCell>
+                    )}
                     <FieldCell label="Pending With">
                       <div>
                         <div className="font-medium">{pendingApprover?.assignedTo ?? pendingApprover?.label ?? "—"}</div>
@@ -487,7 +492,7 @@ export default function ServiceRequestDetailPage() {
               <ApproverChain
                 approvers={request.approvers}
                 requestId={request.id}
-                onApprove={(reqId, idx, comment) => approveStep(reqId, idx, comment)}
+                onApprove={(reqId, idx, comment, effectiveDate) => approveStep(reqId, idx, comment, effectiveDate)}
                 onReject={(reqId, idx, reason) => rejectStep(reqId, idx, reason)}
               />
             </div>

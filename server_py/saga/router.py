@@ -196,6 +196,8 @@ async def execute_reference_data_saga():
 class SrApproveRequest(BaseModel):
     stepIndex: int
     actionedBy: str
+    comments: Optional[str] = None
+    effectiveDate: Optional[str] = None
 
 
 class SrRejectRequest(BaseModel):
@@ -221,7 +223,12 @@ async def execute_sr_approve(sr_id: str, req: SrApproveRequest):
         list_master_service=_list_service,
         paid_bible_service=_paid_bible_service,
     )
-    result = saga.approve(step_index=req.stepIndex, actioned_by=req.actionedBy)
+    result = saga.approve(
+        step_index=req.stepIndex,
+        actioned_by=req.actionedBy,
+        comments=req.comments,
+        effective_date=req.effectiveDate,
+    )
 
     if result["status"] not in ("completed",):
         raise HTTPException(status_code=400, detail=result)

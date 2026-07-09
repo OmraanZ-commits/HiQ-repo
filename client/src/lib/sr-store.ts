@@ -83,6 +83,8 @@ export interface ApproverStep {
   actedAt?: string;
   rejectionReason?: string;
   approvalComment?: string;
+  comments?: string;
+  effectiveDate?: string;
 }
 
 export interface ServiceRequest {
@@ -123,6 +125,7 @@ export interface ServiceRequest {
   requestedCustomerMapping?: Record<string, string[]>;
   currentNetworkChangeDate?: string | null;
   requestedDate?: string;
+  effectiveDate?: string;
 
   // ── Common ─────────────────────────────────────────────────────────────────
   brand: string;
@@ -174,7 +177,9 @@ function _mapApproverFromBackend(a: any): ApproverStep {
     status: a.status as ApproverStep["status"],
     actedAt: a.actionedAt ? _formatDate(a.actionedAt) : undefined,
     rejectionReason: a.rejectionReason ?? undefined,
-    approvalComment: a.approvalComment ?? undefined,
+    approvalComment: a.approvalComment ?? a.comments ?? undefined,
+    comments: a.comments ?? undefined,
+    effectiveDate: a.effectiveDate ?? undefined,
   };
 }
 
@@ -186,6 +191,8 @@ function _mapApproverToBackend(a: ApproverStep): any {
     status: a.status,
     actionedAt: a.actedAt ?? null,
     rejectionReason: a.rejectionReason ?? null,
+    comments: a.comments ?? null,
+    effectiveDate: a.effectiveDate ?? null,
   };
 }
 
@@ -219,6 +226,7 @@ export function mapBackendSrToFrontend(sr: any): ServiceRequest {
     removedChains: sr.removedChains ?? [],
     requestedCustomerMapping: sr.requestedCustomerMapping ?? {},
     requestedDate: sr.requestedDate ?? undefined,
+    effectiveDate: sr.effectiveDate ?? undefined,
     brand: sr.brand || "",
     bg: sr.businessGroup || "",
     raisedBy: sr.raisedBy || "",
@@ -257,6 +265,7 @@ function _mapFrontendSrToBackend(sr: ServiceRequest): any {
     removedChains: sr.removedChains ?? [],
     requestedCustomerMapping: sr.requestedCustomerMapping ?? undefined,
     requestedDate: sr.requestedDate ?? undefined,
+    effectiveDate: sr.effectiveDate ?? undefined,
     approvers: (sr.approvers ?? []).map(_mapApproverToBackend),
   };
 }
@@ -386,7 +395,7 @@ export function addRequest(req: ServiceRequest): void {
     });
 }
 
-export function approveStep(requestId: string, stepIndex: number, comment?: string): void {
+export function approveStep(requestId: string, stepIndex: number, comment?: string, effectiveDate?: string): void {
   const now = formatNow();
   let fullyApprovedSr: ServiceRequest | null = null;
 
@@ -394,7 +403,7 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
   _requests = _requests.map(sr => {
     if (sr.id !== requestId) return sr;
     const approvers = sr.approvers.map((a, i) => {
-      if (i === stepIndex) return { ...a, status: "approved" as const, actedAt: now, approvalComment: comment?.trim() || undefined };
+      if (i === stepIndex) return { ...a, status: "approved" as const, actedAt: now, approvalComment: comment?.trim() || undefined, comments: comment?.trim() || undefined, effectiveDate: effectiveDate ?? a.effectiveDate };
       if (i === stepIndex + 1) return { ...a, status: "pending" as const };
       return a;
     });
@@ -455,7 +464,9 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
   // Persist approval to backend via saga
   apiRequest("POST", `/api/saga/sr-approve/${requestId}`, {
     stepIndex,
-    actionedBy: comment ? `${comment.slice(0, 20)}` : "Portal User",
+    actionedBy: "Portal User",
+    comments: comment?.trim() || undefined,
+    effectiveDate: effectiveDate ?? undefined,
   }).then(() => {
     // Refresh backend state after saga completes
     queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });

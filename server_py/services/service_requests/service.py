@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional, List
 
 from server_py.models import (
@@ -17,7 +17,8 @@ def _now_iso() -> str:
 
 def _build_approvers(assigned_users: Optional[dict] = None) -> list:
     """
-    Build the initial 4-step approver chain.
+    Build the initial 4-step approver chain:
+    Supply Planner -> Demand Planner -> Network Planner -> NCSM.
     assigned_users: dict of role -> user name (looked up from users service at raise time).
     First step is "pending", rest are "waiting".
     """
@@ -31,6 +32,8 @@ def _build_approvers(assigned_users: Optional[dict] = None) -> list:
             "status": "pending" if i == 0 else "waiting",
             "actionedAt": None,
             "rejectionReason": None,
+            "comments": None,
+            "effectiveDate": None,
         })
     return chain
 
@@ -49,6 +52,15 @@ class ServiceRequestService:
     def raise_sr(self, data: InsertServiceRequest, assigned_users: Optional[dict] = None) -> dict:
         if data.srType not in SR_TYPES:
             raise ValueError(f"Invalid SR type: {data.srType}")
+
+        if not data.effectiveDate:
+            raise ValueError("effectiveDate is required when raising a service request")
+        try:
+            eff = datetime.fromisoformat(data.effectiveDate[:10]).date()
+        except ValueError:
+            raise ValueError(f"Invalid effectiveDate: {data.effectiveDate}")
+        if eff <= date.today():
+            raise ValueError("effectiveDate must be strictly greater than today")
 
         approvers = _build_approvers(assigned_users)
         payload = data.model_dump()
@@ -70,8 +82,37 @@ class ServiceRequestService:
         if approvers[step_index]["status"] != "pending":
             raise ValueError(f"Step {step_index} is not pending")
 
+        step_label = approvers[step_index].get("label")
+        new_effective_date = None
+
+        # Supply Planner (step 0): may modify the Effective Date on approval.
+        # Any modification is a mandatory-comment action.
+        if step_label == "Supply Planner" and req.effectiveDate:
+            if req.effectiveDate != sr.get("effectiveDate"):
+                if not req.comments or not req.comments.strip():
+                    raise ValueError("Comments are mandatory when modifying the Effective Date")
+                try:
+                    eff = datetime.fromisoformat(req.effectiveDate[:10]).date()
+                except ValueError:
+                    raise ValueError(f"Invalid effectiveDate: {req.effectiveDate}")
+                if eff <= date.today():
+                    raise ValueError("effectiveDate must be strictly greater than today")
+                new_effective_date = req.effectiveDate
+            approvers[step_index]["effectiveDate"] = req.effectiveDate
+
+        # Network Planner (step 2): approval is BLOCKED unless pricing + sourcing
+        # validation has already been recorded as complete on the SR payload.
+        if step_label == "Network Planner":
+            if sr.get("pricingComplete") is False or sr.get("sourcingComplete") is False:
+                raise ValueError(
+                    "Network Planner approval is blocked: pricing and/or sourcing "
+                    "matrix validation is incomplete for this request"
+                )
+
         approvers[step_index]["status"] = "approved"
         approvers[step_index]["actionedAt"] = _now_iso()
+        if req.comments:
+            approvers[step_index]["comments"] = req.comments
 
         is_last = step_index == len(approvers) - 1
         if is_last:
@@ -80,7 +121,9 @@ class ServiceRequestService:
             approvers[step_index + 1]["status"] = "pending"
             overall_status = "pending"
 
-        return self.storage.update_approvers(sr_id, approvers, overall_status)
+        return self.storage.update_approvers(
+            sr_id, approvers, overall_status, effective_date=new_effective_date
+        )
 
     def seed_requests(self, seeds: list) -> None:
         """Insert seed SRs if they don't already exist (idempotent by id)."""
@@ -93,6 +136,9 @@ class ServiceRequestService:
         if sr["status"] != "pending":
             raise ValueError(f"SR is already {sr['status']}")
 
+        if not req.reason or not req.reason.strip():
+            raise ValueError("Comments are mandatory when rejecting a step")
+
         approvers = list(sr["approvers"])
         step_index = req.stepIndex
 
@@ -104,6 +150,7 @@ class ServiceRequestService:
         approvers[step_index]["status"] = "rejected"
         approvers[step_index]["actionedAt"] = _now_iso()
         approvers[step_index]["rejectionReason"] = req.reason
+        approvers[step_index]["comments"] = req.reason
 
         return self.storage.update_approvers(
             sr_id, approvers, "rejected", rejection_reason=req.reason

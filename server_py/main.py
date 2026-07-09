@@ -4,7 +4,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from server_py.db import create_tables, run_migrations
+from server_py.db import create_tables, run_migrations, migrate_sr_approval_chain
 from server_py.seed_data import SEEDS
 
 from server_py.services.list_master.storage import ListMasterStorage
@@ -113,6 +113,7 @@ app.include_router(demand_forecast_router, prefix="/api/demand-forecast", tags=[
 async def startup():
     create_tables()
     run_migrations()
+    migrate_sr_approval_chain()
 
     list_storage = ListMasterStorage()
     list_service = ListMasterService(list_storage)

@@ -54,7 +54,8 @@ class SrApprovalSaga:
             "at": _now_iso(),
         })
 
-    def approve(self, step_index: int, actioned_by: str) -> dict:
+    def approve(self, step_index: int, actioned_by: str,
+                comments: Optional[str] = None, effective_date: Optional[str] = None) -> dict:
         """
         Advance one approval step.
         On final approval, apply the SR-type-specific effect.
@@ -64,7 +65,10 @@ class SrApprovalSaga:
             if not sr:
                 raise LookupError(f"SR {self.sr_id} not found")
 
-            req = ApproveStepRequest(stepIndex=step_index, actionedBy=actioned_by)
+            req = ApproveStepRequest(
+                stepIndex=step_index, actionedBy=actioned_by,
+                comments=comments, effectiveDate=effective_date,
+            )
             updated_sr = self.sr_service.approve_step(self.sr_id, req)
             self._log_step("approve_step", "completed", result={
                 "stepIndex": step_index,
