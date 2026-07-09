@@ -1,1 +1,2 @@
 - [Paid Bible Summary Tab](paid-bible-summary-tab.md) — summary page derives basepacks from NetworkEntry directly; PbBasepack/PbMaterial not exported from paid-bible.tsx
+- [MultiSelectFilter checkbox testid placement](multiselect-filter-checkbox-testid.md) — put data-testid/click target on the row div, not the (pointer-events-none) checkbox

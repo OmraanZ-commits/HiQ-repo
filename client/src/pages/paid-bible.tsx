@@ -8,6 +8,7 @@ import { getNetworkChangeTypeName } from "@/lib/constants";
 import { formatDateDisplay } from "@/lib/date-utils";
 import type { ServiceRequest, MaterialCriteria, ApproverStep, SrType, BpDates } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
+import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { type PendingSrRef } from "@/components/basepack-cbu-sections";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
@@ -904,76 +905,6 @@ function BasepackHistoryPanel({ bp, allRequests, navigate }: {
         );
       })}
     </div>
-  );
-}
-
-// ─── MultiSelectFilter ───────────────────────────────────────────────────────
-
-function MultiSelectFilter({
-  options,
-  value,
-  onChange,
-  placeholder = "All",
-  testId,
-  width = "w-44",
-}: {
-  options: { value: string; label: string }[];
-  value: string[];
-  onChange: (vals: string[]) => void;
-  placeholder?: string;
-  testId?: string;
-  width?: string;
-}) {
-  const toggle = (v: string) =>
-    onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v]);
-
-  const displayLabel =
-    value.length === 0
-      ? placeholder
-      : value.length === 1
-      ? (options.find(o => o.value === value[0])?.label ?? value[0])
-      : `${value.length} selected`;
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={`${width} h-9 justify-between font-normal text-sm px-3`}
-          data-testid={testId}
-        >
-          <span className={`truncate ${value.length === 0 ? "text-muted-foreground" : ""}`}>{displayLabel}</span>
-          <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0 ml-1" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-52 p-2" align="start">
-        <div className="space-y-0.5 max-h-64 overflow-y-auto">
-          {options.map(opt => (
-            <div
-              key={opt.value}
-              className="flex items-center gap-2 rounded-sm px-2 py-1.5 cursor-pointer hover:bg-muted/60 select-none"
-              onClick={() => toggle(opt.value)}
-            >
-              <Checkbox
-                checked={value.includes(opt.value)}
-                onCheckedChange={() => toggle(opt.value)}
-                className="pointer-events-none"
-                data-testid={`${testId ?? "msf"}-opt-${opt.value}`}
-              />
-              <span className="text-sm">{opt.label}</span>
-            </div>
-          ))}
-        </div>
-        {value.length > 0 && (
-          <div className="border-t mt-2 pt-2">
-            <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => onChange([])}>
-              Clear
-            </Button>
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
   );
 }
 

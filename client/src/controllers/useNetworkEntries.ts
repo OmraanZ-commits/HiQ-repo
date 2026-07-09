@@ -10,6 +10,16 @@ export function useNetworkEntries() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
+  // Multi-select hierarchy filters (Overview page requirement)
+  const [bgFilter, setBgFilter] = useState<string[]>([]);
+  const [salesCategoryFilter, setSalesCategoryFilter] = useState<string[]>([]);
+  const [smallCFilter, setSmallCFilter] = useState<string[]>([]);
+  const [formatFilter, setFormatFilter] = useState<string[]>([]);
+  const [packStatusFilter, setPackStatusFilter] = useState<string[]>([]);
+  const [channelFilter, setChannelFilter] = useState<string[]>([]);
+  const [subChannelFilter, setSubChannelFilter] = useState<string[]>([]);
+  const [customerChainFilter, setCustomerChainFilter] = useState<string[]>([]);
+
   const { data: entries = [], isLoading } = useQuery<NetworkEntry[]>({
     queryKey: ["/api/network-entries"],
   });
@@ -26,6 +36,10 @@ export function useNetworkEntries() {
     },
   });
 
+  // Sub Channel and Customer Chain filters only apply when "MT" is one of the
+  // selected channels — otherwise they are ignored even if a stale selection exists.
+  const isMtChannelSelected = channelFilter.includes("MT");
+
   const filteredEntries = entries.filter(entry => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery ||
@@ -33,7 +47,25 @@ export function useNetworkEntries() {
       (entry.materialDescription?.toLowerCase().includes(q)) ||
       (entry.brand?.toLowerCase().includes(q));
     const matchesStatus = statusFilter === "all" || entry.networkStatus === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    const matchesBg = bgFilter.length === 0 || bgFilter.includes(entry.bg ?? "");
+    const matchesSalesCategory = salesCategoryFilter.length === 0 || salesCategoryFilter.includes(entry.salesCategory ?? "");
+    const matchesSmallC = smallCFilter.length === 0 || smallCFilter.includes(entry.smallC ?? "");
+    const matchesFormat = formatFilter.length === 0 || formatFilter.includes(entry.format ?? "");
+    const matchesPackStatus = packStatusFilter.length === 0 || packStatusFilter.includes(entry.networkStatus ?? "");
+    const matchesChannel = channelFilter.length === 0 || (entry.channel ?? []).some(c => channelFilter.includes(c));
+
+    const entrySubChannels = Object.values(entry.channelMapping ?? {}).flat();
+    const matchesSubChannel = !isMtChannelSelected || subChannelFilter.length === 0 ||
+      entrySubChannels.some(sc => subChannelFilter.includes(sc));
+
+    const entryCustomerChains = Object.values(entry.customerMapping ?? {}).flat();
+    const matchesCustomerChain = !isMtChannelSelected || customerChainFilter.length === 0 ||
+      entryCustomerChains.some(cc => customerChainFilter.includes(cc));
+
+    return matchesSearch && matchesStatus &&
+      matchesBg && matchesSalesCategory && matchesSmallC && matchesFormat &&
+      matchesPackStatus && matchesChannel && matchesSubChannel && matchesCustomerChain;
   });
 
   const stats = {
@@ -42,6 +74,24 @@ export function useNetworkEntries() {
     draft: entries.filter(e => e.networkStatus === "Draft").length,
     productionStarted: entries.filter(e => e.networkStatus === "Production Started").length,
   };
+
+  const clearAllFilters = () => {
+    setStatusFilter("all");
+    setBgFilter([]);
+    setSalesCategoryFilter([]);
+    setSmallCFilter([]);
+    setFormatFilter([]);
+    setPackStatusFilter([]);
+    setChannelFilter([]);
+    setSubChannelFilter([]);
+    setCustomerChainFilter([]);
+  };
+
+  const activeFilterCount =
+    (statusFilter !== "all" ? 1 : 0) +
+    bgFilter.length + salesCategoryFilter.length + smallCFilter.length + formatFilter.length +
+    packStatusFilter.length + channelFilter.length +
+    (isMtChannelSelected ? subChannelFilter.length + customerChainFilter.length : 0);
 
   return {
     entries,
@@ -54,6 +104,25 @@ export function useNetworkEntries() {
     setStatusFilter,
     showFilters,
     setShowFilters,
+    bgFilter,
+    setBgFilter,
+    salesCategoryFilter,
+    setSalesCategoryFilter,
+    smallCFilter,
+    setSmallCFilter,
+    formatFilter,
+    setFormatFilter,
+    packStatusFilter,
+    setPackStatusFilter,
+    channelFilter,
+    setChannelFilter,
+    subChannelFilter,
+    setSubChannelFilter,
+    customerChainFilter,
+    setCustomerChainFilter,
+    isMtChannelSelected,
+    clearAllFilters,
+    activeFilterCount,
     updateEntry: (id: string, data: InsertNetworkEntry) => updateMutation.mutate({ id, data }),
     isUpdating: updateMutation.isPending,
     getEntryById: (id: string) => entries.find(e => e.id === id) || null,

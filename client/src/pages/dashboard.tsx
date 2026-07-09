@@ -22,6 +22,8 @@ import * as XLSX from "xlsx";
 import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 import { getNotifications, registerBulkOpCbus } from "@/lib/notification-store";
 import type { BulkDigestNotification } from "@/lib/notification-store";
+import { MultiSelectFilter } from "@/components/multi-select-filter";
+import { TOP_CHANNELS, MT_SUB_CHANNELS, CUSTOMER_CHAINS } from "@/lib/distribution-data";
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
@@ -39,7 +41,48 @@ export default function Dashboard() {
     setStatusFilter,
     showFilters,
     setShowFilters,
+    bgFilter,
+    setBgFilter,
+    salesCategoryFilter,
+    setSalesCategoryFilter,
+    smallCFilter,
+    setSmallCFilter,
+    formatFilter,
+    setFormatFilter,
+    packStatusFilter,
+    setPackStatusFilter,
+    channelFilter,
+    setChannelFilter,
+    subChannelFilter,
+    setSubChannelFilter,
+    customerChainFilter,
+    setCustomerChainFilter,
+    isMtChannelSelected,
+    clearAllFilters,
+    activeFilterCount,
   } = useNetworkEntries();
+
+  const uniqueOptions = (values: (string | null | undefined)[]) =>
+    Array.from(new Set(values.filter((v): v is string => !!v))).sort()
+      .map(v => ({ value: v, label: v }));
+
+  const bgOptions = useMemo(() => uniqueOptions(entries.map(e => e.bg)), [entries]);
+  const salesCategoryOptions = useMemo(() => uniqueOptions(entries.map(e => e.salesCategory)), [entries]);
+  const smallCOptions = useMemo(() => uniqueOptions(entries.map(e => e.smallC)), [entries]);
+  const formatOptions = useMemo(() => uniqueOptions(entries.map(e => e.format)), [entries]);
+  const packStatusOptions = useMemo(() => STATUS_FLOW.map(s => ({ value: s, label: s })), []);
+  const channelOptions = useMemo(
+    () => [...TOP_CHANNELS.map(c => ({ value: c.code, label: c.code })), { value: "MT", label: "MT" }],
+    []
+  );
+  const subChannelOptions = useMemo(
+    () => MT_SUB_CHANNELS.map(c => ({ value: c.code, label: c.code })),
+    []
+  );
+  const customerChainOptions = useMemo(
+    () => CUSTOMER_CHAINS.map(c => ({ value: c.code, label: c.code })),
+    []
+  );
 
   const { lifecycleMap } = useLifecycleData();
   const { toast } = useToast();
@@ -241,7 +284,7 @@ export default function Dashboard() {
                 </div>
 
                 {showFilters && (
-                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border flex-wrap" data-testid="filters-panel">
+                  <div className="flex items-end gap-3 mb-4 pb-4 border-b border-border flex-wrap" data-testid="filters-panel">
                     <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">Status</label>
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -252,8 +295,58 @@ export default function Dashboard() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {statusFilter !== "all" && (
-                      <Button variant="ghost" size="sm" className="mt-5" onClick={() => setStatusFilter("all")} data-testid="button-clear-filters">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">BG</label>
+                      <MultiSelectFilter options={bgOptions} value={bgFilter} onChange={setBgFilter} testId="filter-bg" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Sales Category</label>
+                      <MultiSelectFilter options={salesCategoryOptions} value={salesCategoryFilter} onChange={setSalesCategoryFilter} testId="filter-sales-category" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Small C</label>
+                      <MultiSelectFilter options={smallCOptions} value={smallCFilter} onChange={setSmallCFilter} testId="filter-small-c" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Format</label>
+                      <MultiSelectFilter options={formatOptions} value={formatFilter} onChange={setFormatFilter} testId="filter-format" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Pack Status</label>
+                      <MultiSelectFilter options={packStatusOptions} value={packStatusFilter} onChange={setPackStatusFilter} testId="filter-pack-status" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Channel</label>
+                      <MultiSelectFilter options={channelOptions} value={channelFilter} onChange={setChannelFilter} testId="filter-channel" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground flex items-center gap-1">
+                        Sub Channel
+                        {!isMtChannelSelected && <span className="text-[10px] text-muted-foreground/60">(select MT)</span>}
+                      </label>
+                      <MultiSelectFilter
+                        options={subChannelOptions}
+                        value={subChannelFilter}
+                        onChange={setSubChannelFilter}
+                        testId="filter-sub-channel"
+                        disabled={!isMtChannelSelected}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground flex items-center gap-1">
+                        Customer Chain
+                        {!isMtChannelSelected && <span className="text-[10px] text-muted-foreground/60">(select MT)</span>}
+                      </label>
+                      <MultiSelectFilter
+                        options={customerChainOptions}
+                        value={customerChainFilter}
+                        onChange={setCustomerChainFilter}
+                        testId="filter-customer-chain"
+                        disabled={!isMtChannelSelected}
+                      />
+                    </div>
+                    {activeFilterCount > 0 && (
+                      <Button variant="ghost" size="sm" onClick={clearAllFilters} data-testid="button-clear-filters">
                         Clear filters
                       </Button>
                     )}
