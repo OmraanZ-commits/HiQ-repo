@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   AlertTriangle, Globe, Waypoints, Users, Banknote,
   Package, BarChart3, Clock, CheckCircle2,
-  ChevronDown, ChevronRight, Truck, Rocket, Filter, X, TrendingUp,
+  ChevronDown, ChevronRight, Truck, Rocket, TrendingUp,
 } from "lucide-react";
 import { type NetworkEntry } from "@shared/schema";
 import { useSrStore } from "@/lib/sr-store";
@@ -43,7 +43,6 @@ const TIMELINE_BUCKETS = [
 
 const MOC_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ num: i + 1, label: `MOC ${i + 1}` }));
 const CURRENT_MONTH = new Date().getMonth() + 1;
-const MSTN_ACTIVE = new Set(["Active","Pricing Updated","Production Started","FTR Approved","Stock Movement Initiated"]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -81,71 +80,6 @@ function getMocStatus(row: NewLaunchRow, moc: number): "active" | "yes" | "no" |
   if (moc > CURRENT_MONTH) return "future";
   if (row.mstnPercentage === null) return "unknown";
   return row.mstnPercentage >= 80 ? "yes" : "no";
-}
-
-// ── FilterChip ────────────────────────────────────────────────────────────────
-
-function FilterChip({ label, options, selected, onChange }: {
-  label: string; options: string[]; selected: string[]; onChange: (v: string[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [open]);
-  const toggle = (o: string) => onChange(selected.includes(o) ? selected.filter(x => x !== o) : [...selected, o]);
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        data-testid={`filter-chip-${label.toLowerCase().replace(/\s/g, "-")}`}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all whitespace-nowrap ${
-          selected.length > 0
-            ? "bg-[#1f36c7] text-white border-[#1f36c7]"
-            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-        }`}
-      >
-        <Filter className="h-3 w-3" />
-        {label}
-        {selected.length > 0 && (
-          <span className="ml-0.5 bg-white/25 text-white rounded-full px-1.5 text-[10px] font-bold">{selected.length}</span>
-        )}
-        <ChevronDown className="h-3 w-3 opacity-60" />
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg min-w-[160px] py-1">
-          {options.length === 0 && (
-            <p className="px-3 py-2 text-[11px] text-slate-400 italic">No options available</p>
-          )}
-          {options.map(o => (
-            <button
-              key={o}
-              onClick={() => toggle(o)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50"
-              data-testid={`filter-chip-${label.toLowerCase().replace(/\s/g, "-")}-opt-${o}`}
-            >
-              <div className={`h-3.5 w-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
-                selected.includes(o) ? "bg-[#1f36c7] border-[#1f36c7]" : "border-slate-300"
-              }`}>
-                {selected.includes(o) && <span className="text-white text-[8px]">✓</span>}
-              </div>
-              <span className="text-slate-700 text-left">{o}</span>
-            </button>
-          ))}
-          {selected.length > 0 && (
-            <div className="border-t border-slate-100 mt-1 pt-1 px-3 pb-1">
-              <button onClick={() => { onChange([]); setOpen(false); }} className="text-[10px] text-slate-400 hover:text-slate-600">
-                Clear all
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── SectionHeader ─────────────────────────────────────────────────────────────
@@ -236,21 +170,6 @@ export default function PaidBibleSummaryTab() {
     items: { id: string; age: number; basepackId: string }[];
   } | null>(null);
 
-  // Filters
-  const [fBg, setFBg]         = useState<string[]>([]);
-  const [fScat, setFScat]     = useState<string[]>([]);
-  const [fFormat, setFFormat] = useState<string[]>([]);
-  const [fStatus, setFStatus] = useState<string[]>([]);
-  const [fChannel, setFChannel] = useState<string[]>([]);
-  const [fSub, setFSub]       = useState<string[]>([]);
-  const [fCust, setFCust]     = useState<string[]>([]);
-  const hasFilters = [fBg, fScat, fFormat, fStatus, fChannel, fSub, fCust].some(f => f.length > 0);
-  function clearAllFilters() {
-    setFBg([]); setFScat([]); setFFormat([]); setFStatus([]);
-    setFChannel([]); setFSub([]); setFCust([]);
-  }
-
-  // Expand state
   const [expandedSlob, setExpandedSlob] = useState<string | null>(null);
   const [expandedRelaunch, setExpandedRelaunch] = useState<number | null>(0);
   const [expandedDispatch, setExpandedDispatch] = useState<number | null>(0);
@@ -272,7 +191,6 @@ export default function PaidBibleSummaryTab() {
       return {
         id: bpCode,
         salesCategory: first.salesCategory || "Other",
-        bg: first.bg || "—",
         effectiveStatus: bpStatusOverrides[bpCode] ?? rawStatus,
       };
     });
@@ -283,10 +201,6 @@ export default function PaidBibleSummaryTab() {
       description: e.materialDescription || e.basepackDescription || "—",
       networkStatus: e.networkStatus ?? "Draft",
       salesCategory: e.salesCategory || "Other",
-      bg: e.bg || "—",
-      format: e.format ?? null,
-      subChannel: e.subChannel ?? null,
-      channels: (e.channels ?? []) as string[],
       typeOfNetworkCode: e.typeOfNetwork || "",
       networkChangeDate: e.networkChangeDate ?? null,
       slobRisk: e.slobRisk ?? false,
@@ -300,37 +214,9 @@ export default function PaidBibleSummaryTab() {
     return { basepacks: bps, allMaterials: mats };
   }, [networkEntries, bpStatusOverrides]);
 
-  // Filter options derived from real data
-  const bgOptions      = useMemo(() => [...new Set(allMaterials.map(m => m.bg).filter(v => v && v !== "—"))].sort(), [allMaterials]);
-  const scatOptions    = useMemo(() => [...new Set(allMaterials.map(m => m.salesCategory).filter(Boolean))].sort(), [allMaterials]);
-  const formatOptions  = useMemo(() => [...new Set(allMaterials.map(m => m.format).filter(Boolean) as string[])].sort(), [allMaterials]);
-  const channelOptions = useMemo(() => [...new Set(allMaterials.flatMap(m => m.channels).filter(Boolean))].sort(), [allMaterials]);
-  const subChOptions   = useMemo(() => [...new Set(allMaterials.map(m => m.subChannel).filter(Boolean) as string[])].sort(), [allMaterials]);
-  const statusOptions  = BP_STATUS_DEFS.map(d => d.key);
-
-  // Apply filters to materials
-  const filteredMaterials = useMemo(() => allMaterials.filter(m => {
-    if (fBg.length      && !fBg.includes(m.bg))                                    return false;
-    if (fScat.length    && !fScat.includes(m.salesCategory))                        return false;
-    if (fFormat.length  && !(m.format && fFormat.includes(m.format)))               return false;
-    if (fSub.length     && !(m.subChannel && fSub.includes(m.subChannel)))          return false;
-    if (fChannel.length && !m.channels.some(c => fChannel.includes(c)))             return false;
-    return true;
-  }), [allMaterials, fBg, fScat, fFormat, fSub, fChannel]);
-
-  const filteredBpCodes = useMemo(() =>
-    new Set(filteredMaterials.map(m => m.basepack || m.code)),
-  [filteredMaterials]);
-
-  const filteredBasepacks = useMemo(() => {
-    let bps = basepacks.filter(b => filteredBpCodes.has(b.id));
-    if (fStatus.length) bps = bps.filter(b => fStatus.includes(b.effectiveStatus));
-    return bps;
-  }, [basepacks, filteredBpCodes, fStatus]);
-
   const salesCategories = useMemo(() =>
-    [...new Set(filteredBasepacks.map(b => b.salesCategory))].filter(Boolean).sort(),
-  [filteredBasepacks]);
+    [...new Set(basepacks.map(b => b.salesCategory))].filter(Boolean).sort(),
+  [basepacks]);
 
   const bpDateMap = useMemo(() => {
     const m = new Map<string, number | null>();
@@ -343,16 +229,16 @@ export default function PaidBibleSummaryTab() {
 
   // ── KPI counts ────────────────────────────────────────────────────────────
 
-  const totalBps   = filteredBasepacks.length;
-  const activeBps  = filteredBasepacks.filter(b => b.effectiveStatus === "Active Pack").length;
+  const totalBps   = basepacks.length;
+  const activeBps  = basepacks.filter(b => b.effectiveStatus === "Active Pack").length;
   const pendingSrs = serviceRequests.filter(r => r.overallStatus === "pending").length;
-  const slobCount  = filteredMaterials.filter(m => m.slobRisk).length;
-  const priceInactiveCount = filteredMaterials.filter(m => !m.priceActive).length;
+  const slobCount  = allMaterials.filter(m => m.slobRisk).length;
+  const priceInactiveCount = allMaterials.filter(m => !m.priceActive).length;
 
   // ── BP status by Small C ──────────────────────────────────────────────────
 
   function bpStatusData(cat: string) {
-    const catBps = filteredBasepacks.filter(b => b.salesCategory === cat);
+    const catBps = basepacks.filter(b => b.salesCategory === cat);
     return BP_STATUS_DEFS.map(d => ({ ...d, count: catBps.filter(b => b.effectiveStatus === d.key).length }));
   }
 
@@ -374,23 +260,23 @@ export default function PaidBibleSummaryTab() {
   // ── SLOB by Small C ───────────────────────────────────────────────────────
 
   const slobByScat = useMemo(() => {
-    const groups = new Map<string, typeof filteredMaterials>();
-    filteredMaterials.filter(m => m.slobRisk).forEach(m => {
+    const groups = new Map<string, typeof allMaterials>();
+    allMaterials.filter(m => m.slobRisk).forEach(m => {
       if (!groups.has(m.salesCategory)) groups.set(m.salesCategory, []);
       groups.get(m.salesCategory)!.push(m);
     });
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [filteredMaterials]);
+  }, [allMaterials]);
 
   // ── Relaunch & Dispatch buckets ───────────────────────────────────────────
 
   const relaunchMats = useMemo(() =>
-    filteredMaterials.filter(m => RELAUNCH_CODES.has(m.typeOfNetworkCode)),
-  [filteredMaterials]);
+    allMaterials.filter(m => RELAUNCH_CODES.has(m.typeOfNetworkCode)),
+  [allMaterials]);
 
   const dispatchMats = useMemo(() =>
-    filteredMaterials.filter(m => m.networkStatus === "Stock Movement Initiated" && m.networkChangeDate),
-  [filteredMaterials]);
+    allMaterials.filter(m => m.networkStatus === "Stock Movement Initiated" && m.networkChangeDate),
+  [allMaterials]);
 
   function bucketItems<T extends { networkChangeDate: string | null }>(items: T[], min: number, max: number) {
     return items.filter(m => inBucket(daysFromNow(m.networkChangeDate), min, max));
@@ -401,15 +287,19 @@ export default function PaidBibleSummaryTab() {
   const rawDateMap = useMemo(() => new Map(bpDatesRaw.map(bp => [bp.bpCode, bp.activationDate])), [bpDatesRaw]);
 
   const newLaunchRows = useMemo((): NewLaunchRow[] => {
-    return filteredMaterials
+    return allMaterials
       .filter(m => m.typeOfNetworkCode === "NEW_LAUNCH")
       .map(m => {
         const bpCode = m.basepack || m.code;
         const activationDateRaw = rawDateMap.get(bpCode) ?? null;
         const activationMonth = activationDateRaw ? new Date(activationDateRaw).getMonth() + 1 : null;
-        return { bpCode, code: m.code, description: m.description, salesCategory: m.salesCategory || "—", networkChangeDate: m.networkChangeDate, mstnPercentage: m.mstnPercentage, networkStatus: m.networkStatus, activationMonth };
+        return {
+          bpCode, code: m.code, description: m.description,
+          salesCategory: m.salesCategory || "—", networkChangeDate: m.networkChangeDate,
+          mstnPercentage: m.mstnPercentage, networkStatus: m.networkStatus, activationMonth,
+        };
       });
-  }, [filteredMaterials, rawDateMap]);
+  }, [allMaterials, rawDateMap]);
 
   const mstnByScat = useMemo(() => {
     const groups = new Map<string, { cleared: number; notCleared: number; exception: number }>();
@@ -419,9 +309,9 @@ export default function PaidBibleSummaryTab() {
       const cat = row.salesCategory;
       if (!groups.has(cat)) groups.set(cat, { cleared: 0, notCleared: 0, exception: 0 });
       const g = groups.get(cat)!;
-      if (s === "yes")     g.cleared++;
+      if (s === "yes") g.cleared++;
       else if (s === "no") g.notCleared++;
-      else                 g.exception++;
+      else g.exception++;
     });
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [newLaunchRows, selMoc]);
@@ -441,29 +331,6 @@ export default function PaidBibleSummaryTab() {
 
   return (
     <div className="space-y-7" data-testid="paid-bible-summary">
-
-      {/* ── Filter bar ── */}
-      <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Filters</span>
-          <FilterChip label="BG"          options={bgOptions}     selected={fBg}      onChange={setFBg}      />
-          <FilterChip label="Sales Cat."  options={scatOptions}   selected={fScat}    onChange={setFScat}    />
-          <FilterChip label="Format"      options={formatOptions} selected={fFormat}  onChange={setFFormat}  />
-          <FilterChip label="Pack Status" options={statusOptions} selected={fStatus}  onChange={setFStatus}  />
-          <FilterChip label="Channel"     options={channelOptions}selected={fChannel} onChange={setFChannel} />
-          <FilterChip label="Sub Channel" options={subChOptions}  selected={fSub}     onChange={setFSub}     />
-          <FilterChip label="Customer"    options={[]}            selected={fCust}    onChange={setFCust}    />
-          {hasFilters && (
-            <button
-              onClick={clearAllFilters}
-              className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 ml-auto"
-              data-testid="filter-clear-all"
-            >
-              <X className="h-3 w-3" /> Clear all filters
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* ── KPI strip ── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -529,14 +396,14 @@ export default function PaidBibleSummaryTab() {
                 );
               })}
               {salesCategories.length === 0 && (
-                <tr><td colSpan={8} className="text-center py-8 text-slate-400 text-xs italic">No data matches current filters</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-slate-400 text-xs italic">No basepack data available.</td></tr>
               )}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-200 bg-slate-50">
                 <td className="px-5 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total</td>
                 {BP_STATUS_DEFS.map(d => {
-                  const n = filteredBasepacks.filter(b => b.effectiveStatus === d.key).length;
+                  const n = basepacks.filter(b => b.effectiveStatus === d.key).length;
                   return (
                     <td key={d.key} className="text-center px-3 py-2.5 tabular-nums font-bold" style={{ color: n > 0 ? d.color : "#e2e8f0" }}>
                       {n > 0 ? n : "—"}
@@ -584,7 +451,7 @@ export default function PaidBibleSummaryTab() {
           )}
         </div>
         {slobByScat.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-slate-400 text-xs italic">No SLOB-flagged CBUs{hasFilters ? " matching current filters" : ""}.</div>
+          <div className="flex items-center justify-center py-8 text-slate-400 text-xs italic">No SLOB-flagged CBUs.</div>
         ) : (
           <table className="w-full text-xs" data-testid="slob-table">
             <thead>
@@ -811,12 +678,11 @@ export default function PaidBibleSummaryTab() {
             </select>
           </div>
         </div>
-        {/* Legend */}
         <div className="flex items-center gap-5 px-5 py-2.5 border-b border-slate-50 bg-slate-50/40 text-[10px]">
           {[
-            { label: "MSTN Cleared",       color: "bg-emerald-500" },
-            { label: "MSTN Not Cleared",   color: "bg-red-500"     },
-            { label: "Exception / Unknown",color: "bg-amber-500"   },
+            { label: "MSTN Cleared",        color: "bg-emerald-500" },
+            { label: "MSTN Not Cleared",    color: "bg-red-500"     },
+            { label: "Exception / Unknown", color: "bg-amber-500"   },
           ].map(l => (
             <span key={l.label} className="flex items-center gap-1.5 text-slate-500">
               <span className={`inline-block h-2 w-2 rounded-full ${l.color}`} />{l.label}

@@ -1467,6 +1467,10 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
   const [materialSearch, setMaterialSearch] = useState("");
   const [mstnFilter, setMstnFilter]         = useState<string[]>([]);
   const [bgFilter, setBgFilter]             = useState<string[]>([]);
+  const [scatFilter, setScatFilter]         = useState<string[]>([]);
+  const [formatFilter, setFormatFilter]     = useState<string[]>([]);
+  const [subChFilter, setSubChFilter]       = useState<string[]>([]);
+  const [customerFilter, setCustomerFilter] = useState<string[]>([]);
   const [exportOpen, setExportOpen]         = useState(false);
   const [showFilters, setShowFilters]       = useState(false);
   const [expandedId, setExpandedId]         = useState<string | null>(null);
@@ -1586,6 +1590,18 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
     () => [...new Set(allBasepacks.map(b => b.bg))].filter(s => s && s !== "-").sort(),
     [allBasepacks],
   );
+  const scatOptions = useMemo(
+    () => [...new Set(allBasepacks.map(b => b.salesCategory))].filter(s => s && s !== "-").sort(),
+    [allBasepacks],
+  );
+  const formatOptions = useMemo(
+    () => [...new Set(networkEntries.map(e => e.format).filter((f): f is string => Boolean(f)))].sort(),
+    [networkEntries],
+  );
+  const subChOptions = useMemo(
+    () => [...new Set(networkEntries.map(e => e.subChannel).filter((s): s is string => Boolean(s)))].sort(),
+    [networkEntries],
+  );
 
   const filtered = useMemo(() => allBasepacks.filter(b => {
     const effStatus = normalizeBpStatus(localBpStatus[b.id] ?? b.bpStatus);
@@ -1600,12 +1616,13 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
       (locationFilter.length === 0 || locationFilter.some(loc => b.clusters.includes(loc))) &&
       (mstnFilter.length     === 0 || mstnFilter.some(f => b.materials.some(m => m.mstnClear === f))) &&
       (bgFilter.length       === 0 || bgFilter.includes(b.bg)) &&
+      (scatFilter.length     === 0 || scatFilter.includes(b.salesCategory)) &&
       (!materialSearch || b.materials.some(m =>
         m.code.toLowerCase().includes(materialSearch.toLowerCase()) ||
         m.description.toLowerCase().includes(materialSearch.toLowerCase())
       ))
     );
-  }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, bgFilter, materialSearch]);
+  }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, bgFilter, scatFilter, materialSearch]);
 
   const ACTIVE_BP_STATUSES = new Set(["Active Pack", "Seasonal Pack"]);
   const total       = allBasepacks.length;
@@ -1616,6 +1633,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
   const activeFilterCount = [
     bpStatusFilter.length > 0, channelFilter.length > 0,
     locationFilter.length > 0, mstnFilter.length > 0, bgFilter.length > 0, materialSearch !== "",
+    scatFilter.length > 0, formatFilter.length > 0, subChFilter.length > 0, customerFilter.length > 0,
   ].filter(Boolean).length;
 
   const triggerCbus = useMemo(() => {
@@ -1961,8 +1979,52 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
                   width="w-40"
                 />
               </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Sales Category</label>
+                <MultiSelectFilter
+                  options={scatOptions.map(s => ({ value: s, label: s }))}
+                  value={scatFilter}
+                  onChange={setScatFilter}
+                  placeholder="All"
+                  testId="select-scat"
+                  width="w-44"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Format</label>
+                <MultiSelectFilter
+                  options={formatOptions.map(f => ({ value: f, label: f }))}
+                  value={formatFilter}
+                  onChange={setFormatFilter}
+                  placeholder="All"
+                  testId="select-format"
+                  width="w-36"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Sub Channel</label>
+                <MultiSelectFilter
+                  options={subChOptions.map(s => ({ value: s, label: s }))}
+                  value={subChFilter}
+                  onChange={setSubChFilter}
+                  placeholder="All"
+                  testId="select-sub-channel"
+                  width="w-40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Customer</label>
+                <MultiSelectFilter
+                  options={[]}
+                  value={customerFilter}
+                  onChange={setCustomerFilter}
+                  placeholder="All"
+                  testId="select-customer"
+                  width="w-36"
+                />
+              </div>
               {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => { setBpStatusFilter([]); setChannelFilter([]); setLocationFilter([]); setMstnFilter([]); setBgFilter([]); setMaterialSearch(""); }} data-testid="button-clear-filters">
+                <Button variant="ghost" size="sm" onClick={() => { setBpStatusFilter([]); setChannelFilter([]); setLocationFilter([]); setMstnFilter([]); setBgFilter([]); setMaterialSearch(""); setScatFilter([]); setFormatFilter([]); setSubChFilter([]); setCustomerFilter([]); }} data-testid="button-clear-filters">
                   Clear all
                 </Button>
               )}
