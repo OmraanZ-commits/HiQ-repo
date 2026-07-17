@@ -759,7 +759,11 @@ export default function CcrConfigurePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map(row => (
+                    {rows.map(row => {
+                      const effectiveStatus: DepotStatus = assignedDepots.includes(row.depot)
+                        ? row.status
+                        : "Non-Mapped";
+                      return (
                       <TableRow
                         key={row.id}
                         className={
@@ -767,7 +771,7 @@ export default function CcrConfigurePage() {
                             ? "bg-amber-50/50"
                             : staleRowIds.has(row.id)
                             ? "bg-yellow-50 border-l-2 border-l-amber-400"
-                            : row.status === "Non-Mapped"
+                            : effectiveStatus === "Non-Mapped"
                             ? "bg-muted/20"
                             : ""
                         }
@@ -790,7 +794,7 @@ export default function CcrConfigurePage() {
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.subChannel}</TableCell>
                         <TableCell data-testid={`cell-status-${row.customerCode}`}>
-                          <StatusBadge status={row.status} pbStatus={row.pbStatus} />
+                          <StatusBadge status={effectiveStatus} pbStatus={row.pbStatus} />
                         </TableCell>
                         <TableCell data-testid={`cell-pricing-${row.customerCode}`}>
                           <PricingBadge status={row.pricingStatus} />
@@ -798,7 +802,7 @@ export default function CcrConfigurePage() {
                         <TableCell data-testid={`cell-sourcing-depot-${row.customerCode}`}>
                           {sourcingMode === "decentralized" ? (
                             <span className="text-sm font-medium">{row.sourcingDepot || "—"}</span>
-                          ) : row.pbOverridden || row.status !== "Mapped" ? (
+                          ) : row.pbOverridden || effectiveStatus !== "Mapped" ? (
                             <span className="text-xs text-muted-foreground">—</span>
                           ) : (
                             <Select
@@ -818,7 +822,8 @@ export default function CcrConfigurePage() {
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.sourcingType}</TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               </div>
