@@ -1276,8 +1276,16 @@ function PriceLotEditor({
     ? String(Number(oldLotId) + 1).padStart(2, "0")
     : "";
 
-  const availableNewChannels = leafChannels.filter(ch => !currentChannels.includes(ch.name));
-  const availableNewGeos = clusters.filter(c => !currentGeo.includes(c.name));
+  const currentLotChannels = oldLot?.channels ?? [];
+  const currentLotGeos    = oldLot?.geos     ?? [];
+
+  // channels: split into already-applied and available-to-add
+  const appliedChannels   = leafChannels.filter(ch => currentChannels.includes(ch.code));
+  const availableNewChannels = leafChannels.filter(ch => !currentChannels.includes(ch.code));
+
+  // geos: split into already-in-scope and available-to-add
+  const appliedGeos       = clusters.filter(c => currentGeo.includes(c.name));
+  const availableNewGeos  = clusters.filter(c => !currentGeo.includes(c.name));
 
   return (
     <div className="space-y-5">
@@ -1330,18 +1338,38 @@ function PriceLotEditor({
           </SelectContent>
         </Select>
         {oldLot && (
-          <div className="grid grid-cols-3 gap-3 rounded-lg border bg-muted/20 px-4 py-3 text-sm mt-1">
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Old MRP</p>
-              <p className="font-semibold font-mono">₹{oldLot.mrp.toFixed(2)}</p>
+          <div className="rounded-lg border bg-muted/20 px-4 py-3 mt-1 space-y-2.5">
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">MRP</p>
+                <p className="font-semibold font-mono">₹{oldLot.mrp.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Valid From</p>
+                <p className="font-mono text-xs">{oldLot.validFrom}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Valid To</p>
+                <p className="font-mono text-xs">{oldLot.validTo === "9999-12-31" ? "Till end" : oldLot.validTo}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Valid From</p>
-              <p className="font-mono text-xs">{oldLot.validFrom}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Valid To</p>
-              <p className="font-mono text-xs">{oldLot.validTo === "9999-12-31" ? "Till end" : oldLot.validTo}</p>
+            <div className="border-t pt-2 space-y-1.5">
+              <p className="text-xs text-muted-foreground font-medium">Scope</p>
+              {oldLot.allIndia ? (
+                <Badge className="bg-blue-100 text-blue-700 border border-blue-200 text-xs">All India</Badge>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {currentLotChannels.length > 0 && currentLotChannels.map(ch => (
+                    <Badge key={ch} className="bg-violet-100 text-violet-700 border border-violet-200 text-xs">{ch}</Badge>
+                  ))}
+                  {currentLotGeos.length > 0 && currentLotGeos.map(g => (
+                    <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs">{g}</Badge>
+                  ))}
+                  {currentLotChannels.length === 0 && currentLotGeos.length === 0 && (
+                    <span className="text-xs text-muted-foreground italic">{oldLot.scopeDesc}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1438,34 +1466,66 @@ function PriceLotEditor({
 
       {/* New scope — new channels */}
       {scopeType === "new-channel" && (
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">New Channels to Add <span className="text-red-500">*</span></Label>
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Channel Scope <span className="text-red-500">*</span></Label>
+
+          {/* Already applied */}
+          {appliedChannels.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                Already active ({appliedChannels.length})
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {appliedChannels.map(ch => (
+                  <div
+                    key={ch.code}
+                    className="flex items-center gap-2 rounded-md border border-dashed border-muted-foreground/30 bg-muted/20 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
+                    title="Already in distribution — cannot extend to existing channel"
+                  >
+                    <Checkbox checked disabled className="pointer-events-none h-3.5 w-3.5 shrink-0 opacity-50" />
+                    {ch.code}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Available to add */}
           {availableNewChannels.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">All available channels are already active for this CBU.</p>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {availableNewChannels.map(ch => {
-                const selected = newChannels.includes(ch.name);
-                return (
-                  <button
-                    key={ch.name}
-                    type="button"
-                    onClick={() => setNewChannels(prev =>
-                      selected ? prev.filter(c => c !== ch.name) : [...prev, ch.name],
-                    )}
-                    className={cn(
-                      "flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-all text-left",
-                      selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-border hover:border-blue-200",
-                    )}
-                    data-testid={`btn-new-channel-${ch.name}`}
-                  >
-                    <Checkbox checked={selected} className="pointer-events-none h-3.5 w-3.5 shrink-0" />
-                    {ch.name}
-                  </button>
-                );
-              })}
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                Available to add ({availableNewChannels.length})
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {availableNewChannels.map(ch => {
+                  const selected = newChannels.includes(ch.code);
+                  return (
+                    <button
+                      key={ch.code}
+                      type="button"
+                      onClick={() => {
+                        const next = selected
+                          ? newChannels.filter(c => c !== ch.code)
+                          : [...newChannels, ch.code];
+                        setNewChannels(next);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-all text-left",
+                        selected ? "border-blue-500 bg-blue-50 text-blue-700 font-medium" : "border-border hover:border-blue-200",
+                      )}
+                      data-testid={`btn-new-channel-${ch.code}`}
+                    >
+                      <Checkbox checked={selected} className="pointer-events-none h-3.5 w-3.5 shrink-0" />
+                      {ch.code}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
+
           {availableNewChannels.length > 0 && newChannels.length === 0 && (
             <p className="text-xs text-red-500">Select at least one new channel.</p>
           )}
@@ -1474,34 +1534,72 @@ function PriceLotEditor({
 
       {/* New scope — new geographies */}
       {scopeType === "new-geo" && (
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">New Geographies / Regions to Add <span className="text-red-500">*</span></Label>
-          {availableNewGeos.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">All available clusters are already in scope for this CBU.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-              {availableNewGeos.map(c => {
-                const selected = newGeos.includes(c.name);
-                return (
-                  <button
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Geography / Region Scope <span className="text-red-500">*</span></Label>
+
+          {/* Already in scope */}
+          {appliedGeos.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                Already in scope ({appliedGeos.length})
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {appliedGeos.map(c => (
+                  <div
                     key={c.name}
-                    type="button"
-                    onClick={() => setNewGeos(prev =>
-                      selected ? prev.filter(g => g !== c.name) : [...prev, c.name],
-                    )}
-                    className={cn(
-                      "flex items-start gap-2 rounded-md border px-3 py-2 text-left transition-all",
-                      selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-border hover:border-blue-200",
-                    )}
-                    data-testid={`btn-new-geo-${c.name}`}
+                    className="flex items-start gap-2 rounded-md border border-dashed border-muted-foreground/30 bg-muted/20 px-3 py-2 text-muted-foreground cursor-not-allowed"
+                    title="Already in distribution scope"
                   >
-                    <Checkbox checked={selected} className="pointer-events-none h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    <span className="text-xs leading-snug">{c.name}</span>
-                  </button>
-                );
-              })}
+                    <Checkbox checked disabled className="pointer-events-none h-3.5 w-3.5 shrink-0 mt-0.5 opacity-50" />
+                    <div>
+                      <span className="text-xs">{c.name}</span>
+                      <span className="block text-[10px] text-muted-foreground/70">{c.region}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Available to add */}
+          {availableNewGeos.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">All available geographies are already in scope for this CBU.</p>
+          ) : (
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                Available to add ({availableNewGeos.length})
+              </p>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                {availableNewGeos.map(c => {
+                  const selected = newGeos.includes(c.name);
+                  return (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => {
+                        const next = selected
+                          ? newGeos.filter(g => g !== c.name)
+                          : [...newGeos, c.name];
+                        setNewGeos(next);
+                      }}
+                      className={cn(
+                        "flex items-start gap-2 rounded-md border px-3 py-2 text-left transition-all",
+                        selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-border hover:border-blue-200",
+                      )}
+                      data-testid={`btn-new-geo-${c.name}`}
+                    >
+                      <Checkbox checked={selected} className="pointer-events-none h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-xs font-medium leading-snug block">{c.name}</span>
+                        <span className="text-[10px] text-muted-foreground leading-snug block">{c.region}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {availableNewGeos.length > 0 && newGeos.length === 0 && (
             <p className="text-xs text-red-500">Select at least one new geography.</p>
           )}
