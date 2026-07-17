@@ -1,0 +1,81 @@
+10.1 Paid Bible revised summary dashboard
+1.	Summary Dashboard overview 
+•	The Summary Dashboard shall provide a consolidated, actionable view of basepack status, service requests, network readiness, and operational risks, enabling users to monitor overall health and navigate to detailed views for execution.
+2.	Pack Summary & Status View
+•	System shall display total basepacks and their distribution across statuses:
+o	Active
+o	Draft
+o	Inactive
+o	Seasonal
+o	Stock Base Delisted / Delisted 
+•	View shall be segmented by Small C category  
+
+3.	 Service Request & Amendment Tracker
+o	Dashboard shall display request-wise summary for:
+	Geo Extension
+	Channel Extension
+	Customer Extension
+	Pricing Issues
+o	For each request type, system shall display:
+	Count of Pending / Approved / Rejected
+	Total requests
+	Aging (on interaction) 
+o	On user interaction (double click), system shall:
+	Show detailed request list
+	Display full lifecycle and history
+o	Aging and status tracking is required to ensure traceability and operational follow-up.
+4.	SLOB Risk & Network Exposure
+o	Dashboard shall show:
+	SLOB risk at Small C level
+	Count of CBU × DC combinations at risk
+	Quantity (volume/value) using MRP basis
+o	Users shall be able to:
+	Drill down to Small C level detail
+	Analyse exposure by depot/network
+5.	Relaunch & Network Buckets
+	Dashboard shall display relaunch buckets:
+	N+15, N+30, N+60 timelines
+	For upcoming network relaunches grouped into: 
+	0–15 days
+	16–30 days
+	30–60 days
+	Each bucket shall show:
+	Grammage
+	MRP
+	Artwork
+	CC
+	CP
+	Silent Changes
+	Drilldown to basepack detail at Small C level
+6.	Dispatch Start Tracking (ITR Stock in Pipeline Networks)
+	Dashboard shall provide visibility into dispatch start timelines (ITR stock entering pipeline networks).
+	Dispatch readiness shall be bucketed into:
+	0–15 days
+	16–30 days
+	30–60 days
+	Each bucket shall show:
+	Grammage
+	MRP
+	Artwork
+	CC
+	CP
+	Silent Changes
+	Drilldown to basepack detail at Small C level
+7.	MSTN & Launch Readiness Indicators
+	Dashboard shall provide MSTN readiness visibility at MOC level, with a dropdown to select the relevant MOC (e.g., MOC 5, MOC 6, etc.).
+	For the selected MOC, system shall display readiness at Small C level across the following categories:
+	MSTN Cleared
+	MSTN Not Cleared
+	Exception Clearance
+	Each category shall represent the count of basepack / CBU combinations falling under the respective status.
+10.2	Paid Bible – Dashboard – Multi select filter
+The Summary Dashboard shall provide multi-select filter capability across key dimensions of the product and distribution hierarchy, including:
+•	BG (Business Group)
+•	Sales Category
+•	Small C
+•	Format
+•	Pack Status
+•	Channel
+•	Sub Channel 1
+•	Sub Channel 2
+•	Customer
