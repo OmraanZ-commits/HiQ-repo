@@ -8,10 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Map as MapIcon, Radio, PackageSearch, AlertTriangle,
+  Map as MapIcon, Radio, PackageSearch, AlertTriangle, AlertCircle,
   ChevronRight, ChevronLeft, CheckCircle2, ExternalLink,
   MapPin, Check, Plus, X, Lock, Users, CalendarClock,
-  Upload, FileSpreadsheet, Trash2,
+  Upload, FileSpreadsheet, Trash2, IndianRupee,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -64,6 +64,12 @@ const AMENDMENT_TYPES = [
     icon: CalendarClock,
     label: "Network Change Date Amendment",
     desc: "Request a revised network change date due to MSTN clearance not met",
+  },
+  {
+    value: "price-lot-change" as SrType,
+    icon: IndianRupee,
+    label: "Price Lot Change Request",
+    desc: "Request a new or replacement price lot for an existing CBU — with overlap assessment and simulated pricing matrix",
   },
 ];
 
@@ -1150,6 +1156,445 @@ function NetworkChangeDateEditor({
   );
 }
 
+// ─── Price Lot Change — constants, types, editor ──────────────────────────────
+
+const PLR_MOCK_LOTS = [
+  {
+    id: "01", mrp: 199, validFrom: "2024-01-01", validTo: "9999-12-31",
+    allIndia: true, scopeDesc: "All India", channels: [] as string[], geos: [] as string[],
+  },
+  {
+    id: "02", mrp: 215, validFrom: "2024-07-01", validTo: "9999-12-31",
+    allIndia: false, scopeDesc: "Regional", channels: [] as string[],
+    geos: ["Kerala", "Tamil Nadu", "West Bengal", "Gujarat", "Rajasthan", "Uttar Pradesh"],
+  },
+  {
+    id: "03", mrp: 229, validFrom: "2025-01-01", validTo: "9999-12-31",
+    allIndia: false, scopeDesc: "Channel", channels: ["GT", "CSD", "MT Retail", "KA"], geos: [] as string[],
+  },
+  {
+    id: "04", mrp: 245, validFrom: "2025-07-01", validTo: "9999-12-31",
+    allIndia: false, scopeDesc: "Region × Channel",
+    channels: ["GT", "Ecom"],
+    geos: ["Delhi", "Tamil Nadu", "West Bengal", "Gujarat"],
+  },
+];
+
+interface PriceLotChangeData {
+  scopeType: "replace" | "new-channel" | "new-geo";
+  oldLotId: string;
+  newLotNumber: string;
+  newMrp: string;
+  pricingEffectiveDate: string;
+  pricingEndDate: string;
+  oldLotInvoicingDeactivDate: string;
+  oldLotProductionDeactivDate: string;
+  productionEndDate: string;
+  newChannels: string[];
+  newGeos: string[];
+  retailerMargin: string;
+  rsMargin: string;
+  priceOff: string;
+}
+
+const PLR_SCOPE_OPTIONS: { value: PriceLotChangeData["scopeType"]; label: string; desc: string }[] = [
+  {
+    value: "replace",
+    label: "Replace existing price lot",
+    desc: "Same channel & geography scope — new MRP replaces old lot for the same coverage (Scenarios 1 & 2)",
+  },
+  {
+    value: "new-channel",
+    label: "Extend to new channel",
+    desc: "Existing scope keeps its price lot; new channel gets a separate price lot (Scenario 3)",
+  },
+  {
+    value: "new-geo",
+    label: "Extend to new region / geography",
+    desc: "Existing scope keeps its price lot; new region gets a separate price lot (Scenario 4)",
+  },
+];
+
+function PriceLotEditor({
+  currentGeo, currentChannels, leafChannels, clusters,
+  scopeType, setScopeType,
+  oldLotId, setOldLotId,
+  newLotNumber, setNewLotNumber,
+  newMrp, setNewMrp,
+  pricingEffectiveDate, setPricingEffectiveDate,
+  pricingEndDate, setPricingEndDate,
+  oldLotInvoicingDeactivDate, setOldLotInvoicingDeactivDate,
+  oldLotProductionDeactivDate, setOldLotProductionDeactivDate,
+  productionEndDate, setProductionEndDate,
+  newChannels, setNewChannels,
+  newGeos, setNewGeos,
+  retailerMargin, setRetailerMargin,
+  rsMargin, setRsMargin,
+  priceOff, setPriceOff,
+}: {
+  currentGeo: string[];
+  currentChannels: string[];
+  leafChannels: ChannelDef[];
+  clusters: ClusterInfo[];
+  scopeType: PriceLotChangeData["scopeType"];
+  setScopeType: (v: PriceLotChangeData["scopeType"]) => void;
+  oldLotId: string;
+  setOldLotId: (v: string) => void;
+  newLotNumber: string;
+  setNewLotNumber: (v: string) => void;
+  newMrp: string;
+  setNewMrp: (v: string) => void;
+  pricingEffectiveDate: string;
+  setPricingEffectiveDate: (v: string) => void;
+  pricingEndDate: string;
+  setPricingEndDate: (v: string) => void;
+  oldLotInvoicingDeactivDate: string;
+  setOldLotInvoicingDeactivDate: (v: string) => void;
+  oldLotProductionDeactivDate: string;
+  setOldLotProductionDeactivDate: (v: string) => void;
+  productionEndDate: string;
+  setProductionEndDate: (v: string) => void;
+  newChannels: string[];
+  setNewChannels: (v: string[]) => void;
+  newGeos: string[];
+  setNewGeos: (v: string[]) => void;
+  retailerMargin: string;
+  setRetailerMargin: (v: string) => void;
+  rsMargin: string;
+  setRsMargin: (v: string) => void;
+  priceOff: string;
+  setPriceOff: (v: string) => void;
+}) {
+  const oldLot = PLR_MOCK_LOTS.find(l => l.id === oldLotId);
+
+  const hasOverlap = useMemo(() => {
+    if (!oldLot || !pricingEffectiveDate) return false;
+    return oldLot.validTo >= pricingEffectiveDate;
+  }, [oldLot, pricingEffectiveDate]);
+
+  const suggestedNewId = oldLotId
+    ? String(Number(oldLotId) + 1).padStart(2, "0")
+    : "";
+
+  const availableNewChannels = leafChannels.filter(ch => !currentChannels.includes(ch.name));
+  const availableNewGeos = clusters.filter(c => !currentGeo.includes(c.name));
+
+  return (
+    <div className="space-y-5">
+
+      {/* Amendment Scope */}
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Amendment Scope <span className="text-red-500">*</span></Label>
+        <div className="grid gap-2">
+          {PLR_SCOPE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { setScopeType(opt.value); setNewChannels([]); setNewGeos([]); }}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border p-3 text-left transition-all",
+                scopeType === opt.value
+                  ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
+                  : "border-border hover:border-blue-200 hover:bg-muted/30",
+              )}
+              data-testid={`option-plc-scope-${opt.value}`}
+            >
+              <div className={cn(
+                "mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center",
+                scopeType === opt.value ? "border-blue-500" : "border-muted-foreground",
+              )}>
+                {scopeType === opt.value && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+              </div>
+              <div>
+                <span className="font-medium text-sm block">{opt.label}</span>
+                <span className="text-xs text-muted-foreground">{opt.desc}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Existing Price Lot selection */}
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Existing Price Lot <span className="text-red-500">*</span></Label>
+        <Select value={oldLotId} onValueChange={setOldLotId}>
+          <SelectTrigger className="max-w-md" data-testid="select-old-price-lot">
+            <SelectValue placeholder="Select price lot to replace / supplement…" />
+          </SelectTrigger>
+          <SelectContent>
+            {PLR_MOCK_LOTS.map(l => (
+              <SelectItem key={l.id} value={l.id}>
+                PL-{l.id} — ₹{l.mrp.toFixed(2)} ({l.scopeDesc})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {oldLot && (
+          <div className="grid grid-cols-3 gap-3 rounded-lg border bg-muted/20 px-4 py-3 text-sm mt-1">
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Old MRP</p>
+              <p className="font-semibold font-mono">₹{oldLot.mrp.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Valid From</p>
+              <p className="font-mono text-xs">{oldLot.validFrom}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Valid To</p>
+              <p className="font-mono text-xs">{oldLot.validTo === "9999-12-31" ? "Till end" : oldLot.validTo}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* New Price Lot Details */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold">New Price Lot Details</Label>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">New Price Lot Number</Label>
+            <input
+              type="text"
+              value={newLotNumber}
+              onChange={e => setNewLotNumber(e.target.value)}
+              placeholder={suggestedNewId ? `e.g. ${suggestedNewId}` : "e.g. 05"}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-new-lot-number"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">New MRP (₹) <span className="text-red-500">*</span></Label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={newMrp}
+              onChange={e => setNewMrp(e.target.value)}
+              placeholder="e.g. 258"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-new-mrp"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Pricing Effective Date <span className="text-red-500">*</span></Label>
+            <input
+              type="date"
+              value={pricingEffectiveDate}
+              onChange={e => setPricingEffectiveDate(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-pricing-effective-date"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Pricing End Date</Label>
+            <input
+              type="date"
+              value={pricingEndDate === "9999-12-31" ? "" : pricingEndDate}
+              onChange={e => setPricingEndDate(e.target.value || "9999-12-31")}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-pricing-end-date"
+            />
+            <p className="text-xs text-muted-foreground">Leave blank for "till end"</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Production End Date <span className="text-red-500">*</span></Label>
+            <input
+              type="date"
+              value={productionEndDate}
+              onChange={e => setProductionEndDate(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-production-end-date"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Old Lot Deactivation Dates */}
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Old Lot Deactivation Dates</Label>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Invoicing Deactivation Date <span className="text-red-500">*</span></Label>
+            <input
+              type="date"
+              value={oldLotInvoicingDeactivDate}
+              onChange={e => setOldLotInvoicingDeactivDate(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-old-lot-invoicing-deactiv"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Production Deactivation Date <span className="text-red-500">*</span></Label>
+            <input
+              type="date"
+              value={oldLotProductionDeactivDate}
+              onChange={e => setOldLotProductionDeactivDate(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-old-lot-production-deactiv"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* New scope — new channels */}
+      {scopeType === "new-channel" && (
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">New Channels to Add <span className="text-red-500">*</span></Label>
+          {availableNewChannels.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">All available channels are already active for this CBU.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {availableNewChannels.map(ch => {
+                const selected = newChannels.includes(ch.name);
+                return (
+                  <button
+                    key={ch.name}
+                    type="button"
+                    onClick={() => setNewChannels(prev =>
+                      selected ? prev.filter(c => c !== ch.name) : [...prev, ch.name],
+                    )}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-all text-left",
+                      selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-border hover:border-blue-200",
+                    )}
+                    data-testid={`btn-new-channel-${ch.name}`}
+                  >
+                    <Checkbox checked={selected} className="pointer-events-none h-3.5 w-3.5 shrink-0" />
+                    {ch.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {availableNewChannels.length > 0 && newChannels.length === 0 && (
+            <p className="text-xs text-red-500">Select at least one new channel.</p>
+          )}
+        </div>
+      )}
+
+      {/* New scope — new geographies */}
+      {scopeType === "new-geo" && (
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">New Geographies / Regions to Add <span className="text-red-500">*</span></Label>
+          {availableNewGeos.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">All available clusters are already in scope for this CBU.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+              {availableNewGeos.map(c => {
+                const selected = newGeos.includes(c.name);
+                return (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => setNewGeos(prev =>
+                      selected ? prev.filter(g => g !== c.name) : [...prev, c.name],
+                    )}
+                    className={cn(
+                      "flex items-start gap-2 rounded-md border px-3 py-2 text-left transition-all",
+                      selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-border hover:border-blue-200",
+                    )}
+                    data-testid={`btn-new-geo-${c.name}`}
+                  >
+                    <Checkbox checked={selected} className="pointer-events-none h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span className="text-xs leading-snug">{c.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {availableNewGeos.length > 0 && newGeos.length === 0 && (
+            <p className="text-xs text-red-500">Select at least one new geography.</p>
+          )}
+        </div>
+      )}
+
+      {/* Optional fields */}
+      <details className="group">
+        <summary className="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground list-none select-none">
+          <Plus className="h-3.5 w-3.5 transition-transform group-open:rotate-45" />
+          Optional fields (Margins &amp; Price Off)
+        </summary>
+        <div className="mt-3 grid grid-cols-3 gap-3 pl-5">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Retailer Margin</Label>
+            <input
+              type="text"
+              value={retailerMargin}
+              onChange={e => setRetailerMargin(e.target.value)}
+              placeholder="e.g. 12% or 25"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-retailer-margin"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">RS Margin</Label>
+            <input
+              type="text"
+              value={rsMargin}
+              onChange={e => setRsMargin(e.target.value)}
+              placeholder="e.g. as per system"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-rs-margin"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Price Off</Label>
+            <input
+              type="text"
+              value={priceOff}
+              onChange={e => setPriceOff(e.target.value)}
+              placeholder="e.g. NA or 5%"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-price-off"
+            />
+          </div>
+        </div>
+      </details>
+
+      {/* Overlap warning */}
+      {hasOverlap && oldLotId && pricingEffectiveDate && (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3"
+          data-testid="banner-pricing-overlap"
+        >
+          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm space-y-1">
+            <p className="font-medium text-amber-800">Overlapping pricing applicability identified</p>
+            <p className="text-amber-700 text-xs">
+              Price Lot <strong>PL-{oldLotId}</strong> (₹{oldLot?.mrp}) remains valid until{" "}
+              <strong>{oldLot?.validTo === "9999-12-31" ? "end" : oldLot?.validTo}</strong>, which overlaps with the new lot effective from{" "}
+              <strong>{pricingEffectiveDate}</strong>. Both lots would be active simultaneously. The Pricing Team will review this during approval.
+            </p>
+            <div className="rounded border border-amber-200 bg-white text-xs overflow-x-auto mt-1">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-amber-100 text-amber-800 font-semibold">
+                    <td className="px-2 py-1">Existing PL</td>
+                    <td className="px-2 py-1">Existing MRP</td>
+                    <td className="px-2 py-1">New PL</td>
+                    <td className="px-2 py-1">New MRP</td>
+                    <td className="px-2 py-1">Overlapping Scope</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="text-amber-700">
+                    <td className="px-2 py-1 font-mono">{oldLotId}</td>
+                    <td className="px-2 py-1 font-mono">₹{oldLot?.mrp}</td>
+                    <td className="px-2 py-1 font-mono">{newLotNumber || "NEW"}</td>
+                    <td className="px-2 py-1 font-mono">₹{newMrp || "—"}</td>
+                    <td className="px-2 py-1">{oldLot?.allIndia ? "All India" : oldLot?.scopeDesc}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
 // ─── Summary View ─────────────────────────────────────────────────────────────
 
 function SummaryView({
@@ -1163,6 +1608,7 @@ function SummaryView({
   justification, setJustification, cbuNetworkStatus,
   effectiveDate, setEffectiveDate, minEffectiveDate, effectiveDateValid,
   demandEstimateFile, setDemandEstimateFile,
+  priceLotChangeData,
 }: {
   amendmentType: SrType;
   currentGeo: string[];
@@ -1192,6 +1638,7 @@ function SummaryView({
   effectiveDateValid: boolean;
   demandEstimateFile: File | null;
   setDemandEstimateFile: (f: File | null) => void;
+  priceLotChangeData?: PriceLotChangeData;
 }) {
   const keptGeos = currentGeo.filter(g => !removedGeos.includes(g));
 
@@ -1400,7 +1847,213 @@ function SummaryView({
             )}
           </div>
         )}
+
+        {amendmentType === "price-lot-change" && priceLotChangeData && (() => {
+          const oldLot = PLR_MOCK_LOTS.find(l => l.id === priceLotChangeData.oldLotId);
+          const hasOverlap = !!oldLot && !!priceLotChangeData.pricingEffectiveDate &&
+            oldLot.validTo >= priceLotChangeData.pricingEffectiveDate;
+          return (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Existing Price Lot</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-blue-100 text-blue-700 border border-blue-300 text-xs font-mono">PL-{priceLotChangeData.oldLotId}</Badge>
+                    {oldLot && <span className="text-xs font-semibold font-mono">₹{oldLot.mrp.toFixed(2)}</span>}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">New Price Lot</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-mono">
+                      PL-{priceLotChangeData.newLotNumber || "NEW"}
+                    </Badge>
+                    {priceLotChangeData.newMrp && (
+                      <span className="text-xs font-semibold font-mono">₹{Number(priceLotChangeData.newMrp).toFixed(2)}</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Amendment Scope</p>
+                  <Badge className="bg-violet-100 text-violet-700 border border-violet-300 text-xs">
+                    {priceLotChangeData.scopeType === "replace" ? "Replacement (same scope)"
+                      : priceLotChangeData.scopeType === "new-channel" ? "New Channel Extension"
+                      : "New Region Extension"}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Pricing Effective Date</p>
+                  <Badge className="bg-amber-100 text-amber-700 border border-amber-300 text-xs font-mono">
+                    {priceLotChangeData.pricingEffectiveDate || "—"}
+                  </Badge>
+                </div>
+              </div>
+              {hasOverlap && (
+                <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Overlapping applicability detected between PL-{priceLotChangeData.oldLotId} and PL-{priceLotChangeData.newLotNumber || "NEW"} — Pricing Team will review.
+                </div>
+              )}
+              {priceLotChangeData.newChannels.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">New Channels</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {priceLotChangeData.newChannels.map(ch => (
+                      <Badge key={ch} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs">{ch}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {priceLotChangeData.newGeos.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">New Geographies</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {priceLotChangeData.newGeos.map(g => (
+                      <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs">{g}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3 pt-1 border-t">
+                {priceLotChangeData.oldLotInvoicingDeactivDate && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Old Lot Invoicing Deactivation</p>
+                    <p className="text-xs font-mono">{priceLotChangeData.oldLotInvoicingDeactivDate}</p>
+                  </div>
+                )}
+                {priceLotChangeData.oldLotProductionDeactivDate && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Old Lot Production Deactivation</p>
+                    <p className="text-xs font-mono">{priceLotChangeData.oldLotProductionDeactivDate}</p>
+                  </div>
+                )}
+                {priceLotChangeData.productionEndDate && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Production End Date</p>
+                    <p className="text-xs font-mono">{priceLotChangeData.productionEndDate}</p>
+                  </div>
+                )}
+                {priceLotChangeData.pricingEndDate && priceLotChangeData.pricingEndDate !== "9999-12-31" && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Pricing End Date</p>
+                    <p className="text-xs font-mono">{priceLotChangeData.pricingEndDate}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
+
+      {/* Simulated Pricing Status Summary — price-lot-change only */}
+      {amendmentType === "price-lot-change" && priceLotChangeData && priceLotChangeData.oldLotId && (() => {
+        const oldLot = PLR_MOCK_LOTS.find(l => l.id === priceLotChangeData.oldLotId);
+        const allGeos = [
+          ...currentGeo,
+          ...(priceLotChangeData.scopeType === "new-geo" ? priceLotChangeData.newGeos : []),
+        ];
+        const displayChannels = [
+          ...currentChannels.slice(0, 5),
+          ...(priceLotChangeData.scopeType === "new-channel" ? priceLotChangeData.newChannels : []),
+        ];
+        if (allGeos.length === 0) return null;
+
+        const isNewGeo = (geo: string) =>
+          priceLotChangeData.scopeType === "new-geo" && priceLotChangeData.newGeos.includes(geo);
+        const isNewChannel = (ch: string) =>
+          priceLotChangeData.scopeType === "new-channel" && priceLotChangeData.newChannels.includes(ch);
+        const isNewLotCell = (geo: string, ch: string) =>
+          priceLotChangeData.scopeType === "replace" || isNewGeo(geo) || isNewChannel(ch);
+
+        return (
+          <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b bg-muted/20 flex items-center gap-2">
+              <IndianRupee className="h-4 w-4 text-blue-600" />
+              <p className="text-sm font-semibold">Simulated Pricing Status Summary</p>
+              <span className="ml-auto text-xs text-muted-foreground">Post-amendment view · Geo × Channel</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/20 border-b">
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground min-w-[120px]">Geography</th>
+                    {displayChannels.map(ch => (
+                      <th key={ch} className={cn(
+                        "px-3 py-2 font-medium text-center whitespace-nowrap",
+                        isNewChannel(ch) ? "text-emerald-700 bg-emerald-50" : "text-muted-foreground",
+                      )}>
+                        {ch}
+                        {isNewChannel(ch) && (
+                          <Badge className="ml-1 bg-emerald-100 text-emerald-700 border border-emerald-200 text-[9px] px-1 py-0 align-middle">
+                            NEW
+                          </Badge>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allGeos.map((geo, gi) => (
+                    <tr key={geo} className={cn("border-b last:border-0", gi % 2 === 0 ? "bg-white" : "bg-muted/5")}>
+                      <td className={cn("px-4 py-2.5 font-medium", isNewGeo(geo) ? "text-emerald-700" : "text-foreground")}>
+                        <span title={geo}>{geo.length > 20 ? geo.slice(0, 20) + "…" : geo}</span>
+                        {isNewGeo(geo) && (
+                          <Badge className="ml-1.5 bg-emerald-100 text-emerald-700 border border-emerald-200 text-[9px] px-1 py-0">NEW</Badge>
+                        )}
+                      </td>
+                      {displayChannels.map(ch => {
+                        const isNew = isNewLotCell(geo, ch);
+                        return (
+                          <td key={ch} className={cn(
+                            "px-3 py-2.5 text-center font-mono",
+                            isNew ? "text-amber-700 font-semibold bg-amber-50" : "text-blue-700",
+                          )}>
+                            {isNew ? (
+                              <span>
+                                <span className="block">PL-{priceLotChangeData.newLotNumber || "NEW"}</span>
+                                {priceLotChangeData.newMrp && (
+                                  <span className="block text-[10px] font-normal text-amber-600">
+                                    ₹{Number(priceLotChangeData.newMrp).toFixed(0)}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span>
+                                <span className="block">PL-{priceLotChangeData.oldLotId}</span>
+                                {oldLot && (
+                                  <span className="block text-[10px] font-normal text-blue-500">
+                                    ₹{oldLot.mrp.toFixed(0)}
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-2 border-t bg-muted/10 flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-blue-100 inline-block border border-blue-200" />
+                Existing lot (unchanged)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-amber-100 inline-block border border-amber-200" />
+                New lot (proposed)
+              </span>
+              {(priceLotChangeData.newChannels.length > 0 || priceLotChangeData.newGeos.length > 0) && (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-emerald-100 inline-block border border-emerald-200" />
+                  New scope added
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Justification */}
       <div className="space-y-1.5">
@@ -1616,6 +2269,22 @@ export function RaiseAmendmentDialog({
   const [demandEstimateFile,  setDemandEstimateFile]  = useState<File | null>(null);
   const [submitting,          setSubmitting]          = useState(false);
 
+  // ── Price Lot Change state ──────────────────────────────────────────────────
+  const [plcScopeType,             setPlcScopeType]             = useState<PriceLotChangeData["scopeType"]>("replace");
+  const [plcOldLotId,              setPlcOldLotId]              = useState("");
+  const [plcNewLotNumber,          setPlcNewLotNumber]          = useState("");
+  const [plcNewMrp,                setPlcNewMrp]                = useState("");
+  const [plcPricingEffectiveDate,  setPlcPricingEffectiveDate]  = useState("");
+  const [plcPricingEndDate,        setPlcPricingEndDate]        = useState("9999-12-31");
+  const [plcOldLotInvoicingDeactiv,  setPlcOldLotInvoicingDeactiv]  = useState("");
+  const [plcOldLotProductionDeactiv, setPlcOldLotProductionDeactiv] = useState("");
+  const [plcProductionEndDate,     setPlcProductionEndDate]     = useState("");
+  const [plcNewChannels,           setPlcNewChannels]           = useState<string[]>([]);
+  const [plcNewGeos,               setPlcNewGeos]               = useState<string[]>([]);
+  const [plcRetailerMargin,        setPlcRetailerMargin]        = useState("");
+  const [plcRsMargin,              setPlcRsMargin]              = useState("");
+  const [plcPriceOff,              setPlcPriceOff]              = useState("");
+
   const minEffectiveDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -1644,8 +2313,14 @@ export function RaiseAmendmentDialog({
     if (amendmentType === "network-change-date-amendment") {
       return !!requestedDate && requestedDate !== currentNetworkChangeDate;
     }
+    if (amendmentType === "price-lot-change") {
+      const scopeOk = plcScopeType === "replace"
+        || (plcScopeType === "new-channel" && plcNewChannels.length > 0)
+        || (plcScopeType === "new-geo"     && plcNewGeos.length > 0);
+      return !!plcOldLotId && !!plcNewMrp && !!plcPricingEffectiveDate && scopeOk;
+    }
     return false;
-  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, currentDepots, mtGeos, customerMapping, requestedCustomerMapping, requestedDate, currentNetworkChangeDate]);
+  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, currentDepots, mtGeos, customerMapping, requestedCustomerMapping, requestedDate, currentNetworkChangeDate, plcOldLotId, plcNewMrp, plcPricingEffectiveDate, plcScopeType, plcNewChannels, plcNewGeos]);
 
   const reset = () => {
     setStep("type");
@@ -1663,6 +2338,20 @@ export function RaiseAmendmentDialog({
     setJustification("");
     setEffectiveDate("");
     setDemandEstimateFile(null);
+    setPlcScopeType("replace");
+    setPlcOldLotId("");
+    setPlcNewLotNumber("");
+    setPlcNewMrp("");
+    setPlcPricingEffectiveDate("");
+    setPlcPricingEndDate("9999-12-31");
+    setPlcOldLotInvoicingDeactiv("");
+    setPlcOldLotProductionDeactiv("");
+    setPlcProductionEndDate("");
+    setPlcNewChannels([]);
+    setPlcNewGeos([]);
+    setPlcRetailerMargin("");
+    setPlcRsMargin("");
+    setPlcPriceOff("");
   };
 
   const handleClose = () => { onOpenChange(false); reset(); };
@@ -1701,9 +2390,17 @@ export function RaiseAmendmentDialog({
     } else if (amendmentType === "customer-chain-amendment") {
       currentValue = mtGeos.map(g => `${g}: ${(customerMapping[g] || []).join(", ") || "None"}`).join("; ");
       requestedValue = mtGeos.map(g => `${g}: ${(requestedCustomerMapping[g] ?? customerMapping[g] ?? []).join(", ") || "None"}`).join("; ");
-    } else {
+    } else if (amendmentType === "network-change-date-amendment") {
       currentValue = currentNetworkChangeDate || "Not set";
       requestedValue = requestedDate;
+    } else if (amendmentType === "price-lot-change") {
+      const oldLot = PLR_MOCK_LOTS.find(l => l.id === plcOldLotId);
+      currentValue = `PL-${plcOldLotId} — MRP ₹${oldLot?.mrp ?? "—"} (${oldLot?.scopeDesc ?? ""})`;
+      requestedValue = `PL-${plcNewLotNumber || "NEW"} — MRP ₹${plcNewMrp}; Effective ${plcPricingEffectiveDate}; Scope: ${
+        plcScopeType === "replace" ? "Replacement"
+        : plcScopeType === "new-channel" ? `New channels: ${plcNewChannels.join(", ")}`
+        : `New geos: ${plcNewGeos.join(", ")}`
+      }`;
     }
 
     const raisedBy = raisedByProp || users.find(u => u.role === "Paid Bible Owner" && u.isActive)?.name || "PB SPOC";
@@ -1960,6 +2657,43 @@ export function RaiseAmendmentDialog({
             />
           )}
 
+          {step === "edit" && amendmentType === "price-lot-change" && (
+            <PriceLotEditor
+              currentGeo={currentGeo}
+              currentChannels={currentChannels}
+              leafChannels={leafChannels}
+              clusters={clusters}
+              scopeType={plcScopeType}
+              setScopeType={setPlcScopeType}
+              oldLotId={plcOldLotId}
+              setOldLotId={setPlcOldLotId}
+              newLotNumber={plcNewLotNumber}
+              setNewLotNumber={setPlcNewLotNumber}
+              newMrp={plcNewMrp}
+              setNewMrp={setPlcNewMrp}
+              pricingEffectiveDate={plcPricingEffectiveDate}
+              setPricingEffectiveDate={setPlcPricingEffectiveDate}
+              pricingEndDate={plcPricingEndDate}
+              setPricingEndDate={setPlcPricingEndDate}
+              oldLotInvoicingDeactivDate={plcOldLotInvoicingDeactiv}
+              setOldLotInvoicingDeactivDate={setPlcOldLotInvoicingDeactiv}
+              oldLotProductionDeactivDate={plcOldLotProductionDeactiv}
+              setOldLotProductionDeactivDate={setPlcOldLotProductionDeactiv}
+              productionEndDate={plcProductionEndDate}
+              setProductionEndDate={setPlcProductionEndDate}
+              newChannels={plcNewChannels}
+              setNewChannels={setPlcNewChannels}
+              newGeos={plcNewGeos}
+              setNewGeos={setPlcNewGeos}
+              retailerMargin={plcRetailerMargin}
+              setRetailerMargin={setPlcRetailerMargin}
+              rsMargin={plcRsMargin}
+              setRsMargin={setPlcRsMargin}
+              priceOff={plcPriceOff}
+              setPriceOff={setPlcPriceOff}
+            />
+          )}
+
           {/* ── Step 3: Summary ── */}
           {step === "summary" && amendmentType && (
             <SummaryView
@@ -1991,6 +2725,22 @@ export function RaiseAmendmentDialog({
               effectiveDateValid={effectiveDateValid}
               demandEstimateFile={demandEstimateFile}
               setDemandEstimateFile={setDemandEstimateFile}
+              priceLotChangeData={amendmentType === "price-lot-change" ? {
+                scopeType: plcScopeType,
+                oldLotId: plcOldLotId,
+                newLotNumber: plcNewLotNumber,
+                newMrp: plcNewMrp,
+                pricingEffectiveDate: plcPricingEffectiveDate,
+                pricingEndDate: plcPricingEndDate,
+                oldLotInvoicingDeactivDate: plcOldLotInvoicingDeactiv,
+                oldLotProductionDeactivDate: plcOldLotProductionDeactiv,
+                productionEndDate: plcProductionEndDate,
+                newChannels: plcNewChannels,
+                newGeos: plcNewGeos,
+                retailerMargin: plcRetailerMargin,
+                rsMargin: plcRsMargin,
+                priceOff: plcPriceOff,
+              } : undefined}
             />
           )}
         </div>

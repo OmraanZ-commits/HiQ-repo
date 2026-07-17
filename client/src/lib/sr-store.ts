@@ -10,7 +10,8 @@ export type SrType =
   | "channel-extension"
   | "sourcing-amendment"
   | "customer-chain-amendment"
-  | "network-change-date-amendment";
+  | "network-change-date-amendment"
+  | "price-lot-change";
 
 export interface SrTypeMeta {
   label: string;
@@ -49,6 +50,11 @@ export const SR_TYPE_META: Record<SrType, SrTypeMeta> = {
     description: "Amend the network change date due to MSTN clearance not met",
     colorClass: "bg-orange-100 text-orange-700 border-orange-300",
   },
+  "price-lot-change": {
+    label: "Price Lot Change",
+    description: "Request a new or replacement price lot for an existing CBU, with overlap assessment",
+    colorClass: "bg-rose-100 text-rose-700 border-rose-300",
+  },
 };
 
 export const CBU_SR_TYPES: SrType[] = [
@@ -57,6 +63,7 @@ export const CBU_SR_TYPES: SrType[] = [
   "sourcing-amendment",
   "customer-chain-amendment",
   "network-change-date-amendment",
+  "price-lot-change",
 ];
 
 export interface MaterialCriteria {

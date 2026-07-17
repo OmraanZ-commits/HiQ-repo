@@ -33,11 +33,12 @@ export function SrStatusBadge({ status }: { status: "pending" | "approved" | "re
 
 // ─── ApproverChain ────────────────────────────────────────────────────────────
 
-export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
+export function ApproverChain({ approvers, requestId, onApprove, onReject, srEffectiveDate }: {
   approvers: ApproverStep[];
   requestId: string;
   onApprove: (id: string, idx: number, comment?: string, effectiveDate?: string) => void;
   onReject: (id: string, idx: number, reason: string) => void;
+  srEffectiveDate?: string;
 }) {
   const [rejectingIdx, setRejectingIdx] = useState<number | null>(null);
   const [approvingIdx, setApprovingIdx] = useState<number | null>(null);
@@ -158,7 +159,7 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject }: {
                       onClick={() => {
                         setApprovingIdx(idx);
                         setApprovalComment("");
-                        setApprovalEffectiveDate(step.effectiveDate ?? currentSrEffectiveDate ?? "");
+                        setApprovalEffectiveDate(step.effectiveDate ?? currentSrEffectiveDate ?? srEffectiveDate ?? "");
                       }}
                       data-testid={`button-approve-${requestId}-${idx}`}
                     >

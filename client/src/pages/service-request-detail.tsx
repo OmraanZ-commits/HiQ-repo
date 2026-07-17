@@ -683,6 +683,7 @@ export default function ServiceRequestDetailPage() {
               <ApproverChain
                 approvers={request.approvers}
                 requestId={request.id}
+                srEffectiveDate={request.effectiveDate}
                 onApprove={(reqId, idx, comment, effectiveDate) => approveStep(reqId, idx, comment, effectiveDate)}
                 onReject={(reqId, idx, reason) => rejectStep(reqId, idx, reason)}
               />

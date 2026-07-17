@@ -1,0 +1,134 @@
+Requirement Overview
+The solution shall support Price Lot Change Requests for existing CBUs only.
+The functionality shall be used when:
+•	An existing Price Lot is being replaced by a new Price Lot for the same pricing scope.
+•	A new Price Lot is required because the pricing scope of an existing CBU is being expanded or modified through addition of new Regions and/or Channels.
+The solution shall not support creation of new CBUs as part of a Price Lot Change Request.
+The system shall assess pricing applicability at a Material × Geography × Channel level and identify situations where multiple active Price Lots become applicable for the same Geography and Channel combination during overlapping validity periods.
+Where overlapping applicability is identified, the system shall generate a warning for user review but shall not automatically modify or remove existing Price Lots.
+Scenario 1 – Existing Price Lot Replacement (No Scope Change)
+An existing Price Lot is replaced by a new Price Lot for the same Geography and Channel scope.
+Existing Configuration
+Annex Type	Material	Price Lot	MRP	Geography	Channel	Valid From	Valid To
+New Launch	CBU1	2	95	All	MT	01-Jan-26	14-Jul-26
+New Price Request	CBU1	3	98	All	MT	15-Jul-26	31-Dec-99
+
+
+
+Assessment Result
+Material	Existing Price Lot	New Price Lot	Channel	Geography	Impact
+CBU1	2	3	MT	All	No overlap detected
+System Behaviour
+•	Existing Price Lot = 2
+•	New Price Lot = 3
+•	Same Channel = MT
+•	Same Geography = All
+•	Validity periods do not overlap
+Result:
+No warning generated.
+Business Outcome
+The existing CBU remains unchanged and the pricing applicability remains unchanged. Only the active Price Lot is revised.
+Scenario 2 – Existing Price Lot Replacement (Overlap Warning)
+An existing Price Lot is replaced by a new Price Lot but both Price Lots remain active for part of the same validity period.
+Existing Configuration
+Annex Type	Material	Price Lot	MRP	Geography	Channel	Valid From	Valid To
+New Launch	CBU1	2	95	All	MT	01-Jan-26	31-Dec-99
+New Price Request	CBU1	3	98	All	MT	15-Jul-26	31-Dec-99
+
+
+
+Assessment Result
+Material	Existing Price Lot	New Price Lot	Channel	Geography	Impact
+CBU1	2	3	MT	All	Overlapping pricing applicability identified
+Warning Displayed to User
+Existing Price Lot	Existing MRP	New Price Lot	New MRP	Overlapping Scope
+2	95	3	98	Material = CBU1, Geography = All, Channel = MT
+System Behaviour
+The system shall identify that:
+•	Both Price Lot 2 and Price Lot 3 are applicable to MT.
+•	Both Price Lots apply to the same Geography.
+•	Validity periods overlap.
+The system shall display a warning indicating that multiple active Price Lots exist for the same Geography × Channel combination.
+Business Outcome
+The request may still be submitted. The warning provides visibility to the Pricing Team for review and decision.
+Scenario 3 – New Price Lot with New Channel Introduction
+A new Channel is introduced for an existing CBU requiring a new Price Lot.
+Existing Configuration
+Material	Price Lot	Geography	Channel	MRP
+CBU1	1	All	GT	100
+Change Request
+Business intends to extend pricing to MT Channel.
+Existing Price Lot	New Price Lot	Geography	Existing Channel	New Channel
+1	2	All	GT	MT
+Result
+Geography	GT	MT
+All	PL1	PL2
+System Behaviour
+The system shall:
+•	Capture Old Price Lot = 1, Capture New Price Lot = 2
+•	Capture revised Channel applicability
+•	Assess pricing overlaps
+•	Display warnings if overlapping validity periods exist
+Business Outcome
+The CBU remains unchanged.
+The pricing scope is expanded through creation of a new Price Lot for an additional Channel.
+Scenario 4 – New Price Lot with New Region Introduction
+A new Region is introduced for an existing CBU requiring a separate Price Lot.
+Existing Configuration
+Material	Price Lot	Geography	Channel	MRP
+CBU1	1	Karnataka	MT	100
+Change Request
+Business intends to extend pricing to Kerala through a new Price Lot.
+Existing Price Lot	New Price Lot	Existing Geography	New Geography
+1	2	Karnataka	Kerala
+
+Result
+Geography	Channel	Applicable Price Lot
+Karnataka	MT	PL1
+Kerala	MT	PL2
+System Behaviour
+The system shall:
+•	Capture the existing Price Lot reference.
+•	Capture the new Price Lot.
+•	Capture the additional Geography.
+•	Assess pricing overlaps.
+•	Notify Pricing Team if coverage overlaps are identified.
+Business Outcome
+The existing CBU continues to operate.
+Pricing applicability is expanded to an additional Region through a new Price Lot.
+Out of Scope Example – New CBU Creation
+Existing Configuration
+CBU	Price Lot	Geography
+CBU123	13	All India
+Proposed Change
+CBU	Price Lot	Geography
+CBU123	13	Remaining Regions
+CBU456	14	Kerala, Karnataka
+Outcome
+Creation of CBU456 due to pricing changes is not supported by this process.
+Such scenarios shall be managed through separate CBU creation and network planning processes. This Price Lot Change Request workflow is limited to pricing amendments within an existing CBU only.
+Input fields required:
+Annexure Type	MRP change	EY comments on availability of data in Network Visibility portal	Data type	Optional/ Mandatory
+category code	AA02	Sales Category	 	Mandatory
+Brand code	AWLF	Brand	 	Mandatory
+x	14174	Basepack	 	Mandatory
+g/ml	4kg	net weight	 	Mandatory
+MRP per Unit  [in Rs.]	 	Manual input	 	Optional
+CBU	WLHX14A	CBU Code	 	Mandatory
+CBU Desc	WHEEL L&O PWD 4KG Blue Oathkeeper	Material Description	 	Mandatory
+MRP	258	Manual input	Integer	Mandatory
+Retailer Margin 	 	Manual input	% or integer or both	Optional
+RS Margin	As per system	Manual input	% or integer or both	Optional
+Pricing effective Date	Immediate	Start Date	 	Mandatory
+Pricing end Date	Till end	End Date	 	Mandatory
+Channel	All channels	Applicable channels that Network Planner selects	 	Mandatory
+Applicable States	UP, Raj, Bihar	Applicable states -> do we derive the states from depots selected or from the cluster selected? - Yes	 	Mandatory
+Applicable sites	U101,USM,UVY	Assuming that we are mentioning the list of depots selected by network planner	 	Mandatory
+Old MRP	236	From system	 	Mandatory
+Old lot production deactivation date	21-05-2026	Manual input	 	Mandatory
+Price Off	NA	Manual input	 	Optional
+Old lot invoicing deactivation date	21-05-2026	Manual input	 	Mandatory
+Production start date	21-05-2026	From system	 	Mandatory
+Production end date	24-05-2026	Manual input	 	Mandatory
+
+The above flow will be handled as an amendment request in Paid Bible
