@@ -11,8 +11,7 @@ const BG_LIST = ["Beauty & WB", "Home Care", "Foods & Refreshments"];
 const FORMAT_LIST = ["Bar", "Liquid", "Powder", "Cream", "Gel"];
 const PACK_STATUS_LIST = ["Active", "Draft", "Inactive", "Seasonal", "Stock Base Delisted", "Delisted"];
 const CHANNEL_LIST = ["GT", "MT", "CSD", "RD", "Ecom", "Qcom"];
-const SUB_CH1_LIST = ["Urban", "Rural", "Semi-Urban"];
-const SUB_CH2_LIST = ["Premium", "Mass", "Economy"];
+const SUB_CH_LIST = ["Urban", "Rural", "Semi-Urban"];
 const CUSTOMER_LIST = ["DMart", "BigBazaar", "Reliance", "Amazon", "Flipkart"];
 
 const BP_STATUS_DEFS = [
@@ -158,12 +157,11 @@ export function Dashboard() {
   const [fFormat, setFFormat]   = useState<string[]>([]);
   const [fStatus, setFStatus]   = useState<string[]>([]);
   const [fChannel, setFChannel] = useState<string[]>([]);
-  const [fSub1, setFSub1]       = useState<string[]>([]);
-  const [fSub2, setFSub2]       = useState<string[]>([]);
+  const [fSub, setFSub]         = useState<string[]>([]);
   const [fCust, setFCust]       = useState<string[]>([]);
 
-  const hasFilters = [fBg, fScat, fFormat, fStatus, fChannel, fSub1, fSub2, fCust].some(f => f.length > 0);
-  const clearAll = () => { setFBg([]); setFScat([]); setFFormat([]); setFStatus([]); setFChannel([]); setFSub1([]); setFSub2([]); setFCust([]); };
+  const hasFilters = [fBg, fScat, fFormat, fStatus, fChannel, fSub, fCust].some(f => f.length > 0);
+  const clearAll = () => { setFBg([]); setFScat([]); setFFormat([]); setFStatus([]); setFChannel([]); setFSub([]); setFCust([]); };
 
   const [selMoc, setSelMoc] = useState("MOC 7");
   const [expandedSlob, setExpandedSlob] = useState<string | null>(null);
@@ -213,8 +211,7 @@ export function Dashboard() {
             <MultiChip label="Format"       options={FORMAT_LIST}      selected={fFormat}  onChange={setFFormat}  />
             <MultiChip label="Pack Status"  options={PACK_STATUS_LIST} selected={fStatus}  onChange={setFStatus}  />
             <MultiChip label="Channel"      options={CHANNEL_LIST}     selected={fChannel} onChange={setFChannel} />
-            <MultiChip label="Sub Ch. 1"    options={SUB_CH1_LIST}     selected={fSub1}    onChange={setFSub1}    />
-            <MultiChip label="Sub Ch. 2"    options={SUB_CH2_LIST}     selected={fSub2}    onChange={setFSub2}    />
+            <MultiChip label="Sub Channel"   options={SUB_CH_LIST}      selected={fSub}     onChange={setFSub}     />
             <MultiChip label="Customer"     options={CUSTOMER_LIST}    selected={fCust}    onChange={setFCust}    />
             {hasFilters && (
               <button onClick={clearAll} className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 ml-auto">
