@@ -301,7 +301,7 @@ function MaterialsSubTable({
             <TableHead className="text-xs font-semibold py-3 px-4 min-w-[160px]">NW Status</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 min-w-[100px]">Mat. Status</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4">Type of Network</TableHead>
-            <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN %</TableHead>
+            <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">MSTN DCs Cleared</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">NW Change Date</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 whitespace-nowrap">MSTN Clear</TableHead>
             <TableHead className="text-xs font-semibold py-3 px-4 min-w-[90px]">Price Active</TableHead>
@@ -349,20 +349,13 @@ function MaterialsSubTable({
                   <TableCell className="py-3 px-4"><MatStatusBadge status={m.matStatus} /></TableCell>
                   <TableCell className="text-sm py-3 px-4 text-muted-foreground whitespace-nowrap">{m.typeOfNetwork}</TableCell>
                   <TableCell className="py-3 px-4 whitespace-nowrap">
-                    {m.mstnPct != null ? (
-                      <div className="flex flex-col gap-0.5">
-                        <span className={`text-sm font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>
-                          {m.mstnPct}%
-                        </span>
-                        {totalDcCount > 0 && (
-                          <span
-                            className={`text-[10px] font-medium ${clearedDcCount === totalDcCount ? "text-emerald-600" : clearedDcCount === 0 ? "text-red-500" : "text-amber-600"}`}
-                            data-testid={`dc-cleared-count-${m.id}`}
-                          >
-                            {clearedDcCount}/{totalDcCount} DCs
-                          </span>
-                        )}
-                      </div>
+                    {totalDcCount > 0 ? (
+                      <span
+                        className={`text-sm font-semibold ${clearedDcCount === totalDcCount ? "text-emerald-600" : clearedDcCount === 0 ? "text-red-500" : "text-amber-600"}`}
+                        data-testid={`dc-cleared-count-${m.id}`}
+                      >
+                        {clearedDcCount}/{totalDcCount}
+                      </span>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
