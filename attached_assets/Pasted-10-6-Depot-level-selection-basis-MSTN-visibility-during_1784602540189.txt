@@ -1,0 +1,100 @@
+10.6	Depot level selection (basis MSTN visibility) during basepack activation 
+During Draft → Active activation, the system shall enable depot-level activation decisions at the CBU level. Activation eligibility shall be evaluated using MSTN values of the associated Invoicing Depots (Sourcing Depots).
+1. CBU-wise Depot Visibility
+A basepack may be associated with multiple CBUs.
+Each CBU may be associated with one or more Invoicing Depots used for fulfilment.
+The system shall display:
+•	CBU-wise grouping
+•	Associated Invoicing Depots
+•	Depot-level activation status
+•	Depot-level MSTN status
+2. MSTN Visibility
+For each Invoicing Depot, the system shall display:
+•	Depot Code
+•	Current MSTN %
+•	MSTN Cleared Indicator (Yes / No)
+•	Activation Status (Activated / Not Activated)
+•	Date of first MSTN clearance
+Once a depot achieves MSTN ≥ 80% during the evaluation cycle, the depot shall be treated as MSTN Cleared for activation purposes and the clearance status shall be retained.
+3. Partial Activation Decision
+The NCSM approver shall be able to activate:
+•	All depots
+•	A subset of depots
+•	No depots
+for a given CBU.
+The activation decision shall be performed at depot level.
+Depots selected for activation shall become Active for that basepack.
+Depots not selected shall remain Not Activated.
+4. Basepack Activation Status Determination
+The system shall derive basepack activation status as follows:
+Scenario	Basepack Status
+All eligible depots activated	Active
+Only a subset of depots activated	Partially Active
+No depots activated	Draft
+A Partially Active basepack shall remain operational only for approved depots.
+5. Downstream CCR Impact
+Only depots approved during activation shall be:
+•	Passed to CCR
+•	Available for customer code mapping
+•	Available for CIC generation
+•	Available for MT listing 
+Depots that are not activated shall:
+•	Not be passed to CCR
+•	Appear as non-serviceable for the basepack
+•	Not generate downstream mappings
+6. Subsequent Depot Activation
+For depots that remain Not Activated:
+•	MSTN values shall continue to be refreshed and monitored.
+•	When MSTN clearance is subsequently achieved, the depot shall become eligible for activation.
+•	The system shall raise an activation action for NCSM review.
+•	NCSM may approve activation of the newly eligible depot without impacting already activated depots.
+The activation of an additional depot shall update downstream CCR mappings accordingly.
+7. UI requirement
+Per CBU
+The system shall display:
+•	CBU Identifier
+•	Overall Activation Status (Draft / Partially Active / Active)
+•	List of Invoicing Depots
+Per Depot
+The system shall display:
+•	Depot Code
+•	MSTN %
+•	MSTN Cleared Indicator (Yes / No)
+•	NCSM Decision (Approved / Rejected / Pending)
+•	Activation Status (Active / Not Activated)
+•	Activation Indicator (✓ / ✕)
+•	Select for Activation checkbox/toggle (available only during approval)
+Activation Indicator Rules
+Activation Indicator	Meaning
+✓	Depot approved by NCSM and active for execution
+✕	Depot not approved by NCSM and excluded from execution
+☐	Pending approval decision
+The Activation Indicator shall remain visible after approval to provide continuous visibility of depot-level activation decisions.
+The Activation Indicator shall drive downstream CCR eligibility:
+•	✓ Depots shall be passed to CCR.
+•	✕ Depots shall not be passed to CCR.
+•	☐ Depots shall remain pending until approval is completed.
+Example – Partial Activation
+CBU	Invoicing Depot	MSTN %	MSTN Cleared	NCSM Decision	Activation Indicator	Activation Status
+CBU-001	DLGH	92%	Yes	Approved	✓	Active
+CBU-001	VABH	88%	Yes	Approved	✓	Active
+CBU-001	VJDH	63%	No	Rejected	✕	Not Activated
+Result
+•	Basepack Status = Partially Active
+•	DLGH and VABH are available in CCR.
+•	VJDH is excluded from CCR.
+•	Activation Indicators displayed: 
+o	DLGH = ✓
+o	VABH = ✓
+o	VJDH = ✕
+Subsequent MSTN Clearance Example
+CBU	Invoicing Depot	MSTN %	MSTN Cleared	NCSM Decision	Activation Indicator	Activation Status
+CBU-001	VJDH	84%	Yes	Pending	☐	Not Activated
+After NCSM approval:
+CBU	Invoicing Depot	MSTN %	MSTN Cleared	NCSM Decision	Activation Indicator	Activation Status
+CBU-001	VJDH	84%	Yes	Approved	✓	Active
+Result:
+•	VJDH becomes available in CCR.
+•	Basepack transitions from Partially Active to Active if all remaining depots are activated.
+•	Activation of VJDH does not require reactivation of already approved depots.
+This flow will be incorporated into service request approval flow documented in Section 10.5
