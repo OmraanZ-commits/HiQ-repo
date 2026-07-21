@@ -2046,6 +2046,8 @@ function SummaryView({
       {/* Simulated Pricing Status Summary — price-lot-change only */}
       {amendmentType === "price-lot-change" && priceLotChangeData && priceLotChangeData.oldLotId && (() => {
         const oldLot = PLR_MOCK_LOTS.find(l => l.id === priceLotChangeData.oldLotId);
+        const hasOverlap = !!oldLot && !!priceLotChangeData.pricingEffectiveDate &&
+          oldLot.validTo >= priceLotChangeData.pricingEffectiveDate;
         const allGeos = [
           ...currentGeo,
           ...(priceLotChangeData.scopeType === "new-geo" ? priceLotChangeData.newGeos : []),
@@ -2108,10 +2110,16 @@ function SummaryView({
                           )}>
                             {isNew ? (
                               <span>
-                                <span className="block">PL-{priceLotChangeData.newLotNumber || "NEW"}</span>
+                                <span className="block">
+                                  {hasOverlap
+                                    ? `PL-${priceLotChangeData.oldLotId}, PL-${priceLotChangeData.newLotNumber || "NEW"}`
+                                    : `PL-${priceLotChangeData.newLotNumber || "NEW"}`}
+                                </span>
                                 {priceLotChangeData.newMrp && (
                                   <span className="block text-[10px] font-normal text-amber-600">
-                                    ₹{Number(priceLotChangeData.newMrp).toFixed(0)}
+                                    {hasOverlap
+                                      ? `₹${oldLot ? oldLot.mrp.toFixed(0) : "—"} / ₹${Number(priceLotChangeData.newMrp).toFixed(0)}`
+                                      : `₹${Number(priceLotChangeData.newMrp).toFixed(0)}`}
                                   </span>
                                 )}
                               </span>
