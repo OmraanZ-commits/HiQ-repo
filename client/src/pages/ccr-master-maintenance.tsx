@@ -293,11 +293,10 @@ type CbuTableProps = {
   onCbuChange: (cbu: string) => void;
   postingStatusMap: Record<string, string>;
   onNavigate: (path: string) => void;
-  highlightRows?: boolean;
   chainSummary?: Record<string, ChainProgress>;
 };
 
-function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange, postingStatusMap, onNavigate, highlightRows, chainSummary }: CbuTableProps) {
+function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange, postingStatusMap, onNavigate, chainSummary }: CbuTableProps) {
   if (isLoading) {
     return (
       <div className="p-4 space-y-2">
@@ -336,10 +335,8 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               onClick={() => onCbuChange(entry.cbuCode ?? "")}
               className={
                 selectedCbu === entry.cbuCode
-                  ? "bg-amber-100 border-l-2 border-l-amber-500 cursor-pointer"
-                  : highlightRows
-                    ? "bg-amber-50 border-l-2 border-l-amber-300 cursor-pointer hover:bg-amber-100"
-                    : "cursor-pointer hover:bg-muted/40"
+                  ? "bg-blue-50 border-l-2 border-l-[#1f36c7] cursor-pointer"
+                  : "cursor-pointer hover:bg-muted/40"
               }
               data-testid={`row-cbu-${entry.cbuCode}`}
             >
@@ -349,8 +346,8 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               <TableCell className="text-sm">
                 <span className="truncate block">{entry.materialDescription || entry.basepackDescription || "—"}</span>
                 {chainSummary && chainSummary[entry.cbuCode ?? ""] && (
-                  <span className="text-[10px] text-amber-600 font-medium mt-0.5 block" data-testid={`text-chain-progress-${entry.cbuCode}`}>
-                    {chainSummary[entry.cbuCode ?? ""].saved.length} of {chainSummary[entry.cbuCode ?? ""].applicable.length} chains configured
+                  <span className="text-[10px] text-slate-400 font-medium mt-0.5 block" data-testid={`text-chain-progress-${entry.cbuCode}`}>
+                    {chainSummary[entry.cbuCode ?? ""].saved.length} of {chainSummary[entry.cbuCode ?? ""].applicable.length} chains mapped
                   </span>
                 )}
               </TableCell>
@@ -816,25 +813,24 @@ export default function CcrMasterMaintenancePage() {
             <TabsContent value="network-change" className="mt-0">
               {networkChangeEntries.length > 0 && (
                 <div className="px-4 pt-3">
-                  <Alert className="border-amber-200 bg-amber-50">
-                    <RefreshCw className="h-4 w-4 text-amber-600" />
-                    <AlertDescription className="text-amber-700 text-xs">
-                      These CBUs have one or more applicable customer chains not yet configured.
-                      Open each CBU, configure all chains, and save to move it to Completed.
+                  <Alert className="border-slate-200 bg-slate-50">
+                    <RefreshCw className="h-4 w-4 text-slate-400" />
+                    <AlertDescription className="text-slate-500 text-xs">
+                      Customer chain mapping for these CBUs is pending Network Planner review in the Network Visibility Portal.
+                      Chains shown reflect current configuration — unconfigured chains are awaiting NP decision.
                     </AlertDescription>
                   </Alert>
                 </div>
               )}
               <CbuTable
                 entries={networkChangeEntries}
-                emptyMessage="No CBUs with incomplete chain configurations."
+                emptyMessage="No CBUs pending network chain mapping."
                 testId="network-change"
                 isLoading={isLoading}
                 selectedCbu={selectedCbu}
                 onCbuChange={handleCbuChange}
                 postingStatusMap={postingStatusMap}
                 onNavigate={navigate}
-                highlightRows
                 chainSummary={depotChangeSummary}
               />
             </TabsContent>
