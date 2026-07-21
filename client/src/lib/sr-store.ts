@@ -75,6 +75,15 @@ export interface MaterialCriteria {
   networkChangeDate?: string | null;
 }
 
+export interface DepotDecision {
+  cbuCode: string;
+  depotCode: string;
+  mstnPct: number | null;
+  mstnCleared: boolean;
+  ncsmDecision: "approved" | "rejected" | "pending";
+  activationStatus: "Active" | "Not Activated" | "Pending";
+}
+
 export interface BpDates {
   activationDate?: string;
   inactiveDate?: string;
@@ -136,6 +145,7 @@ export interface ServiceRequest {
   mstnCoverage?: number;
   criteriaMetAtRaise?: boolean;
   materials?: MaterialCriteria[];
+  depotDecisions?: DepotDecision[];
 
   // ── CBU context (geo / channel / sourcing) ─────────────────────────────────
   cbuId?: string;
@@ -250,6 +260,7 @@ export function mapBackendSrToFrontend(sr: any): ServiceRequest {
     mstnCoverage: sr.mstnCoverageAtRaise ?? undefined,
     criteriaMetAtRaise: sr.criteriaMetAtRaise ?? undefined,
     materials: sr.materials ?? [],
+    depotDecisions: sr.depotDecisions ?? undefined,
     cbuId: sr.cbuId ?? undefined,
     cbuCode: sr.cbuCode ?? undefined,
     cbuDescription: sr.cbuDescription ?? undefined,
@@ -295,6 +306,7 @@ function _mapFrontendSrToBackend(sr: ServiceRequest): any {
     businessJustification: sr.justification,
     criteriaMetAtRaise: sr.criteriaMetAtRaise,
     mstnCoverageAtRaise: sr.mstnCoverage,
+    depotDecisions: sr.depotDecisions ?? undefined,
     cbuId: sr.cbuId,
     cbuCode: sr.cbuCode,
     cbuDescription: sr.cbuDescription,
@@ -324,6 +336,7 @@ let _sourcingOverrides: Record<string, { mode: "decentralized" | "centralized"; 
 let _geoRemovalOverrides: Record<string, { removedGeos: string[]; removedDepots: string[] }> = {};
 let _customerMappingOverrides: Record<string, Record<string, string[]>> = {};
 let _networkChangeDateOverrides: Record<string, string> = {};
+let _depotDecisionOverrides: Record<string, DepotDecision[]> = {};
 let _bpDates: Record<string, BpDates> = {};
 let _initialised = false;
 const _listeners = new Set<() => void>();
@@ -415,6 +428,10 @@ export function getNetworkChangeDateOverrides(): Record<string, string> {
   return _networkChangeDateOverrides;
 }
 
+export function getDepotDecisionOverrides(): Record<string, DepotDecision[]> {
+  return _depotDecisionOverrides;
+}
+
 export function getBpDates(): Record<string, BpDates> { return _bpDates; }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -440,7 +457,16 @@ export function addRequest(req: ServiceRequest): void {
     });
 }
 
-export function approveStep(requestId: string, stepIndex: number, comment?: string, effectiveDate?: string): void {
+function _deriveFinalBpStatus(decisions: DepotDecision[] | undefined, fallback: string | undefined): string {
+  if (!decisions || decisions.length === 0) return fallback ?? "Active Pack";
+  const approved = decisions.filter(d => d.ncsmDecision === "approved").length;
+  const total = decisions.length;
+  if (approved === 0) return "Draft";
+  if (approved === total) return "Active Pack";
+  return "Partially Active";
+}
+
+export function approveStep(requestId: string, stepIndex: number, comment?: string, effectiveDate?: string, depotDecisions?: DepotDecision[]): void {
   const now = formatNow();
   let fullyApprovedSr: ServiceRequest | null = null;
 
@@ -456,8 +482,16 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
 
     if (allApproved) {
       // Apply local overrides immediately for responsive UI
-      if (sr.srType === "basepack-status-change" && sr.basepackId && sr.targetStatus) {
-        _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: sr.targetStatus };
+      if (sr.srType === "basepack-status-change" && sr.basepackId) {
+        const finalDecisions = depotDecisions ?? sr.depotDecisions;
+        const finalStatus = _deriveFinalBpStatus(finalDecisions, sr.targetStatus);
+        _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: finalStatus };
+        if (finalDecisions && finalDecisions.length > 0) {
+          const resolved: DepotDecision[] = finalDecisions.map(d =>
+            d.ncsmDecision === "pending" ? { ...d, ncsmDecision: "rejected" as const, activationStatus: "Not Activated" as const } : d
+          );
+          _depotDecisionOverrides = { ..._depotDecisionOverrides, [sr.basepackId]: resolved };
+        }
         const d: Record<string, BpDates> = { ..._bpDates };
         _applyDateFromSr(d, { ...sr, approvers });
         _bpDates = d;
@@ -617,6 +651,7 @@ export function useSrStore() {
   const [geoRemovalOverrides, setGeoRemovalOverrides] = useState<Record<string, { removedGeos: string[]; removedDepots: string[] }>>(getGeoRemovalOverrides);
   const [customerMappingOverrides, setCustomerMappingOverrides] = useState<Record<string, Record<string, string[]>>>(getCustomerMappingOverrides);
   const [networkChangeDateOverrides, setNetworkChangeDateOverrides] = useState<Record<string, string>>(getNetworkChangeDateOverrides);
+  const [depotDecisionOverrides, setDepotDecisionOverrides] = useState<Record<string, DepotDecision[]>>(getDepotDecisionOverrides);
   const [bpDates, setBpDatesState] = useState<Record<string, BpDates>>(getBpDates);
 
   useEffect(() => {
@@ -633,12 +668,13 @@ export function useSrStore() {
       setGeoRemovalOverrides({ ...getGeoRemovalOverrides() });
       setCustomerMappingOverrides({ ...getCustomerMappingOverrides() });
       setNetworkChangeDateOverrides({ ...getNetworkChangeDateOverrides() });
+      setDepotDecisionOverrides({ ...getDepotDecisionOverrides() });
       setBpDatesState({ ...getBpDates() });
     });
   }, []);
 
   return {
     requests, bpStatusOverrides, channelOverrides, sourcingOverrides, geoRemovalOverrides,
-    customerMappingOverrides, networkChangeDateOverrides, bpDates,
+    customerMappingOverrides, networkChangeDateOverrides, depotDecisionOverrides, bpDates,
   };
 }

@@ -684,7 +684,9 @@ export default function ServiceRequestDetailPage() {
                 approvers={request.approvers}
                 requestId={request.id}
                 srEffectiveDate={request.effectiveDate}
-                onApprove={(reqId, idx, comment, effectiveDate) => approveStep(reqId, idx, comment, effectiveDate)}
+                depotDecisions={request.depotDecisions}
+                srType={request.srType}
+                onApprove={(reqId, idx, comment, effectiveDate, decisions) => approveStep(reqId, idx, comment, effectiveDate, decisions)}
                 onReject={(reqId, idx, reason) => rejectStep(reqId, idx, reason)}
               />
             </div>

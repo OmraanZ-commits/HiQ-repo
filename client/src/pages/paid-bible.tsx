@@ -6,7 +6,7 @@ import type { PortalUser } from "@/lib/users-data";
 import { useSrStore, addRequest, setBpStatusOverride, formatNow, SR_TYPE_META, CBU_SR_TYPES } from "@/lib/sr-store";
 import { getNetworkChangeTypeName } from "@/lib/constants";
 import { formatDateDisplay } from "@/lib/date-utils";
-import type { ServiceRequest, MaterialCriteria, ApproverStep, SrType, BpDates } from "@/lib/sr-store";
+import type { ServiceRequest, MaterialCriteria, ApproverStep, SrType, BpDates, DepotDecision } from "@/lib/sr-store";
 import { SrStatusBadge } from "@/components/sr-detail-components";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { type PendingSrRef } from "@/components/basepack-cbu-sections";
@@ -43,6 +43,7 @@ import { STATUS_FLOW, type NetworkEntry } from "@shared/schema";
 const BP_STATUS_OPTIONS = [
   "Draft",
   "Active Pack",
+  "Partially Active",
   "Delisted Packs",
   "Stock Base Delisted",
   "Seasonal Pack",
@@ -63,7 +64,8 @@ function normalizeBpStatus(s: string): string {
 function getAllowedTransitions(from: string): string[] {
   if (from === "Delisted Packs")      return [];
   if (from === "Stock Base Delisted") return ["Delisted Packs"];
-  return BP_STATUS_OPTIONS.filter(s => s !== from);
+  if (from === "Partially Active")    return ["Active Pack", "Draft", "Inactive Pack"];
+  return BP_STATUS_OPTIONS.filter(s => s !== from && s !== "Partially Active");
 }
 
 const MSTN_ACTIVE_STATUSES = new Set([
@@ -266,9 +268,10 @@ const NEW_LAUNCH_NETWORKS = [
 
 
 const TRIGGER_DEFS = [
-  { id: "price-inactive", name: "Price Inactive",           rule: "MSTN coverage > 80% but price inactive for respective channel",                                   stakeholder: "Network Planner",       severity: "high"   },
-  { id: "slob-risk",      name: "SLOB Risk",                rule: "CBU status is Network Transition Complete AND Predecessor DOH exceeds Successor DOH by more than 5 days", stakeholder: "Availability Planner", severity: "medium" },
-  { id: "mstn-check",     name: "MSTN Clearance Pending — MOC", rule: "New launch packs due for MSTN clearance check (Days 8–11 of current MOC) where clearance is not yet achieved",              stakeholder: "Paid Bible Owner",      severity: "info"   },
+  { id: "price-inactive",  name: "Price Inactive",              rule: "MSTN coverage > 80% but price inactive for respective channel",                                          stakeholder: "Network Planner",       severity: "high"   },
+  { id: "slob-risk",       name: "SLOB Risk",                   rule: "CBU status is Network Transition Complete AND Predecessor DOH exceeds Successor DOH by more than 5 days", stakeholder: "Availability Planner",   severity: "medium" },
+  { id: "mstn-check",      name: "MSTN Clearance Pending — MOC", rule: "New launch packs due for MSTN clearance check (Days 8–11 of current MOC) where clearance is not yet achieved",             stakeholder: "Paid Bible Owner",      severity: "info"   },
+  { id: "partial-trigger", name: "Partial Activation — New Depots Eligible", rule: "Partially Active basepacks where a previously not-activated depot now meets MSTN ≥ 80% threshold",             stakeholder: "NCSM",                  severity: "medium" },
 ] as const;
 
 
@@ -456,6 +459,7 @@ function BpStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     "Draft":                "bg-slate-50 text-slate-600 border-slate-300",
     "Active Pack":          "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "Partially Active":     "bg-amber-50 text-amber-700 border-amber-300",
     "Delisted Packs":       "bg-red-50 text-red-700 border-red-200",
     "Stock Base Delisted":  "bg-orange-50 text-orange-700 border-orange-200",
     "Seasonal Pack":        "bg-violet-50 text-violet-700 border-violet-200",
@@ -537,6 +541,25 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
   const checkMocLabel: string | null  = clearance?.checkMocLabel ?? null;
   const mstnPassed = mstnCoverage >= 100;
 
+  // Build depot decisions for NCSM to act on (all start as "pending")
+  const buildDepotDecisions = (): DepotDecision[] => {
+    const decisions: DepotDecision[] = [];
+    for (const mat of materials) {
+      const depotEntries = Object.entries(mat.mstnByDepot ?? {});
+      for (const [depotCode, pct] of depotEntries) {
+        decisions.push({
+          cbuCode:          mat.code,
+          depotCode,
+          mstnPct:          pct,
+          mstnCleared:      pct >= 80,
+          ncsmDecision:     "pending",
+          activationStatus: "Pending Activation",
+        });
+      }
+    }
+    return decisions;
+  };
+
   const handleCreateRequest = () => {
     const userByRole = (role: string): string | undefined =>
       users.find(u => u.role === role && u.isActive)?.name;
@@ -548,6 +571,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
       assignedTo: userByRole(a.role),
       status: i === 0 ? "pending" : "waiting",
     }));
+    const depotDecisions = buildDepotDecisions();
     const sr: ServiceRequest = {
       id:                 makeTicketId(),
       srType:             "basepack-status-change",
@@ -562,6 +586,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
       mstnCoverage,
       criteriaMetAtRaise: criteriaMet,
       materials,
+      depotDecisions: depotDecisions.length > 0 ? depotDecisions : undefined,
       approvers,
       overallStatus:      "pending",
     };
@@ -713,6 +738,60 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
           </div>
         </div>
         </>}
+
+        {/* Depot-level visibility — read-only for raiser; NCSM makes actual decisions on SR */}
+        {!clearanceLoading && materials.some(m => Object.keys(m.mstnByDepot ?? {}).length > 0) && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Depot-level Activation Overview
+              <span className="ml-2 normal-case font-normal text-slate-500">
+                (NCSM will select which depots to activate during approval)
+              </span>
+            </p>
+            <div className="rounded-md border overflow-hidden text-xs max-h-[200px] overflow-y-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50 sticky top-0">
+                  <tr>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">CBU</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Depot</th>
+                    <th className="text-center px-3 py-2 font-medium text-muted-foreground">MSTN %</th>
+                    <th className="text-center px-3 py-2 font-medium text-muted-foreground">MSTN Cleared</th>
+                    <th className="text-center px-3 py-2 font-medium text-muted-foreground">Pending Decision</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materials.flatMap((mat, mi) =>
+                    Object.entries(mat.mstnByDepot ?? {}).sort((a, b) => b[1] - a[1]).map(([depot, pct], di) => (
+                      <tr key={`${mat.code}-${depot}`} className={(mi + di) % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                        {di === 0 && (
+                          <td className="px-3 py-1.5 font-mono text-blue-600 font-medium align-top" rowSpan={Object.keys(mat.mstnByDepot ?? {}).length}>
+                            {mat.code}
+                          </td>
+                        )}
+                        <td className="px-3 py-1.5 font-medium text-slate-800">{depot}</td>
+                        <td className="px-3 py-1.5 text-center">
+                          <span className={pct >= 80 ? "text-emerald-700 font-semibold" : "text-red-600"}>
+                            {pct.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5 text-center">
+                          {pct >= 80
+                            ? <span className="text-emerald-600 font-medium">✓ Yes</span>
+                            : <span className="text-red-500">✗ No</span>}
+                        </td>
+                        <td className="px-3 py-1.5 text-center">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            Pending NCSM
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} data-testid="button-cancel-activation">
@@ -1445,6 +1524,7 @@ function DelistingCriteriaDialog({ bp, targetStatus, onClose, onCreateRequest, u
 
 interface OverviewTabProps {
   localBpStatus: Record<string, string>;
+  depotDecisionOverrides: Record<string, import("@/lib/sr-store").DepotDecision[]>;
   onRequestActivation: (bp: PbBasepack) => void;
   onRequestInactivation: (bp: PbBasepack, targetStatus: string) => void;
   onRequestDelisting: (bp: PbBasepack, targetStatus: string) => void;
@@ -1452,7 +1532,7 @@ interface OverviewTabProps {
   bpDates: Record<string, BpDates>;
 }
 
-function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation, onRequestDelisting, serviceRequests, bpDates }: OverviewTabProps) {
+function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivation, onRequestInactivation, onRequestDelisting, serviceRequests, bpDates }: OverviewTabProps) {
   const [, navigate] = useLocation();
 
   const { data: networkEntries = [], isLoading } = useQuery<NetworkEntry[]>({
@@ -1624,7 +1704,7 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
     );
   }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, bgFilter, scatFilter, materialSearch]);
 
-  const ACTIVE_BP_STATUSES = new Set(["Active Pack", "Seasonal Pack"]);
+  const ACTIVE_BP_STATUSES = new Set(["Active Pack", "Partially Active", "Seasonal Pack"]);
   const total       = allBasepacks.length;
   const mstnYes     = allBasepacks.filter(b => b.materials.some(m => m.mstnClear === "Yes") && !b.materials.some(m => m.mstnClear === "No")).length;
   const drafts      = allBasepacks.filter(b => (localBpStatus[b.id] ?? b.bpStatus) === "Draft").length;
@@ -1640,12 +1720,27 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
     const flat = allBasepacks.flatMap(bp =>
       bp.materials.map(m => ({ ...m, basepakName: bp.basepakName }))
     );
+    // Partially-Active basepacks where a previously not-activated depot now hits MSTN ≥ 80%
+    const partialTrigger = allBasepacks.filter(bp => {
+      const status = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
+      if (status !== "Partially Active") return false;
+      const decisions = depotDecisionOverrides[bp.id];
+      if (!decisions?.length) return false;
+      const currentMstn: Record<string, number> = {};
+      for (const mat of bp.materials) {
+        for (const [depot, pct] of Object.entries(mat.mstnByDepot ?? {})) {
+          currentMstn[depot] = pct;
+        }
+      }
+      return decisions.some(d => d.ncsmDecision !== "approved" && (currentMstn[d.depotCode] ?? 0) >= 80);
+    });
     return {
-      "price-inactive": flat.filter(m => m.mstnPct != null && m.mstnPct >= 80 && !m.priceActive),
-      "slob-risk":      flat.filter(m => m.slobRisk),
-      "mstn-check":     flat.filter(m => m.typeOfNetworkCode === "NEW_LAUNCH" && MSTN_ACTIVE_STATUSES.has(m.networkStatus) && m.mstnClear !== "Yes"),
+      "price-inactive":    flat.filter(m => m.mstnPct != null && m.mstnPct >= 80 && !m.priceActive),
+      "slob-risk":         flat.filter(m => m.slobRisk),
+      "mstn-check":        flat.filter(m => m.typeOfNetworkCode === "NEW_LAUNCH" && MSTN_ACTIVE_STATUSES.has(m.networkStatus) && m.mstnClear !== "Yes"),
+      "partial-trigger":   partialTrigger,
     };
-  }, [allBasepacks]);
+  }, [allBasepacks, localBpStatus, depotDecisionOverrides]);
 
   const [triggerDialog, setTriggerDialog] = useState<string | null>(null);
   const [expandedMstnCbu, setExpandedMstnCbu] = useState<string | null>(null);
@@ -1741,8 +1836,8 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
       </div>
 
       {/* Trigger detail dialog — price-inactive & slob-risk */}
-      {TRIGGER_DEFS.filter(t => t.id !== "mstn-check").map(t => {
-        const cbus = triggerCbus[t.id];
+      {TRIGGER_DEFS.filter(t => t.id !== "mstn-check" && t.id !== "partial-trigger").map(t => {
+        const cbus = (triggerCbus as Record<string, { code: string; description: string; matStatus: "OK" | "Issue" | "In Progress"; priceActive?: boolean; priceEnd?: string; copyCbu?: string; dohSnapshotDate?: string; basepakName?: string }[]>)[t.id];
         return (
           <Dialog key={t.id} open={triggerDialog === t.id} onOpenChange={o => !o && setTriggerDialog(null)}>
             <DialogContent className="max-w-3xl">
@@ -1888,6 +1983,64 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
                     })}
                   </TableBody>
                 </Table>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+
+      {/* Partial Activation trigger dialog */}
+      {(() => {
+        const partialDef = TRIGGER_DEFS.find(t => t.id === "partial-trigger")!;
+        const bps = (triggerCbus["partial-trigger"] as PbBasepack[]);
+        return (
+          <Dialog open={triggerDialog === "partial-trigger"} onOpenChange={o => !o && setTriggerDialog(null)}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{partialDef.name}</DialogTitle>
+                <DialogDescription>{partialDef.rule}</DialogDescription>
+              </DialogHeader>
+              <div className="overflow-auto max-h-[60vh]">
+                {bps.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">No items</p>
+                ) : (
+                  <div className="space-y-4">
+                    {bps.map(bp => {
+                      const decisions = depotDecisionOverrides[bp.id] ?? [];
+                      const currentMstn: Record<string, number> = {};
+                      for (const mat of bp.materials) {
+                        for (const [depot, pct] of Object.entries(mat.mstnByDepot ?? {})) {
+                          currentMstn[depot] = pct;
+                        }
+                      }
+                      const newlyEligible = decisions.filter(d => d.ncsmDecision !== "approved" && (currentMstn[d.depotCode] ?? 0) >= 80);
+                      return (
+                        <div key={bp.id} className="rounded-lg border border-amber-200 bg-amber-50/30 p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="text-sm font-semibold">{bp.basepakName}</p>
+                              <p className="text-xs text-muted-foreground font-mono">{bp.basepackCode}</p>
+                            </div>
+                            <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                              {newlyEligible.length} depot{newlyEligible.length !== 1 ? "s" : ""} newly eligible
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {newlyEligible.map(d => (
+                              <div key={`${d.cbuCode}-${d.depotCode}`} className="flex items-center justify-between px-2.5 py-1.5 rounded text-xs border bg-emerald-50 border-emerald-200 text-emerald-700">
+                                <span className="font-mono font-medium">{d.depotCode}</span>
+                                <span className="font-semibold">{(currentMstn[d.depotCode] ?? 0).toFixed(1)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Raise a new Service Request or contact NCSM to activate these depots.
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -2216,6 +2369,37 @@ function OverviewTab({ localBpStatus, onRequestActivation, onRequestInactivation
                                         </div>
                                       </>
                                     )}
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Depot Activation Status — Partially Active basepacks only */}
+                              {(() => {
+                                const effStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
+                                const decisions = depotDecisionOverrides[bp.id];
+                                if (effStatus !== "Partially Active" || !decisions?.length) return null;
+                                const activatedCount = decisions.filter(d => d.ncsmDecision === "approved").length;
+                                return (
+                                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3">
+                                    <p className="text-xs font-semibold text-amber-800 mb-2.5 flex items-center gap-1.5">
+                                      <MapPin className="h-3.5 w-3.5" />
+                                      Depot Activation Status
+                                      <span className="ml-1 font-normal text-amber-600">
+                                        — {activatedCount} of {decisions.length} depot{decisions.length !== 1 ? "s" : ""} activated
+                                      </span>
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                      {decisions.map(d => (
+                                        <div
+                                          key={`${d.cbuCode}-${d.depotCode}`}
+                                          className={`flex items-center justify-between px-2.5 py-1.5 rounded text-xs border ${d.ncsmDecision === "approved" ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-500"}`}
+                                          data-testid={`depot-status-${bp.id}-${d.depotCode}`}
+                                        >
+                                          <span className="font-mono font-medium">{d.depotCode}</span>
+                                          <span>{d.ncsmDecision === "approved" ? "✓ Active" : "✗ Not Active"}</span>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 );
                               })()}
@@ -2846,7 +3030,7 @@ export default function PaidBiblePage() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const moc = getCurrentMoc();
 
-  const { requests: serviceRequests, bpStatusOverrides, bpDates } = useSrStore();
+  const { requests: serviceRequests, bpStatusOverrides, depotDecisionOverrides, bpDates } = useSrStore();
   const [activationTarget,   setActivationTarget]   = useState<PbBasepack | null>(null);
   const [inactivationTarget, setInactivationTarget] = useState<{ bp: PbBasepack; targetStatus: string } | null>(null);
   const [delistingTarget,    setDelistingTarget]    = useState<{ bp: PbBasepack; targetStatus: string } | null>(null);
@@ -2930,6 +3114,7 @@ export default function PaidBiblePage() {
           {activeTab === "overview" && (
             <OverviewTab
               localBpStatus={bpStatusOverrides}
+              depotDecisionOverrides={depotDecisionOverrides}
               onRequestActivation={handleRequestActivation}
               onRequestInactivation={handleRequestInactivation}
               onRequestDelisting={handleRequestDelisting}

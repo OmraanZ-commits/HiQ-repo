@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Clock, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, User, MessageSquare,
+  CheckSquare, Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { ApproverStep } from "@/lib/sr-store";
+import { Checkbox } from "@/components/ui/checkbox";
+import type { ApproverStep, DepotDecision } from "@/lib/sr-store";
 import { REJECTION_REASONS } from "@/lib/sr-store";
 
 const OTHER_REASON = "Other — refer to comments";
@@ -33,12 +35,14 @@ export function SrStatusBadge({ status }: { status: "pending" | "approved" | "re
 
 // ─── ApproverChain ────────────────────────────────────────────────────────────
 
-export function ApproverChain({ approvers, requestId, onApprove, onReject, srEffectiveDate }: {
+export function ApproverChain({ approvers, requestId, onApprove, onReject, srEffectiveDate, depotDecisions, srType }: {
   approvers: ApproverStep[];
   requestId: string;
-  onApprove: (id: string, idx: number, comment?: string, effectiveDate?: string) => void;
+  onApprove: (id: string, idx: number, comment?: string, effectiveDate?: string, depotDecisions?: DepotDecision[]) => void;
   onReject: (id: string, idx: number, reason: string) => void;
   srEffectiveDate?: string;
+  depotDecisions?: DepotDecision[];
+  srType?: string;
 }) {
   const [rejectingIdx, setRejectingIdx] = useState<number | null>(null);
   const [approvingIdx, setApprovingIdx] = useState<number | null>(null);
@@ -46,6 +50,18 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
   const [approvalEffectiveDate, setApprovalEffectiveDate] = useState("");
   const [selectedReason, setSelectedReason] = useState("");
   const [otherComment, setOtherComment] = useState("");
+  const [localDepotDecisions, setLocalDepotDecisions] = useState<DepotDecision[]>([]);
+
+  // Sync depot decisions from prop when approval panel opens; pre-select MSTN-cleared depots
+  useEffect(() => {
+    if (approvingIdx !== null && depotDecisions && depotDecisions.length > 0) {
+      setLocalDepotDecisions(depotDecisions.map(d => ({
+        ...d,
+        ncsmDecision: d.mstnCleared ? "approved" : "rejected",
+        activationStatus: d.mstnCleared ? "Active" : "Not Activated",
+      })));
+    }
+  }, [approvingIdx]);
 
   const isOther = selectedReason === OTHER_REASON;
   const canSubmit = !!selectedReason && (!isOther || otherComment.trim().length > 0);
@@ -62,6 +78,26 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
   const canSubmitApprove = (idx: number) =>
     !approveCommentRequired(idx) || approvalComment.trim().length > 0;
 
+  const isNcsmStep = (idx: number) => approvers[idx]?.label === "NCSM";
+  const showDepotDecisions = (idx: number) =>
+    isNcsmStep(idx) && srType === "basepack-status-change" && depotDecisions && depotDecisions.length > 0;
+
+  const toggleDepotDecision = (cbuCode: string, depotCode: string, approved: boolean) => {
+    setLocalDepotDecisions(prev => prev.map(d =>
+      d.cbuCode === cbuCode && d.depotCode === depotCode
+        ? { ...d, ncsmDecision: approved ? "approved" : "rejected", activationStatus: approved ? "Active" : "Not Activated" }
+        : d
+    ));
+  };
+
+  const derivedStatus = () => {
+    if (localDepotDecisions.length === 0) return "Active Pack";
+    const approved = localDepotDecisions.filter(d => d.ncsmDecision === "approved").length;
+    if (approved === 0) return "Draft";
+    if (approved === localDepotDecisions.length) return "Active Pack";
+    return "Partially Active";
+  };
+
   const submitApprove = (idx: number) => {
     if (!canSubmitApprove(idx)) return;
     onApprove(
@@ -69,6 +105,7 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
       idx,
       approvalComment,
       isSupplyPlannerStep(idx) ? (approvalEffectiveDate || undefined) : undefined,
+      showDepotDecisions(idx) ? localDepotDecisions : undefined,
     );
     setApprovingIdx(null);
     setApprovalComment("");
@@ -199,6 +236,60 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
                           Effective date is being modified — a comment is required below.
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {/* Depot activation decisions — NCSM step only */}
+                  {showDepotDecisions(idx) && (
+                    <div>
+                      <p className="text-xs font-medium text-emerald-800 mb-2">
+                        Depot Activation Decisions
+                        <span className="ml-2 font-normal text-emerald-600">
+                          (depots with MSTN ≥ 80% are pre-selected)
+                        </span>
+                      </p>
+                      <div className="rounded-md border border-emerald-200 overflow-hidden bg-white text-xs">
+                        <table className="w-full">
+                          <thead className="bg-emerald-50 border-b border-emerald-200">
+                            <tr>
+                              <th className="text-left px-3 py-2 font-medium text-emerald-800">CBU</th>
+                              <th className="text-left px-3 py-2 font-medium text-emerald-800">Depot</th>
+                              <th className="text-center px-3 py-2 font-medium text-emerald-800">MSTN %</th>
+                              <th className="text-center px-3 py-2 font-medium text-emerald-800">Cleared</th>
+                              <th className="text-center px-3 py-2 font-medium text-emerald-800">Activate</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {localDepotDecisions.map((d, di) => (
+                              <tr key={`${d.cbuCode}-${d.depotCode}`} className={di % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                                <td className="px-3 py-1.5 text-slate-700">{d.cbuCode}</td>
+                                <td className="px-3 py-1.5 font-medium text-slate-800">{d.depotCode}</td>
+                                <td className="px-3 py-1.5 text-center">
+                                  <span className={d.mstnPct !== undefined && d.mstnPct >= 80 ? "text-emerald-700 font-medium" : "text-red-600"}>
+                                    {d.mstnPct !== undefined ? `${d.mstnPct.toFixed(1)}%` : "—"}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-1.5 text-center">
+                                  {d.mstnCleared
+                                    ? <span className="text-emerald-600">✓</span>
+                                    : <span className="text-red-500">✗</span>}
+                                </td>
+                                <td className="px-3 py-1.5 text-center">
+                                  <Checkbox
+                                    checked={d.ncsmDecision === "approved"}
+                                    onCheckedChange={(v) => toggleDepotDecision(d.cbuCode, d.depotCode, !!v)}
+                                    data-testid={`checkbox-depot-${d.cbuCode}-${d.depotCode}`}
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="text-xs text-emerald-700 mt-1.5">
+                        Resulting basepack status:{" "}
+                        <span className="font-semibold">{derivedStatus()}</span>
+                      </p>
                     </div>
                   )}
 
