@@ -177,6 +177,39 @@ SR_SEEDS = [
         ],
     },
 
+    # ── BP-2000 Closeup Cool Mint: Partial Activation (Approved — NCSM approved 3/5 depots) ──
+    {
+        "id": "SR-SEED-009",
+        "srType": "basepack-status-change",
+        "status": "approved",
+        "raisedBy": "Deepa Krishnan",
+        "businessGroup": "Personal Care",
+        "brand": "Closeup",
+        "basepackCode": "BP-2000",
+        "basepackName": "Closeup Cool Mint Gel 80g",
+        "targetStatus": "Active Pack",
+        "requestedValue": "Active Pack",
+        "currentValue": "Draft",
+        "businessJustification": "MSTN threshold met for 3 of 5 DCs — proceeding with partial activation.",
+        "criteriaMetAtRaise": False,
+        "mstnCoverageAtRaise": 72,
+        "effectiveDate": "2026-08-01",
+        "depotDecisions": [
+            {"cbuCode": "CBU-50020001", "depotCode": "MMDH", "mstnPct": 91, "mstnCleared": True,  "ncsmDecision": "approved", "activationStatus": "Active"},
+            {"cbuCode": "CBU-50020001", "depotCode": "CHKH", "mstnPct": 88, "mstnCleared": True,  "ncsmDecision": "approved", "activationStatus": "Active"},
+            {"cbuCode": "CBU-50020001", "depotCode": "BNDH", "mstnPct": 85, "mstnCleared": True,  "ncsmDecision": "approved", "activationStatus": "Active"},
+            {"cbuCode": "CBU-50020001", "depotCode": "DLGI", "mstnPct": 72, "mstnCleared": False, "ncsmDecision": "rejected", "activationStatus": "Not Activated"},
+            {"cbuCode": "CBU-50020001", "depotCode": "KOPH", "mstnPct": 67, "mstnCleared": False, "ncsmDecision": "rejected", "activationStatus": "Not Activated"},
+        ],
+        "approvers": [
+            {"label": "Network Planner",      "assignedTo": "Deepa Krishnan", "subLabel": "Network Review",        "status": "approved", "actionedAt": "2026-05-10T10:00:00Z", "rejectionReason": None},
+            {"label": "Supply Planner",       "assignedTo": "Rohan Das",      "subLabel": "Production Activities", "status": "approved", "actionedAt": "2026-05-11T11:30:00Z", "rejectionReason": None},
+            {"label": "Distribution Planner", "assignedTo": "Anita Rao",      "subLabel": "Distribution Review",   "status": "approved", "actionedAt": "2026-05-12T09:00:00Z", "rejectionReason": None},
+            {"label": "NCSM",                 "assignedTo": "Suresh Kumar",   "subLabel": "Final Approval",        "status": "approved", "actionedAt": "2026-05-13T15:20:00Z", "rejectionReason": None,
+             "comments": "Activating 3 cleared DCs (MMDH, CHKH, BNDH). DLGI and KOPH do not meet MSTN threshold — deferred to next review."},
+        ],
+    },
+
     # ── BP-800 Closeup: Geo Extension, CBU-50008902 (Pending — 0/4 done) ─────
     {
         "id": "SR-SEED-008",

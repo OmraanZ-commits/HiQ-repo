@@ -196,6 +196,7 @@ class ServiceRequestStorage:
                     validation_summary=seed.get("validationSummary"),
                     pricing_complete=seed.get("pricingComplete"),
                     sourcing_complete=seed.get("sourcingComplete"),
+                    depot_decisions=seed.get("depotDecisions"),
                     created_at=now,
                     updated_at=now,
                 )

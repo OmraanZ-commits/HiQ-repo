@@ -41,6 +41,7 @@ from server_py.services.service_requests.router import router as sr_router, set_
 from server_py.services.basepack_status.storage import BasepakStatusStorage
 from server_py.services.basepack_status.service import BasepakStatusService
 from server_py.services.basepack_status.router import router as bp_status_router, set_service as set_bp_status_service
+from server_py.models import InsertBasepakStatusOverride
 
 from server_py.services.mstn_doh.storage import MstnDohStorage
 from server_py.services.mstn_doh.service import MstnDohService
@@ -192,6 +193,16 @@ async def startup():
     demand_forecast_service.reseed(generate_demand_forecast_seeds(entries))
 
     sr_service.seed_requests(SR_SEEDS)
+
+    # Seed "Partially Active" status for BP-2000 demo basepack (idempotent)
+    if not bp_status_service.get_override("BP-2000"):
+        bp_status_service.apply_override(InsertBasepakStatusOverride(
+            bpId="BP-2000",
+            status="Partially Active",
+            srId="SR-SEED-009",
+            previousStatus="Draft",
+            appliedBy="System Seed",
+        ))
 
     ftr_storage = FtrStorage()
     ftr_service = FtrService(ftr_storage)

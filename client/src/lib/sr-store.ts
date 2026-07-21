@@ -384,6 +384,14 @@ async function _loadFromBackend(): Promise<void> {
       else if (sr.targetStatus === "Inactive Pack") d.inactiveDate = lastActedAt;
       else if (sr.targetStatus === "Delisted Packs" || sr.targetStatus === "Stock Base Delisted") d.delistDate = lastActedAt;
       _bpDates[sr.basepackId] = d;
+
+      // Replay depot decisions so partial-activation trigger fires on load
+      if (sr.depotDecisions && sr.depotDecisions.length > 0) {
+        const resolved: DepotDecision[] = sr.depotDecisions.map(d =>
+          d.ncsmDecision === "pending" ? { ...d, ncsmDecision: "rejected" as const, activationStatus: "Not Activated" as const } : d
+        );
+        _depotDecisionOverrides = { ..._depotDecisionOverrides, [sr.basepackId]: resolved };
+      }
     }
 
     _initialised = true;
