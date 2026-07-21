@@ -173,6 +173,8 @@ export default function PaidBibleSummaryTab() {
   const [expandedSlob, setExpandedSlob] = useState<string | null>(null);
   const [expandedRelaunch, setExpandedRelaunch] = useState<number | null>(0);
   const [expandedDispatch, setExpandedDispatch] = useState<number | null>(0);
+  const [expandedRelaunchScat, setExpandedRelaunchScat] = useState<string | null>(null);
+  const [expandedDispatchScat, setExpandedDispatchScat] = useState<string | null>(null);
   const [selMoc, setSelMoc] = useState(CURRENT_MONTH);
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -540,50 +542,75 @@ export default function PaidBibleSummaryTab() {
           <div className="divide-y divide-slate-100 flex-1">
             {TIMELINE_BUCKETS.map((bucket, i) => {
               const items = bucketItems(relaunchMats, bucket.min, bucket.max);
+              const byScat = Array.from(
+                items.reduce((m, r) => {
+                  const k = r.salesCategory || "Other";
+                  if (!m.has(k)) m.set(k, []);
+                  m.get(k)!.push(r);
+                  return m;
+                }, new Map<string, typeof items>())
+              ).sort(([a], [b]) => a.localeCompare(b));
               return (
                 <div key={bucket.key}>
                   <div
                     className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-slate-50/60 select-none"
-                    onClick={() => setExpandedRelaunch(expandedRelaunch === i ? null : i)}
+                    onClick={() => { setExpandedRelaunch(expandedRelaunch === i ? null : i); setExpandedRelaunchScat(null); }}
                     data-testid={`relaunch-bucket-${bucket.key}`}
                   >
                     <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${bucket.bg} ${bucket.accent} ${bucket.ring}`}>
                       {bucket.label}
                     </div>
                     <span className="text-sm font-black text-slate-700 tabular-nums ml-auto">{items.length}</span>
-                    <span className="text-[10px] text-slate-400">CBUs</span>
+                    <span className="text-[10px] text-slate-400">CBUs · {byScat.length} Small C</span>
                     {expandedRelaunch === i
                       ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                       : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
                   </div>
-                  {expandedRelaunch === i && items.length > 0 && (
-                    <div className="px-5 pb-3">
-                      <table className="w-full text-[11px] border border-slate-100 rounded-lg overflow-hidden">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100">
-                            {["CBU", "Description", "MRP", "Artwork", "CC", "CP"].map(h => (
-                              <th key={h} className="text-left px-2.5 py-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {items.map(m => (
-                            <tr key={m.id} className="hover:bg-blue-50/30">
-                              <td className="px-2.5 py-1.5 font-mono font-semibold text-slate-700">{m.code}</td>
-                              <td className="px-2.5 py-1.5 text-slate-600 max-w-[7rem] truncate" title={m.description}>{m.description}</td>
-                              <td className="px-2.5 py-1.5 font-semibold text-slate-700">{m.mrp ? `₹${m.mrp}` : "—"}</td>
-                              <td className="px-2.5 py-1.5 text-slate-300">—</td>
-                              <td className="px-2.5 py-1.5 text-slate-300">—</td>
-                              <td className="px-2.5 py-1.5 text-slate-300">—</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                   {expandedRelaunch === i && items.length === 0 && (
                     <p className="px-5 pb-3 text-xs text-slate-400 italic">No CBUs in this window</p>
                   )}
+                  {expandedRelaunch === i && byScat.map(([cat, mats]) => (
+                    <React.Fragment key={cat}>
+                      <div
+                        className="flex items-center gap-2 px-7 py-2 cursor-pointer hover:bg-violet-50/40 select-none border-t border-slate-50"
+                        onClick={() => setExpandedRelaunchScat(expandedRelaunchScat === `${i}:${cat}` ? null : `${i}:${cat}`)}
+                        data-testid={`relaunch-scat-${bucket.key}-${cat}`}
+                      >
+                        <span className="text-xs font-semibold text-slate-600">{cat}</span>
+                        <span className="ml-auto text-xs font-black text-violet-600 tabular-nums">{mats.length}</span>
+                        <span className="text-[10px] text-slate-400">CBUs</span>
+                        {expandedRelaunchScat === `${i}:${cat}`
+                          ? <ChevronDown className="h-3 w-3 text-slate-400" />
+                          : <ChevronRight className="h-3 w-3 text-slate-400" />}
+                      </div>
+                      {expandedRelaunchScat === `${i}:${cat}` && (
+                        <div className="px-7 pb-3 bg-violet-50/10">
+                          <table className="w-full text-[11px] border border-slate-100 rounded-lg overflow-hidden">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-100">
+                                {["CBU Code", "Description", "MRP", "Network Date", "Status"].map(h => (
+                                  <th key={h} className="text-left px-2.5 py-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {mats.map(m => (
+                                <tr key={m.id} className="hover:bg-violet-50/30">
+                                  <td className="px-2.5 py-1.5 font-mono font-semibold text-[#1f36c7]">{m.code}</td>
+                                  <td className="px-2.5 py-1.5 text-slate-600 max-w-[8rem] truncate" title={m.description}>{m.description}</td>
+                                  <td className="px-2.5 py-1.5 font-semibold text-slate-700">{m.mrp ? `₹${m.mrp}` : "—"}</td>
+                                  <td className="px-2.5 py-1.5 font-mono text-slate-500">{m.networkChangeDate ?? "—"}</td>
+                                  <td className="px-2.5 py-1.5">
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-50 text-violet-700 border border-violet-200">{m.networkStatus}</span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  ))}
                 </div>
               );
             })}
@@ -606,50 +633,75 @@ export default function PaidBibleSummaryTab() {
           <div className="divide-y divide-slate-100 flex-1">
             {TIMELINE_BUCKETS.map((bucket, i) => {
               const items = bucketItems(dispatchMats, bucket.min, bucket.max);
+              const byScat = Array.from(
+                items.reduce((m, r) => {
+                  const k = r.salesCategory || "Other";
+                  if (!m.has(k)) m.set(k, []);
+                  m.get(k)!.push(r);
+                  return m;
+                }, new Map<string, typeof items>())
+              ).sort(([a], [b]) => a.localeCompare(b));
               return (
                 <div key={bucket.key}>
                   <div
                     className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-slate-50/60 select-none"
-                    onClick={() => setExpandedDispatch(expandedDispatch === i ? null : i)}
+                    onClick={() => { setExpandedDispatch(expandedDispatch === i ? null : i); setExpandedDispatchScat(null); }}
                     data-testid={`dispatch-bucket-${bucket.key}`}
                   >
                     <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${bucket.bg} ${bucket.accent} ${bucket.ring}`}>
                       {bucket.label}
                     </div>
                     <span className="text-sm font-black text-slate-700 tabular-nums ml-auto">{items.length}</span>
-                    <span className="text-[10px] text-slate-400">CBUs</span>
+                    <span className="text-[10px] text-slate-400">CBUs · {byScat.length} Small C</span>
                     {expandedDispatch === i
                       ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                       : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
                   </div>
-                  {expandedDispatch === i && items.length > 0 && (
-                    <div className="px-5 pb-3">
-                      <table className="w-full text-[11px] border border-slate-100 rounded-lg overflow-hidden">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100">
-                            {["CBU", "Description", "MRP", "Artwork", "CC", "CP"].map(h => (
-                              <th key={h} className="text-left px-2.5 py-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {items.map(m => (
-                            <tr key={m.id} className="hover:bg-blue-50/30">
-                              <td className="px-2.5 py-1.5 font-mono font-semibold text-slate-700">{m.code}</td>
-                              <td className="px-2.5 py-1.5 text-slate-600 max-w-[7rem] truncate" title={m.description}>{m.description}</td>
-                              <td className="px-2.5 py-1.5 font-semibold text-slate-700">{m.mrp ? `₹${m.mrp}` : "—"}</td>
-                              <td className="px-2.5 py-1.5 text-slate-300">—</td>
-                              <td className="px-2.5 py-1.5 text-slate-300">—</td>
-                              <td className="px-2.5 py-1.5 text-slate-300">—</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                   {expandedDispatch === i && items.length === 0 && (
                     <p className="px-5 pb-3 text-xs text-slate-400 italic">No CBUs in this window</p>
                   )}
+                  {expandedDispatch === i && byScat.map(([cat, mats]) => (
+                    <React.Fragment key={cat}>
+                      <div
+                        className="flex items-center gap-2 px-7 py-2 cursor-pointer hover:bg-blue-50/40 select-none border-t border-slate-50"
+                        onClick={() => setExpandedDispatchScat(expandedDispatchScat === `${i}:${cat}` ? null : `${i}:${cat}`)}
+                        data-testid={`dispatch-scat-${bucket.key}-${cat}`}
+                      >
+                        <span className="text-xs font-semibold text-slate-600">{cat}</span>
+                        <span className="ml-auto text-xs font-black text-blue-600 tabular-nums">{mats.length}</span>
+                        <span className="text-[10px] text-slate-400">CBUs</span>
+                        {expandedDispatchScat === `${i}:${cat}`
+                          ? <ChevronDown className="h-3 w-3 text-slate-400" />
+                          : <ChevronRight className="h-3 w-3 text-slate-400" />}
+                      </div>
+                      {expandedDispatchScat === `${i}:${cat}` && (
+                        <div className="px-7 pb-3 bg-blue-50/10">
+                          <table className="w-full text-[11px] border border-slate-100 rounded-lg overflow-hidden">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-100">
+                                {["CBU Code", "Description", "MRP", "Network Date", "Status"].map(h => (
+                                  <th key={h} className="text-left px-2.5 py-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {mats.map(m => (
+                                <tr key={m.id} className="hover:bg-blue-50/30">
+                                  <td className="px-2.5 py-1.5 font-mono font-semibold text-[#1f36c7]">{m.code}</td>
+                                  <td className="px-2.5 py-1.5 text-slate-600 max-w-[8rem] truncate" title={m.description}>{m.description}</td>
+                                  <td className="px-2.5 py-1.5 font-semibold text-slate-700">{m.mrp ? `₹${m.mrp}` : "—"}</td>
+                                  <td className="px-2.5 py-1.5 font-mono text-slate-500">{m.networkChangeDate ?? "—"}</td>
+                                  <td className="px-2.5 py-1.5">
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">{m.networkStatus}</span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  ))}
                 </div>
               );
             })}
