@@ -516,6 +516,9 @@ interface ActivationCheckDialogProps {
 
 function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: ActivationCheckDialogProps) {
   const [expandedCbu, setExpandedCbu] = useState<string | null>(null);
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  const [effectiveDate, setEffectiveDate] = useState<string>(tomorrowStr);
 
   const { data: clearance, isLoading: clearanceLoading } = useQuery({
     queryKey: ["/api/mstn-doh/clearance-check", bp?.id],
@@ -597,6 +600,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
       depotDecisions: depotDecisions.length > 0 ? depotDecisions : undefined,
       approvers,
       overallStatus:      "pending",
+      effectiveDate,
     };
     onCreateRequest(sr);
     onClose();
@@ -801,6 +805,21 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
           </div>
         )}
 
+        <div className="flex items-center gap-3 px-1 pt-1 pb-0">
+          <label className="text-sm font-medium text-slate-700 whitespace-nowrap shrink-0">
+            Effective Date <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            min={tomorrowStr}
+            value={effectiveDate}
+            onChange={e => setEffectiveDate(e.target.value)}
+            className="h-8 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            data-testid="input-effective-date-activation"
+          />
+          <span className="text-xs text-muted-foreground">Must be after today</span>
+        </div>
+
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} data-testid="button-cancel-activation">
             Cancel
@@ -808,6 +827,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
           <Button
             className={`${criteriaMet ? "bg-emerald-600 hover:bg-emerald-700" : "bg-amber-600 hover:bg-amber-700"} text-white gap-1.5`}
             onClick={handleCreateRequest}
+            disabled={!effectiveDate || effectiveDate <= new Date().toISOString().slice(0, 10)}
             data-testid="button-raise-service-request"
           >
             <Send className="h-4 w-4" /> Raise Service Request
