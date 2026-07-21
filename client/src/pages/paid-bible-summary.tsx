@@ -301,14 +301,14 @@ export default function PaidBibleSummaryTab() {
       });
   }, [allMaterials, rawDateMap]);
 
-  const mstnByScat = useMemo(() => {
-    const groups = new Map<string, { cleared: number; notCleared: number; exception: number }>();
+  const mstnByBp = useMemo(() => {
+    const groups = new Map<string, { name: string; smallC: string; cleared: number; notCleared: number; exception: number }>();
     newLaunchRows.forEach(row => {
       const s = getMocStatus(row, selMoc);
       if (s === "future" || s === "active") return;
-      const cat = row.salesCategory;
-      if (!groups.has(cat)) groups.set(cat, { cleared: 0, notCleared: 0, exception: 0 });
-      const g = groups.get(cat)!;
+      const key = row.bpCode;
+      if (!groups.has(key)) groups.set(key, { name: row.description, smallC: row.salesCategory, cleared: 0, notCleared: 0, exception: 0 });
+      const g = groups.get(key)!;
       if (s === "yes") g.cleared++;
       else if (s === "no") g.notCleared++;
       else g.exception++;
@@ -689,7 +689,7 @@ export default function PaidBibleSummaryTab() {
             </span>
           ))}
         </div>
-        {mstnByScat.length === 0 ? (
+        {mstnByBp.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-slate-400 text-xs italic">
             No new launch CBUs requiring MSTN check for MOC {selMoc}.
           </div>
@@ -697,7 +697,7 @@ export default function PaidBibleSummaryTab() {
           <table className="w-full text-xs" data-testid="mstn-table">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="text-left px-5 py-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wider">Small C</th>
+                <th className="text-left px-5 py-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wider">Basepack</th>
                 <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-emerald-600">MSTN Cleared</th>
                 <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-red-600">Not Cleared</th>
                 <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-amber-600">Exception</th>
@@ -705,13 +705,17 @@ export default function PaidBibleSummaryTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {mstnByScat.map(([cat, counts]) => {
+              {mstnByBp.map(([bpCode, counts]) => {
                 const total = counts.cleared + counts.notCleared + counts.exception;
                 const pct = total > 0 ? Math.round(counts.cleared / total * 100) : 0;
                 return (
-                  <tr key={cat} className="hover:bg-slate-50/50" data-testid={`mstn-row-${cat}`}>
-                    <td className="px-5 py-2.5 font-medium text-slate-700">
-                      {cat}
+                  <tr key={bpCode} className="hover:bg-slate-50/50" data-testid={`mstn-row-${bpCode}`}>
+                    <td className="px-5 py-2.5">
+                      <span className="font-mono font-semibold text-[#1f36c7] text-[10px]">{bpCode}</span>
+                      {counts.name && (
+                        <p className="font-medium text-slate-700 mt-0.5 leading-tight">{counts.name}</p>
+                      )}
+                      <p className="text-[10px] text-slate-400 mt-0.5">{counts.smallC}</p>
                       <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
                         <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
                       </div>
@@ -736,18 +740,18 @@ export default function PaidBibleSummaryTab() {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-200 bg-slate-50">
-                <td className="px-5 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Small C</td>
+                <td className="px-5 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Basepacks</td>
                 <td className="text-center px-4 py-2.5 font-black text-emerald-600 tabular-nums">
-                  {mstnByScat.reduce((s, [, c]) => s + c.cleared, 0)}
+                  {mstnByBp.reduce((s, [, c]) => s + c.cleared, 0)}
                 </td>
                 <td className="text-center px-4 py-2.5 font-black text-red-600 tabular-nums">
-                  {mstnByScat.reduce((s, [, c]) => s + c.notCleared, 0)}
+                  {mstnByBp.reduce((s, [, c]) => s + c.notCleared, 0)}
                 </td>
                 <td className="text-center px-4 py-2.5 font-black text-amber-600 tabular-nums">
-                  {mstnByScat.reduce((s, [, c]) => s + c.exception, 0)}
+                  {mstnByBp.reduce((s, [, c]) => s + c.exception, 0)}
                 </td>
                 <td className="text-center px-4 py-2.5 font-black text-[#1f36c7] tabular-nums">
-                  {mstnByScat.reduce((s, [, c]) => s + c.cleared + c.notCleared + c.exception, 0)}
+                  {mstnByBp.reduce((s, [, c]) => s + c.cleared + c.notCleared + c.exception, 0)}
                 </td>
               </tr>
             </tfoot>
