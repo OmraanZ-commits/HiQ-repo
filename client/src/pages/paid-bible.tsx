@@ -1771,6 +1771,54 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
     };
   }, [allBasepacks, localBpStatus, depotDecisionOverrides]);
 
+  const raiseReactivationSr = (bp: PbBasepack) => {
+    const decisions = depotDecisionOverrides[bp.id] ?? [];
+    const currentMstn: Record<string, number> = {};
+    for (const mat of bp.materials) {
+      for (const [depot, pct] of Object.entries(mat.mstnByDepot ?? {})) {
+        currentMstn[depot] = pct;
+      }
+    }
+    const userByRole = (role: string) => users.find(u => u.role === role && u.isActive)?.name;
+    const ncsmStep = APPROVER_CHAIN.find(a => a.role === "NCSM");
+    if (!ncsmStep) return;
+    const approvers: ApproverStep[] = [{
+      ...ncsmStep,
+      assignedTo: userByRole("NCSM"),
+      status: "pending" as const,
+    }];
+    const newDecisions: DepotDecision[] = decisions.map(d => {
+      if (d.ncsmDecision === "approved") return { ...d };
+      const curPct = currentMstn[d.depotCode] ?? d.mstnPct ?? 0;
+      if (curPct >= 80) {
+        return { ...d, mstnPct: curPct, mstnCleared: true, ncsmDecision: "pending" as const, activationStatus: "Pending" as const };
+      }
+      return d;
+    });
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const sr: ServiceRequest = {
+      id: makeTicketId(),
+      srType: "basepack-status-change",
+      targetStatus: "Active Pack",
+      basepackId: bp.id,
+      basepackCode: bp.basepackCode,
+      basepackName: bp.basepakName,
+      brand: bp.brand,
+      bg: bp.bg,
+      raisedBy: userByRole("NCSM") ?? "NCSM",
+      raisedAt: formatNow(),
+      mstnCoverage: 100,
+      criteriaMetAtRaise: true,
+      materials: [],
+      depotDecisions: newDecisions,
+      approvers,
+      overallStatus: "pending",
+      effectiveDate: tomorrow.toISOString().slice(0, 10),
+    };
+    addRequest(sr);
+  };
+
   const [triggerDialog, setTriggerDialog] = useState<string | null>(null);
   const [expandedMstnCbu, setExpandedMstnCbu] = useState<string | null>(null);
 
@@ -2044,48 +2092,6 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                       }
                       const newlyEligible = decisions.filter(d => d.ncsmDecision !== "approved" && (currentMstn[d.depotCode] ?? 0) >= 80);
 
-                      const handleRaiseReactivation = () => {
-                        const userByRole = (role: string) => users.find(u => u.role === role && u.isActive)?.name;
-                        const ncsmStep = APPROVER_CHAIN.find(a => a.role === "NCSM");
-                        if (!ncsmStep) return;
-                        const approvers: ApproverStep[] = [{
-                          ...ncsmStep,
-                          assignedTo: userByRole("NCSM"),
-                          status: "pending" as const,
-                        }];
-                        const newDecisions: import("@/lib/sr-store").DepotDecision[] = decisions.map(d => {
-                          if (d.ncsmDecision === "approved") return { ...d };
-                          const curPct = currentMstn[d.depotCode] ?? d.mstnPct ?? 0;
-                          if (curPct >= 80) {
-                            return { ...d, mstnPct: curPct, mstnCleared: true, ncsmDecision: "pending" as const, activationStatus: "Pending" as const };
-                          }
-                          return d;
-                        });
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        const sr: ServiceRequest = {
-                          id: makeTicketId(),
-                          srType: "basepack-status-change",
-                          targetStatus: "Active Pack",
-                          basepackId: bp.id,
-                          basepackCode: bp.basepackCode,
-                          basepackName: bp.basepakName,
-                          brand: bp.brand,
-                          bg: bp.bg,
-                          raisedBy: userByRole("NCSM") ?? "NCSM",
-                          raisedAt: formatNow(),
-                          mstnCoverage: 100,
-                          criteriaMetAtRaise: true,
-                          materials: [],
-                          depotDecisions: newDecisions,
-                          approvers,
-                          overallStatus: "pending",
-                          effectiveDate: tomorrow.toISOString().slice(0, 10),
-                        };
-                        addRequest(sr);
-                        setTriggerDialog(null);
-                      };
-
                       return (
                         <div key={bp.id} className="rounded-lg border border-amber-200 bg-amber-50/30 p-4">
                           <div className="flex items-center justify-between mb-3">
@@ -2168,7 +2174,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                             <Button
                               size="sm"
                               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-                              onClick={handleRaiseReactivation}
+                              onClick={() => { raiseReactivationSr(bp); setTriggerDialog(null); }}
                               data-testid={`button-raise-reactivation-${bp.id}`}
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" />
@@ -2528,17 +2534,75 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                                       </span>
                                     </p>
                                     <div className="grid grid-cols-3 gap-1.5">
-                                      {decisions.map(d => (
-                                        <div
-                                          key={`${d.cbuCode}-${d.depotCode}`}
-                                          className={`flex items-center justify-between px-2.5 py-1.5 rounded text-xs border ${d.ncsmDecision === "approved" ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-500"}`}
-                                          data-testid={`depot-status-${bp.id}-${d.depotCode}`}
-                                        >
-                                          <span className="font-mono font-medium">{d.depotCode}</span>
-                                          <span>{d.ncsmDecision === "approved" ? "✓ Active" : "✗ Not Active"}</span>
-                                        </div>
-                                      ))}
+                                      {decisions.map(d => {
+                                        const curMstn = (() => {
+                                          let pct = 0;
+                                          for (const mat of bp.materials) {
+                                            const v = (mat.mstnByDepot ?? {} as Record<string, number>)[d.depotCode];
+                                            if (v !== undefined) pct = v;
+                                          }
+                                          return pct;
+                                        })();
+                                        const isNewlyEligible = d.ncsmDecision !== "approved" && curMstn >= 80;
+                                        return (
+                                          <div
+                                            key={`${d.cbuCode}-${d.depotCode}`}
+                                            className={`flex items-center justify-between px-2.5 py-1.5 rounded text-xs border ${
+                                              d.ncsmDecision === "approved"
+                                                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                                : isNewlyEligible
+                                                  ? "bg-amber-50 border-amber-300 text-amber-700"
+                                                  : "bg-slate-50 border-slate-200 text-slate-500"
+                                            }`}
+                                            data-testid={`depot-status-${bp.id}-${d.depotCode}`}
+                                          >
+                                            <span className="font-mono font-medium">{d.depotCode}</span>
+                                            <span>
+                                              {d.ncsmDecision === "approved"
+                                                ? "✓ Active"
+                                                : isNewlyEligible
+                                                  ? `★ ${curMstn}%`
+                                                  : "✗ Not Active"}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
+                                    {(() => {
+                                      const currentMstn: Record<string, number> = {};
+                                      for (const mat of bp.materials) {
+                                        for (const [depot, pct] of Object.entries(mat.mstnByDepot ?? {})) {
+                                          currentMstn[depot] = pct;
+                                        }
+                                      }
+                                      const newlyEligible = decisions.filter(d => d.ncsmDecision !== "approved" && (currentMstn[d.depotCode] ?? 0) >= 80);
+                                      if (newlyEligible.length === 0) return null;
+                                      const hasPending = serviceRequests.some(r =>
+                                        r.srType === "basepack-status-change" &&
+                                        r.basepackCode === bp.basepackCode &&
+                                        r.overallStatus === "pending"
+                                      );
+                                      return (
+                                        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-amber-200">
+                                          <p className="text-xs text-amber-700">
+                                            <span className="font-semibold">{newlyEligible.length}</span> depot{newlyEligible.length !== 1 ? "s" : ""} newly MSTN-cleared ({newlyEligible.map(d => d.depotCode).join(", ")})
+                                          </p>
+                                          {hasPending ? (
+                                            <span className="text-xs text-slate-500 italic">SR already pending</span>
+                                          ) : (
+                                            <Button
+                                              size="sm"
+                                              className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs px-2.5"
+                                              onClick={e => { e.stopPropagation(); raiseReactivationSr(bp); }}
+                                              data-testid={`button-raise-reactivation-row-${bp.id}`}
+                                            >
+                                              <CheckCircle2 className="h-3 w-3" />
+                                              Raise Reactivation SR
+                                            </Button>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 );
                               })()}
