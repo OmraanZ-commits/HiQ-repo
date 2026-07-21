@@ -137,6 +137,7 @@ export default function Dashboard() {
   };
 
   const [bulkOpCbuCodes, setBulkOpCbuCodes] = useState<string[] | null>(null);
+  const [pendingViewMode, setPendingViewMode] = useState<"rolling" | "cumulative">("rolling");
 
   useEffect(() => {
     if (!bulkOpFilter || !entries.length) return;
@@ -415,7 +416,7 @@ export default function Dashboard() {
                 d ? Math.floor((todayMs - new Date(d + "T00:00:00").getTime()) / 86_400_000) : 0;
 
               /* pending entries broken down by their current status, with ageing stats */
-              const pendingByStatus = STATUS_FLOW.filter(s => s !== "Network transition complete").map(s => {
+              const pendingByStatusAll = STATUS_FLOW.filter(s => s !== "Network transition complete").map(s => {
                 const rows = pendingEntries.filter(e => e.networkStatus === s);
                 const ages = rows.map(e => ageInDays(e.cbuCreatedDate));
                 const avgAge = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
@@ -428,7 +429,15 @@ export default function Dashboard() {
                   gt30: ages.filter(a => a > 30 && a <= 90).length,
                   gt90: ages.filter(a => a > 90).length,
                 };
-              }).filter(r => r.count > 0);
+              });
+              /* cumulative count = entries at this status + all downstream statuses */
+              const pendingByStatusWithCumul = pendingByStatusAll.map((r, i) => ({
+                ...r,
+                cumulativeCount: pendingByStatusAll.slice(i).reduce((s, x) => s + x.count, 0),
+              }));
+              const pendingByStatus = pendingViewMode === "rolling"
+                ? pendingByStatusWithCumul.filter(r => r.count > 0)
+                : pendingByStatusWithCumul.filter(r => r.cumulativeCount > 0);
 
               const bgKeys = Array.from(new Set(entries.map(e => e.bg ?? "—"))).sort();
               const byBG = bgKeys.map(bg => {
@@ -502,9 +511,30 @@ export default function Dashboard() {
                   {/* Pending by Status (ageing table) */}
                   <Card>
                     <CardContent className="p-0">
-                      <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                      <div className="flex items-center justify-between px-5 pt-4 pb-3 gap-3 flex-wrap">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending by Status</p>
-                        <Badge variant="secondary" className="text-[10px]">{pendingEntries.length} pending</Badge>
+                        <div className="flex items-center gap-2 ml-auto">
+                          {/* Rolling / Cumulative toggle */}
+                          <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-semibold" data-testid="toggle-pending-view-mode">
+                            <button
+                              type="button"
+                              onClick={() => setPendingViewMode("rolling")}
+                              data-testid="toggle-rolling"
+                              className={`px-2.5 py-1 transition-colors ${pendingViewMode === "rolling" ? "bg-[#1f36c7] text-white" : "text-muted-foreground hover:bg-muted/50"}`}
+                            >
+                              Rolling
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPendingViewMode("cumulative")}
+                              data-testid="toggle-cumulative"
+                              className={`px-2.5 py-1 border-l border-border transition-colors ${pendingViewMode === "cumulative" ? "bg-[#1f36c7] text-white" : "text-muted-foreground hover:bg-muted/50"}`}
+                            >
+                              Cumulative
+                            </button>
+                          </div>
+                          <Badge variant="secondary" className="text-[10px]">{pendingEntries.length} pending</Badge>
+                        </div>
                       </div>
                       {pendingByStatus.length === 0 ? (
                         <p className="text-xs text-muted-foreground italic px-5 pb-4">No pending entries</p>
@@ -514,7 +544,12 @@ export default function Dashboard() {
                             <thead>
                               <tr className="border-y border-border/60 bg-muted/40">
                                 <th className="text-left font-semibold text-muted-foreground px-5 py-2 w-40">Status</th>
-                                <th className="text-right font-semibold text-muted-foreground px-3 py-2">Items</th>
+                                <th className="text-right font-semibold px-3 py-2 text-[#1f36c7]">
+                                  {pendingViewMode === "cumulative" ? "Cumul." : "Items"}
+                                </th>
+                                {pendingViewMode === "cumulative" && (
+                                  <th className="text-right font-semibold text-muted-foreground px-3 py-2">At Stage</th>
+                                )}
                                 <th className="text-right font-semibold text-muted-foreground px-3 py-2">Avg Age</th>
                                 <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-amber-600">7–30 days</th>
                                 <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-orange-600">1–3 months</th>
@@ -532,9 +567,16 @@ export default function Dashboard() {
                                       <span className={`font-medium ${r.meta.text}`} title={r.status}>{r.meta.label}</span>
                                     </div>
                                   </td>
-                                  <td className="px-3 py-2.5 text-right font-bold tabular-nums">{r.count}</td>
+                                  <td className="px-3 py-2.5 text-right font-bold tabular-nums text-[#1f36c7]">
+                                    {pendingViewMode === "cumulative" ? r.cumulativeCount : r.count}
+                                  </td>
+                                  {pendingViewMode === "cumulative" && (
+                                    <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+                                      {r.count > 0 ? r.count : <span className="text-muted-foreground/30">—</span>}
+                                    </td>
+                                  )}
                                   <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-                                    {r.avgAge}d
+                                    {r.avgAge > 0 ? `${r.avgAge}d` : <span className="text-muted-foreground/30">—</span>}
                                   </td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">
                                     {r.gt7 > 0
