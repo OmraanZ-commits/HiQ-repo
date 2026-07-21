@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LineChart, Lock, Package, Layers3, Boxes } from "lucide-react";
+import { LineChart, Lock, Package, Layers3, Boxes, BarChart2, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type DemandForecastEntry = {
@@ -23,15 +23,161 @@ type Uom = "qtyCases" | "qtyRpm" | "qtyUnits";
 
 const UOM_OPTIONS: { value: Uom; label: string; icon: typeof Package; activeClass: string }[] = [
   { value: "qtyCases", label: "Cases", icon: Package, activeClass: "bg-[#0d8ecf] text-white border-[#0d8ecf] hover:bg-[#0d8ecf] hover:text-white" },
-  { value: "qtyRpm", label: "RPM", icon: Layers3, activeClass: "bg-violet-600 text-white border-violet-600 hover:bg-violet-600 hover:text-white" },
-  { value: "qtyUnits", label: "Units", icon: Boxes, activeClass: "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-600 hover:text-white" },
+  { value: "qtyRpm",   label: "RPM",   icon: Layers3, activeClass: "bg-violet-600 text-white border-violet-600 hover:bg-violet-600 hover:text-white" },
+  { value: "qtyUnits", label: "Units", icon: Boxes,   activeClass: "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-600 hover:text-white" },
 ];
 
 const CHANNEL_FILTERS = ["All", "MT", "Non-MT"] as const;
 
 function formatQty(n: number): string {
+  return n === 0 ? "—" : n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+}
+
+function formatQtyNum(n: number): string {
   return n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 }
+
+// ── CBU-level total strip ─────────────────────────────────────────────────────
+
+function CbuSummaryStrip({
+  entries, mocMonths, uom,
+}: { entries: DemandForecastEntry[]; mocMonths: string[]; uom: Uom }) {
+  const totals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of entries) {
+      map.set(e.mocMonth, (map.get(e.mocMonth) ?? 0) + (e[uom] ?? 0));
+    }
+    return map;
+  }, [entries, uom]);
+
+  const grandTotal = useMemo(() => Array.from(totals.values()).reduce((s, v) => s + v, 0), [totals]);
+
+  return (
+    <div className="rounded-lg border border-[#1f36c7]/20 bg-gradient-to-r from-[#1f36c7]/5 to-[#0d8ecf]/5 p-4 mb-4" data-testid="cbu-summary-strip">
+      <div className="flex items-center gap-2 mb-3">
+        <BarChart2 className="h-3.5 w-3.5 text-[#1f36c7]" />
+        <span className="text-xs font-bold text-[#1f36c7] uppercase tracking-wide">CBU Total — All Depots &amp; Channels</span>
+        <span className="ml-auto text-[10px] text-muted-foreground font-medium">
+          Grand Total: <span className="font-black text-slate-700 tabular-nums">{formatQtyNum(grandTotal)}</span>
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {mocMonths.map(m => {
+          const val = totals.get(m) ?? 0;
+          return (
+            <div key={m} className="flex flex-col items-center rounded-md border border-[#1f36c7]/15 bg-white px-3 py-2 min-w-[80px]" data-testid={`cbu-total-${m}`}>
+              <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{m}</span>
+              <span className="text-sm font-black tabular-nums text-slate-800 mt-0.5">{formatQtyNum(val)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Depot-level summary table ─────────────────────────────────────────────────
+
+function DepotSummaryTable({
+  entries, mocMonths, uom,
+}: { entries: DemandForecastEntry[]; mocMonths: string[]; uom: Uom }) {
+  const [expanded, setExpanded] = useState(true);
+
+  const { depotRows, depotTotals } = useMemo(() => {
+    const depotMap = new Map<string, Map<string, number>>();
+    for (const e of entries) {
+      if (!depotMap.has(e.depot)) depotMap.set(e.depot, new Map());
+      const byMoc = depotMap.get(e.depot)!;
+      byMoc.set(e.mocMonth, (byMoc.get(e.mocMonth) ?? 0) + (e[uom] ?? 0));
+    }
+    const depotRows = Array.from(depotMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([depot, byMoc]) => ({ depot, byMoc }));
+
+    const totals = new Map<string, number>();
+    for (const { byMoc } of depotRows) {
+      byMoc.forEach((v, m) => totals.set(m, (totals.get(m) ?? 0) + v));
+    }
+    return { depotRows, depotTotals: totals };
+  }, [entries, uom]);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white mb-4 overflow-hidden" data-testid="depot-summary-table">
+      <button
+        type="button"
+        className="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200 hover:bg-slate-100 transition-colors"
+        onClick={() => setExpanded(v => !v)}
+        data-testid="btn-depot-summary-toggle"
+      >
+        {expanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
+        <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Depot Summary — Channels Aggregated</span>
+        <span className="ml-1 text-[10px] text-muted-foreground font-normal">({depotRows.length} depots)</span>
+      </button>
+      {expanded && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs" data-testid="table-depot-summary">
+            <thead>
+              <tr className="bg-slate-50/80 border-b border-slate-100">
+                <th className="text-left px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground sticky left-0 bg-slate-50/80">
+                  Depot
+                </th>
+                {mocMonths.map(m => (
+                  <th key={m} className="text-right px-3 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                    {m}
+                  </th>
+                ))}
+                <th className="text-right px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-[#1f36c7]">
+                  Depot Total
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {depotRows.map(({ depot, byMoc }) => {
+                const rowTotal = Array.from(byMoc.values()).reduce((s, v) => s + v, 0);
+                return (
+                  <tr key={depot} className="hover:bg-slate-50/60 transition-colors" data-testid={`depot-row-${depot}`}>
+                    <td className="px-4 py-2 font-mono font-semibold text-slate-700 sticky left-0 bg-white">{depot}</td>
+                    {mocMonths.map(m => {
+                      const val = byMoc.get(m) ?? 0;
+                      return (
+                        <td key={m} className="px-3 py-2 text-right tabular-nums" data-testid={`depot-cell-${depot}-${m}`}>
+                          {val > 0
+                            ? <span className="font-medium text-slate-700">{formatQty(val)}</span>
+                            : <span className="text-slate-200">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-2 text-right tabular-nums font-black text-[#1f36c7]">
+                      {rowTotal > 0 ? formatQtyNum(rowTotal) : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 bg-slate-50/80">
+                <td className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Depots</td>
+                {mocMonths.map(m => {
+                  const val = depotTotals.get(m) ?? 0;
+                  return (
+                    <td key={m} className="px-3 py-2 text-right tabular-nums font-bold text-slate-700">
+                      {val > 0 ? formatQtyNum(val) : "—"}
+                    </td>
+                  );
+                })}
+                <td className="px-4 py-2 text-right tabular-nums font-black text-[#1f36c7]">
+                  {formatQtyNum(Array.from(depotTotals.values()).reduce((s, v) => s + v, 0))}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export function DemandVisibilityTab({ basepack, cbuCode, isDraft }: { basepack: string; cbuCode: string; isDraft: boolean }) {
   const [uom, setUom] = useState<Uom>("qtyCases");
@@ -133,6 +279,7 @@ export function DemandVisibilityTab({ basepack, cbuCode, isDraft }: { basepack: 
           </div>
         </div>
       </CardHeader>
+
       <CardContent className="px-6 pb-6 pt-5">
         {isLoading ? (
           <div className="space-y-2">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-9 w-full rounded" />)}</div>
@@ -142,40 +289,53 @@ export function DemandVisibilityTab({ basepack, cbuCode, isDraft }: { basepack: 
             <p className="text-sm">No demand forecast data available for this CBU yet</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm" data-testid="table-demand-visibility">
-              <thead>
-                <tr className="bg-muted/50 text-left">
-                  <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Depot</th>
-                  <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Channel</th>
-                  <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Sub Channel (MT)</th>
-                  {mocMonths.map(m => (
-                    <th key={m} className="px-3 py-2 font-medium text-xs text-muted-foreground text-right whitespace-nowrap">{m}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={i} className="border-t hover:bg-muted/30" data-testid={`row-demand-${r.depot}-${r.channelType}-${i}`}>
-                    <td className="px-3 py-2 font-mono text-xs">{r.depot}</td>
-                    <td className="px-3 py-2 text-xs">
-                      <span className={r.channelType === "MT" ? "text-[#0d8ecf] font-medium" : "text-emerald-600 font-medium"}>
-                        {r.channelType === "MT" ? "MT" : (r.forecastChannel ?? r.channelType)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">
-                      {r.channelType === "MT" ? (r.subChannel ?? "—") : "—"}
-                    </td>
+          <>
+            {/* ── CBU Total Summary ── */}
+            <CbuSummaryStrip entries={filtered} mocMonths={mocMonths} uom={uom} />
+
+            {/* ── Depot-level Summary (channels aggregated) ── */}
+            <DepotSummaryTable entries={filtered} mocMonths={mocMonths} uom={uom} />
+
+            {/* ── Detailed table: Depot × Channel × Sub-channel × MOC ── */}
+            <div className="flex items-center gap-2 mb-2 mt-1">
+              <LineChart className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Detail — By Depot, Channel &amp; Sub-Channel</span>
+            </div>
+            <div className="overflow-x-auto rounded-md border">
+              <table className="w-full text-sm" data-testid="table-demand-visibility">
+                <thead>
+                  <tr className="bg-muted/50 text-left">
+                    <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Depot</th>
+                    <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Channel</th>
+                    <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Sub Channel (MT)</th>
                     {mocMonths.map(m => (
-                      <td key={m} className="px-3 py-2 text-right tabular-nums" data-testid={`cell-demand-${r.depot}-${m}`}>
-                        {formatQty(r.byMoc.get(m) ?? 0)}
-                      </td>
+                      <th key={m} className="px-3 py-2 font-medium text-xs text-muted-foreground text-right whitespace-nowrap">{m}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={i} className="border-t hover:bg-muted/30" data-testid={`row-demand-${r.depot}-${r.channelType}-${i}`}>
+                      <td className="px-3 py-2 font-mono text-xs">{r.depot}</td>
+                      <td className="px-3 py-2 text-xs">
+                        <span className={r.channelType === "MT" ? "text-[#0d8ecf] font-medium" : "text-emerald-600 font-medium"}>
+                          {r.channelType === "MT" ? "MT" : (r.forecastChannel ?? r.channelType)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">
+                        {r.channelType === "MT" ? (r.subChannel ?? "—") : "—"}
+                      </td>
+                      {mocMonths.map(m => (
+                        <td key={m} className="px-3 py-2 text-right tabular-nums" data-testid={`cell-demand-${r.depot}-${m}`}>
+                          {formatQty(r.byMoc.get(m) ?? 0)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
