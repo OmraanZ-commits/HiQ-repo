@@ -386,11 +386,19 @@ async function _loadFromBackend(): Promise<void> {
       _bpDates[sr.basepackId] = d;
 
       // Replay depot decisions so partial-activation trigger fires on load
+      // MERGE with any prior decisions for the same basepack (reactivation SRs)
       if (sr.depotDecisions && sr.depotDecisions.length > 0) {
         const resolved: DepotDecision[] = sr.depotDecisions.map(d =>
           d.ncsmDecision === "pending" ? { ...d, ncsmDecision: "rejected" as const, activationStatus: "Not Activated" as const } : d
         );
-        _depotDecisionOverrides = { ..._depotDecisionOverrides, [sr.basepackId]: resolved };
+        const existing = _depotDecisionOverrides[sr.basepackId] ?? [];
+        const merged = existing.length > 0
+          ? [
+              ...existing.map(e => resolved.find(r => r.cbuCode === e.cbuCode && r.depotCode === e.depotCode) ?? e),
+              ...resolved.filter(r => !existing.find(e => e.cbuCode === r.cbuCode && e.depotCode === r.depotCode)),
+            ]
+          : resolved;
+        _depotDecisionOverrides = { ..._depotDecisionOverrides, [sr.basepackId]: merged };
       }
     }
 
@@ -492,13 +500,24 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
       // Apply local overrides immediately for responsive UI
       if (sr.srType === "basepack-status-change" && sr.basepackId) {
         const finalDecisions = depotDecisions ?? sr.depotDecisions;
-        const finalStatus = _deriveFinalBpStatus(finalDecisions, sr.targetStatus);
-        _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: finalStatus };
         if (finalDecisions && finalDecisions.length > 0) {
           const resolved: DepotDecision[] = finalDecisions.map(d =>
             d.ncsmDecision === "pending" ? { ...d, ncsmDecision: "rejected" as const, activationStatus: "Not Activated" as const } : d
           );
-          _depotDecisionOverrides = { ..._depotDecisionOverrides, [sr.basepackId]: resolved };
+          // MERGE with prior decisions (reactivation SRs carry already-approved + newly pending)
+          const existing = _depotDecisionOverrides[sr.basepackId] ?? [];
+          const merged = existing.length > 0
+            ? [
+                ...existing.map(e => resolved.find(r => r.cbuCode === e.cbuCode && r.depotCode === e.depotCode) ?? e),
+                ...resolved.filter(r => !existing.find(e => e.cbuCode === r.cbuCode && e.depotCode === r.depotCode)),
+              ]
+            : resolved;
+          _depotDecisionOverrides = { ..._depotDecisionOverrides, [sr.basepackId]: merged };
+          const finalStatus = _deriveFinalBpStatus(merged, sr.targetStatus);
+          _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: finalStatus };
+        } else {
+          const finalStatus = _deriveFinalBpStatus(finalDecisions, sr.targetStatus);
+          _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: finalStatus };
         }
         const d: Record<string, BpDates> = { ..._bpDates };
         _applyDateFromSr(d, { ...sr, approvers });

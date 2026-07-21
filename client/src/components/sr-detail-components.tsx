@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Clock, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, User, MessageSquare,
-  CheckSquare, Square,
+  CheckSquare, Square, Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -52,14 +52,21 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
   const [otherComment, setOtherComment] = useState("");
   const [localDepotDecisions, setLocalDepotDecisions] = useState<DepotDecision[]>([]);
 
-  // Sync depot decisions from prop when approval panel opens; pre-select MSTN-cleared depots
+  // Sync depot decisions from prop when approval panel opens
+  // Already-approved rows (from a prior activation) are locked; pending rows are pre-selected by MSTN
   useEffect(() => {
     if (approvingIdx !== null && depotDecisions && depotDecisions.length > 0) {
-      setLocalDepotDecisions(depotDecisions.map(d => ({
-        ...d,
-        ncsmDecision: d.mstnCleared ? "approved" : "rejected",
-        activationStatus: d.mstnCleared ? "Active" : "Not Activated",
-      })));
+      setLocalDepotDecisions(depotDecisions.map(d => {
+        if (d.ncsmDecision === "approved") {
+          // Locked — already activated in a prior SR; keep as-is
+          return { ...d, activationStatus: "Active" as const };
+        }
+        return {
+          ...d,
+          ncsmDecision: d.mstnCleared ? "approved" : "rejected",
+          activationStatus: d.mstnCleared ? "Active" as const : "Not Activated" as const,
+        };
+      }));
     }
   }, [approvingIdx]);
 
@@ -82,10 +89,14 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
   const showDepotDecisions = (idx: number) =>
     isNcsmStep(idx) && srType === "basepack-status-change" && depotDecisions && depotDecisions.length > 0;
 
+  const isDepotLocked = (cbuCode: string, depotCode: string): boolean =>
+    depotDecisions?.find(o => o.cbuCode === cbuCode && o.depotCode === depotCode)?.ncsmDecision === "approved";
+
   const toggleDepotDecision = (cbuCode: string, depotCode: string, approved: boolean) => {
+    if (isDepotLocked(cbuCode, depotCode)) return; // already activated in a prior SR — cannot change
     setLocalDepotDecisions(prev => prev.map(d =>
       d.cbuCode === cbuCode && d.depotCode === depotCode
-        ? { ...d, ncsmDecision: approved ? "approved" : "rejected", activationStatus: approved ? "Active" : "Not Activated" }
+        ? { ...d, ncsmDecision: approved ? "approved" : "rejected", activationStatus: approved ? "Active" as const : "Not Activated" as const }
         : d
     ));
   };
@@ -244,45 +255,79 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
                     <div>
                       <p className="text-xs font-medium text-emerald-800 mb-2">
                         Depot Activation Decisions
-                        <span className="ml-2 font-normal text-emerald-600">
-                          (depots with MSTN ≥ 80% are pre-selected)
-                        </span>
+                        {localDepotDecisions.some(d => isDepotLocked(d.cbuCode, d.depotCode)) && (
+                          <span className="ml-2 font-normal text-slate-500 inline-flex items-center gap-1">
+                            <Lock className="h-3 w-3" /> locked rows are already active from a prior activation
+                          </span>
+                        )}
                       </p>
                       <div className="rounded-md border border-emerald-200 overflow-hidden bg-white text-xs">
                         <table className="w-full">
                           <thead className="bg-emerald-50 border-b border-emerald-200">
                             <tr>
-                              <th className="text-left px-3 py-2 font-medium text-emerald-800">CBU</th>
                               <th className="text-left px-3 py-2 font-medium text-emerald-800">Depot</th>
                               <th className="text-center px-3 py-2 font-medium text-emerald-800">MSTN %</th>
                               <th className="text-center px-3 py-2 font-medium text-emerald-800">Cleared</th>
+                              <th className="text-center px-3 py-2 font-medium text-emerald-800">NCSM Decision</th>
+                              <th className="text-center px-3 py-2 font-medium text-emerald-800">Status</th>
+                              <th className="text-center px-3 py-2 font-medium text-emerald-800">Indicator</th>
                               <th className="text-center px-3 py-2 font-medium text-emerald-800">Activate</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {localDepotDecisions.map((d, di) => (
-                              <tr key={`${d.cbuCode}-${d.depotCode}`} className={di % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                                <td className="px-3 py-1.5 text-slate-700">{d.cbuCode}</td>
-                                <td className="px-3 py-1.5 font-medium text-slate-800">{d.depotCode}</td>
-                                <td className="px-3 py-1.5 text-center">
-                                  <span className={d.mstnPct !== undefined && d.mstnPct >= 80 ? "text-emerald-700 font-medium" : "text-red-600"}>
-                                    {d.mstnPct !== undefined ? `${d.mstnPct.toFixed(1)}%` : "—"}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-1.5 text-center">
-                                  {d.mstnCleared
-                                    ? <span className="text-emerald-600">✓</span>
-                                    : <span className="text-red-500">✗</span>}
-                                </td>
-                                <td className="px-3 py-1.5 text-center">
-                                  <Checkbox
-                                    checked={d.ncsmDecision === "approved"}
-                                    onCheckedChange={(v) => toggleDepotDecision(d.cbuCode, d.depotCode, !!v)}
-                                    data-testid={`checkbox-depot-${d.cbuCode}-${d.depotCode}`}
-                                  />
-                                </td>
-                              </tr>
-                            ))}
+                            {localDepotDecisions.map((d, di) => {
+                              const locked = isDepotLocked(d.cbuCode, d.depotCode);
+                              const indicator = d.ncsmDecision === "approved" ? "✓" : d.ncsmDecision === "rejected" ? "✕" : "☐";
+                              return (
+                                <tr key={`${d.cbuCode}-${d.depotCode}`}
+                                  className={`${locked ? "bg-slate-50 opacity-70" : di % 2 === 0 ? "bg-white" : "bg-emerald-50/30"}`}>
+                                  <td className="px-3 py-1.5 font-mono font-medium text-slate-800">
+                                    {d.depotCode}
+                                    {locked && <Lock className="h-2.5 w-2.5 inline ml-1 text-slate-400" />}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center">
+                                    <span className={d.mstnPct != null && d.mstnPct >= 80 ? "text-emerald-700 font-medium" : "text-red-600"}>
+                                      {d.mstnPct != null ? `${d.mstnPct.toFixed(1)}%` : "—"}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center">
+                                    {d.mstnCleared
+                                      ? <span className="text-emerald-600 font-medium">Yes</span>
+                                      : <span className="text-slate-400">No</span>}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center">
+                                    {d.ncsmDecision === "approved"
+                                      ? <span className="text-emerald-700 font-medium">Approved</span>
+                                      : d.ncsmDecision === "rejected"
+                                        ? <span className="text-red-500">Rejected</span>
+                                        : <span className="text-amber-600">Pending</span>}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center">
+                                    {d.ncsmDecision === "approved"
+                                      ? <span className="text-emerald-600">Active</span>
+                                      : d.ncsmDecision === "rejected"
+                                        ? <span className="text-slate-400">Not Activated</span>
+                                        : <span className="text-amber-500">Pending</span>}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center text-sm">
+                                    <span className={d.ncsmDecision === "approved" ? "text-emerald-600" : d.ncsmDecision === "rejected" ? "text-red-500" : "text-slate-400"}>
+                                      {indicator}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center">
+                                    {locked ? (
+                                      <Lock className="h-3 w-3 text-slate-300 mx-auto" />
+                                    ) : (
+                                      <Checkbox
+                                        checked={d.ncsmDecision === "approved"}
+                                        onCheckedChange={(v) => toggleDepotDecision(d.cbuCode, d.depotCode, !!v)}
+                                        data-testid={`checkbox-depot-${d.cbuCode}-${d.depotCode}`}
+                                      />
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
