@@ -2110,16 +2110,26 @@ function SummaryView({
                           )}>
                             {isNew ? (
                               <span>
-                                <span className="block">
-                                  {hasOverlap
-                                    ? `PL-${priceLotChangeData.oldLotId}, PL-${priceLotChangeData.newLotNumber || "NEW"}`
-                                    : `PL-${priceLotChangeData.newLotNumber || "NEW"}`}
-                                </span>
+                                {hasOverlap ? (
+                                  <span className="block">
+                                    <span className="text-blue-600">PL-{priceLotChangeData.oldLotId}</span>
+                                    <span className="text-amber-500">, </span>
+                                    <span className="text-amber-700">PL-{priceLotChangeData.newLotNumber || "NEW"}</span>
+                                  </span>
+                                ) : (
+                                  <span className="block">PL-{priceLotChangeData.newLotNumber || "NEW"}</span>
+                                )}
                                 {priceLotChangeData.newMrp && (
-                                  <span className="block text-[10px] font-normal text-amber-600">
-                                    {hasOverlap
-                                      ? `₹${oldLot ? oldLot.mrp.toFixed(0) : "—"} / ₹${Number(priceLotChangeData.newMrp).toFixed(0)}`
-                                      : `₹${Number(priceLotChangeData.newMrp).toFixed(0)}`}
+                                  <span className="block text-[10px] font-normal">
+                                    {hasOverlap ? (
+                                      <>
+                                        <span className="text-blue-500">₹{oldLot ? oldLot.mrp.toFixed(0) : "—"}</span>
+                                        <span className="text-slate-400"> / </span>
+                                        <span className="text-amber-600">₹{Number(priceLotChangeData.newMrp).toFixed(0)}</span>
+                                      </>
+                                    ) : (
+                                      <span className="text-amber-600">₹{Number(priceLotChangeData.newMrp).toFixed(0)}</span>
+                                    )}
                                   </span>
                                 )}
                               </span>
