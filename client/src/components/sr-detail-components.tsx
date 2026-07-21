@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Clock, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, User, MessageSquare,
-  CheckSquare, Square, Lock,
+  CheckSquare, Square, Lock, IndianRupee, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -10,6 +10,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { ApproverStep, DepotDecision } from "@/lib/sr-store";
 import { REJECTION_REASONS } from "@/lib/sr-store";
+import type { CbuSectionRecord } from "@/components/basepack-cbu-sections";
+import { fmtDateStr } from "@/components/basepack-cbu-sections";
+
+// ─── Pricing helpers (NCSM check) ─────────────────────────────────────────────
+
+function lotValidityStatus(lot: { validFrom: string; validTo: string }): "active" | "expired" | "upcoming" {
+  if (lot.validTo === "9999-12-31") return "active";
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const to   = new Date(lot.validTo);
+  const from = new Date(lot.validFrom);
+  if (today > to)   return "expired";
+  if (today < from) return "upcoming";
+  return "active";
+}
+
+function lotScopeText(lot: { allIndia: boolean; regions: string[]; channels: string[]; regionChannelPairs: { region: string; channels: string[] }[] }): string {
+  if (lot.allIndia) return "All India";
+  const parts: string[] = [];
+  if (lot.regionChannelPairs.length > 0) parts.push(`Reg×Ch (${lot.regionChannelPairs.length})`);
+  else {
+    if (lot.regions.length  > 0) parts.push(`Regional (${lot.regions.length})`);
+    if (lot.channels.length > 0) parts.push(`Channel (${lot.channels.length})`);
+  }
+  return parts.length > 0 ? parts.join(", ") : "—";
+}
 
 const OTHER_REASON = "Other — refer to comments";
 
@@ -35,7 +60,7 @@ export function SrStatusBadge({ status }: { status: "pending" | "approved" | "re
 
 // ─── ApproverChain ────────────────────────────────────────────────────────────
 
-export function ApproverChain({ approvers, requestId, onApprove, onReject, srEffectiveDate, depotDecisions, srType }: {
+export function ApproverChain({ approvers, requestId, onApprove, onReject, srEffectiveDate, depotDecisions, srType, cbuPricingData }: {
   approvers: ApproverStep[];
   requestId: string;
   onApprove: (id: string, idx: number, comment?: string, effectiveDate?: string, depotDecisions?: DepotDecision[]) => void;
@@ -43,6 +68,7 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
   srEffectiveDate?: string;
   depotDecisions?: DepotDecision[];
   srType?: string;
+  cbuPricingData?: CbuSectionRecord[];
 }) {
   const [rejectingIdx, setRejectingIdx] = useState<number | null>(null);
   const [approvingIdx, setApprovingIdx] = useState<number | null>(null);
@@ -337,6 +363,105 @@ export function ApproverChain({ approvers, requestId, onApprove, onReject, srEff
                       </p>
                     </div>
                   )}
+
+                  {/* ─── Pricing Check by CBU — NCSM step only ─── */}
+                  {showDepotDecisions(idx) && cbuPricingData && cbuPricingData.length > 0 && (() => {
+                    const uniqueCbuCodes = Array.from(new Set(localDepotDecisions.map(d => d.cbuCode)));
+                    const cbuRows = uniqueCbuCodes.map(code => ({
+                      code,
+                      record: cbuPricingData.find(c => c.cbuCode === code),
+                    }));
+                    const allHaveActiveLots = cbuRows.every(({ record }) =>
+                      (record?.priceLots ?? []).some(l => lotValidityStatus(l) === "active")
+                    );
+                    return (
+                      <div className="border-t border-emerald-200 pt-3" data-testid="section-pricing-check-ncsm">
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <IndianRupee className="h-3.5 w-3.5 text-emerald-700" />
+                          <p className="text-xs font-medium text-emerald-800">Pricing Check by CBU</p>
+                          <span className={`ml-auto text-[11px] font-semibold inline-flex items-center gap-1 ${allHaveActiveLots ? "text-emerald-700" : "text-amber-700"}`}
+                            data-testid="badge-pricing-check-status">
+                            {allHaveActiveLots
+                              ? <><CheckCircle2 className="h-3 w-3" /> All Priced</>
+                              : <><AlertTriangle className="h-3 w-3" /> Pricing Gap</>
+                            }
+                          </span>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          {cbuRows.map(({ code, record }) => {
+                            const lots = record?.priceLots ?? [];
+                            const activeLotCount = lots.filter(l => lotValidityStatus(l) === "active").length;
+                            return (
+                              <div key={code} className="rounded-md border border-emerald-200 overflow-hidden bg-white text-xs"
+                                data-testid={`section-pricing-cbu-${code}`}>
+                                {/* CBU identity row */}
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50/60 border-b border-emerald-100">
+                                  <span className="font-mono font-semibold text-[#1f36c7] text-[11px]">{code}</span>
+                                  {record?.materialDescription && (
+                                    <span className="text-slate-500 truncate text-[11px]">{record.materialDescription}</span>
+                                  )}
+                                  <span className={`ml-auto font-medium text-[10px] whitespace-nowrap ${activeLotCount > 0 ? "text-emerald-600" : "text-amber-700"}`}
+                                    data-testid={`text-active-lots-${code}`}>
+                                    {activeLotCount > 0
+                                      ? `${activeLotCount} active lot${activeLotCount !== 1 ? "s" : ""}`
+                                      : "No active lots"}
+                                  </span>
+                                </div>
+
+                                {lots.length > 0 ? (
+                                  <table className="w-full" data-testid={`table-price-lots-${code}`}>
+                                    <thead>
+                                      <tr className="bg-slate-50/60 border-b border-emerald-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                                        <th className="text-left px-3 py-1.5">Price Lot</th>
+                                        <th className="text-left px-3 py-1.5">Scope</th>
+                                        <th className="text-right px-3 py-1.5">MRP (INR)</th>
+                                        <th className="text-center px-3 py-1.5">Valid From</th>
+                                        <th className="text-center px-3 py-1.5">Valid To</th>
+                                        <th className="text-center px-3 py-1.5">Status</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {lots.map((lot, li) => {
+                                        const vstatus = lotValidityStatus(lot);
+                                        const lotId   = `${code}-${lot.priceLot.padStart(2, "0")}`;
+                                        return (
+                                          <tr key={lot.id}
+                                            className={li % 2 === 0 ? "bg-white" : "bg-slate-50/40"}
+                                            data-testid={`row-price-lot-${code}-${lot.priceLot}`}>
+                                            <td className="px-3 py-1.5 font-mono font-semibold text-[#1f36c7]">{lotId}</td>
+                                            <td className="px-3 py-1.5 text-slate-600">{lotScopeText(lot)}</td>
+                                            <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-slate-800">
+                                              {lot.mrp.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="px-3 py-1.5 text-center text-slate-500">{fmtDateStr(lot.validFrom)}</td>
+                                            <td className="px-3 py-1.5 text-center text-slate-500">
+                                              {lot.validTo === "9999-12-31" ? <span className="text-slate-400 italic text-[10px]">Indefinite</span> : fmtDateStr(lot.validTo)}
+                                            </td>
+                                            <td className="px-3 py-1.5 text-center">
+                                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                                vstatus === "active"   ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                                                vstatus === "expired"  ? "bg-red-50 text-red-600 border border-red-200" :
+                                                                         "bg-amber-50 text-amber-700 border border-amber-200"
+                                              }`} data-testid={`badge-lot-status-${code}-${lot.priceLot}`}>
+                                                {vstatus === "active" ? "Active" : vstatus === "expired" ? "Expired" : "Upcoming"}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                ) : (
+                                  <p className="px-3 py-2 text-slate-400 italic text-[11px]">No pricing data available for this CBU</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <div>
                     <Label className="text-xs font-medium text-emerald-800 mb-1.5 block">

@@ -686,6 +686,7 @@ export default function ServiceRequestDetailPage() {
                 srEffectiveDate={request.effectiveDate}
                 depotDecisions={request.depotDecisions}
                 srType={request.srType}
+                cbuPricingData={allCbus}
                 onApprove={(reqId, idx, comment, effectiveDate, decisions) => approveStep(reqId, idx, comment, effectiveDate, decisions)}
                 onReject={(reqId, idx, reason) => rejectStep(reqId, idx, reason)}
               />
