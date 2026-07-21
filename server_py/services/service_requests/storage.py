@@ -48,6 +48,7 @@ def _row_to_dict(row: ServiceRequestModel) -> dict:
         "validationSummary": getattr(row, "validation_summary", None),
         "pricingComplete": getattr(row, "pricing_complete", None),
         "sourcingComplete": getattr(row, "sourcing_complete", None),
+        "depotDecisions": getattr(row, "depot_decisions", None) or [],
         "createdAt": row.created_at.isoformat() if row.created_at else None,
         "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
     }
@@ -122,6 +123,7 @@ class ServiceRequestStorage:
                 validation_summary=data.get("validationSummary"),
                 pricing_complete=data.get("pricingComplete"),
                 sourcing_complete=data.get("sourcingComplete"),
+                depot_decisions=data.get("depotDecisions"),
                 created_at=now,
                 updated_at=now,
             )
@@ -207,7 +209,8 @@ class ServiceRequestStorage:
 
     def update_approvers(self, sr_id: str, approvers: list, status: str,
                          rejection_reason: Optional[str] = None,
-                         effective_date: Optional[str] = None) -> Optional[dict]:
+                         effective_date: Optional[str] = None,
+                         depot_decisions: Optional[list] = None) -> Optional[dict]:
         db = SessionLocal()
         try:
             row = db.query(ServiceRequestModel).filter(
@@ -221,6 +224,8 @@ class ServiceRequestStorage:
                 row.rejection_reason = rejection_reason
             if effective_date is not None:
                 row.effective_date = effective_date
+            if depot_decisions is not None:
+                row.depot_decisions = depot_decisions
             row.updated_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(row)

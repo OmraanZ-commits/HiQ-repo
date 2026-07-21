@@ -198,6 +198,7 @@ class SrApproveRequest(BaseModel):
     actionedBy: str
     comments: Optional[str] = None
     effectiveDate: Optional[str] = None
+    depotDecisions: Optional[list] = None
 
 
 class SrRejectRequest(BaseModel):
@@ -228,6 +229,7 @@ async def execute_sr_approve(sr_id: str, req: SrApproveRequest):
         actioned_by=req.actionedBy,
         comments=req.comments,
         effective_date=req.effectiveDate,
+        depot_decisions=req.depotDecisions,
     )
 
     if result["status"] not in ("completed",):

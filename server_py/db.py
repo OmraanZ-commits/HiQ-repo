@@ -290,6 +290,7 @@ class ServiceRequestModel(Base):
     validation_summary = Column(JSONB, nullable=True)
     pricing_complete = Column(Boolean, nullable=True)
     sourcing_complete = Column(Boolean, nullable=True)
+    depot_decisions = Column(JSONB, nullable=True)
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
@@ -591,6 +592,9 @@ def run_migrations():
         ))
         conn.execute(text(
             "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS sourcing_complete BOOLEAN"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS depot_decisions JSONB"
         ))
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS sourcing_mode VARCHAR"

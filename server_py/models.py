@@ -401,6 +401,7 @@ class ServiceRequestBase(BaseModel):
     validationSummary: Optional[dict] = None  # demandVisibility / sourcingMatrixCheck / priceCheck / mstnCheck, computed at raise time
     pricingComplete: Optional[bool] = None
     sourcingComplete: Optional[bool] = None
+    depotDecisions: Optional[List[dict]] = None
 
 
 class InsertServiceRequest(ServiceRequestBase):
@@ -420,6 +421,7 @@ class ApproveStepRequest(BaseModel):
     actionedBy: str
     comments: Optional[str] = None
     effectiveDate: Optional[str] = None  # Supply Planner may modify the effective date on approval
+    depotDecisions: Optional[List[dict]] = None  # NCSM depot activation decisions
 
 
 class RejectStepRequest(BaseModel):

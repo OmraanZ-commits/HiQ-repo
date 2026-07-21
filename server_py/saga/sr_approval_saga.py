@@ -55,7 +55,8 @@ class SrApprovalSaga:
         })
 
     def approve(self, step_index: int, actioned_by: str,
-                comments: Optional[str] = None, effective_date: Optional[str] = None) -> dict:
+                comments: Optional[str] = None, effective_date: Optional[str] = None,
+                depot_decisions: Optional[list] = None) -> dict:
         """
         Advance one approval step.
         On final approval, apply the SR-type-specific effect.
@@ -68,6 +69,7 @@ class SrApprovalSaga:
             req = ApproveStepRequest(
                 stepIndex=step_index, actionedBy=actioned_by,
                 comments=comments, effectiveDate=effective_date,
+                depotDecisions=depot_decisions,
             )
             updated_sr = self.sr_service.approve_step(self.sr_id, req)
             self._log_step("approve_step", "completed", result={

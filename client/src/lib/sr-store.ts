@@ -546,6 +546,7 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
     actionedBy: "Portal User",
     comments: comment?.trim() || undefined,
     effectiveDate: effectiveDate ?? undefined,
+    depotDecisions: depotDecisions ?? undefined,
   }).then(() => {
     // Refresh backend state after saga completes
     queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });

@@ -262,7 +262,9 @@ class ServiceRequestService:
             overall_status = "pending"
 
         return self.storage.update_approvers(
-            sr_id, approvers, overall_status, effective_date=new_effective_date
+            sr_id, approvers, overall_status,
+            effective_date=new_effective_date,
+            depot_decisions=req.depotDecisions if req.depotDecisions else None,
         )
 
     def seed_requests(self, seeds: list) -> None:
