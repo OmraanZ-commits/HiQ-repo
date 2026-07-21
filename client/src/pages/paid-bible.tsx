@@ -314,6 +314,8 @@ function MaterialsSubTable({
             const depotEntries = Object.entries(m.mstnByDepot ?? {});
             const hasDepots = depotEntries.length > 0;
             const isExpanded = expandedMat === m.id;
+            const clearedDcCount = depotEntries.filter(([, pct]) => pct >= 80).length;
+            const totalDcCount = depotEntries.length;
             return (
               <Fragment key={m.id}>
                 <TableRow
@@ -348,9 +350,19 @@ function MaterialsSubTable({
                   <TableCell className="text-sm py-3 px-4 text-muted-foreground whitespace-nowrap">{m.typeOfNetwork}</TableCell>
                   <TableCell className="py-3 px-4 whitespace-nowrap">
                     {m.mstnPct != null ? (
-                      <span className={`text-sm font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>
-                        {m.mstnPct}%
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className={`text-sm font-semibold ${m.mstnPct >= 80 ? "text-emerald-600" : "text-red-500"}`}>
+                          {m.mstnPct}%
+                        </span>
+                        {totalDcCount > 0 && (
+                          <span
+                            className={`text-[10px] font-medium ${clearedDcCount === totalDcCount ? "text-emerald-600" : clearedDcCount === 0 ? "text-red-500" : "text-amber-600"}`}
+                            data-testid={`dc-cleared-count-${m.id}`}
+                          >
+                            {clearedDcCount}/{totalDcCount} DCs
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
@@ -389,8 +401,11 @@ function MaterialsSubTable({
                   <TableRow data-testid={`mat-depot-breakdown-${m.id}`}>
                     <TableCell colSpan={15} className="p-0 bg-slate-50/80 border-t border-dashed">
                       <div className="px-6 py-3.5">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2.5 flex items-center gap-2">
                           DC-wise MSTN levels
+                          <span className={`normal-case font-medium px-1.5 py-0.5 rounded text-[10px] border ${clearedDcCount === totalDcCount ? "bg-emerald-50 text-emerald-700 border-emerald-200" : clearedDcCount === 0 ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                            {clearedDcCount}/{totalDcCount} cleared
+                          </span>
                         </p>
                         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                             {depotEntries
