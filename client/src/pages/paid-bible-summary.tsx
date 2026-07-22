@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  AlertTriangle, Globe, Waypoints, Users, Banknote,
+  AlertTriangle, Banknote,
   Package, BarChart3, Clock, CheckCircle2,
   ChevronDown, ChevronRight, Truck, Rocket, TrendingUp,
 } from "lucide-react";
@@ -23,12 +23,24 @@ const BP_STATUS_DEFS = [
   { key: "Delisted Packs",      label: "Delisted", color: "#ef4444", bg: "bg-red-500",     light: "bg-red-50 text-red-700"         },
 ] as const;
 
-const SR_TYPE_DEFS = [
-  { code: "geo-extension",             label: "Geo Extension",      icon: Globe,     accent: "#10b981", border: "border-emerald-200", bg: "bg-emerald-50", dot: "bg-emerald-500" },
-  { code: "channel-extension",         label: "Channel Extension",  icon: Waypoints, accent: "#8b5cf6", border: "border-violet-200",  bg: "bg-violet-50",  dot: "bg-violet-500"  },
-  { code: "customer-chain-amendment",  label: "Customer Extension", icon: Users,     accent: "#3b82f6", border: "border-blue-200",    bg: "bg-blue-50",    dot: "bg-blue-500"    },
-  { code: "price-lot-change",          label: "Pricing Issues",     icon: Banknote,  accent: "#f59e0b", border: "border-amber-200",   bg: "bg-amber-50",   dot: "bg-amber-500"   },
-] as const;
+type SrFilterDef = { label: string; srType: string; targetStatus?: string };
+
+const BP_SR_DEFS: SrFilterDef[] = [
+  { label: "Basepack Activation",          srType: "basepack-status-change", targetStatus: "Active Pack"         },
+  { label: "Basepack Delisting",           srType: "basepack-status-change", targetStatus: "Delisted Packs"      },
+  { label: "Stock Based Delisting",        srType: "basepack-status-change", targetStatus: "Stock Base Delisted" },
+  { label: "Basepack Inactivation",        srType: "basepack-status-change", targetStatus: "Inactive Pack"       },
+  { label: "Seasonal Pack Activation",     srType: "basepack-status-change", targetStatus: "Seasonal Pack"       },
+];
+
+const AMEND_SR_DEFS: SrFilterDef[] = [
+  { label: "Geo Extension",                srType: "geo-extension"                  },
+  { label: "Channel Extension",            srType: "channel-extension"              },
+  { label: "Customer Chain Amendment",     srType: "customer-chain-amendment"       },
+  { label: "Sourcing Amendment",           srType: "sourcing-amendment"             },
+  { label: "Network Change Date Amendment",srType: "network-change-date-amendment"  },
+  { label: "Price Change Request",         srType: "price-lot-change"               },
+];
 
 const RELAUNCH_CODES = new Set([
   "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM", "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE", "NEW_LAUNCH",
@@ -100,52 +112,6 @@ function SectionHeader({ icon: Icon, title, badge, color = "#1f36c7" }: {
   );
 }
 
-// ── SrCard ───────────────────────────────────────────────────────────────────
-
-function SrCard({ def, pending, approved, rejected, total, onDoubleClickPending, onClickTotal }: {
-  def: typeof SR_TYPE_DEFS[number];
-  pending: number; approved: number; rejected: number; total: number;
-  onDoubleClickPending: () => void; onClickTotal: () => void;
-}) {
-  const Icon = def.icon;
-  return (
-    <div className={`rounded-xl border ${def.border} ${def.bg} overflow-hidden flex flex-col`}>
-      <div className="px-3.5 py-2.5 flex items-center gap-2 border-b border-white/70">
-        <div className={`h-6 w-6 rounded-full ${def.dot} flex items-center justify-center shrink-0`}>
-          <Icon className="h-3 w-3 text-white" />
-        </div>
-        <span className="text-xs font-bold text-slate-800 flex-1">{def.label}</span>
-        {total > 0 && (
-          <button
-            className="text-[10px] text-slate-400 hover:text-slate-700 underline underline-offset-2"
-            onClick={onClickTotal}
-            data-testid={`sr-total-link-${def.code}`}
-          >
-            {total} →
-          </button>
-        )}
-      </div>
-      <div className="flex divide-x divide-white/60">
-        {[
-          { label: "Pending",  val: pending,  color: pending > 0  ? "text-amber-600"   : "text-slate-300", dbl: true },
-          { label: "Approved", val: approved, color: approved > 0 ? "text-emerald-600" : "text-slate-300", dbl: false },
-          { label: "Rejected", val: rejected, color: rejected > 0 ? "text-red-600"     : "text-slate-300", dbl: false },
-        ].map(col => (
-          <div
-            key={col.label}
-            className="flex-1 flex flex-col items-center justify-center py-3 gap-0.5 cursor-pointer select-none"
-            onDoubleClick={col.dbl ? onDoubleClickPending : undefined}
-            title={col.dbl ? "Double-click for aging" : undefined}
-            data-testid={`sr-${col.label.toLowerCase()}-${def.code}`}
-          >
-            <span className={`text-xl font-black tabular-nums leading-none ${col.color}`}>{col.val}</span>
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{col.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -246,8 +212,12 @@ export default function PaidBibleSummaryTab() {
 
   // ── SR helpers ────────────────────────────────────────────────────────────
 
-  function srCount(code: string, status: string) {
-    return serviceRequests.filter(r => r.srType === code && r.overallStatus === status).length;
+  function srCountFiltered(def: SrFilterDef, status: string): number {
+    return serviceRequests.filter(r => {
+      if (r.srType !== def.srType) return false;
+      if (def.targetStatus && r.targetStatus !== def.targetStatus) return false;
+      return r.overallStatus === status;
+    }).length;
   }
 
   function openAgingDialog(srType: string, label: string) {
@@ -420,23 +390,151 @@ export default function PaidBibleSummaryTab() {
       </div>
 
       {/* ── Section 2: SR Tracker ── */}
-      <div>
-        <SectionHeader icon={TrendingUp} title="Service Request & Amendment Tracker" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {SR_TYPE_DEFS.map(def => (
-            <SrCard
-              key={def.code}
-              def={def}
-              pending={srCount(def.code, "pending")}
-              approved={srCount(def.code, "approved")}
-              rejected={srCount(def.code, "rejected")}
-              total={serviceRequests.filter(r => r.srType === def.code).length}
-              onDoubleClickPending={() => openAgingDialog(def.code, def.label)}
-              onClickTotal={() => navigate("/paid-bible?tab=service-requests")}
-            />
-          ))}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" data-testid="sr-tracker">
+        <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center gap-3">
+          <div className="h-7 w-7 rounded-lg bg-[#1f36c7]/10 flex items-center justify-center shrink-0">
+            <TrendingUp className="h-3.5 w-3.5 text-[#1f36c7]" />
+          </div>
+          <h2 className="text-sm font-bold text-slate-800">Service Request &amp; Amendment Tracker</h2>
         </div>
-        <p className="text-[10px] text-slate-400 mt-1.5 ml-0.5">Double-click Pending count to view aging report</p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50/50">
+              <th className="text-left px-5 py-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wider w-[55%]">SR Type</th>
+              <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-amber-600">Pending</th>
+              <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-emerald-600">Approved</th>
+              <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-red-500">Rejected</th>
+              <th className="text-center px-5 py-2 font-semibold text-[10px] uppercase tracking-wider text-[#1f36c7]">Total</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {/* ── Basepack section ── */}
+            <tr className="bg-[#1f36c7]/[0.04] border-y border-[#1f36c7]/10">
+              <td colSpan={5} className="px-5 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1f36c7]">Basepack Requests</span>
+                  <span className="px-1.5 py-0.5 rounded bg-[#1f36c7]/10 text-[9px] font-bold text-[#1f36c7] tabular-nums">5 types</span>
+                </div>
+              </td>
+            </tr>
+            {BP_SR_DEFS.map(def => {
+              const p = srCountFiltered(def, "pending");
+              const a = srCountFiltered(def, "approved");
+              const r = srCountFiltered(def, "rejected");
+              return (
+                <tr key={def.label} className="hover:bg-slate-50/80">
+                  <td className="px-5 py-2.5 text-slate-700 font-medium">{def.label}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    {p > 0 ? (
+                      <button
+                        onClick={() => navigate("/paid-bible?tab=service-requests")}
+                        className="inline-flex items-center justify-center min-w-[2rem] px-2.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 font-black text-xs hover:bg-amber-100 transition-colors cursor-pointer"
+                        data-testid={`sr-pending-bp-${def.targetStatus?.replace(/\s/g, "-").toLowerCase()}`}
+                      >{p}</button>
+                    ) : <span className="text-slate-300 text-xs">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {a > 0 ? <span className="font-black text-emerald-600 tabular-nums">{a}</span> : <span className="text-slate-300 text-xs">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {r > 0 ? <span className="font-black text-red-500 tabular-nums">{r}</span> : <span className="text-slate-300 text-xs">—</span>}
+                  </td>
+                  <td className="px-5 py-2.5 text-center">
+                    <span className="font-black text-[#1f36c7] tabular-nums">{p + a + r}</span>
+                  </td>
+                </tr>
+              );
+            })}
+            {(() => {
+              const p = BP_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "pending"), 0);
+              const a = BP_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "approved"), 0);
+              const r = BP_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "rejected"), 0);
+              return (
+                <tr className="bg-slate-50 border-y border-slate-200">
+                  <td className="px-5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Basepack Subtotal</td>
+                  <td className="px-4 py-2 text-center"><span className={`text-xs font-black tabular-nums ${p > 0 ? "text-amber-700" : "text-slate-300"}`}>{p > 0 ? p : "—"}</span></td>
+                  <td className="px-4 py-2 text-center"><span className="text-xs font-black text-emerald-600 tabular-nums">{a}</span></td>
+                  <td className="px-4 py-2 text-center"><span className={`text-xs font-black tabular-nums ${r > 0 ? "text-red-500" : "text-slate-300"}`}>{r > 0 ? r : "—"}</span></td>
+                  <td className="px-5 py-2 text-center"><span className="text-xs font-black text-[#1f36c7] tabular-nums">{p + a + r}</span></td>
+                </tr>
+              );
+            })()}
+
+            {/* ── Amendment section ── */}
+            <tr className="bg-[#1f36c7]/[0.04] border-y border-[#1f36c7]/10">
+              <td colSpan={5} className="px-5 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1f36c7]">Amendment Requests</span>
+                  <span className="px-1.5 py-0.5 rounded bg-[#1f36c7]/10 text-[9px] font-bold text-[#1f36c7] tabular-nums">6 types</span>
+                </div>
+              </td>
+            </tr>
+            {AMEND_SR_DEFS.map(def => {
+              const p = srCountFiltered(def, "pending");
+              const a = srCountFiltered(def, "approved");
+              const r = srCountFiltered(def, "rejected");
+              return (
+                <tr key={def.label} className="hover:bg-slate-50/80">
+                  <td className="px-5 py-2.5 text-slate-700 font-medium">{def.label}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    {p > 0 ? (
+                      <button
+                        onClick={() => navigate("/paid-bible?tab=service-requests")}
+                        className="inline-flex items-center justify-center min-w-[2rem] px-2.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 font-black text-xs hover:bg-amber-100 transition-colors cursor-pointer"
+                        data-testid={`sr-pending-${def.srType}`}
+                      >{p}</button>
+                    ) : <span className="text-slate-300 text-xs">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {a > 0 ? <span className="font-black text-emerald-600 tabular-nums">{a}</span> : <span className="text-slate-300 text-xs">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {r > 0 ? <span className="font-black text-red-500 tabular-nums">{r}</span> : <span className="text-slate-300 text-xs">—</span>}
+                  </td>
+                  <td className="px-5 py-2.5 text-center">
+                    <span className="font-black text-[#1f36c7] tabular-nums">{p + a + r}</span>
+                  </td>
+                </tr>
+              );
+            })}
+            {(() => {
+              const p = AMEND_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "pending"), 0);
+              const a = AMEND_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "approved"), 0);
+              const r = AMEND_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "rejected"), 0);
+              return (
+                <tr className="bg-slate-50 border-y border-slate-200">
+                  <td className="px-5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Amendment Subtotal</td>
+                  <td className="px-4 py-2 text-center"><span className={`text-xs font-black tabular-nums ${p > 0 ? "text-amber-700" : "text-slate-300"}`}>{p > 0 ? p : "—"}</span></td>
+                  <td className="px-4 py-2 text-center"><span className="text-xs font-black text-emerald-600 tabular-nums">{a}</span></td>
+                  <td className="px-4 py-2 text-center"><span className={`text-xs font-black tabular-nums ${r > 0 ? "text-red-500" : "text-slate-300"}`}>{r > 0 ? r : "—"}</span></td>
+                  <td className="px-5 py-2 text-center"><span className="text-xs font-black text-[#1f36c7] tabular-nums">{p + a + r}</span></td>
+                </tr>
+              );
+            })()}
+          </tbody>
+          <tfoot>
+            {(() => {
+              const allDefs = [...BP_SR_DEFS, ...AMEND_SR_DEFS];
+              const totP = allDefs.reduce((s, d) => s + srCountFiltered(d, "pending"), 0);
+              const totA = allDefs.reduce((s, d) => s + srCountFiltered(d, "approved"), 0);
+              const totR = allDefs.reduce((s, d) => s + srCountFiltered(d, "rejected"), 0);
+              return (
+                <tr className="border-t-2 border-[#1f36c7]/20 bg-[#1f36c7]/[0.03]">
+                  <td className="px-5 py-2.5 text-[10px] font-black text-slate-600 uppercase tracking-wide">Grand Total</td>
+                  <td className="px-4 py-2.5 text-center"><span className={`text-sm font-black tabular-nums ${totP > 0 ? "text-amber-700" : "text-slate-300"}`}>{totP > 0 ? totP : "—"}</span></td>
+                  <td className="px-4 py-2.5 text-center"><span className="text-sm font-black text-emerald-600 tabular-nums">{totA}</span></td>
+                  <td className="px-4 py-2.5 text-center"><span className={`text-sm font-black tabular-nums ${totR > 0 ? "text-red-500" : "text-slate-300"}`}>{totR > 0 ? totR : "—"}</span></td>
+                  <td className="px-5 py-2.5 text-center"><span className="text-sm font-black text-[#1f36c7] tabular-nums">{totP + totA + totR}</span></td>
+                </tr>
+              );
+            })()}
+          </tfoot>
+        </table>
+        <div className="px-5 py-2.5 border-t border-slate-100 bg-slate-50/50">
+          <p className="text-[10px] text-slate-400">
+            <span className="font-semibold text-amber-600">Pending</span> counts are clickable — navigates to Service Requests page filtered by type.
+          </p>
+        </div>
       </div>
 
       {/* ── Section 3: SLOB Risk ── */}
