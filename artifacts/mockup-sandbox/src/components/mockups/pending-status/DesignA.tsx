@@ -1,7 +1,7 @@
 // Design A (v2) — Cleaner: simplified At Stage table + spacious Cumulative Pipeline bars
 
 const STATUS_DATA = [
-  { label: "Draft",           dot: "#94a3b8", barBg: "bg-slate-200",   barFill: "bg-slate-400",   cumul: 28, atStage: 9, avgAge: 153, gt90: 9  },
+  { label: "Draft",           cumulLabel: "Total CBUs", dot: "#94a3b8", barBg: "bg-slate-200",   barFill: "bg-slate-400",   cumul: 28, atStage: 9, avgAge: 153, gt90: 9  },
   { label: "Active",          dot: "#10b981", barBg: "bg-emerald-100", barFill: "bg-emerald-500", cumul: 19, atStage: 2, avgAge: 175, gt90: 2  },
   { label: "Pricing Updated", dot: "#3b82f6", barBg: "bg-blue-100",    barFill: "bg-blue-500",    cumul: 17, atStage: 1, avgAge: 280, gt90: 1  },
   { label: "Prod. Started",   dot: "#f59e0b", barBg: "bg-amber-100",   barFill: "bg-amber-500",   cumul: 16, atStage: 2, avgAge: 187, gt90: 2  },
@@ -93,7 +93,7 @@ export function DesignA() {
                 <div className="flex items-center gap-2 w-[130px] shrink-0">
                   <span className="h-2.5 w-2.5 rounded-full shrink-0 border-2 border-white shadow-sm"
                     style={{ backgroundColor: r.dot }} />
-                  <span className="text-xs font-semibold text-slate-700 truncate">{r.label}</span>
+                  <span className="text-xs font-semibold text-slate-700 truncate">{"cumulLabel" in r ? (r as any).cumulLabel : r.label}</span>
                 </div>
 
                 {/* Proportional bar — single solid fill, no split */}
