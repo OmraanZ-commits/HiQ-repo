@@ -578,6 +578,7 @@ export default function PaidBibleSummaryTab() {
                 <th className="text-left px-5 py-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wider">Small C</th>
                 <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-orange-600">CBUs at Risk</th>
                 <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-rose-600">CBU × DC Combos</th>
+                <th className="text-right px-5 py-2 font-semibold text-[10px] uppercase tracking-wider text-slate-300">MRP Exposure</th>
                 <th className="w-8" />
               </tr>
             </thead>
@@ -600,13 +601,14 @@ export default function PaidBibleSummaryTab() {
                           ? <span className="font-black text-rose-600 tabular-nums">{dcCombos}</span>
                           : <span className="text-slate-300">—</span>}
                       </td>
+                      <td className="text-right px-5 py-2.5 text-slate-300 text-xs">—</td>
                       <td className="pr-4 text-slate-400">
                         {expandedPriceIssue === cat ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                       </td>
                     </tr>
                     {expandedPriceIssue === cat && (
                       <tr>
-                        <td colSpan={4} className="px-5 pb-3 pt-1 bg-orange-50/15">
+                        <td colSpan={5} className="px-5 pb-3 pt-1 bg-orange-50/15">
                           <table className="w-full text-[11px] border border-slate-100 rounded-lg overflow-hidden">
                             <thead>
                               <tr className="bg-slate-50 border-b border-slate-100">
@@ -647,6 +649,7 @@ export default function PaidBibleSummaryTab() {
                     ? <span className="font-black text-rose-600 tabular-nums">{totalPriceIssueDcCombos}</span>
                     : <span className="text-slate-300">—</span>}
                 </td>
+                <td className="text-right px-5 py-2.5 text-slate-300 text-xs">—</td>
                 <td />
               </tr>
             </tfoot>
