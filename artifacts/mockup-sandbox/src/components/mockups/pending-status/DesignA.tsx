@@ -87,8 +87,7 @@ export function DesignA() {
         {/* Funnel rows */}
         <div className="px-5 py-4 space-y-4">
           {STATUS_DATA.map(r => {
-            const cumulPct = (r.cumul   / MAX_CUMUL) * 100;
-            const atPct    = (r.atStage / MAX_CUMUL) * 100;
+            const cumulPct = (r.cumul / MAX_CUMUL) * 100;
 
             return (
               <div key={r.label} className="flex items-center gap-4">
@@ -100,50 +99,21 @@ export function DesignA() {
                   <span className="text-xs font-semibold text-slate-700 truncate">{r.label}</span>
                 </div>
 
-                {/* Bar track */}
-                <div className="flex-1 relative h-8 bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
-                  {/* Cumulative fill (light) */}
+                {/* Proportional bar — single solid fill, no split */}
+                <div className="flex-1 relative h-7 bg-slate-100 rounded-lg overflow-hidden">
                   <div
-                    className={`absolute top-1 bottom-1 left-1 rounded-md ${r.barBg} transition-all`}
+                    className={`absolute top-1 bottom-1 left-1 rounded-md ${r.barFill} opacity-60 transition-all`}
                     style={{ width: `calc(${cumulPct}% - 8px)` }}
                   />
-                  {/* At-stage fill (dark) */}
-                  <div
-                    className={`absolute top-1 bottom-1 left-1 rounded-md ${r.barFill} opacity-70 transition-all`}
-                    style={{ width: `calc(${atPct}% - 8px)` }}
-                  />
                 </div>
 
-                {/* Numbers — outside the bar, no crowding */}
-                <div className="flex items-baseline gap-1.5 shrink-0 w-[90px] justify-end">
-                  <span className="text-xl font-black tabular-nums text-[#1f36c7] leading-none">{r.cumul}</span>
-                  <span className="text-[10px] text-slate-400 leading-none">/ {r.atStage} here</span>
-                </div>
-
-                {/* Overdue pill — only shown when >0 */}
-                <div className="w-[56px] shrink-0 flex justify-end">
-                  {r.gt90 > 0
-                    ? <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-[10px] font-bold text-red-600">
-                        {r.gt90} <span className="font-normal opacity-60">&gt;3mo</span>
-                      </span>
-                    : null
-                  }
-                </div>
+                {/* Cumulative count only */}
+                <span className="text-xl font-black tabular-nums text-[#1f36c7] leading-none w-8 text-right shrink-0">
+                  {r.cumul}
+                </span>
               </div>
             );
           })}
-
-          {/* Legend */}
-          <div className="flex items-center gap-5 pt-2 border-t border-slate-100 text-[10px] text-slate-400">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-8 rounded-sm bg-slate-200" />
-              cumulative (all still in pipeline)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-4 rounded-sm bg-slate-500 opacity-70" />
-              at this stage specifically
-            </span>
-          </div>
         </div>
       </div>
 
