@@ -47,10 +47,10 @@ const RELAUNCH_CODES = new Set([
 ]);
 
 const TIMELINE_BUCKETS = [
-  { key: "t15",  label: "0 – 15 days",  min: 0,  max: 15,       accent: "text-emerald-700", ring: "ring-1 ring-emerald-200", bg: "bg-emerald-50" },
+  { key: "t15",  label: "0 – 15 days",  min: 0,  max: 15,       accent: "text-red-700",     ring: "ring-1 ring-red-200",     bg: "bg-red-50"     },
   { key: "t30",  label: "16 – 30 days", min: 16, max: 30,       accent: "text-amber-700",   ring: "ring-1 ring-amber-200",   bg: "bg-amber-50"   },
-  { key: "t60",  label: "31 – 60 days", min: 31, max: 60,       accent: "text-orange-700",  ring: "ring-1 ring-orange-200",  bg: "bg-orange-50"  },
-  { key: "t60p", label: "> 60 days",    min: 61, max: Infinity, accent: "text-slate-600",   ring: "ring-1 ring-slate-200",   bg: "bg-slate-50"   },
+  { key: "t60",  label: "31 – 60 days", min: 31, max: 60,       accent: "text-yellow-700",  ring: "ring-1 ring-yellow-200",  bg: "bg-yellow-50"  },
+  { key: "t60p", label: "> 60 days",    min: 61, max: Infinity, accent: "text-emerald-700", ring: "ring-1 ring-emerald-200", bg: "bg-emerald-50" },
 ];
 
 const MOC_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ num: i + 1, label: `MOC ${i + 1}` }));
