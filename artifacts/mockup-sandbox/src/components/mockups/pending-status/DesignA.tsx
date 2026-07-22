@@ -1,12 +1,13 @@
-// Design A (v2) — Cleaner: simplified At Stage table + spacious Cumulative Pipeline bars
+// Design A (v3) — With NTC row in both sections; "Total CBUs" label on first cumulative row
 
 const STATUS_DATA = [
-  { label: "Draft",           cumulLabel: "Total CBUs", dot: "#94a3b8", barBg: "bg-slate-200",   barFill: "bg-slate-400",   cumul: 28, atStage: 9, avgAge: 153, gt90: 9  },
-  { label: "Active",          dot: "#10b981", barBg: "bg-emerald-100", barFill: "bg-emerald-500", cumul: 19, atStage: 2, avgAge: 175, gt90: 2  },
-  { label: "Pricing Updated", dot: "#3b82f6", barBg: "bg-blue-100",    barFill: "bg-blue-500",    cumul: 17, atStage: 1, avgAge: 280, gt90: 1  },
-  { label: "Prod. Started",   dot: "#f59e0b", barBg: "bg-amber-100",   barFill: "bg-amber-500",   cumul: 16, atStage: 2, avgAge: 187, gt90: 2  },
-  { label: "FTR Approved",    dot: "#06b6d4", barBg: "bg-cyan-100",    barFill: "bg-cyan-500",    cumul: 14, atStage: 8, avgAge: 147, gt90: 8  },
-  { label: "Stock Mvmt.",     dot: "#8b5cf6", barBg: "bg-violet-100",  barFill: "bg-violet-500",  cumul: 6,  atStage: 6, avgAge: 277, gt90: 6  },
+  { label: "Draft",                    cumulLabel: "Total CBUs",            dot: "#94a3b8", barFill: "bg-slate-400",   cumul: 31, atStage: 9, avgAge: 153, gt90: 9  },
+  { label: "Active",                   dot: "#10b981", barFill: "bg-emerald-500", cumul: 22, atStage: 2, avgAge: 175, gt90: 2  },
+  { label: "Pricing Updated",          dot: "#3b82f6", barFill: "bg-blue-500",    cumul: 20, atStage: 1, avgAge: 280, gt90: 1  },
+  { label: "Prod. Started",            dot: "#f59e0b", barFill: "bg-amber-500",   cumul: 19, atStage: 2, avgAge: 187, gt90: 2  },
+  { label: "FTR Approved",             dot: "#06b6d4", barFill: "bg-cyan-500",    cumul: 17, atStage: 8, avgAge: 147, gt90: 8  },
+  { label: "Stock Mvmt.",              dot: "#8b5cf6", barFill: "bg-violet-500",  cumul: 9,  atStage: 6, avgAge: 277, gt90: 6  },
+  { label: "NW Transition Complete",   dot: "#059669", barFill: "bg-emerald-600", cumul: 3,  atStage: 3, avgAge: 120, gt90: 0  },
 ];
 
 const MAX_CUMUL = Math.max(...STATUS_DATA.map(r => r.cumul));
@@ -19,10 +20,9 @@ export function DesignA() {
       {/* ─── Card 1: At Stage ─── */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
 
-        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-3.5 border-b border-slate-100">
           <div>
-            <p className="text-sm font-bold text-slate-800">At Stage</p>
+            <p className="text-sm font-bold text-slate-800">Pending by Status</p>
             <p className="text-[11px] text-slate-400 mt-0.5">Items currently waiting at each step</p>
           </div>
           <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
@@ -30,7 +30,6 @@ export function DesignA() {
           </span>
         </div>
 
-        {/* Table — 4 clean columns only */}
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/60">
@@ -71,32 +70,26 @@ export function DesignA() {
       {/* ─── Card 2: Cumulative Pipeline ─── */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
 
-        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-3.5 border-b border-slate-100">
-          <div>
-            <p className="text-sm font-bold text-slate-800">Cumulative Pipeline</p>
-          </div>
+          <p className="text-sm font-bold text-slate-800">Cumulative Pipeline</p>
           <span className="px-3 py-1 rounded-full bg-[#1f36c7]/10 text-[#1f36c7] text-xs font-bold">
-            {MAX_CUMUL} total
+            {MAX_CUMUL} total CBUs
           </span>
         </div>
 
-        {/* Funnel rows */}
         <div className="px-5 py-4 space-y-4">
           {STATUS_DATA.map(r => {
             const cumulPct = (r.cumul / MAX_CUMUL) * 100;
+            const displayLabel = "cumulLabel" in r ? (r as any).cumulLabel : r.label;
 
             return (
               <div key={r.label} className="flex items-center gap-4">
-
-                {/* Stage name */}
-                <div className="flex items-center gap-2 w-[130px] shrink-0">
+                <div className="flex items-center gap-2 w-[160px] shrink-0">
                   <span className="h-2.5 w-2.5 rounded-full shrink-0 border-2 border-white shadow-sm"
                     style={{ backgroundColor: r.dot }} />
-                  <span className="text-xs font-semibold text-slate-700 truncate">{"cumulLabel" in r ? (r as any).cumulLabel : r.label}</span>
+                  <span className="text-xs font-semibold text-slate-700 truncate">{displayLabel}</span>
                 </div>
 
-                {/* Proportional bar — single solid fill, no split */}
                 <div className="flex-1 relative h-7 bg-slate-100 rounded-lg overflow-hidden">
                   <div
                     className={`absolute top-1 bottom-1 left-1 rounded-md ${r.barFill} opacity-60 transition-all`}
@@ -104,7 +97,6 @@ export function DesignA() {
                   />
                 </div>
 
-                {/* Cumulative count only */}
                 <span className="text-xl font-black tabular-nums text-[#1f36c7] leading-none w-8 text-right shrink-0">
                   {r.cumul}
                 </span>

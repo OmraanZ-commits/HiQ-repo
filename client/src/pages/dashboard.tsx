@@ -137,7 +137,6 @@ export default function Dashboard() {
   };
 
   const [bulkOpCbuCodes, setBulkOpCbuCodes] = useState<string[] | null>(null);
-  const [pendingViewMode, setPendingViewMode] = useState<"rolling" | "cumulative">("rolling");
 
   useEffect(() => {
     if (!bulkOpFilter || !entries.length) return;
@@ -416,8 +415,8 @@ export default function Dashboard() {
                 d ? Math.floor((todayMs - new Date(d + "T00:00:00").getTime()) / 86_400_000) : 0;
 
               /* pending entries broken down by their current status, with ageing stats */
-              const pendingByStatusAll = STATUS_FLOW.filter(s => s !== "Network transition complete").map(s => {
-                const rows = pendingEntries.filter(e => e.networkStatus === s);
+              const pendingByStatusAll = STATUS_FLOW.map(s => {
+                const rows = entries.filter(e => e.networkStatus === s);
                 const ages = rows.map(e => ageInDays(e.cbuCreatedDate));
                 const avgAge = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
                 return {
@@ -435,9 +434,7 @@ export default function Dashboard() {
                 ...r,
                 cumulativeCount: pendingByStatusAll.slice(i).reduce((s, x) => s + x.count, 0),
               }));
-              const pendingByStatus = pendingViewMode === "rolling"
-                ? pendingByStatusWithCumul.filter(r => r.count > 0)
-                : pendingByStatusWithCumul.filter(r => r.cumulativeCount > 0);
+              const pendingByStatus = pendingByStatusWithCumul.filter(r => r.count > 0);
 
               const bgKeys = Array.from(new Set(entries.map(e => e.bg ?? "—"))).sort();
               const byBG = bgKeys.map(bg => {
@@ -513,28 +510,7 @@ export default function Dashboard() {
                     <CardContent className="p-0">
                       <div className="flex items-center justify-between px-5 pt-4 pb-3 gap-3 flex-wrap">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending by Status</p>
-                        <div className="flex items-center gap-2 ml-auto">
-                          {/* Rolling / Cumulative toggle */}
-                          <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-semibold" data-testid="toggle-pending-view-mode">
-                            <button
-                              type="button"
-                              onClick={() => setPendingViewMode("rolling")}
-                              data-testid="toggle-rolling"
-                              className={`px-2.5 py-1 transition-colors ${pendingViewMode === "rolling" ? "bg-[#1f36c7] text-white" : "text-muted-foreground hover:bg-muted/50"}`}
-                            >
-                              Rolling
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPendingViewMode("cumulative")}
-                              data-testid="toggle-cumulative"
-                              className={`px-2.5 py-1 border-l border-border transition-colors ${pendingViewMode === "cumulative" ? "bg-[#1f36c7] text-white" : "text-muted-foreground hover:bg-muted/50"}`}
-                            >
-                              Cumulative
-                            </button>
-                          </div>
-                          <Badge variant="secondary" className="text-[10px]">{pendingEntries.length} pending</Badge>
-                        </div>
+                        <Badge variant="secondary" className="text-[10px]">{pendingEntries.length} pending</Badge>
                       </div>
                       {pendingByStatus.length === 0 ? (
                         <p className="text-xs text-muted-foreground italic px-5 pb-4">No pending entries</p>
@@ -544,12 +520,7 @@ export default function Dashboard() {
                             <thead>
                               <tr className="border-y border-border/60 bg-muted/40">
                                 <th className="text-left font-semibold text-muted-foreground px-5 py-2 w-40">Status</th>
-                                <th className="text-right font-semibold px-3 py-2 text-[#1f36c7]">
-                                  {pendingViewMode === "cumulative" ? "Cumul." : "Items"}
-                                </th>
-                                {pendingViewMode === "cumulative" && (
-                                  <th className="text-right font-semibold text-muted-foreground px-3 py-2">At Stage</th>
-                                )}
+                                <th className="text-right font-semibold px-3 py-2 text-[#1f36c7]">Items</th>
                                 <th className="text-right font-semibold text-muted-foreground px-3 py-2">Avg Age</th>
                                 <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-amber-600">7–30 days</th>
                                 <th className="text-right font-semibold text-muted-foreground px-3 py-2 text-orange-600">1–3 months</th>
@@ -568,13 +539,8 @@ export default function Dashboard() {
                                     </div>
                                   </td>
                                   <td className="px-3 py-2.5 text-right font-bold tabular-nums text-[#1f36c7]">
-                                    {pendingViewMode === "cumulative" ? r.cumulativeCount : r.count}
+                                    {r.count}
                                   </td>
-                                  {pendingViewMode === "cumulative" && (
-                                    <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-                                      {r.count > 0 ? r.count : <span className="text-muted-foreground/30">—</span>}
-                                    </td>
-                                  )}
                                   <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
                                     {r.avgAge > 0 ? `${r.avgAge}d` : <span className="text-muted-foreground/30">—</span>}
                                   </td>
@@ -634,6 +600,47 @@ export default function Dashboard() {
                   </Card>
 
                   </div>{/* end side-by-side grid */}
+
+                  {/* ── Cumulative Pipeline ── */}
+                  {(() => {
+                    const maxCumul = pendingByStatusWithCumul[0]?.cumulativeCount ?? 1;
+                    const totalCBUs = pendingByStatusWithCumul[0]?.cumulativeCount ?? 0;
+                    return (
+                      <Card>
+                        <CardContent className="p-0">
+                          <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cumulative Pipeline</p>
+                            <span className="px-2.5 py-0.5 rounded-full bg-[#1f36c7]/10 text-[#1f36c7] text-[10px] font-bold">
+                              {totalCBUs} total CBUs
+                            </span>
+                          </div>
+                          <div className="px-5 pb-4 space-y-3">
+                            {pendingByStatusWithCumul.filter(r => r.cumulativeCount > 0).map((r, i) => {
+                              const barPct = (r.cumulativeCount / maxCumul) * 100;
+                              const label = i === 0 ? "Total CBUs" : r.meta.label;
+                              return (
+                                <div key={r.status} className="flex items-center gap-4" data-testid={`cumul-pipeline-${r.status}`}>
+                                  <div className="flex items-center gap-2 w-[160px] shrink-0">
+                                    <span className={`h-2 w-2 rounded-full shrink-0 ${r.meta.dot}`} />
+                                    <span className={`text-xs font-medium ${r.meta.text} truncate`}>{label}</span>
+                                  </div>
+                                  <div className="flex-1 h-6 bg-muted/50 rounded-md overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-md ${r.meta.bar} opacity-60 transition-all`}
+                                      style={{ width: `${barPct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-base font-black tabular-nums text-[#1f36c7] w-8 text-right shrink-0">
+                                    {r.cumulativeCount}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
 
                   {/* ── BG summary ── */}
                   <Card>
