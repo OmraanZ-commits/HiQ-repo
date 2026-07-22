@@ -6,20 +6,20 @@ import {
 
 // ── Data ───────────────────────────────────────────────────────────────────
 const BASEPACK_SRS = [
-  { code: "bp-activation",    label: "Basepack Activation",             icon: Package,   pending: 8,  approved: 12, rejected: 2, lastRaised: "2026-07-20" },
-  { code: "bp-delisting",     label: "Basepack Delisting",              icon: Trash2,    pending: 3,  approved: 5,  rejected: 1, lastRaised: "2026-07-18" },
-  { code: "bp-stock-delist",  label: "Basepack Stock Based Delisting",  icon: ArchiveX,  pending: 2,  approved: 3,  rejected: 0, lastRaised: "2026-07-15" },
-  { code: "bp-inactivation",  label: "Basepack Inactivation",           icon: PowerOff,  pending: 5,  approved: 8,  rejected: 2, lastRaised: "2026-07-21" },
-  { code: "bp-seasonal",      label: "Basepack Seasonal Pack Activation",icon: Leaf,     pending: 1,  approved: 4,  rejected: 0, lastRaised: "2026-07-10" },
+  { code: "bp-activation",    label: "Basepack Activation",              icon: Package,   pending: 8,  approved: 12, rejected: 2 },
+  { code: "bp-delisting",     label: "Basepack Delisting",               icon: Trash2,    pending: 3,  approved: 5,  rejected: 1 },
+  { code: "bp-stock-delist",  label: "Basepack Stock Based Delisting",   icon: ArchiveX,  pending: 2,  approved: 3,  rejected: 0 },
+  { code: "bp-inactivation",  label: "Basepack Inactivation",            icon: PowerOff,  pending: 5,  approved: 8,  rejected: 2 },
+  { code: "bp-seasonal",      label: "Basepack Seasonal Pack Activation",icon: Leaf,      pending: 1,  approved: 4,  rejected: 0 },
 ];
 
 const AMENDMENT_SRS = [
-  { code: "geo-amd",          label: "Geo Amendment",                   icon: Globe,     pending: 26, approved: 6,  rejected: 1, lastRaised: "2026-07-22" },
-  { code: "channel-amd",      label: "Channel Amendment",               icon: Waypoints, pending: 5,  approved: 2,  rejected: 0, lastRaised: "2026-07-21" },
-  { code: "customer-amd",     label: "Customer Chain Amendment",        icon: Users,     pending: 8,  approved: 3,  rejected: 2, lastRaised: "2026-07-20" },
-  { code: "sourcing-amd",     label: "Sourcing Amendment",              icon: Box,       pending: 4,  approved: 5,  rejected: 1, lastRaised: "2026-07-19" },
-  { code: "nw-date-amd",      label: "Network Change Date Amendment",   icon: Calendar,  pending: 3,  approved: 7,  rejected: 0, lastRaised: "2026-07-17" },
-  { code: "price-amd",        label: "Price Change Request Amendment",  icon: DollarSign,pending: 14, approved: 7,  rejected: 4, lastRaised: "2026-07-22" },
+  { code: "geo-amd",          label: "Geo Amendment",                    icon: Globe,      pending: 26, approved: 6,  rejected: 1 },
+  { code: "channel-amd",      label: "Channel Amendment",                icon: Waypoints,  pending: 5,  approved: 2,  rejected: 0 },
+  { code: "customer-amd",     label: "Customer Chain Amendment",         icon: Users,      pending: 8,  approved: 3,  rejected: 2 },
+  { code: "sourcing-amd",     label: "Sourcing Amendment",               icon: Box,        pending: 4,  approved: 5,  rejected: 1 },
+  { code: "nw-date-amd",      label: "Network Change Date Amendment",    icon: Calendar,   pending: 3,  approved: 7,  rejected: 0 },
+  { code: "price-amd",        label: "Price Change Request Amendment",   icon: DollarSign, pending: 14, approved: 7,  rejected: 4 },
 ];
 
 const totalPending  = [...BASEPACK_SRS, ...AMENDMENT_SRS].reduce((s, r) => s + r.pending, 0);
@@ -34,10 +34,6 @@ function subtotal(rows: typeof BASEPACK_SRS) {
     rejected: rows.reduce((s, r) => s + r.rejected, 0),
     total:    rows.reduce((s, r) => s + r.pending + r.approved + r.rejected, 0),
   };
-}
-
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
 }
 
 // ── Row component ───────────────────────────────────────────────────────────
@@ -97,10 +93,6 @@ function SRRow({ sr, shade }: { sr: typeof BASEPACK_SRS[0]; shade: boolean }) {
         <span className="text-xs font-bold tabular-nums text-[#1f36c7]">{total}</span>
       </td>
 
-      {/* Last raised */}
-      <td className="px-4 py-2.5 text-right">
-        <span className="text-[10px] text-slate-400 tabular-nums">{fmt(sr.lastRaised)}</span>
-      </td>
     </tr>
   );
 }
@@ -126,7 +118,6 @@ function SubtotalRow({ data }: { data: ReturnType<typeof subtotal> }) {
       <td className="px-4 py-2 text-center">
         <span className="text-xs font-black text-[#1f36c7]">{data.total}</span>
       </td>
-      <td />
     </tr>
   );
 }
@@ -135,7 +126,7 @@ function SubtotalRow({ data }: { data: ReturnType<typeof subtotal> }) {
 function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
     <tr className="bg-[#1f36c7]/[0.04] border-y border-[#1f36c7]/10">
-      <td colSpan={6} className="px-4 py-2">
+      <td colSpan={5} className="px-4 py-2">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-[#1f36c7]">{label}</span>
           <span className="px-1.5 py-0.5 rounded bg-[#1f36c7]/10 text-[9px] font-bold text-[#1f36c7] tabular-nums">{count} types</span>
@@ -201,7 +192,6 @@ export function SRTracker() {
               <th className="text-center px-4 py-2.5 font-semibold text-[10px] text-emerald-600 uppercase tracking-wide w-[13%]">Approved</th>
               <th className="text-center px-4 py-2.5 font-semibold text-[10px] text-red-500 uppercase tracking-wide w-[13%]">Rejected</th>
               <th className="text-center px-4 py-2.5 font-semibold text-[10px] text-[#1f36c7] uppercase tracking-wide w-[10%]">Total</th>
-              <th className="text-right px-4 py-2.5 font-semibold text-[10px] text-slate-400 uppercase tracking-wide w-[13%]">Last Raised</th>
             </tr>
           </thead>
 
@@ -231,7 +221,6 @@ export function SRTracker() {
               <td className="px-4 py-2.5 text-center">
                 <span className="text-sm font-black text-[#1f36c7]">{totalAll}</span>
               </td>
-              <td />
             </tr>
           </tbody>
         </table>
