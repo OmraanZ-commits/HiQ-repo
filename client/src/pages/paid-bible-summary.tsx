@@ -62,7 +62,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = [
   { value: 2026, label: "2026" },
   { value: 2027, label: "2027" },
-  { value: 2028, label: "2028+" },
+  { value: 2028, label: "2028" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -310,8 +310,8 @@ export default function PaidBibleSummaryTab() {
     const groups = new Map<string, { name: string; smallC: string; cleared: number; notCleared: number; exception: number }>();
     newLaunchRows
       .filter(row => {
-        if (row.launchYear === null) return false;
-        return selYear >= 2028 ? row.launchYear >= 2028 : row.launchYear === selYear;
+        const y = row.launchYear ?? CURRENT_YEAR;
+        return selYear >= 2028 ? y >= 2028 : y === selYear;
       })
       .forEach(row => {
       const s = getMocStatus(row, selMoc, selYear);
