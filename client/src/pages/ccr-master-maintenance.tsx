@@ -373,18 +373,29 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
                 <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
               </TableCell>
               <TableCell className="pr-4 text-right">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs px-2.5"
-                  data-testid={`btn-configure-${entry.cbuCode}`}
-                  onClick={e => {
-                    e.stopPropagation();
-                    onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`);
-                  }}
-                >
-                  Configure
-                </Button>
+                {(() => {
+                  const canConfigure = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+                  return (
+                    <div
+                      title={canConfigure ? undefined : "CCR mapping is only available after Stock Movement Initiated — awaiting basepack activation"}
+                      className="inline-block"
+                    >
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs px-2.5"
+                        disabled={!canConfigure}
+                        data-testid={`btn-configure-${entry.cbuCode}`}
+                        onClick={e => {
+                          e.stopPropagation();
+                          onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`);
+                        }}
+                      >
+                        Configure
+                      </Button>
+                    </div>
+                  );
+                })()}
               </TableCell>
             </TableRow>
           ))}
