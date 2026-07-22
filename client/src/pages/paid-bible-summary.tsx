@@ -136,6 +136,7 @@ export default function PaidBibleSummaryTab() {
     items: { id: string; age: number; basepackId: string }[];
   } | null>(null);
 
+  const [expandedPriceIssue, setExpandedPriceIssue] = useState<string | null>(null);
   const [expandedSlob, setExpandedSlob] = useState<string | null>(null);
   const [expandedRelaunch, setExpandedRelaunch] = useState<number | null>(0);
   const [expandedDispatch, setExpandedDispatch] = useState<number | null>(0);
@@ -177,6 +178,8 @@ export default function PaidBibleSummaryTab() {
       priceActive: (e as any).priceActive ?? true,
       predecessorCode: (e as any).predecessorCode ?? null,
       basepack: e.basepack ?? null,
+      depots: (e.depot as string[] | null) ?? [],
+      depotCount: (e as any).depotCount ?? null,
     }));
 
     return { basepacks: bps, allMaterials: mats };
@@ -228,6 +231,22 @@ export default function PaidBibleSummaryTab() {
     });
     setAgingDialog({ srType, label, items });
   }
+
+  // ── Pricing Issues by Small C ─────────────────────────────────────────────
+
+  const priceIssueByScat = useMemo(() => {
+    const groups = new Map<string, typeof allMaterials>();
+    allMaterials.filter(m => !m.priceActive).forEach(m => {
+      if (!groups.has(m.salesCategory)) groups.set(m.salesCategory, []);
+      groups.get(m.salesCategory)!.push(m);
+    });
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [allMaterials]);
+
+  const totalPriceIssueCbus = priceIssueByScat.reduce((s, [, mats]) => s + mats.length, 0);
+  const totalPriceIssueDcCombos = priceIssueByScat.reduce(
+    (s, [, mats]) => s + mats.reduce((ms, m) => ms + (m.depotCount ?? m.depots.length), 0), 0
+  );
 
   // ── SLOB by Small C ───────────────────────────────────────────────────────
 
@@ -389,7 +408,105 @@ export default function PaidBibleSummaryTab() {
         </div>
       </div>
 
-      {/* ── Section 2: SR Tracker ── */}
+      {/* ── Section 2: Pricing Issues ── */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" data-testid="pricing-issues">
+        <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center gap-3 flex-wrap">
+          <div className="h-7 w-7 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+            <Banknote className="h-3.5 w-3.5 text-orange-500" />
+          </div>
+          <h2 className="text-sm font-bold text-slate-800">Pricing Issue CBUs</h2>
+          {totalPriceIssueCbus > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200 ml-1">
+              {totalPriceIssueCbus} CBU{totalPriceIssueCbus !== 1 ? "s" : ""} at risk
+            </span>
+          )}
+        </div>
+        {priceIssueByScat.length === 0 ? (
+          <div className="flex items-center justify-center py-8 text-slate-400 text-xs italic">No pricing issues detected.</div>
+        ) : (
+          <table className="w-full text-xs" data-testid="pricing-issue-table">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/50">
+                <th className="text-left px-5 py-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wider">Small C</th>
+                <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-orange-600">CBUs at Risk</th>
+                <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-rose-600">CBU × DC Combos</th>
+                <th className="w-8" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {priceIssueByScat.map(([cat, mats]) => {
+                const dcCombos = mats.reduce((s, m) => s + (m.depotCount ?? m.depots.length), 0);
+                return (
+                  <React.Fragment key={cat}>
+                    <tr
+                      className="hover:bg-orange-50/30 cursor-pointer"
+                      onClick={() => setExpandedPriceIssue(expandedPriceIssue === cat ? null : cat)}
+                      data-testid={`pricing-issue-row-${cat}`}
+                    >
+                      <td className="px-5 py-2.5 font-medium text-slate-700">{cat}</td>
+                      <td className="text-center px-4 py-2.5">
+                        <span className="font-black text-orange-600 tabular-nums">{mats.length}</span>
+                      </td>
+                      <td className="text-center px-4 py-2.5">
+                        {dcCombos > 0
+                          ? <span className="font-black text-rose-600 tabular-nums">{dcCombos}</span>
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="pr-4 text-slate-400">
+                        {expandedPriceIssue === cat ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      </td>
+                    </tr>
+                    {expandedPriceIssue === cat && (
+                      <tr>
+                        <td colSpan={4} className="px-5 pb-3 pt-1 bg-orange-50/15">
+                          <table className="w-full text-[11px] border border-slate-100 rounded-lg overflow-hidden">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-100">
+                                {["CBU Code", "Description", "Network Status", "DC Count"].map(h => (
+                                  <th key={h} className="text-left px-3 py-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {mats.map(m => {
+                                const dcs = m.depotCount ?? m.depots.length;
+                                return (
+                                  <tr key={m.id} className="hover:bg-orange-50/30">
+                                    <td className="px-3 py-1.5 font-mono font-semibold text-slate-700">{m.code}</td>
+                                    <td className="px-3 py-1.5 text-slate-600 max-w-[12rem] truncate" title={m.description}>{m.description}</td>
+                                    <td className="px-3 py-1.5">
+                                      <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border bg-orange-50 text-orange-700 border-orange-200">{m.networkStatus}</span>
+                                    </td>
+                                    <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-rose-600">{dcs > 0 ? dcs : "—"}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 bg-slate-50">
+                <td className="px-5 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total</td>
+                <td className="text-center px-4 py-2.5 font-black text-orange-600 tabular-nums">{totalPriceIssueCbus}</td>
+                <td className="text-center px-4 py-2.5">
+                  {totalPriceIssueDcCombos > 0
+                    ? <span className="font-black text-rose-600 tabular-nums">{totalPriceIssueDcCombos}</span>
+                    : <span className="text-slate-300">—</span>}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        )}
+      </div>
+
+      {/* ── Section 3: SR Tracker ── */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" data-testid="sr-tracker">
         <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center gap-3">
           <div className="h-7 w-7 rounded-lg bg-[#1f36c7]/10 flex items-center justify-center shrink-0">
