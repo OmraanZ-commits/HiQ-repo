@@ -1,4 +1,8 @@
+from datetime import date, timedelta
 from server_py.models import InsertNetworkEntry
+
+def _future(days: int) -> str:
+    return (date.today() + timedelta(days=days)).isoformat()
 
 SEEDS = [
     InsertNetworkEntry(
@@ -722,7 +726,7 @@ SEEDS = [
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2026-01-15",
-        networkChangeDate="2026-03-01",
+        networkChangeDate=_future(7),
         annexureNumber="ANN-2026-017",
         basepack="BP-700",
         basepackDescription="Brooke Bond Red Label 500g",
@@ -768,7 +772,7 @@ SEEDS = [
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2026-02-05",
-        networkChangeDate="2026-03-10",
+        networkChangeDate=_future(25),
         annexureNumber="ANN-2026-018",
         basepack="BP-700",
         basepackDescription="Brooke Bond Red Label 500g",
@@ -812,7 +816,7 @@ SEEDS = [
     # ── BP-1800: Price Inactive trigger — at SMI, MSTN >= 80%, price not yet activated ──
     InsertNetworkEntry(
         cbuCreatedDate="2025-10-01",
-        networkChangeDate="2025-11-15",
+        networkChangeDate=_future(85),
         annexureNumber="ANN-2025-081",
         basepack="BP-1800",
         basepackDescription="Lakme 9to5 Weightless Mousse Foundation 25ml",
@@ -860,7 +864,7 @@ SEEDS = [
     # ── BP-1700: all 3 CBUs at/beyond SMI with MSTN >= 80% → mstnStatus = "Yes" ──
     InsertNetworkEntry(
         cbuCreatedDate="2025-08-01",
-        networkChangeDate="2025-09-15",
+        networkChangeDate=_future(45),
         annexureNumber="ANN-2025-055",
         basepack="BP-1700",
         basepackDescription="Pepsodent Germi Check Toothpaste 150g",
@@ -908,7 +912,7 @@ SEEDS = [
     ),
     InsertNetworkEntry(
         cbuCreatedDate="2025-08-01",
-        networkChangeDate="2025-09-15",
+        networkChangeDate=_future(7),
         annexureNumber="ANN-2025-056",
         basepack="BP-1700",
         basepackDescription="Pepsodent Germi Check Toothpaste 150g",
@@ -1004,7 +1008,7 @@ SEEDS = [
     # ── FTR Trigger Test Entries (Production Started) ─────────────────────────
     InsertNetworkEntry(
         cbuCreatedDate="2026-03-01",
-        networkChangeDate="2026-04-01",
+        networkChangeDate=_future(20),
         annexureNumber="ANN-2026-FTR-01",
         basepack="BP-FTR1",
         basepackDescription="Lifebuoy Total 10 Soap 100g",
@@ -1052,7 +1056,7 @@ SEEDS = [
 
     InsertNetworkEntry(
         cbuCreatedDate="2026-03-05",
-        networkChangeDate="2026-04-10",
+        networkChangeDate=_future(35),
         annexureNumber="ANN-2026-FTR-02",
         basepack="BP-FTR2",
         basepackDescription="Sunsilk Lusciously Thick & Long Shampoo 340ml",
@@ -1100,7 +1104,7 @@ SEEDS = [
 
     InsertNetworkEntry(
         cbuCreatedDate="2026-03-10",
-        networkChangeDate="2026-04-15",
+        networkChangeDate=_future(50),
         annexureNumber="ANN-2026-FTR-03",
         basepack="BP-FTR3",
         basepackDescription="Dove Intense Repair Shampoo 650ml",
@@ -1149,7 +1153,7 @@ SEEDS = [
 
     InsertNetworkEntry(
         cbuCreatedDate="2026-03-12",
-        networkChangeDate="2026-04-20",
+        networkChangeDate=_future(12),
         annexureNumber="ANN-2026-FTR-04",
         basepack="BP-FTR4",
         basepackDescription="Surf Excel Matic Liquid 1L",
@@ -1197,7 +1201,7 @@ SEEDS = [
 
     InsertNetworkEntry(
         cbuCreatedDate="2026-03-18",
-        networkChangeDate="2026-04-25",
+        networkChangeDate=_future(100),
         annexureNumber="ANN-2026-FTR-05",
         basepack="BP-FTR5",
         basepackDescription="Knorr Soupy Noodles Masala 68g",
@@ -1298,7 +1302,7 @@ SEEDS = [
     # so the "Partial Activation — New Depots Eligible" trigger fires.
     InsertNetworkEntry(
         cbuCreatedDate="2026-02-10",
-        networkChangeDate="2026-04-01",
+        networkChangeDate=_future(85),
         annexureNumber="ANN-2026-030",
         basepack="BP-2000",
         basepackDescription="Closeup Cool Mint Gel 80g",
@@ -1347,7 +1351,7 @@ SEEDS = [
 
     InsertNetworkEntry(
         cbuCreatedDate="2026-03-25",
-        networkChangeDate="2026-05-05",
+        networkChangeDate=_future(55),
         annexureNumber="ANN-2026-FTR-07",
         basepack="BP-FTR7",
         basepackDescription="Domex Floor Cleaner Pine 500ml",
