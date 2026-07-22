@@ -58,6 +58,12 @@ const MODAL_THRESHOLD = 10;
 
 const MOC_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ num: i + 1, label: `MOC ${i + 1}` }));
 const CURRENT_MONTH = new Date().getMonth() + 1;
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = [
+  { value: 2026, label: "2026" },
+  { value: 2027, label: "2027" },
+  { value: 2028, label: "2028+" },
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,12 +93,13 @@ function inBucket(days: number | null, min: number, max: number): boolean {
 type NewLaunchRow = {
   bpCode: string; code: string; description: string; salesCategory: string;
   networkChangeDate: string | null; mstnPercentage: number | null;
-  networkStatus: string; activationMonth: number | null;
+  networkStatus: string; activationMonth: number | null; launchYear: number | null;
 };
 
-function getMocStatus(row: NewLaunchRow, moc: number): "active" | "yes" | "no" | "future" | "unknown" {
+function getMocStatus(row: NewLaunchRow, moc: number, year: number): "active" | "yes" | "no" | "future" | "unknown" {
   if (row.activationMonth !== null && moc >= row.activationMonth) return "active";
-  if (moc > CURRENT_MONTH) return "future";
+  const isFuture = year > CURRENT_YEAR || (year === CURRENT_YEAR && moc > CURRENT_MONTH);
+  if (isFuture) return "future";
   if (row.mstnPercentage === null) return "unknown";
   return row.mstnPercentage >= 80 ? "yes" : "no";
 }
@@ -148,6 +155,7 @@ export default function PaidBibleSummaryTab() {
   const [bucketModal, setBucketModal] = useState<{ panel: 'relaunch' | 'dispatch'; bucketIdx: number } | null>(null);
   const [bucketSearch, setBucketSearch] = useState('');
   const [selMoc, setSelMoc] = useState(CURRENT_MONTH);
+  const [selYear, setSelYear] = useState(CURRENT_YEAR);
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -289,18 +297,24 @@ export default function PaidBibleSummaryTab() {
         const bpCode = m.basepack || m.code;
         const activationDateRaw = rawDateMap.get(bpCode) ?? null;
         const activationMonth = activationDateRaw ? new Date(activationDateRaw).getMonth() + 1 : null;
+        const launchYear = m.networkChangeDate ? new Date(m.networkChangeDate).getFullYear() : null;
         return {
           bpCode, code: m.code, description: m.description,
           salesCategory: m.salesCategory || "—", networkChangeDate: m.networkChangeDate,
-          mstnPercentage: m.mstnPercentage, networkStatus: m.networkStatus, activationMonth,
+          mstnPercentage: m.mstnPercentage, networkStatus: m.networkStatus, activationMonth, launchYear,
         };
       });
   }, [allMaterials, rawDateMap]);
 
   const mstnByBp = useMemo(() => {
     const groups = new Map<string, { name: string; smallC: string; cleared: number; notCleared: number; exception: number }>();
-    newLaunchRows.forEach(row => {
-      const s = getMocStatus(row, selMoc);
+    newLaunchRows
+      .filter(row => {
+        if (row.launchYear === null) return false;
+        return selYear >= 2028 ? row.launchYear >= 2028 : row.launchYear === selYear;
+      })
+      .forEach(row => {
+      const s = getMocStatus(row, selMoc, selYear);
       if (s === "future" || s === "active") return;
       const key = row.bpCode;
       if (!groups.has(key)) groups.set(key, { name: row.description, smallC: row.salesCategory, cleared: 0, notCleared: 0, exception: 0 });
@@ -961,16 +975,29 @@ export default function PaidBibleSummaryTab() {
             </div>
             <h2 className="text-sm font-bold text-slate-800">MSTN & Launch Readiness</h2>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-[10px] text-slate-400">MOC</span>
-            <select
-              value={selMoc}
-              onChange={e => setSelMoc(Number(e.target.value))}
-              className="h-7 text-xs px-2.5 border border-slate-200 rounded-lg bg-white text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#1f36c7]"
-              data-testid="mstn-moc-selector"
-            >
-              {MOC_OPTIONS.map(m => <option key={m.num} value={m.num}>{m.label}</option>)}
-            </select>
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-400">Year</span>
+              <select
+                value={selYear}
+                onChange={e => setSelYear(Number(e.target.value))}
+                className="h-7 text-xs px-2.5 border border-slate-200 rounded-lg bg-white text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#1f36c7]"
+                data-testid="mstn-year-selector"
+              >
+                {YEAR_OPTIONS.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-400">MOC</span>
+              <select
+                value={selMoc}
+                onChange={e => setSelMoc(Number(e.target.value))}
+                className="h-7 text-xs px-2.5 border border-slate-200 rounded-lg bg-white text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-[#1f36c7]"
+                data-testid="mstn-moc-selector"
+              >
+                {MOC_OPTIONS.map(m => <option key={m.num} value={m.num}>{m.label}</option>)}
+              </select>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-5 px-5 py-2.5 border-b border-slate-50 bg-slate-50/40 text-[10px]">
