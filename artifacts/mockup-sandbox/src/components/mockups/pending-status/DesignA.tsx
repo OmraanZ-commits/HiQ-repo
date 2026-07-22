@@ -75,9 +75,6 @@ export function DesignA() {
         <div className="flex items-center justify-between px-5 pt-4 pb-3.5 border-b border-slate-100">
           <div>
             <p className="text-sm font-bold text-slate-800">Cumulative Pipeline</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              How many items haven't cleared each gate yet — bar width = cumulative count
-            </p>
           </div>
           <span className="px-3 py-1 rounded-full bg-[#1f36c7]/10 text-[#1f36c7] text-xs font-bold">
             {MAX_CUMUL} total
