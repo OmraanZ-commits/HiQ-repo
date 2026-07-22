@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import {
   AlertTriangle, Banknote,
   Package, BarChart3, Clock, CheckCircle2,
-  ChevronDown, ChevronRight, Truck, Rocket, TrendingUp,
+  ChevronDown, ChevronRight, Truck, Rocket, TrendingUp, Search,
 } from "lucide-react";
 import { type NetworkEntry } from "@shared/schema";
 import { useSrStore } from "@/lib/sr-store";
@@ -52,6 +53,8 @@ const TIMELINE_BUCKETS = [
   { key: "t60",  label: "31 – 60 days", min: 31, max: 60,       accent: "text-yellow-700",  ring: "ring-1 ring-yellow-200",  bg: "bg-yellow-50"  },
   { key: "t60p", label: "> 60 days",    min: 61, max: Infinity, accent: "text-emerald-700", ring: "ring-1 ring-emerald-200", bg: "bg-emerald-50" },
 ];
+
+const MODAL_THRESHOLD = 10;
 
 const MOC_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ num: i + 1, label: `MOC ${i + 1}` }));
 const CURRENT_MONTH = new Date().getMonth() + 1;
@@ -142,6 +145,8 @@ export default function PaidBibleSummaryTab() {
   const [expandedDispatch, setExpandedDispatch] = useState<number | null>(0);
   const [expandedRelaunchScat, setExpandedRelaunchScat] = useState<string | null>(null);
   const [expandedDispatchScat, setExpandedDispatchScat] = useState<string | null>(null);
+  const [bucketModal, setBucketModal] = useState<{ panel: 'relaunch' | 'dispatch'; bucketIdx: number } | null>(null);
+  const [bucketSearch, setBucketSearch] = useState('');
   const [selMoc, setSelMoc] = useState(CURRENT_MONTH);
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -772,7 +777,15 @@ export default function PaidBibleSummaryTab() {
                 <div key={bucket.key}>
                   <div
                     className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-slate-50/60 select-none"
-                    onClick={() => { setExpandedRelaunch(expandedRelaunch === i ? null : i); setExpandedRelaunchScat(null); }}
+                    onClick={() => {
+                      if (items.length > MODAL_THRESHOLD) {
+                        setBucketSearch('');
+                        setBucketModal({ panel: 'relaunch', bucketIdx: i });
+                      } else {
+                        setExpandedRelaunch(expandedRelaunch === i ? null : i);
+                        setExpandedRelaunchScat(null);
+                      }
+                    }}
                     data-testid={`relaunch-bucket-${bucket.key}`}
                   >
                     <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${bucket.bg} ${bucket.accent} ${bucket.ring}`}>
@@ -780,9 +793,11 @@ export default function PaidBibleSummaryTab() {
                     </div>
                     <span className="text-sm font-black text-slate-700 tabular-nums ml-auto">{items.length}</span>
                     <span className="text-[10px] text-slate-400">CBUs · {byScat.length} Small C</span>
-                    {expandedRelaunch === i
-                      ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                      : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
+                    {items.length > MODAL_THRESHOLD
+                      ? <Search className="h-3.5 w-3.5 text-slate-400" />
+                      : expandedRelaunch === i
+                        ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                        : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
                   </div>
                   {expandedRelaunch === i && items.length === 0 && (
                     <p className="px-5 pb-3 text-xs text-slate-400 italic">No CBUs in this window</p>
@@ -863,7 +878,15 @@ export default function PaidBibleSummaryTab() {
                 <div key={bucket.key}>
                   <div
                     className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-slate-50/60 select-none"
-                    onClick={() => { setExpandedDispatch(expandedDispatch === i ? null : i); setExpandedDispatchScat(null); }}
+                    onClick={() => {
+                      if (items.length > MODAL_THRESHOLD) {
+                        setBucketSearch('');
+                        setBucketModal({ panel: 'dispatch', bucketIdx: i });
+                      } else {
+                        setExpandedDispatch(expandedDispatch === i ? null : i);
+                        setExpandedDispatchScat(null);
+                      }
+                    }}
                     data-testid={`dispatch-bucket-${bucket.key}`}
                   >
                     <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${bucket.bg} ${bucket.accent} ${bucket.ring}`}>
@@ -871,9 +894,11 @@ export default function PaidBibleSummaryTab() {
                     </div>
                     <span className="text-sm font-black text-slate-700 tabular-nums ml-auto">{items.length}</span>
                     <span className="text-[10px] text-slate-400">CBUs · {byScat.length} Small C</span>
-                    {expandedDispatch === i
-                      ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                      : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
+                    {items.length > MODAL_THRESHOLD
+                      ? <Search className="h-3.5 w-3.5 text-slate-400" />
+                      : expandedDispatch === i
+                        ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                        : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
                   </div>
                   {expandedDispatch === i && items.length === 0 && (
                     <p className="px-5 pb-3 text-xs text-slate-400 italic">No CBUs in this window</p>
@@ -1074,6 +1099,114 @@ export default function PaidBibleSummaryTab() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Bucket detail modal (triggered when > MODAL_THRESHOLD CBUs) ── */}
+      {(() => {
+        if (!bucketModal) return null;
+        const bucket = TIMELINE_BUCKETS[bucketModal.bucketIdx];
+        const pool = bucketModal.panel === 'relaunch' ? relaunchMats : dispatchMats;
+        const allItems = bucketItems(pool, bucket.min, bucket.max);
+        const q = bucketSearch.trim().toLowerCase();
+        const filtered = q
+          ? allItems.filter(m =>
+              m.code.toLowerCase().includes(q) ||
+              m.description.toLowerCase().includes(q) ||
+              (m.salesCategory ?? '').toLowerCase().includes(q)
+            )
+          : allItems;
+        const byScat = Array.from(
+          filtered.reduce((map, m) => {
+            const k = m.salesCategory || 'Other';
+            if (!map.has(k)) map.set(k, []);
+            map.get(k)!.push(m);
+            return map;
+          }, new Map<string, typeof filtered>())
+        ).sort(([a], [b]) => a.localeCompare(b));
+        const panelLabel = bucketModal.panel === 'relaunch'
+          ? 'Relaunch & Network Buckets'
+          : 'Dispatch Start Tracking';
+        const accentColor = bucketModal.panel === 'relaunch' ? 'text-violet-700' : 'text-blue-700';
+        const rowHover = bucketModal.panel === 'relaunch' ? 'hover:bg-violet-50/30' : 'hover:bg-blue-50/30';
+        return (
+          <Dialog open onOpenChange={() => setBucketModal(null)}>
+            <DialogContent className="max-w-3xl w-full p-0 gap-0 overflow-hidden">
+              <DialogHeader className="px-6 pt-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${bucket.bg} ${bucket.accent} ${bucket.ring}`}>
+                    {bucket.label}
+                  </div>
+                  <DialogTitle className="text-sm font-bold text-slate-800 leading-none">
+                    {panelLabel}
+                  </DialogTitle>
+                  <span className={`ml-auto text-sm font-black tabular-nums ${accentColor}`}>
+                    {allItems.length} CBUs
+                  </span>
+                </div>
+                {/* Search */}
+                <div className="relative mt-3">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  <Input
+                    autoFocus
+                    placeholder="Search by CBU code, description or Small C…"
+                    value={bucketSearch}
+                    onChange={e => setBucketSearch(e.target.value)}
+                    className="pl-8 h-8 text-xs"
+                    data-testid="bucket-modal-search"
+                  />
+                </div>
+              </DialogHeader>
+
+              <div className="overflow-y-auto max-h-[60vh]">
+                {byScat.length === 0 ? (
+                  <p className="px-6 py-8 text-sm text-slate-400 text-center italic">No results match your search.</p>
+                ) : (
+                  byScat.map(([cat, mats]) => (
+                    <div key={cat}>
+                      {/* Small C group header */}
+                      <div className="sticky top-0 px-6 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center gap-2 z-10">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{cat}</span>
+                        <span className={`ml-auto text-[10px] font-black tabular-nums ${accentColor}`}>{mats.length}</span>
+                        <span className="text-[10px] text-slate-400">CBUs</span>
+                      </div>
+                      <table className="w-full text-xs">
+                        <tbody className="divide-y divide-slate-50">
+                          {mats.map(m => (
+                            <tr key={m.id} className={`${rowHover}`}>
+                              <td className="px-6 py-2 font-mono font-semibold text-[#1f36c7] w-28 shrink-0">{m.code}</td>
+                              <td className="px-3 py-2 text-slate-600 max-w-xs truncate" title={m.description}>{m.description}</td>
+                              <td className="px-3 py-2 text-slate-500 font-semibold">{m.mrp ? `₹${m.mrp}` : '—'}</td>
+                              <td className="px-3 py-2 font-mono text-slate-400 text-[11px]">{m.networkChangeDate ?? '—'}</td>
+                              <td className="px-6 py-2 text-right">
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${bucketModal.panel === 'relaunch' ? 'bg-violet-50 text-violet-700 border border-violet-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                                  {m.networkStatus}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between">
+                <span className="text-[10px] text-slate-400">
+                  {filtered.length} of {allItems.length} CBUs shown
+                </span>
+                <button
+                  onClick={() => { setBucketModal(null); navigate('/paid-bible?tab=overview'); }}
+                  className="text-[11px] font-semibold text-[#1f36c7] hover:underline"
+                  data-testid="bucket-modal-view-all"
+                >
+                  View in Paid Bible →
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
     </div>
   );
