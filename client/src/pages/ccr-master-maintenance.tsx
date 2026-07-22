@@ -463,11 +463,6 @@ export default function CcrMasterMaintenancePage() {
     [eligibleEntries, depotChangeSummary],
   );
 
-  const networkChangeEntries = useMemo(
-    () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""]?.status === "partial"),
-    [eligibleEntries, depotChangeSummary],
-  );
-
   const completedEntries = useMemo(
     () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""]?.status === "complete"),
     [eligibleEntries, depotChangeSummary],
@@ -770,18 +765,6 @@ export default function CcrMasterMaintenancePage() {
                   )}
                 </TabsTrigger>
                 <TabsTrigger
-                  value="network-change"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
-                  data-testid="tab-network-change"
-                >
-                  Network Change
-                  {networkChangeEntries.length > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold">
-                      {networkChangeEntries.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger
                   value="completed"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
                   data-testid="tab-completed"
@@ -807,31 +790,6 @@ export default function CcrMasterMaintenancePage() {
                 onCbuChange={handleCbuChange}
                 postingStatusMap={postingStatusMap}
                 onNavigate={navigate}
-              />
-            </TabsContent>
-
-            <TabsContent value="network-change" className="mt-0">
-              {networkChangeEntries.length > 0 && (
-                <div className="px-4 pt-3">
-                  <Alert className="border-slate-200 bg-slate-50">
-                    <RefreshCw className="h-4 w-4 text-slate-400" />
-                    <AlertDescription className="text-slate-500 text-xs">
-                      Customer chain mapping for these CBUs is pending Network Planner review in the Network Visibility Portal.
-                      Chains shown reflect current configuration — unconfigured chains are awaiting NP decision.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              )}
-              <CbuTable
-                entries={networkChangeEntries}
-                emptyMessage="No CBUs pending network chain mapping."
-                testId="network-change"
-                isLoading={isLoading}
-                selectedCbu={selectedCbu}
-                onCbuChange={handleCbuChange}
-                postingStatusMap={postingStatusMap}
-                onNavigate={navigate}
-                chainSummary={depotChangeSummary}
               />
             </TabsContent>
 
