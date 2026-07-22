@@ -1298,7 +1298,12 @@ function PriceLotEditor({
             <button
               key={opt.value}
               type="button"
-              onClick={() => { setScopeType(opt.value); setNewChannels([]); setNewGeos([]); }}
+              onClick={() => {
+                setScopeType(opt.value);
+                setNewChannels([]);
+                setNewGeos([]);
+                if (opt.value === "new-channel" || opt.value === "new-geo") setOldLotId("");
+              }}
               className={cn(
                 "flex items-start gap-3 rounded-lg border p-3 text-left transition-all",
                 scopeType === opt.value
@@ -1324,10 +1329,23 @@ function PriceLotEditor({
 
       {/* Existing Price Lot selection */}
       <div className="space-y-2">
-        <Label className="text-sm font-semibold">Existing Price Lot <span className="text-red-500">*</span></Label>
-        <Select value={oldLotId} onValueChange={setOldLotId}>
-          <SelectTrigger className="max-w-md" data-testid="select-old-price-lot">
-            <SelectValue placeholder="Select price lot to replace / supplement…" />
+        <Label className={`text-sm font-semibold ${(scopeType === "new-channel" || scopeType === "new-geo") ? "text-muted-foreground" : ""}`}>
+          Existing Price Lot {scopeType === "replace" && <span className="text-red-500">*</span>}
+        </Label>
+        <Select
+          value={oldLotId}
+          onValueChange={setOldLotId}
+          disabled={scopeType === "new-channel" || scopeType === "new-geo"}
+        >
+          <SelectTrigger
+            className={`max-w-md ${(scopeType === "new-channel" || scopeType === "new-geo") ? "opacity-50 cursor-not-allowed" : ""}`}
+            data-testid="select-old-price-lot"
+          >
+            <SelectValue placeholder={
+              (scopeType === "new-channel" || scopeType === "new-geo")
+                ? "Not applicable — existing lot is retained"
+                : "Select price lot to replace / supplement…"
+            } />
           </SelectTrigger>
           <SelectContent>
             {PLR_MOCK_LOTS.map(l => (
@@ -1337,6 +1355,11 @@ function PriceLotEditor({
             ))}
           </SelectContent>
         </Select>
+        {(scopeType === "new-channel" || scopeType === "new-geo") && (
+          <p className="text-xs text-muted-foreground italic">
+            The existing price lot is retained for the current scope. A new lot will be created for the extended {scopeType === "new-channel" ? "channel" : "region"}.
+          </p>
+        )}
         {oldLot && (
           <div className="rounded-lg border bg-muted/20 px-4 py-3 mt-1 space-y-2.5">
             <div className="grid grid-cols-3 gap-3 text-sm">
