@@ -1758,6 +1758,7 @@ function SummaryView({
   effectiveDate, setEffectiveDate, minEffectiveDate, effectiveDateValid,
   demandEstimateFile, setDemandEstimateFile,
   priceLotChangeData,
+  geoSourcingMode,
 }: {
   amendmentType: SrType;
   currentGeo: string[];
@@ -1788,6 +1789,7 @@ function SummaryView({
   demandEstimateFile: File | null;
   setDemandEstimateFile: (f: File | null) => void;
   priceLotChangeData?: PriceLotChangeData;
+  geoSourcingMode?: "decentralized" | "centralized";
 }) {
   const keptGeos = currentGeo.filter(g => !removedGeos.includes(g));
 
@@ -1850,6 +1852,89 @@ function SummaryView({
                     <Badge key={d} className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono font-normal">{d}</Badge>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Per-geo channel selections for added geos */}
+            {addedGeos.length > 0 && Object.keys(requestedChannelMapping).length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Channels per New Geography</p>
+                <div className="space-y-1.5">
+                  {addedGeos.map(geo => {
+                    const chs = requestedChannelMapping[geo] ?? [];
+                    return (
+                      <div key={geo} className="flex items-start gap-2">
+                        <span className="text-[11px] font-medium text-slate-600 w-36 shrink-0 pt-0.5">{geo}</span>
+                        {chs.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {chs.map(c => <Badge key={c} className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-normal">{c}</Badge>)}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">No channels selected</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Customer chains for added MT geos */}
+            {addedGeos.length > 0 && Object.keys(requestedCustomerMapping).length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Customer Chains (MT)</p>
+                <div className="space-y-1.5">
+                  {addedGeos
+                    .filter(geo => (requestedCustomerMapping[geo] ?? []).length > 0)
+                    .map(geo => (
+                      <div key={geo} className="flex items-start gap-2">
+                        <span className="text-[11px] font-medium text-slate-600 w-36 shrink-0 pt-0.5">{geo}</span>
+                        <div className="flex flex-wrap gap-1">
+                          {(requestedCustomerMapping[geo] ?? []).map(c => (
+                            <Badge key={c} className="bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200 text-xs font-normal">{c}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sourcing strategy and depot mappings for added depots */}
+            {addedDepots.length > 0 && geoSourcingMode && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Sourcing Strategy</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className={cn(
+                    "text-xs font-normal border capitalize",
+                    geoSourcingMode === "decentralized"
+                      ? "bg-blue-100 text-blue-700 border-blue-300"
+                      : "bg-amber-100 text-amber-700 border-amber-300",
+                  )}>
+                    {geoSourcingMode}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">(inherited)</span>
+                </div>
+                {geoSourcingMode === "centralized" && Object.keys(sourcingDepotMapping).length > 0 && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/50 border-b">
+                          <th className="text-left py-1.5 px-3 font-medium w-[130px]">New Depot</th>
+                          <th className="text-left py-1.5 px-3 font-medium">Sourcing Depot</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {addedDepots.map((depot, idx) => (
+                          <tr key={depot} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                            <td className="py-1.5 px-3 font-mono border-r">{depot}</td>
+                            <td className="py-1.5 px-3 font-mono">{sourcingDepotMapping[depot] ?? <span className="text-muted-foreground italic">—</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2484,6 +2569,14 @@ export function RaiseAmendmentDialog({
     return geoDepots.some(d => addedDepots.includes(d));
   });
 
+  // Step 4 "Next" is valid: when centralized, all newly added depots must have a sourcing depot assigned
+  const geoStep4Valid = (() => {
+    if (addedDepots.length === 0) return true;
+    const imode = sourcingMode ?? "decentralized";
+    if (imode === "decentralized") return true;
+    return addedDepots.every(d => !!sourcingDepotMapping[d]);
+  })();
+
   // Navigate within geo wizard, skipping Customer Chain if no MT channels
   const geoWizardNext = () => {
     if (geoWizardStep === 2 && !hasCustomerChainStep) { setGeoWizardStep(4); return; }
@@ -2573,6 +2666,19 @@ export function RaiseAmendmentDialog({
       const rmvGeoStr  = removedGeos.length > 0 ? `; Removing Geo: ${removedGeos.join(", ")}` : "";
       const rmvDepStr  = removedDepots.length > 0 ? `; Removing Depots: ${removedDepots.join(", ")}` : "";
       requestedValue   = geoStr + addStr + rmvGeoStr + rmvDepStr;
+      // Append channel summary per added geo
+      const chParts = addedGeos
+        .map(geo => { const chs = requestedChannelMapping[geo] ?? []; return chs.length > 0 ? `${geo}: [${chs.join(", ")}]` : null; })
+        .filter(Boolean);
+      if (chParts.length > 0) requestedValue += `; Channels: ${chParts.join("; ")}`;
+      // Append sourcing info
+      const geoSMode = sourcingMode ?? "decentralized";
+      if (geoSMode === "centralized" && Object.keys(sourcingDepotMapping).length > 0) {
+        const pairs = Object.entries(sourcingDepotMapping).map(([d, s]) => `${d}→${s}`).join(", ");
+        requestedValue += `; Sourcing: Centralized (${pairs})`;
+      } else if (geoSMode === "decentralized") {
+        requestedValue += "; Sourcing: Decentralized";
+      }
 
     } else if (amendmentType === "channel-extension") {
       currentValue   = currentChannels.join(", ") || "None";
@@ -2626,14 +2732,14 @@ export function RaiseAmendmentDialog({
       addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
       addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
       removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
-      requestedChannelMapping: amendmentType === "channel-extension" ? requestedChannelMapping : undefined,
+      requestedChannelMapping: (amendmentType === "channel-extension" || amendmentType === "geo-extension") ? requestedChannelMapping : undefined,
       removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
       removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
-      sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
-      sourcingDepotMapping: amendmentType === "sourcing-amendment" ? sourcingDepotMapping : undefined,
+      sourcingMode: amendmentType === "sourcing-amendment" ? newMode : amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined,
+      sourcingDepotMapping: (amendmentType === "sourcing-amendment" || amendmentType === "geo-extension") ? sourcingDepotMapping : undefined,
       centralizedGeos: [],
       centralizedDepots: [],
-      requestedCustomerMapping: amendmentType === "customer-chain-amendment" ? requestedCustomerMapping : undefined,
+      requestedCustomerMapping: (amendmentType === "customer-chain-amendment" || amendmentType === "geo-extension") ? requestedCustomerMapping : undefined,
       requestedDate: amendmentType === "network-change-date-amendment" ? requestedDate : undefined,
       currentNetworkChangeDate: amendmentType === "network-change-date-amendment" ? currentNetworkChangeDate : undefined,
       effectiveDate,
@@ -2658,11 +2764,12 @@ export function RaiseAmendmentDialog({
         removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
         removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
         removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
-        sourcingMode: amendmentType === "sourcing-amendment" ? newMode : undefined,
-        sourcingDepotMapping: amendmentType === "sourcing-amendment" ? sourcingDepotMapping : undefined,
+        sourcingMode: amendmentType === "sourcing-amendment" ? newMode : amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined,
+        sourcingDepotMapping: (amendmentType === "sourcing-amendment" || amendmentType === "geo-extension") ? sourcingDepotMapping : undefined,
         centralizedGeo: [],
         centralizedDepots: [],
-        requestedCustomerMapping: amendmentType === "customer-chain-amendment" ? requestedCustomerMapping : undefined,
+        requestedChannelMapping: (amendmentType === "channel-extension" || amendmentType === "geo-extension") ? requestedChannelMapping : undefined,
+        requestedCustomerMapping: (amendmentType === "customer-chain-amendment" || amendmentType === "geo-extension") ? requestedCustomerMapping : undefined,
         requestedDate: amendmentType === "network-change-date-amendment" ? requestedDate : undefined,
         effectiveDate,
         approvers,
@@ -2844,20 +2951,27 @@ export function RaiseAmendmentDialog({
 
           {/* ── Geo-extension wizard sub-steps ── */}
           {step === "edit" && amendmentType === "geo-extension" && geoWizardStep === 1 && (
-            <GeoEditor
-              clusters={clusters}
-              currentGeo={currentGeo}
-              currentDepots={currentDepots}
-              addedGeos={addedGeos}
-              setAddedGeos={setAddedGeos}
-              geographyDepotMap={geographyDepotMap}
-              addedDepots={addedDepots}
-              setAddedDepots={setAddedDepots}
-              removedGeos={removedGeos}
-              setRemovedGeos={setRemovedGeos}
-              removedDepots={removedDepots}
-              setRemovedDepots={setRemovedDepots}
-            />
+            <div className="space-y-2">
+              <GeoEditor
+                clusters={clusters}
+                currentGeo={currentGeo}
+                currentDepots={currentDepots}
+                addedGeos={addedGeos}
+                setAddedGeos={setAddedGeos}
+                geographyDepotMap={geographyDepotMap}
+                addedDepots={addedDepots}
+                setAddedDepots={setAddedDepots}
+                removedGeos={removedGeos}
+                setRemovedGeos={setRemovedGeos}
+                removedDepots={removedDepots}
+                setRemovedDepots={setRemovedDepots}
+              />
+              {addedGeos.length > 0 && !geoStep1Valid && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" data-testid="hint-geo-depot-required">
+                  Select at least one depot for each added geography to proceed.
+                </p>
+              )}
+            </div>
           )}
 
           {step === "edit" && amendmentType === "geo-extension" && geoWizardStep === 2 && (
@@ -3036,6 +3150,7 @@ export function RaiseAmendmentDialog({
                 rsMargin: plcRsMargin,
                 priceOff: plcPriceOff,
               } : undefined}
+              geoSourcingMode={amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined}
             />
           )}
         </div>
@@ -3088,7 +3203,7 @@ export function RaiseAmendmentDialog({
           {/* Next button — geo-extension wizard sub-steps 1-4 */}
           {step === "edit" && amendmentType === "geo-extension" && (
             <Button
-              disabled={geoWizardStep === 1 && !geoStep1Valid}
+              disabled={(geoWizardStep === 1 && !geoStep1Valid) || (geoWizardStep === 4 && !geoStep4Valid)}
               onClick={geoWizardNext}
               className="gap-1"
               data-testid={`button-geo-wizard-next-${geoWizardStep}`}
