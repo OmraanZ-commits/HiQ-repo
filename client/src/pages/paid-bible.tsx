@@ -405,24 +405,32 @@ function MaterialsSubTable({
                         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                             {depotEntries
                               .sort((a, b) => b[1] - a[1])
-                              .map(([depot, pct]) => (
-                                <div
-                                  key={depot}
-                                  className={`flex flex-col gap-1 rounded-md px-2.5 py-2 border ${pct >= 80 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}
-                                  data-testid={`mat-depot-${m.id}-${depot}`}
-                                >
-                                  <div className="flex items-center justify-between gap-1">
-                                    <span className="font-mono text-xs font-medium text-slate-700 truncate">{depot}</span>
-                                    <span className={`text-xs font-bold flex-shrink-0 ${pct >= 80 ? "text-emerald-700" : "text-red-600"}`}>{pct}%</span>
+                              .map(([depot, pct]) => {
+                                const activated = !!(m.activatedDepots ?? {})[depot];
+                                return (
+                                  <div
+                                    key={depot}
+                                    className={`flex flex-col gap-1 rounded-md px-2.5 py-2 border ${pct >= 80 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}
+                                    data-testid={`mat-depot-${m.id}-${depot}`}
+                                  >
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="font-mono text-xs font-medium text-slate-700 truncate">{depot}</span>
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <span className={`text-xs font-bold ${pct >= 80 ? "text-emerald-700" : "text-red-600"}`}>{pct}%</span>
+                                        {activated
+                                          ? <CheckCircle2 className="h-3 w-3 text-emerald-500" title="Activated" />
+                                          : <AlertCircle  className="h-3 w-3 text-amber-400"   title="Activation pending" />}
+                                      </div>
+                                    </div>
+                                    <div className="h-1 rounded-full bg-white/60 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : "bg-red-400"}`}
+                                        style={{ width: `${Math.min(pct, 100)}%` }}
+                                      />
+                                    </div>
                                   </div>
-                                  <div className="h-1 rounded-full bg-white/60 overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : "bg-red-400"}`}
-                                      style={{ width: `${Math.min(pct, 100)}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                         </div>
                       </div>
                     </TableCell>
