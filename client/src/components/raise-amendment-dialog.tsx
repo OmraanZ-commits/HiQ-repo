@@ -2928,38 +2928,6 @@ export function RaiseAmendmentDialog({
       effectiveDate,
     };
 
-    try {
-      await apiRequest("POST", "/api/service-requests", {
-        srType: amendmentType,
-        raisedBy,
-        businessGroup: bg,
-        basepakCode: basepackCode,
-        basepakName: `${brand} · ${basepackCode}`,
-        businessJustification: justification.trim(),
-        cbuId,
-        cbuCode,
-        cbuDescription,
-        currentValue,
-        requestedValue,
-        addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
-        addedDepots: amendmentType === "geo-extension" ? addedDepots : amendmentType === "sourcing-amendment" ? saAddedDepots : [],
-        addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
-        removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
-        removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
-        removedDepots: amendmentType === "geo-extension" ? removedDepots : amendmentType === "sourcing-amendment" ? saRemovedDepots : [],
-        sourcingMode: amendmentType === "sourcing-amendment" ? newMode : amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined,
-        sourcingDepotMapping: (amendmentType === "sourcing-amendment" || amendmentType === "geo-extension") ? sourcingDepotMapping : undefined,
-        centralizedGeo: [],
-        centralizedDepots: [],
-        requestedChannelMapping: (amendmentType === "channel-extension" || amendmentType === "geo-extension") ? requestedChannelMapping : undefined,
-        requestedCustomerMapping: (amendmentType === "customer-chain-amendment" || amendmentType === "geo-extension") ? requestedCustomerMapping : undefined,
-        requestedDate: amendmentType === "network-change-date-amendment" ? requestedDate : undefined,
-        effectiveDate,
-        approvers,
-      });
-    } catch {
-    }
-
     addRequest(req);
     setSubmitting(false);
     onSuccess?.(req);
