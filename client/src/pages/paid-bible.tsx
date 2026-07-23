@@ -1929,6 +1929,17 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
   }
 
   return (
+    <>
+    <ActivationCheckDialog
+      bp={reactivationTarget}
+      onClose={() => setReactivationTarget(null)}
+      onCreateRequest={request => { addRequest(request); setReactivationTarget(null); }}
+      users={users}
+      pendingDepotsOnly
+      activatedDepotsByMat={Object.fromEntries(
+        (reactivationTarget?.materials ?? []).map(m => [m.code, m.activatedDepots ?? {}])
+      )}
+    />
     <div className="space-y-5">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
@@ -2658,6 +2669,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
         localBpStatus={localBpStatus}
       />
     </div>
+    </>
   );
 }
 
@@ -3259,16 +3271,6 @@ export default function PaidBiblePage() {
         onClose={() => setActivationTarget(null)}
         onCreateRequest={handleCreateRequest}
         users={users}
-      />
-      <ActivationCheckDialog
-        bp={reactivationTarget}
-        onClose={() => setReactivationTarget(null)}
-        onCreateRequest={request => { addRequest(request); setReactivationTarget(null); setActiveTab("service-requests"); }}
-        users={users}
-        pendingDepotsOnly
-        activatedDepotsByMat={Object.fromEntries(
-          (reactivationTarget?.materials ?? []).map(m => [m.code, m.activatedDepots ?? {}])
-        )}
       />
       <InactivationDialog
         bp={inactivationTarget?.bp ?? null}
