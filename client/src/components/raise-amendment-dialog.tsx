@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Map as MapIcon, Radio, PackageSearch, AlertTriangle, AlertCircle,
-  ChevronRight, ChevronLeft, CheckCircle2, ExternalLink,
+  ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, ExternalLink,
   MapPin, Check, Plus, X, Lock, Users, CalendarClock,
   Upload, FileSpreadsheet, Trash2, IndianRupee, Network,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { PortalUser } from "@/lib/users-data";
 import type { ChannelDef, CustomerChainDef } from "@/lib/distribution-data";
@@ -805,6 +806,62 @@ function ChannelEditor({
   );
 }
 
+// ─── Geo Depot Selector ───────────────────────────────────────────────────────
+
+function GeoDepotSelector({
+  availableDepots, selectedDepots, onChange,
+}: {
+  availableDepots: string[];
+  selectedDepots: string[];
+  onChange: (depots: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex flex-wrap gap-1 items-center min-h-[28px] w-full text-left rounded px-1 py-0.5 hover:bg-muted/40 transition-colors"
+        >
+          {selectedDepots.length > 0
+            ? selectedDepots.map(d => (
+                <span
+                  key={d}
+                  className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-mono bg-blue-50 text-blue-700 border border-blue-200"
+                  onClick={e => { e.stopPropagation(); onChange(selectedDepots.filter(x => x !== d)); }}
+                >
+                  {d}
+                  <X className="h-2.5 w-2.5 hover:text-red-500" />
+                </span>
+              ))
+            : <span className="text-xs text-muted-foreground italic">None</span>
+          }
+          <ChevronDown className="h-3 w-3 text-muted-foreground ml-auto shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="p-2 w-[160px]" align="start" side="bottom">
+        <div className="space-y-0.5 max-h-48 overflow-y-auto">
+          {availableDepots.map(d => (
+            <label key={d} className="flex items-center gap-2 px-2 py-1.5 rounded text-xs font-mono cursor-pointer hover:bg-muted">
+              <Checkbox
+                checked={selectedDepots.includes(d)}
+                onCheckedChange={checked => {
+                  onChange(checked ? [...selectedDepots, d] : selectedDepots.filter(x => x !== d));
+                }}
+                className="h-3.5 w-3.5"
+              />
+              {d}
+            </label>
+          ))}
+          {availableDepots.length === 0 && (
+            <p className="text-xs text-muted-foreground px-2 py-1">No depots available</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // ─── Sourcing Editor ──────────────────────────────────────────────────────────
 
 function SourcingEditor({
@@ -813,6 +870,7 @@ function SourcingEditor({
   sourcingDepotMapping, setSourcingDepotMapping,
   inheritedMode, availableSourcingDepots,
   geographyDepotMap,
+  onDepotMappingChange,
 }: {
   currentGeo: string[];
   currentDepots: string[];
@@ -823,10 +881,26 @@ function SourcingEditor({
   inheritedMode?: "decentralized" | "centralized";
   availableSourcingDepots?: string[];
   geographyDepotMap?: Record<string, string[]>;
+  onDepotMappingChange?: (mapping: Record<string, string[]>) => void;
 }) {
   const effectiveMode = inheritedMode ?? newMode;
   const depotPool = availableSourcingDepots ?? currentDepots;
   const sourcingDepotSet = new Set(Object.values(sourcingDepotMapping));
+
+  // Editable depot-by-geo mapping; initialized from current distribution on mount
+  const [requestedDepotsByGeo, setRequestedDepotsByGeo] = useState<Record<string, string[]>>(() =>
+    geographyDepotMap
+      ? Object.fromEntries(
+          currentGeo.map(geo => [geo, (geographyDepotMap[geo] || []).filter(d => currentDepots.includes(d))])
+        )
+      : {}
+  );
+
+  const handleGeoDepotChange = (geo: string, depots: string[]) => {
+    const next = { ...requestedDepotsByGeo, [geo]: depots };
+    setRequestedDepotsByGeo(next);
+    onDepotMappingChange?.(next);
+  };
 
   const handleDepotChange = (depot: string, sourcingDepot: string) => {
     const next = { ...sourcingDepotMapping, [depot]: sourcingDepot };
@@ -937,14 +1011,11 @@ function SourcingEditor({
                           </span>
                         </td>
                         <td className="py-2 px-3 align-middle">
-                          <div className="flex flex-wrap gap-1">
-                            {depots.length > 0
-                              ? depots.map(d => (
-                                  <span key={d} className="inline-block rounded px-1.5 py-0.5 text-[11px] font-mono bg-blue-50 text-blue-700 border border-blue-200">{d}</span>
-                                ))
-                              : <span className="text-xs text-muted-foreground italic">—</span>
-                            }
-                          </div>
+                          <GeoDepotSelector
+                            availableDepots={geographyDepotMap[geo] || []}
+                            selectedDepots={requestedDepotsByGeo[geo] ?? depots}
+                            onChange={ds => handleGeoDepotChange(geo, ds)}
+                          />
                         </td>
                       </tr>
                     );
@@ -2553,6 +2624,39 @@ export function RaiseAmendmentDialog({
   const [newMode,              setNewMode]              = useState<"decentralized" | "centralized">("decentralized");
   const [sourcingDepotMapping, setSourcingDepotMapping] = useState<Record<string, string>>({});
 
+  // Sourcing amendment: per-geo depot selection (populated when dialog opens)
+  const [requestedDepotsByGeo, setRequestedDepotsByGeo] = useState<Record<string, string[]>>({});
+
+  // Initialise depot mapping each time the sourcing-amendment dialog is opened
+  useEffect(() => {
+    if (open && amendmentType === "sourcing-amendment" && geographyDepotMap) {
+      setRequestedDepotsByGeo(
+        Object.fromEntries(
+          currentGeo.map(geo => [geo, (geographyDepotMap[geo] || []).filter(d => currentDepots.includes(d))])
+        )
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, amendmentType]);
+
+  // Depot diff for sourcing-amendment SR payload
+  const saAddedDepots = useMemo(() => {
+    if (amendmentType !== "sourcing-amendment" || !geographyDepotMap) return [];
+    return Object.entries(requestedDepotsByGeo).flatMap(([geo, ds]) => {
+      const orig = (geographyDepotMap[geo] || []).filter(d => currentDepots.includes(d));
+      return ds.filter(d => !orig.includes(d));
+    });
+  }, [amendmentType, requestedDepotsByGeo, geographyDepotMap, currentDepots]);
+
+  const saRemovedDepots = useMemo(() => {
+    if (amendmentType !== "sourcing-amendment" || !geographyDepotMap) return [];
+    return currentGeo.flatMap(geo => {
+      const orig = (geographyDepotMap[geo] || []).filter(d => currentDepots.includes(d));
+      const req  = requestedDepotsByGeo[geo] ?? orig;
+      return orig.filter(d => !req.includes(d));
+    });
+  }, [amendmentType, requestedDepotsByGeo, currentGeo, geographyDepotMap, currentDepots]);
+
   // Customer chain amendment state: full per-geo requested mapping
   const [requestedCustomerMapping, setRequestedCustomerMapping] = useState<Record<string, string[]>>({});
 
@@ -2648,9 +2752,10 @@ export function RaiseAmendmentDialog({
     if (amendmentType === "geo-extension")     return addedGeos.length > 0 || removedGeos.length > 0 || removedDepots.length > 0;
     if (amendmentType === "channel-extension") return addedChannels.length > 0 || removedChannels.length > 0;
     if (amendmentType === "sourcing-amendment") {
+      const depotChange = saAddedDepots.length > 0 || saRemovedDepots.length > 0;
       if (newMode === "decentralized") return true;
       // Centralized: all current depots must have a sourcing depot assigned
-      return currentDepots.length > 0 && currentDepots.every(d => !!sourcingDepotMapping[d]);
+      return depotChange || (currentDepots.length > 0 && currentDepots.every(d => !!sourcingDepotMapping[d]));
     }
     if (amendmentType === "customer-chain-amendment") {
       return mtGeos.some(geo => {
@@ -2682,6 +2787,7 @@ export function RaiseAmendmentDialog({
     setRemovedDepots([]);
     setNewMode("decentralized");
     setSourcingDepotMapping({});
+    setRequestedDepotsByGeo({});
     setRequestedCustomerMapping({});
     setRequestedDate("");
     setMstnNote("");
@@ -2750,6 +2856,8 @@ export function RaiseAmendmentDialog({
           .join(", ");
         requestedValue = `Centralized — ${pairs}`;
       }
+      if (saAddedDepots.length > 0)   requestedValue += `; Adding Depots: ${saAddedDepots.join(", ")}`;
+      if (saRemovedDepots.length > 0) requestedValue += `; Removing Depots: ${saRemovedDepots.join(", ")}`;
     } else if (amendmentType === "customer-chain-amendment") {
       currentValue = mtGeos.map(g => `${g}: ${(customerMapping[g] || []).join(", ") || "None"}`).join("; ");
       requestedValue = mtGeos.map(g => `${g}: ${(requestedCustomerMapping[g] ?? customerMapping[g] ?? []).join(", ") || "None"}`).join("; ");
@@ -2784,12 +2892,12 @@ export function RaiseAmendmentDialog({
       approvers,
       overallStatus: "pending",
       addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
-      addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
+      addedDepots: amendmentType === "geo-extension" ? addedDepots : amendmentType === "sourcing-amendment" ? saAddedDepots : [],
       addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
       removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
       requestedChannelMapping: (amendmentType === "channel-extension" || amendmentType === "geo-extension") ? requestedChannelMapping : undefined,
       removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
-      removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
+      removedDepots: amendmentType === "geo-extension" ? removedDepots : amendmentType === "sourcing-amendment" ? saRemovedDepots : [],
       sourcingMode: amendmentType === "sourcing-amendment" ? newMode : amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined,
       sourcingDepotMapping: (amendmentType === "sourcing-amendment" || amendmentType === "geo-extension") ? sourcingDepotMapping : undefined,
       centralizedGeos: [],
@@ -2814,11 +2922,11 @@ export function RaiseAmendmentDialog({
         currentValue,
         requestedValue,
         addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
-        addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
+        addedDepots: amendmentType === "geo-extension" ? addedDepots : amendmentType === "sourcing-amendment" ? saAddedDepots : [],
         addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
         removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
         removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
-        removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
+        removedDepots: amendmentType === "geo-extension" ? removedDepots : amendmentType === "sourcing-amendment" ? saRemovedDepots : [],
         sourcingMode: amendmentType === "sourcing-amendment" ? newMode : amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined,
         sourcingDepotMapping: (amendmentType === "sourcing-amendment" || amendmentType === "geo-extension") ? sourcingDepotMapping : undefined,
         centralizedGeo: [],
@@ -3099,6 +3207,7 @@ export function RaiseAmendmentDialog({
               sourcingDepotMapping={sourcingDepotMapping}
               setSourcingDepotMapping={setSourcingDepotMapping}
               geographyDepotMap={geographyDepotMap}
+              onDepotMappingChange={setRequestedDepotsByGeo}
             />
           )}
 
