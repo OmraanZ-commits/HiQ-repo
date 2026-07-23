@@ -84,6 +84,29 @@ from server_py.seed_ccr import (
     CCR_LINE_ITEM_SEEDS,
 )
 
+def _seed_activated_depots(seed_srs: list, list_master_svc) -> None:
+    """
+    For already-approved basepack-status-change seed SRs that contain depot decisions,
+    additively write the approved depots into activated_depots on each network entry.
+    The live approval flow (saga) handles this automatically; seed SRs bypass the saga,
+    so we must apply the side effect here at startup. Safe to run on every restart
+    because merge_activated_depots_by_cbu is an additive merge (sets True, never removes).
+    """
+    from collections import defaultdict
+    for sr in seed_srs:
+        if sr.get("status") != "approved" or sr.get("srType") != "basepack-status-change":
+            continue
+        depot_decisions = sr.get("depotDecisions") or []
+        cbu_depots: dict = defaultdict(list)
+        for dd in depot_decisions:
+            cbu_code = dd.get("cbuCode")
+            depot_code = dd.get("depotCode")
+            if cbu_code and depot_code and dd.get("ncsmDecision") == "approved":
+                cbu_depots[cbu_code].append(depot_code)
+        for cbu_code, depots in cbu_depots.items():
+            list_master_svc.merge_activated_depots_by_cbu(cbu_code, depots)
+
+
 app = FastAPI(title="Unilever Network Visibility API", version="1.0.0", redirect_slashes=False)
 
 app.add_middleware(
@@ -193,6 +216,11 @@ async def startup():
     demand_forecast_service.reseed(generate_demand_forecast_seeds(entries))
 
     sr_service.seed_requests(SR_SEEDS)
+
+    # Apply activated_depots for already-approved seed SRs with depot decisions.
+    # The saga ordinarily handles this on live approval, but seeded SRs bypass the saga.
+    # This is idempotent — merge_activated_depots_by_cbu additively sets depots to True.
+    _seed_activated_depots(SR_SEEDS, list_service)
 
     # Seed "Partially Active" status for BP-2000 demo basepack (idempotent)
     if not bp_status_service.get_override("BP-2000"):
