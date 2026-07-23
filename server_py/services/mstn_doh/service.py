@@ -230,6 +230,16 @@ class MstnDohService:
             "materials": materials_out,
         }
 
+    # ── Daily depot-score refresh ────────────────────────────────────────────
+
+    def refresh_depot_scores(self) -> dict:
+        """
+        Trigger a daily MSTN depot-score refresh.  Delegates to storage which
+        updates mstn_by_depot with a day-varying fluctuation and then additively
+        merges any newly-≥80% depots into mstn_green_lock in the same transaction.
+        """
+        return self.storage.refresh_depot_scores()
+
     # ── MOC Info ────────────────────────────────────────────────────────────
 
     def moc_info(self, date_str: str) -> dict:

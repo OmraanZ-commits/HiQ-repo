@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, date, timezone
 from typing import Optional, List
 
+from sqlalchemy import text
 from server_py.db import SessionLocal, DohSnapshotModel, MstnAlertModel
 
 
@@ -143,5 +144,51 @@ class MstnDohStorage:
             row.is_resolved = True
             db.commit()
             return True
+        finally:
+            db.close()
+
+    def refresh_depot_scores(self) -> dict:
+        """
+        Simulate a daily MSTN data refresh:
+        1. Update mstn_by_depot for every qualifying entry using a day-varying
+           pseudo-random fluctuation (±6 pp, seeded by depot code + today's date
+           so each calendar day produces a distinct but deterministic result).
+        2. In the same transaction, additively merge any depot whose new score
+           is ≥ 80 into mstn_green_lock.  A depot that was previously green and
+           has since dropped below 80 remains locked — the lock is never removed.
+        Returns {"updated": <rows updated>}.
+        """
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                UPDATE network_entries
+                SET mstn_by_depot = (
+                    SELECT jsonb_object_agg(
+                        key,
+                        GREATEST(0, LEAST(100,
+                            value::numeric
+                            + ((hashtext(key || to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD')) % 13) - 6)
+                        ))
+                    )
+                    FROM jsonb_each(mstn_by_depot)
+                )
+                WHERE mstn_by_depot IS NOT NULL
+                  AND mstn_by_depot != '{}'
+            """))
+            rows_updated = result.rowcount
+
+            db.execute(text("""
+                UPDATE network_entries
+                SET mstn_green_lock = COALESCE(mstn_green_lock, '{}') || (
+                    SELECT COALESCE(jsonb_object_agg(key, true), '{}')
+                    FROM jsonb_each(mstn_by_depot)
+                    WHERE value::numeric >= 80
+                )
+                WHERE mstn_by_depot IS NOT NULL
+                  AND mstn_by_depot != '{}'
+            """))
+
+            db.commit()
+            return {"updated": rows_updated}
         finally:
             db.close()

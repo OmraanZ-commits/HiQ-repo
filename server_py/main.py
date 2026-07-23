@@ -247,6 +247,27 @@ async def startup():
 
     asyncio.create_task(_ccr_trigger_loop())
 
+    async def _mstn_refresh_loop():
+        """
+        Background task: refresh MSTN depot scores once at startup, then every 24 hours.
+        Each run applies a day-varying pseudo-random fluctuation to mstn_by_depot and
+        additively merges any depot whose new score is >= 80 into mstn_green_lock,
+        so the green lock accumulates correctly over time rather than being set once.
+        """
+        first_run = True
+        while True:
+            try:
+                if not first_run:
+                    await asyncio.sleep(24 * 60 * 60)
+                first_run = False
+                result = mstn_doh_service.refresh_depot_scores()
+                logging.info(f"[MSTN refresh] depot scores updated for {result['updated']} entries")
+            except Exception as exc:
+                logging.warning(f"[MSTN refresh] error: {exc}")
+                first_run = False
+
+    asyncio.create_task(_mstn_refresh_loop())
+
 
 @app.get("/api/me")
 async def get_current_user():

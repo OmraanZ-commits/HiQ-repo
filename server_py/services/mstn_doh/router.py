@@ -96,3 +96,16 @@ async def moc_info(date: str = Query(..., description="ISO date string YYYY-MM-D
         return svc.moc_info(date)
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid date format: {date}. Expected YYYY-MM-DD.")
+
+
+@router.post("/refresh-depot-scores")
+async def refresh_depot_scores():
+    """
+    Simulate a daily MSTN depot-score refresh.
+    Updates mstn_by_depot for all qualifying entries using a day-varying
+    pseudo-random fluctuation, then additively merges any depot whose new
+    score is >= 80 into mstn_green_lock (the lock is never removed once set).
+    Safe to call on-demand or via the scheduled daily background task.
+    """
+    svc = _require_service()
+    return svc.refresh_depot_scores()
