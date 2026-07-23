@@ -284,11 +284,15 @@ function MaterialsSubTable({
   materials,
   navigate,
   pendingSrs = [],
+  onReinitiateActivation,
+  hasPendingReactivationSr = false,
 }: {
   bpId: string;
   materials: PbMaterial[];
   navigate: (path: string) => void;
   pendingSrs?: PendingSrRef[];
+  onReinitiateActivation?: () => void;
+  hasPendingReactivationSr?: boolean;
 }) {
   const [expandedMat, setExpandedMat] = useState<string | null>(null);
 
@@ -402,6 +406,34 @@ function MaterialsSubTable({
                             {clearedDcCount}/{totalDcCount} cleared
                           </span>
                         </p>
+                        {(() => {
+                          const newlyEligibleCount = depotEntries.filter(
+                            ([depot, pct]) => pct >= 80 && !(m.activatedDepots ?? {})[depot]
+                          ).length;
+                          if (newlyEligibleCount > 0 && (onReinitiateActivation || hasPendingReactivationSr)) {
+                            return (
+                              <div className="flex items-center justify-between mb-2.5 px-0.5">
+                                <p className="text-[11px] text-amber-700 font-medium">
+                                  <span className="font-bold">{newlyEligibleCount}</span> depot{newlyEligibleCount !== 1 ? "s" : ""} newly MSTN-cleared — eligible for activation
+                                </p>
+                                {hasPendingReactivationSr ? (
+                                  <span className="text-[11px] text-slate-400 italic">SR already pending</span>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs px-3"
+                                    onClick={e => { e.stopPropagation(); onReinitiateActivation?.(); }}
+                                    data-testid={`button-reinitiate-activation-${bpId}`}
+                                  >
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Reinitiate Activation
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                             {depotEntries
                               .sort((a, b) => b[1] - a[1])
@@ -2579,6 +2611,12 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                                     (CBU_SR_TYPES as readonly string[]).includes(r.srType) &&
                                     r.overallStatus === "pending" &&
                                     r.basepackCode === bp.basepackCode
+                                  )}
+                                  onReinitiateActivation={() => raiseReactivationSr(bp)}
+                                  hasPendingReactivationSr={serviceRequests.some(r =>
+                                    r.srType === "basepack-status-change" &&
+                                    r.basepackCode === bp.basepackCode &&
+                                    r.overallStatus === "pending"
                                   )}
                                 />
                               )}
