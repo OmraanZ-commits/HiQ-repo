@@ -2772,8 +2772,9 @@ export function RaiseAmendmentDialog({
     if (amendmentType === "channel-extension") return addedChannels.length > 0 || removedChannels.length > 0;
     if (amendmentType === "sourcing-amendment") {
       if (newMode === "decentralized") return true;
-      // Centralized: must have at least one newly added depot AND all must have sourcing assigned
-      return saAddedDepots.length > 0 && saAddedDepots.every(d => !!sourcingDepotMapping[d]);
+      // Centralized: removals are always valid; additions require all new depots to have sourcing assigned
+      const additionsValid = saAddedDepots.length === 0 || saAddedDepots.every(d => !!sourcingDepotMapping[d]);
+      return (saAddedDepots.length > 0 || saRemovedDepots.length > 0) && additionsValid;
     }
     if (amendmentType === "customer-chain-amendment") {
       return mtGeos.some(geo => {
