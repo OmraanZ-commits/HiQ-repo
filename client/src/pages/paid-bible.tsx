@@ -561,9 +561,11 @@ interface ActivationCheckDialogProps {
   onClose: () => void;
   onCreateRequest: (request: ServiceRequest) => void;
   users: PortalUser[];
+  pendingDepotsOnly?: boolean;
+  activatedDepotsByMat?: Record<string, Record<string, boolean>>;
 }
 
-function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: ActivationCheckDialogProps) {
+function ActivationCheckDialog({ bp, onClose, onCreateRequest, users, pendingDepotsOnly = false, activatedDepotsByMat = {} }: ActivationCheckDialogProps) {
   const [expandedCbu, setExpandedCbu] = useState<string | null>(null);
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().slice(0, 10);
@@ -606,7 +608,9 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
     const decisions: DepotDecision[] = [];
     for (const mat of materials) {
       const depotEntries = Object.entries(mat.mstnByDepot ?? {});
+      const activatedForMat = activatedDepotsByMat[mat.code] ?? {};
       for (const [depotCode, pct] of depotEntries) {
+        if (pendingDepotsOnly && activatedForMat[depotCode]) continue;
         decisions.push({
           cbuCode:          mat.code,
           depotCode,
@@ -662,14 +666,16 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
           <DialogTitle className="flex items-center gap-2">
             {clearanceLoading
               ? <RefreshCw className="h-5 w-5 text-muted-foreground animate-spin" />
-              : criteriaMet
-                ? <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                : <ShieldAlert className="h-5 w-5 text-amber-500" />
+              : pendingDepotsOnly
+                ? <RefreshCw className="h-5 w-5 text-emerald-600" />
+                : criteriaMet
+                  ? <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                  : <ShieldAlert className="h-5 w-5 text-amber-500" />
             }
-            Activation Criteria Check
+            {pendingDepotsOnly ? "Reinitiate Activation" : "Activation Criteria Check"}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Basepack Status Change · {bp.basepakName} · {bp.basepackCode}
+            {pendingDepotsOnly ? "Depot Reactivation" : "Basepack Status Change"} · {bp.basepakName} · {bp.basepackCode}
           </DialogDescription>
         </DialogHeader>
 
@@ -821,11 +827,15 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
                   </tr>
                 </thead>
                 <tbody>
-                  {materials.flatMap((mat, mi) =>
-                    Object.entries(mat.mstnByDepot ?? {}).sort((a, b) => b[1] - a[1]).map(([depot, pct], di) => (
+                  {materials.flatMap((mat, mi) => {
+                    const activatedForMat = activatedDepotsByMat[mat.code] ?? {};
+                    const entries = Object.entries(mat.mstnByDepot ?? {})
+                      .filter(([depot]) => !pendingDepotsOnly || !activatedForMat[depot])
+                      .sort((a, b) => b[1] - a[1]);
+                    return entries.map(([depot, pct], di) => (
                       <tr key={`${mat.code}-${depot}`} className={(mi + di) % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
                         {di === 0 && (
-                          <td className="px-3 py-1.5 font-mono text-blue-600 font-medium align-top" rowSpan={Object.keys(mat.mstnByDepot ?? {}).length}>
+                          <td className="px-3 py-1.5 font-mono text-blue-600 font-medium align-top" rowSpan={entries.length}>
                             {mat.code}
                           </td>
                         )}
@@ -847,7 +857,7 @@ function ActivationCheckDialog({ bp, onClose, onCreateRequest, users }: Activati
                         </td>
                       </tr>
                     ))
-                  )}
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1870,6 +1880,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
     addRequest(sr);
   };
 
+  const [reactivationTarget, setReactivationTarget] = useState<PbBasepack | null>(null);
   const [triggerDialog, setTriggerDialog] = useState<string | null>(null);
   const [expandedMstnCbu, setExpandedMstnCbu] = useState<string | null>(null);
 
@@ -2612,7 +2623,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                                     r.overallStatus === "pending" &&
                                     r.basepackCode === bp.basepackCode
                                   )}
-                                  onReinitiateActivation={() => raiseReactivationSr(bp)}
+                                  onReinitiateActivation={() => setReactivationTarget(bp)}
                                   hasPendingReactivationSr={serviceRequests.some(r =>
                                     r.srType === "basepack-status-change" &&
                                     r.basepackCode === bp.basepackCode &&
@@ -3248,6 +3259,16 @@ export default function PaidBiblePage() {
         onClose={() => setActivationTarget(null)}
         onCreateRequest={handleCreateRequest}
         users={users}
+      />
+      <ActivationCheckDialog
+        bp={reactivationTarget}
+        onClose={() => setReactivationTarget(null)}
+        onCreateRequest={request => { addRequest(request); setReactivationTarget(null); setActiveTab("service-requests"); }}
+        users={users}
+        pendingDepotsOnly
+        activatedDepotsByMat={Object.fromEntries(
+          (reactivationTarget?.materials ?? []).map(m => [m.code, m.activatedDepots ?? {}])
+        )}
       />
       <InactivationDialog
         bp={inactivationTarget?.bp ?? null}
