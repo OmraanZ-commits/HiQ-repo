@@ -2532,6 +2532,92 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                                 );
                               })()}
 
+                              {/* Depot Activation Status — Partially Active basepacks only */}
+                              {(() => {
+                                const effStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
+                                if (effStatus !== "Partially Active") return null;
+                                // Read activated state directly from the typed activatedDepots field
+                                // on each material (sourced from the DB activated_depots column via
+                                // FIELD_MAP_TO_API → material builder). No key-alignment with sr-store
+                                // needed — this is the DB-authoritative ground truth.
+                                const depotMap: Record<string, { pct: number; activated: boolean }> = {};
+                                for (const mat of bp.materials) {
+                                  for (const [depot, pct] of Object.entries(mat.mstnByDepot ?? {})) {
+                                    depotMap[depot] = {
+                                      pct,
+                                      activated: !!(mat.activatedDepots ?? {})[depot],
+                                    };
+                                  }
+                                }
+                                const depots = Object.entries(depotMap);
+                                if (depots.length === 0) return null;
+                                const activatedCount = depots.filter(([, v]) => v.activated).length;
+                                const newlyEligibleDepots = depots.filter(([, v]) => !v.activated && v.pct >= 80);
+                                const hasPendingSr = serviceRequests.some(r =>
+                                  r.srType === "basepack-status-change" &&
+                                  r.basepackCode === bp.basepackCode &&
+                                  r.overallStatus === "pending"
+                                );
+                                return (
+                                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3">
+                                    <p className="text-xs font-semibold text-amber-800 mb-2.5 flex items-center gap-1.5">
+                                      <MapPin className="h-3.5 w-3.5" />
+                                      Depot Activation Status
+                                      <span className="ml-1 font-normal text-amber-600">
+                                        — {activatedCount} of {depots.length} depot{depots.length !== 1 ? "s" : ""} activated
+                                      </span>
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                      {depots.map(([depot, { pct, activated }]) => {
+                                        const isNewlyEligible = !activated && pct >= 80;
+                                        return (
+                                          <div
+                                            key={depot}
+                                            className={`flex items-center justify-between px-2.5 py-1.5 rounded text-xs border ${
+                                              activated
+                                                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                                : isNewlyEligible
+                                                  ? "bg-amber-50 border-amber-300 text-amber-700"
+                                                  : "bg-slate-50 border-slate-200 text-slate-500"
+                                            }`}
+                                            data-testid={`depot-status-${bp.id}-${depot}`}
+                                          >
+                                            <span className="font-mono font-medium">{depot}</span>
+                                            <span>
+                                              {activated
+                                                ? "✓ Active"
+                                                : isNewlyEligible
+                                                  ? `★ ${pct}%`
+                                                  : "✗ Not Active"}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {newlyEligibleDepots.length > 0 && (
+                                      <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-amber-200">
+                                        <p className="text-xs text-amber-700">
+                                          <span className="font-semibold">{newlyEligibleDepots.length}</span> depot{newlyEligibleDepots.length !== 1 ? "s" : ""} newly MSTN-cleared ({newlyEligibleDepots.map(([d]) => d).join(", ")})
+                                        </p>
+                                        {hasPendingSr ? (
+                                          <span className="text-xs text-slate-500 italic">SR already pending</span>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs px-2.5"
+                                            onClick={e => { e.stopPropagation(); raiseReactivationSr(bp); }}
+                                            data-testid={`button-raise-reactivation-row-${bp.id}`}
+                                          >
+                                            <CheckCircle2 className="h-3 w-3" />
+                                            Raise Reactivation SR
+                                          </Button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+
                               {/* Tab bar */}
                               <div className="flex items-center gap-1 mb-4" onClick={e => e.stopPropagation()}>
                                 <button
