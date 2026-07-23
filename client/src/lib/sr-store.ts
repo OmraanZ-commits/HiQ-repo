@@ -399,6 +399,12 @@ async function _loadFromBackend(): Promise<void> {
             ]
           : resolved;
         _depotDecisionOverrides = { ..._depotDecisionOverrides, [sr.basepackId]: merged };
+        // Derive the correct bp status from the settled depot decisions and keep
+        // _bpStatusOverrides in sync.  This ensures "Partially Active" is always
+        // computed from the approved SR's decisions regardless of what the backend
+        // basepack_status_overrides table currently holds (guards against stale data).
+        const derivedStatus = _deriveFinalBpStatus(merged, sr.targetStatus);
+        _bpStatusOverrides = { ..._bpStatusOverrides, [sr.basepackId]: derivedStatus };
       }
     }
 
