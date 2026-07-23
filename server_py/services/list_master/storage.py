@@ -97,6 +97,16 @@ class ListMasterStorage:
             if db_fields.get("network_status") == "Pricing Updated" and row.network_status != "Pricing Updated":
                 db_fields["price_updated_at"] = now
 
+            # When mstn_by_depot is updated, additively lock any depot that hits >=80
+            # into mstn_green_lock (never remove a lock once acquired).
+            if "mstn_by_depot" in db_fields and db_fields["mstn_by_depot"]:
+                new_depot_map: dict = db_fields["mstn_by_depot"] or {}
+                new_locks = {depot: True for depot, pct in new_depot_map.items() if pct >= 80}
+                if new_locks:
+                    existing_lock = dict(row.mstn_green_lock or {})
+                    existing_lock.update(new_locks)
+                    db_fields["mstn_green_lock"] = existing_lock
+
             for key, value in db_fields.items():
                 setattr(row, key, value)
             db.commit()

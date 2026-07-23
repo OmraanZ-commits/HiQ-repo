@@ -1670,6 +1670,8 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
             mstnPct,
             networkChangeDate: e.networkChangeDate ?? null,
             mstnByDepot:       (e as any).mstnByDepot ?? {},
+            mstnGreenLock:     (e as any).mstnGreenLock ?? {},
+            activatedDepots:   (e as any).activatedDepots ?? {},
             mstnClear: e.typeOfNetwork === "NEW_LAUNCH"
               ? computeMstnClear([{ mstnByDepot: (e as any).mstnByDepot ?? {} }])
               : null,
