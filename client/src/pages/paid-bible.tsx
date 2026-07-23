@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -456,11 +457,24 @@ function MaterialsSubTable({
                                       <span className="font-mono text-xs font-medium text-slate-700 truncate">{depot}</span>
                                       <div className="flex items-center gap-1 flex-shrink-0">
                                         <span className={`text-xs font-bold ${pctCls}`}>{pct}%</span>
-                                        {activated
-                                          ? <Lock className="h-3.5 w-3.5 text-emerald-700" title="Activated" />
-                                          : newlyEligible
-                                            ? <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-400" title="MSTN cleared — eligible for activation" />
-                                            : <XCircle className="h-3.5 w-3.5 text-red-500" title="MSTN below threshold" />}
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="inline-flex cursor-default">
+                                              {activated
+                                                ? <Lock className="h-3.5 w-3.5 text-emerald-700" />
+                                                : newlyEligible
+                                                  ? <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-400" />
+                                                  : <XCircle className="h-3.5 w-3.5 text-red-500" />}
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="text-xs max-w-[180px]">
+                                            {activated
+                                              ? "Depot activated — MSTN cleared and formally activated by NCSM"
+                                              : newlyEligible
+                                                ? "Eligible for activation — MSTN cleared (≥ 80%) but not yet formally activated"
+                                                : "Not eligible — MSTN below 80% threshold"}
+                                          </TooltipContent>
+                                        </Tooltip>
                                       </div>
                                     </div>
                                     <div className="h-1 rounded-full bg-white/60 overflow-hidden">
