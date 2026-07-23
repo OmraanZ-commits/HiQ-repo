@@ -2752,10 +2752,9 @@ export function RaiseAmendmentDialog({
     if (amendmentType === "geo-extension")     return addedGeos.length > 0 || removedGeos.length > 0 || removedDepots.length > 0;
     if (amendmentType === "channel-extension") return addedChannels.length > 0 || removedChannels.length > 0;
     if (amendmentType === "sourcing-amendment") {
-      const depotChange = saAddedDepots.length > 0 || saRemovedDepots.length > 0;
       if (newMode === "decentralized") return true;
       // Centralized: all current depots must have a sourcing depot assigned
-      return depotChange || (currentDepots.length > 0 && currentDepots.every(d => !!sourcingDepotMapping[d]));
+      return currentDepots.length > 0 && currentDepots.every(d => !!sourcingDepotMapping[d]);
     }
     if (amendmentType === "customer-chain-amendment") {
       return mtGeos.some(geo => {
@@ -2787,7 +2786,6 @@ export function RaiseAmendmentDialog({
     setRemovedDepots([]);
     setNewMode("decentralized");
     setSourcingDepotMapping({});
-    setRequestedDepotsByGeo({});
     setRequestedCustomerMapping({});
     setRequestedDate("");
     setMstnNote("");
@@ -2856,8 +2854,6 @@ export function RaiseAmendmentDialog({
           .join(", ");
         requestedValue = `Centralized — ${pairs}`;
       }
-      if (saAddedDepots.length > 0)   requestedValue += `; Adding Depots: ${saAddedDepots.join(", ")}`;
-      if (saRemovedDepots.length > 0) requestedValue += `; Removing Depots: ${saRemovedDepots.join(", ")}`;
     } else if (amendmentType === "customer-chain-amendment") {
       currentValue = mtGeos.map(g => `${g}: ${(customerMapping[g] || []).join(", ") || "None"}`).join("; ");
       requestedValue = mtGeos.map(g => `${g}: ${(requestedCustomerMapping[g] ?? customerMapping[g] ?? []).join(", ") || "None"}`).join("; ");
@@ -2892,12 +2888,12 @@ export function RaiseAmendmentDialog({
       approvers,
       overallStatus: "pending",
       addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
-      addedDepots: amendmentType === "geo-extension" ? addedDepots : amendmentType === "sourcing-amendment" ? saAddedDepots : [],
+      addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
       addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
       removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
       requestedChannelMapping: (amendmentType === "channel-extension" || amendmentType === "geo-extension") ? requestedChannelMapping : undefined,
       removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
-      removedDepots: amendmentType === "geo-extension" ? removedDepots : amendmentType === "sourcing-amendment" ? saRemovedDepots : [],
+      removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
       sourcingMode: amendmentType === "sourcing-amendment" ? newMode : amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined,
       sourcingDepotMapping: (amendmentType === "sourcing-amendment" || amendmentType === "geo-extension") ? sourcingDepotMapping : undefined,
       centralizedGeos: [],
@@ -2922,11 +2918,11 @@ export function RaiseAmendmentDialog({
         currentValue,
         requestedValue,
         addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
-        addedDepots: amendmentType === "geo-extension" ? addedDepots : amendmentType === "sourcing-amendment" ? saAddedDepots : [],
+        addedDepots: amendmentType === "geo-extension" ? addedDepots : [],
         addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
         removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
         removedGeos: amendmentType === "geo-extension" ? removedGeos : [],
-        removedDepots: amendmentType === "geo-extension" ? removedDepots : amendmentType === "sourcing-amendment" ? saRemovedDepots : [],
+        removedDepots: amendmentType === "geo-extension" ? removedDepots : [],
         sourcingMode: amendmentType === "sourcing-amendment" ? newMode : amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined,
         sourcingDepotMapping: (amendmentType === "sourcing-amendment" || amendmentType === "geo-extension") ? sourcingDepotMapping : undefined,
         centralizedGeo: [],
@@ -3207,7 +3203,6 @@ export function RaiseAmendmentDialog({
               sourcingDepotMapping={sourcingDepotMapping}
               setSourcingDepotMapping={setSourcingDepotMapping}
               geographyDepotMap={geographyDepotMap}
-              onDepotMappingChange={setRequestedDepotsByGeo}
             />
           )}
 
