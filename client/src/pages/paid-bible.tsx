@@ -406,27 +406,34 @@ function MaterialsSubTable({
                             {depotEntries
                               .sort((a, b) => b[1] - a[1])
                               .map(([depot, pct]) => {
-                                const activated = !!(m.activatedDepots ?? {})[depot];
+                                const activated     = !!(m.activatedDepots ?? {})[depot];
+                                const newlyEligible = !activated && pct >= 80;
+                                const tileCls = activated
+                                  ? "bg-emerald-50 border-emerald-200"
+                                  : newlyEligible
+                                    ? "bg-amber-50 border-amber-300"
+                                    : "bg-red-50 border-red-200";
+                                const barCls = activated ? "bg-emerald-500" : newlyEligible ? "bg-amber-400" : "bg-red-400";
+                                const pctCls = activated ? "text-emerald-700" : newlyEligible ? "text-amber-700" : "text-red-600";
                                 return (
                                   <div
                                     key={depot}
-                                    className={`flex flex-col gap-1 rounded-md px-2.5 py-2 border ${pct >= 80 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}
+                                    className={`flex flex-col gap-1 rounded-md px-2.5 py-2 border ${tileCls}`}
                                     data-testid={`mat-depot-${m.id}-${depot}`}
                                   >
                                     <div className="flex items-center justify-between gap-1">
                                       <span className="font-mono text-xs font-medium text-slate-700 truncate">{depot}</span>
                                       <div className="flex items-center gap-1 flex-shrink-0">
-                                        <span className={`text-xs font-bold ${pct >= 80 ? "text-emerald-700" : "text-red-600"}`}>{pct}%</span>
+                                        <span className={`text-xs font-bold ${pctCls}`}>{pct}%</span>
                                         {activated
                                           ? <CheckCircle2 className="h-3 w-3 text-emerald-500" title="Activated" />
-                                          : <AlertCircle  className="h-3 w-3 text-amber-400"   title="Activation pending" />}
+                                          : newlyEligible
+                                            ? <span className="text-[10px] font-bold text-amber-600" title="Newly MSTN-cleared — eligible for activation">★</span>
+                                            : <AlertCircle className="h-3 w-3 text-red-400" title="MSTN below threshold" />}
                                       </div>
                                     </div>
                                     <div className="h-1 rounded-full bg-white/60 overflow-hidden">
-                                      <div
-                                        className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : "bg-red-400"}`}
-                                        style={{ width: `${Math.min(pct, 100)}%` }}
-                                      />
+                                      <div className={`h-full rounded-full ${barCls}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                                     </div>
                                   </div>
                                 );
@@ -2535,92 +2542,6 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                                           </span>
                                         </div>
                                       </>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-
-                              {/* Depot Activation Status — Partially Active basepacks only */}
-                              {(() => {
-                                const effStatus = normalizeBpStatus(localBpStatus[bp.id] ?? bp.bpStatus);
-                                if (effStatus !== "Partially Active") return null;
-                                // Read activated state directly from the typed activatedDepots field
-                                // on each material (sourced from the DB activated_depots column via
-                                // FIELD_MAP_TO_API → material builder). No key-alignment with sr-store
-                                // needed — this is the DB-authoritative ground truth.
-                                const depotMap: Record<string, { pct: number; activated: boolean }> = {};
-                                for (const mat of bp.materials) {
-                                  for (const [depot, pct] of Object.entries(mat.mstnByDepot ?? {})) {
-                                    depotMap[depot] = {
-                                      pct,
-                                      activated: !!(mat.activatedDepots ?? {})[depot],
-                                    };
-                                  }
-                                }
-                                const depots = Object.entries(depotMap);
-                                if (depots.length === 0) return null;
-                                const activatedCount = depots.filter(([, v]) => v.activated).length;
-                                const newlyEligibleDepots = depots.filter(([, v]) => !v.activated && v.pct >= 80);
-                                const hasPendingSr = serviceRequests.some(r =>
-                                  r.srType === "basepack-status-change" &&
-                                  r.basepackCode === bp.basepackCode &&
-                                  r.overallStatus === "pending"
-                                );
-                                return (
-                                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3">
-                                    <p className="text-xs font-semibold text-amber-800 mb-2.5 flex items-center gap-1.5">
-                                      <MapPin className="h-3.5 w-3.5" />
-                                      Depot Activation Status
-                                      <span className="ml-1 font-normal text-amber-600">
-                                        — {activatedCount} of {depots.length} depot{depots.length !== 1 ? "s" : ""} activated
-                                      </span>
-                                    </p>
-                                    <div className="grid grid-cols-3 gap-1.5">
-                                      {depots.map(([depot, { pct, activated }]) => {
-                                        const isNewlyEligible = !activated && pct >= 80;
-                                        return (
-                                          <div
-                                            key={depot}
-                                            className={`flex items-center justify-between px-2.5 py-1.5 rounded text-xs border ${
-                                              activated
-                                                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                                : isNewlyEligible
-                                                  ? "bg-amber-50 border-amber-300 text-amber-700"
-                                                  : "bg-slate-50 border-slate-200 text-slate-500"
-                                            }`}
-                                            data-testid={`depot-status-${bp.id}-${depot}`}
-                                          >
-                                            <span className="font-mono font-medium">{depot}</span>
-                                            <span>
-                                              {activated
-                                                ? "✓ Active"
-                                                : isNewlyEligible
-                                                  ? `★ ${pct}%`
-                                                  : "✗ Not Active"}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    {newlyEligibleDepots.length > 0 && (
-                                      <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-amber-200">
-                                        <p className="text-xs text-amber-700">
-                                          <span className="font-semibold">{newlyEligibleDepots.length}</span> depot{newlyEligibleDepots.length !== 1 ? "s" : ""} newly MSTN-cleared ({newlyEligibleDepots.map(([d]) => d).join(", ")})
-                                        </p>
-                                        {hasPendingSr ? (
-                                          <span className="text-xs text-slate-500 italic">SR already pending</span>
-                                        ) : (
-                                          <Button
-                                            size="sm"
-                                            className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs px-2.5"
-                                            onClick={e => { e.stopPropagation(); raiseReactivationSr(bp); }}
-                                            data-testid={`button-raise-reactivation-row-${bp.id}`}
-                                          >
-                                            <CheckCircle2 className="h-3 w-3" />
-                                            Raise Reactivation SR
-                                          </Button>
-                                        )}
-                                      </div>
                                     )}
                                   </div>
                                 );
