@@ -119,6 +119,7 @@ class SrApprovalSaga:
         On full approval of a basepack-status-change SR:
         1. Write a basepack_status_override using requestedValue (targetStatus) from the SR.
         2. Record the lifecycle date (activation / inactive / delist).
+        3. Mark depot decisions as activated in activated_depots on each network entry.
         """
         bp_id = sr.get("basepackCode") or sr.get("basepakCode")
         target_status = (
@@ -169,6 +170,22 @@ class SrApprovalSaga:
             )
             self._log_step("write_status_history", "completed",
                            result={"bpId": bp_id, "from": prev_status, "to": target_status})
+
+        # Mark depot decisions as activated in activated_depots on each network entry.
+        # Group depotDecisions by cbuCode and call merge_activated_depots_by_cbu once per CBU.
+        depot_decisions = sr.get("depotDecisions") or []
+        if depot_decisions and self.list_master_service:
+            from collections import defaultdict
+            cbu_depots: dict = defaultdict(list)
+            for dd in depot_decisions:
+                cbu_code = dd.get("cbuCode")
+                depot_code = dd.get("depotCode")
+                if cbu_code and depot_code:
+                    cbu_depots[cbu_code].append(depot_code)
+            for cbu_code, depots in cbu_depots.items():
+                self.list_master_service.merge_activated_depots_by_cbu(cbu_code, depots)
+            self._log_step("mark_depots_activated", "completed",
+                           result={"cbuCount": len(cbu_depots)})
 
     # ── Effect: geo-extension ─────────────────────────────────────────────────
 

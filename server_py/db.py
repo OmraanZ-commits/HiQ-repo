@@ -675,7 +675,7 @@ def run_migrations():
         conn.execute(text("""
             UPDATE network_entries
             SET mstn_green_lock = COALESCE(mstn_green_lock, '{}') || (
-                SELECT COALESCE(jsonb_object_agg(key, value), '{}')
+                SELECT COALESCE(jsonb_object_agg(key, true), '{}')
                 FROM jsonb_each(mstn_by_depot)
                 WHERE value::numeric >= 80
             )

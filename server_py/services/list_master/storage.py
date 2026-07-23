@@ -186,6 +186,25 @@ class ListMasterStorage:
         finally:
             db.close()
 
+    def merge_activated_depots_by_cbu(self, cbu_code: str, depot_codes: list) -> Optional[dict]:
+        """Additively mark depot_codes as activated in activated_depots for entries matching cbu_code."""
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.cbu_code == cbu_code
+            ).first()
+            if not row:
+                return None
+            existing = dict(row.activated_depots or {})
+            for depot in depot_codes:
+                existing[depot] = True
+            row.activated_depots = existing
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
     def merge_geo_depots(self, entry_id: str, added_geos: list, added_depots: list) -> Optional[dict]:
         """Merge new geographies and depots into the CBU record without duplication."""
         db = SessionLocal()

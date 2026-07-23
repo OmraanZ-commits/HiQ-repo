@@ -59,3 +59,6 @@ class ListMasterService:
 
     def update_network_change_date(self, entry_id: str, new_date: str) -> Optional[dict]:
         return self.storage.update_network_change_date(entry_id, new_date)
+
+    def merge_activated_depots_by_cbu(self, cbu_code: str, depot_codes: list) -> Optional[dict]:
+        return self.storage.merge_activated_depots_by_cbu(cbu_code, depot_codes)
