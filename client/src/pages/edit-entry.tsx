@@ -2684,6 +2684,7 @@ export default function EditEntry() {
             mtGeos={mtGeos}
             customerMapping={customerMapping}
             currentNetworkChangeDate={entry.networkChangeDate}
+            sourcingMode={sourcingMode}
           />
         )}
       </main>

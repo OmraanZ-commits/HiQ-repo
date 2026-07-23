@@ -811,6 +811,7 @@ function SourcingEditor({
   currentGeo, currentDepots,
   newMode, setNewMode,
   sourcingDepotMapping, setSourcingDepotMapping,
+  inheritedMode, availableSourcingDepots,
 }: {
   currentGeo: string[];
   currentDepots: string[];
@@ -818,7 +819,11 @@ function SourcingEditor({
   setNewMode: (m: "decentralized" | "centralized") => void;
   sourcingDepotMapping: Record<string, string>;
   setSourcingDepotMapping: (v: Record<string, string>) => void;
+  inheritedMode?: "decentralized" | "centralized";
+  availableSourcingDepots?: string[];
 }) {
+  const effectiveMode = inheritedMode ?? newMode;
+  const depotPool = availableSourcingDepots ?? currentDepots;
   const sourcingDepotSet = new Set(Object.values(sourcingDepotMapping));
 
   const handleDepotChange = (depot: string, sourcingDepot: string) => {
@@ -849,41 +854,64 @@ function SourcingEditor({
 
   return (
     <div className="space-y-5">
-      {/* Mode toggle */}
+      {/* Mode: toggle (sourcing-amendment) or read-only badge (geo-extension wizard) */}
       <div>
-        <p className="text-sm font-medium mb-2">Requested Sourcing Mode</p>
-        <div className="flex gap-2">
-          {(["decentralized", "centralized"] as const).map(m => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                setNewMode(m);
-                if (m === "centralized") setSourcingDepotMapping({});
-              }}
-              className={cn(
-                "px-4 py-2 rounded-lg border text-sm font-medium transition-all capitalize",
-                newMode === m
-                  ? "bg-blue-500 text-white border-blue-500"
-                  : "bg-white text-foreground border-border hover:border-blue-300 hover:bg-blue-50",
-              )}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
+        <p className="text-sm font-medium mb-2">Sourcing Strategy</p>
+        {inheritedMode ? (
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium border capitalize",
+              inheritedMode === "decentralized"
+                ? "bg-blue-50 border-blue-300 text-blue-700"
+                : "bg-amber-50 border-amber-300 text-amber-700",
+            )}>
+              {inheritedMode}
+            </span>
+            <span className="text-xs text-muted-foreground">(inherited — cannot be changed here)</span>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            {(["decentralized", "centralized"] as const).map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setNewMode(m);
+                  if (m === "centralized") setSourcingDepotMapping({});
+                }}
+                className={cn(
+                  "px-4 py-2 rounded-lg border text-sm font-medium transition-all capitalize",
+                  newMode === m
+                    ? "bg-blue-500 text-white border-blue-500"
+                    : "bg-white text-foreground border-border hover:border-blue-300 hover:bg-blue-50",
+                )}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
         <p className="text-xs text-muted-foreground mt-1.5">
-          {newMode === "decentralized"
+          {effectiveMode === "decentralized"
             ? "All distribution depots source stock independently from themselves."
             : "Assign each distribution depot a sourcing depot. A depot chosen as a sourcing depot is auto-locked to itself."}
         </p>
       </div>
 
+      {/* Decentralized: informational note for geo-extension wizard */}
+      {effectiveMode === "decentralized" && inheritedMode && (
+        <div className="rounded-lg border bg-blue-50 border-blue-200 px-4 py-3">
+          <p className="text-xs text-blue-800">
+            Each newly added depot will source stock independently from itself — no additional configuration is required.
+          </p>
+        </div>
+      )}
+
       {/* Current coverage (read-only context) */}
       {currentGeo.length > 0 && (
         <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Current Distribution Coverage
+            {inheritedMode ? "Newly Added Depots" : "Current Distribution Coverage"}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {currentGeo.map(g => <Badge key={g} variant="secondary" className="text-xs">{g}</Badge>)}
@@ -897,7 +925,7 @@ function SourcingEditor({
       )}
 
       {/* Centralized: depot → sourcing depot mapping table */}
-      {newMode === "centralized" && (
+      {effectiveMode === "centralized" && (
         currentDepots.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             No depots available — entry has no distribution coverage.
@@ -919,7 +947,7 @@ function SourcingEditor({
                   {currentDepots.map((depot, idx) => {
                     const isLocked = sourcingDepotSet.has(depot);
                     const current = sourcingDepotMapping[depot] || "";
-                    const eligibleOptions = currentDepots.filter(d =>
+                    const eligibleOptions = depotPool.filter(d =>
                       !sourcingDepotMapping[d] || sourcingDepotMapping[d] === d
                     );
                     return (
@@ -2340,6 +2368,7 @@ export interface RaiseAmendmentDialogProps {
   mtGeos?: string[];
   customerMapping?: Record<string, string[]>;
   currentNetworkChangeDate?: string | null;
+  sourcingMode?: "decentralized" | "centralized";
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -2356,9 +2385,12 @@ export function RaiseAmendmentDialog({
   mtGeos = [],
   customerMapping = {},
   currentNetworkChangeDate,
+  sourcingMode,
 }: RaiseAmendmentDialogProps) {
   const [step,          setStep]          = useState<Step>("type");
   const [amendmentType, setAmendmentType] = useState<SrType | "">("");
+  // Geo-extension wizard sub-step: 1=Geo&Depot, 2=Channel, 3=CustomerChain, 4=SourcingDepot
+  const [geoWizardStep, setGeoWizardStep] = useState(1);
 
   const duplicateSr = useMemo(() => {
     if (!amendmentType) return null;
@@ -2434,6 +2466,36 @@ export function RaiseAmendmentDialog({
 
   const currentStepIdx = STEPS.indexOf(step);
 
+  // ── Geo-extension wizard derived values ─────────────────────────────────────
+  const MT_CHANNEL_CODES = useMemo(() => ["Ecom", "Qcom", "MT Retail", "CNC"], []);
+
+  // Geos added in this request that have at least one MT sub-channel requested
+  const addedMtGeos = useMemo(() =>
+    addedGeos.filter(geo =>
+      MT_CHANNEL_CODES.some(mc => (requestedChannelMapping[geo] ?? []).includes(mc))
+    ),
+    [addedGeos, requestedChannelMapping, MT_CHANNEL_CODES],
+  );
+  const hasCustomerChainStep = addedMtGeos.length > 0;
+
+  // Step 1 "Next" is valid when at least one geo is added AND each added geo has ≥1 depot ticked
+  const geoStep1Valid = addedGeos.length > 0 && addedGeos.every(geo => {
+    const geoDepots = geographyDepotMap[geo] || [];
+    return geoDepots.some(d => addedDepots.includes(d));
+  });
+
+  // Navigate within geo wizard, skipping Customer Chain if no MT channels
+  const geoWizardNext = () => {
+    if (geoWizardStep === 2 && !hasCustomerChainStep) { setGeoWizardStep(4); return; }
+    if (geoWizardStep === 4) { setStep("summary"); return; }
+    setGeoWizardStep(s => s + 1);
+  };
+  const geoWizardBack = () => {
+    if (geoWizardStep === 1) { setStep("type"); setGeoWizardStep(1); return; }
+    if (geoWizardStep === 4 && !hasCustomerChainStep) { setGeoWizardStep(2); return; }
+    setGeoWizardStep(s => s - 1);
+  };
+
   const hasChanges = useMemo(() => {
     if (amendmentType === "geo-extension")     return addedGeos.length > 0 || removedGeos.length > 0 || removedDepots.length > 0;
     if (amendmentType === "channel-extension") return addedChannels.length > 0 || removedChannels.length > 0;
@@ -2464,6 +2526,7 @@ export function RaiseAmendmentDialog({
   const reset = () => {
     setStep("type");
     setAmendmentType("");
+    setGeoWizardStep(1);
     setAddedGeos([]);
     setAddedDepots([]);
     setRequestedChannelMapping({});
@@ -2645,29 +2708,71 @@ export function RaiseAmendmentDialog({
         </div>
 
         {/* Step indicator */}
-        <div className="flex items-center gap-1.5 text-xs">
-          {STEPS.map((s, i) => (
-            <span key={s} className="flex items-center gap-1.5">
-              <span className={cn(
-                "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
-                i === currentStepIdx ? "bg-blue-500 text-white"
-                : i < currentStepIdx ? "bg-emerald-500 text-white"
-                : "bg-muted text-muted-foreground",
-              )}>
-                {i < currentStepIdx ? "✓" : i + 1}
+        {amendmentType === "geo-extension" && step !== "type" ? (
+          // 5-step geo-extension wizard indicator
+          <div className="flex items-center gap-1 text-xs overflow-x-auto pb-0.5">
+            {[
+              { n: 1, label: "Geo & Depot" },
+              { n: 2, label: "Channel" },
+              { n: 3, label: "Customer Chain", skip: !hasCustomerChainStep && geoWizardStep !== 3 },
+              { n: 4, label: "Sourcing Depot" },
+              { n: 5, label: "Review" },
+            ].map(({ n, label, skip }, i, arr) => {
+              const wizCurrentStep = step === "summary" ? 5 : geoWizardStep;
+              const active  = wizCurrentStep === n;
+              const done    = wizCurrentStep > n;
+              return (
+                <span key={n} className="flex items-center gap-1 shrink-0">
+                  <span className={cn(
+                    "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
+                    active ? "bg-blue-500 text-white"
+                    : done  ? "bg-emerald-500 text-white"
+                    : skip  ? "bg-muted/40 text-muted-foreground/40"
+                    : "bg-muted text-muted-foreground",
+                  )}>
+                    {done ? "✓" : n}
+                  </span>
+                  <span className={cn(
+                    "hidden sm:inline whitespace-nowrap",
+                    active ? "font-medium text-foreground"
+                    : skip  ? "text-muted-foreground/40"
+                    : "text-muted-foreground",
+                  )}>
+                    {label}
+                  </span>
+                  {i < arr.length - 1 && (
+                    <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          // Standard 3-step indicator for all other amendment types
+          <div className="flex items-center gap-1.5 text-xs">
+            {STEPS.map((s, i) => (
+              <span key={s} className="flex items-center gap-1.5">
+                <span className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
+                  i === currentStepIdx ? "bg-blue-500 text-white"
+                  : i < currentStepIdx ? "bg-emerald-500 text-white"
+                  : "bg-muted text-muted-foreground",
+                )}>
+                  {i < currentStepIdx ? "✓" : i + 1}
+                </span>
+                <span className={cn(
+                  "hidden sm:inline",
+                  i === currentStepIdx ? "font-medium text-foreground" : "text-muted-foreground",
+                )}>
+                  {s === "type" ? "Type" : s === "edit" ? "Edit" : "Review"}
+                </span>
+                {i < STEPS.length - 1 && (
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                )}
               </span>
-              <span className={cn(
-                "hidden sm:inline",
-                i === currentStepIdx ? "font-medium text-foreground" : "text-muted-foreground",
-              )}>
-                {s === "type" ? "Type" : s === "edit" ? "Edit" : "Review"}
-              </span>
-              {i < STEPS.length - 1 && (
-                <ChevronRight className="h-3 w-3 text-muted-foreground" />
-              )}
-            </span>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Scrollable content */}
         <div className="max-h-[52vh] overflow-y-auto pr-1 -mr-1">
@@ -2737,8 +2842,8 @@ export function RaiseAmendmentDialog({
             </div>
           )}
 
-          {/* ── Step 2: Editor ── */}
-          {step === "edit" && amendmentType === "geo-extension" && (
+          {/* ── Geo-extension wizard sub-steps ── */}
+          {step === "edit" && amendmentType === "geo-extension" && geoWizardStep === 1 && (
             <GeoEditor
               clusters={clusters}
               currentGeo={currentGeo}
@@ -2753,6 +2858,57 @@ export function RaiseAmendmentDialog({
               removedDepots={removedDepots}
               setRemovedDepots={setRemovedDepots}
             />
+          )}
+
+          {step === "edit" && amendmentType === "geo-extension" && geoWizardStep === 2 && (
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                Select channels for each newly added geography. Existing geographies and their channels are unchanged.
+              </div>
+              <ChannelEditor
+                leafChannels={leafChannels}
+                currentGeo={addedGeos}
+                channelMapping={{}}
+                requestedChannelMapping={requestedChannelMapping}
+                setRequestedChannelMapping={setRequestedChannelMapping}
+              />
+            </div>
+          )}
+
+          {step === "edit" && amendmentType === "geo-extension" && geoWizardStep === 3 && (
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                Configure customer chains for newly added geographies that have MT sub-channels selected.
+              </div>
+              <CustomerChainEditor
+                mtGeos={addedMtGeos}
+                channelMapping={requestedChannelMapping}
+                customerMapping={{}}
+                requestedCustomerMapping={requestedCustomerMapping}
+                setRequestedCustomerMapping={setRequestedCustomerMapping}
+              />
+            </div>
+          )}
+
+          {step === "edit" && amendmentType === "geo-extension" && geoWizardStep === 4 && (
+            <div className="space-y-3">
+              {addedDepots.length === 0 ? (
+                <div className="rounded-lg border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+                  No new depots were added — sourcing configuration is not required.
+                </div>
+              ) : (
+                <SourcingEditor
+                  currentGeo={addedGeos}
+                  currentDepots={addedDepots}
+                  newMode={newMode}
+                  setNewMode={setNewMode}
+                  sourcingDepotMapping={sourcingDepotMapping}
+                  setSourcingDepotMapping={setSourcingDepotMapping}
+                  inheritedMode={sourcingMode ?? "decentralized"}
+                  availableSourcingDepots={[...currentDepots, ...addedDepots]}
+                />
+              )}
+            </div>
           )}
 
           {step === "edit" && amendmentType === "channel-extension" && (
@@ -2886,7 +3042,14 @@ export function RaiseAmendmentDialog({
 
         {/* Footer */}
         <DialogFooter className="gap-2 pt-1 border-t">
-          {currentStepIdx > 0 && (
+          {/* Back button — geo-extension wizard */}
+          {amendmentType === "geo-extension" && step === "edit" && (
+            <Button variant="outline" onClick={geoWizardBack} className="gap-1" data-testid="button-geo-wizard-back">
+              <ChevronLeft className="h-4 w-4" /> Back
+            </Button>
+          )}
+          {/* Back button — standard flow */}
+          {amendmentType !== "geo-extension" && currentStepIdx > 0 && (
             <Button
               variant="outline"
               onClick={() => setStep(STEPS[currentStepIdx - 1])}
@@ -2895,6 +3058,18 @@ export function RaiseAmendmentDialog({
               <ChevronLeft className="h-4 w-4" /> Back
             </Button>
           )}
+          {/* Back from summary — geo-extension returns to wizard step 4 */}
+          {amendmentType === "geo-extension" && step === "summary" && (
+            <Button
+              variant="outline"
+              onClick={() => { setStep("edit"); setGeoWizardStep(4); }}
+              className="gap-1"
+              data-testid="button-geo-wizard-back-from-review"
+            >
+              <ChevronLeft className="h-4 w-4" /> Back
+            </Button>
+          )}
+
           <Button variant="ghost" onClick={handleClose} data-testid="button-cancel-amendment">
             Cancel
           </Button>
@@ -2902,14 +3077,29 @@ export function RaiseAmendmentDialog({
           {step === "type" && (
             <Button
               disabled={!amendmentType}
-              onClick={() => setStep("edit")}
+              onClick={() => { setGeoWizardStep(1); setStep("edit"); }}
               className="gap-1"
+              data-testid="button-continue-type"
             >
               Continue <ChevronRight className="h-4 w-4" />
             </Button>
           )}
 
-          {step === "edit" && (
+          {/* Next button — geo-extension wizard sub-steps 1-4 */}
+          {step === "edit" && amendmentType === "geo-extension" && (
+            <Button
+              disabled={geoWizardStep === 1 && !geoStep1Valid}
+              onClick={geoWizardNext}
+              className="gap-1"
+              data-testid={`button-geo-wizard-next-${geoWizardStep}`}
+            >
+              {geoWizardStep === 4 ? "Review Changes" : "Next"}
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Next button — all other amendment types */}
+          {step === "edit" && amendmentType !== "geo-extension" && (
             <Button
               disabled={!hasChanges}
               onClick={() => setStep("summary")}
