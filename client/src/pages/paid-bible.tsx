@@ -442,11 +442,12 @@ function MaterialsSubTable({
                                 const activated     = !!(m.activatedDepots ?? {})[depot];
                                 const newlyEligible = !activated && pct >= 80;
                                 const mstnCleared = pct >= 80;
-                                const tileCls = mstnCleared
+                                const greenTile = activated || mstnCleared;
+                                const tileCls = greenTile
                                   ? "bg-emerald-50 border-emerald-200"
                                   : "bg-red-50 border-red-200";
-                                const barCls = mstnCleared ? "bg-emerald-500" : "bg-red-400";
-                                const pctCls = mstnCleared ? "text-emerald-700" : "text-red-600";
+                                const barCls = greenTile ? "bg-emerald-500" : "bg-red-400";
+                                const pctCls = greenTile ? "text-emerald-700" : "text-red-600";
                                 return (
                                   <div
                                     key={depot}
