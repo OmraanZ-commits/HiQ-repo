@@ -180,7 +180,8 @@ class SrApprovalSaga:
             for dd in depot_decisions:
                 cbu_code = dd.get("cbuCode")
                 depot_code = dd.get("depotCode")
-                if cbu_code and depot_code:
+                # Only persist depots that NCSM explicitly approved; skip pending/rejected.
+                if cbu_code and depot_code and dd.get("ncsmDecision") == "approved":
                     cbu_depots[cbu_code].append(depot_code)
             for cbu_code, depots in cbu_depots.items():
                 self.list_master_service.merge_activated_depots_by_cbu(cbu_code, depots)
