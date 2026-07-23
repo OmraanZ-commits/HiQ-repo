@@ -1790,8 +1790,10 @@ function SummaryView({
   setDemandEstimateFile: (f: File | null) => void;
   priceLotChangeData?: PriceLotChangeData;
   geoSourcingMode?: "decentralized" | "centralized";
+  geographyDepotMap?: Record<string, string[]>;
 }) {
   const keptGeos = currentGeo.filter(g => !removedGeos.includes(g));
+  const MT_CH_CODES = MT_SUB_CHANNELS.map(sc => sc.code);
 
   return (
     <div className="space-y-4">
@@ -1834,107 +1836,99 @@ function SummaryView({
                 )}
               </div>
             )}
+            {/* Per-geography breakdown for added geos */}
             {addedGeos.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Adding Geographies</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {addedGeos.map(g => (
-                    <Badge key={g} className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal">{g}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {addedDepots.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Adding Depots</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {addedDepots.map(d => (
-                    <Badge key={d} className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono font-normal">{d}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Per-geo channel selections for added geos */}
-            {addedGeos.length > 0 && Object.keys(requestedChannelMapping).length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5">Channels per New Geography</p>
-                <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground mb-2">Adding Geographies — Per-Geo Breakdown</p>
+                <div className="space-y-2.5">
                   {addedGeos.map(geo => {
-                    const chs = requestedChannelMapping[geo] ?? [];
+                    const geoDepots = geographyDepotMap
+                      ? (geographyDepotMap[geo] || []).filter(d => addedDepots.includes(d))
+                      : [];
+                    const channels = requestedChannelMapping[geo] ?? [];
+                    const customerChains = requestedCustomerMapping[geo] ?? [];
+                    const hasMt = channels.some(c => MT_CH_CODES.includes(c));
                     return (
-                      <div key={geo} className="flex items-start gap-2">
-                        <span className="text-[11px] font-medium text-slate-600 w-36 shrink-0 pt-0.5">{geo}</span>
-                        {chs.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {chs.map(c => <Badge key={c} className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-normal">{c}</Badge>)}
+                      <div key={geo} className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-2.5" data-testid={`geo-summary-card-${geo.toLowerCase().replace(/\s+/g, "-")}`}>
+                        {/* Geo header */}
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <span className="text-sm font-semibold text-emerald-800">{geo}</span>
+                          <Badge className="ml-auto bg-emerald-100 text-emerald-700 border border-emerald-300 text-[10px] px-1.5 py-0 font-normal">New</Badge>
+                        </div>
+
+                        {/* Depots being added for this geo */}
+                        {geoDepots.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Depots Adding</p>
+                            <div className="flex flex-wrap gap-1">
+                              {geoDepots.map(d => (
+                                <Badge key={d} className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono font-normal" data-testid={`badge-depot-${d.toLowerCase()}`}>{d}</Badge>
+                              ))}
+                            </div>
                           </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">No channels selected</span>
+                        )}
+
+                        {/* Channels */}
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Channels</p>
+                          {channels.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {channels.map(c => (
+                                <Badge key={c} className="bg-blue-100 text-blue-700 border border-blue-200 text-xs font-normal" data-testid={`badge-channel-${c.toLowerCase().replace(/\s+/g, "-")}`}>{c}</Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">No channels selected</span>
+                          )}
+                        </div>
+
+                        {/* Customer chains — only when MT channels selected */}
+                        {hasMt && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Customer Chains (MT)</p>
+                            {customerChains.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {customerChains.map(c => (
+                                  <Badge key={c} className="bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200 text-xs font-normal" data-testid={`badge-chain-${c.toLowerCase().replace(/\s+/g, "-")}`}>{c}</Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">None selected</span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Sourcing depot per added depot for this geo */}
+                        {geoSourcingMode && geoDepots.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Sourcing</p>
+                            {geoSourcingMode === "decentralized" ? (
+                              <Badge className="bg-blue-100 text-blue-700 border border-blue-300 text-xs font-normal capitalize">Decentralized — self-sourcing</Badge>
+                            ) : (
+                              <div className="space-y-1">
+                                {geoDepots.map(depot => (
+                                  <div key={depot} className="flex items-center gap-2 text-xs">
+                                    <span className="font-mono text-slate-600 w-20 shrink-0">{depot}</span>
+                                    <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                    {sourcingDepotMapping[depot] ? (
+                                      <span className="flex items-center gap-1 font-mono font-medium text-blue-700">
+                                        {sourcingDepotMapping[depot]}
+                                        {sourcingDepotMapping[depot] === depot && <Lock className="h-2.5 w-2.5" />}
+                                      </span>
+                                    ) : (
+                                      <span className="text-amber-500 italic" data-testid={`sourcing-unassigned-${depot.toLowerCase()}`}>Not assigned</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            {/* Customer chains for added MT geos */}
-            {addedGeos.length > 0 && Object.keys(requestedCustomerMapping).length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5">Customer Chains (MT)</p>
-                <div className="space-y-1.5">
-                  {addedGeos
-                    .filter(geo => (requestedCustomerMapping[geo] ?? []).length > 0)
-                    .map(geo => (
-                      <div key={geo} className="flex items-start gap-2">
-                        <span className="text-[11px] font-medium text-slate-600 w-36 shrink-0 pt-0.5">{geo}</span>
-                        <div className="flex flex-wrap gap-1">
-                          {(requestedCustomerMapping[geo] ?? []).map(c => (
-                            <Badge key={c} className="bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200 text-xs font-normal">{c}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Sourcing strategy and depot mappings for added depots */}
-            {addedDepots.length > 0 && geoSourcingMode && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5">Sourcing Strategy</p>
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge className={cn(
-                    "text-xs font-normal border capitalize",
-                    geoSourcingMode === "decentralized"
-                      ? "bg-blue-100 text-blue-700 border-blue-300"
-                      : "bg-amber-100 text-amber-700 border-amber-300",
-                  )}>
-                    {geoSourcingMode}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">(inherited)</span>
-                </div>
-                {geoSourcingMode === "centralized" && Object.keys(sourcingDepotMapping).length > 0 && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-muted/50 border-b">
-                          <th className="text-left py-1.5 px-3 font-medium w-[130px]">New Depot</th>
-                          <th className="text-left py-1.5 px-3 font-medium">Sourcing Depot</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {addedDepots.map((depot, idx) => (
-                          <tr key={depot} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                            <td className="py-1.5 px-3 font-mono border-r">{depot}</td>
-                            <td className="py-1.5 px-3 font-mono">{sourcingDepotMapping[depot] ?? <span className="text-muted-foreground italic">—</span>}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -3166,6 +3160,7 @@ export function RaiseAmendmentDialog({
                 priceOff: plcPriceOff,
               } : undefined}
               geoSourcingMode={amendmentType === "geo-extension" ? (sourcingMode ?? "decentralized") : undefined}
+              geographyDepotMap={amendmentType === "geo-extension" ? geographyDepotMap : undefined}
             />
           )}
         </div>
