@@ -2563,11 +2563,15 @@ export function RaiseAmendmentDialog({
   );
   const hasCustomerChainStep = addedMtGeos.length > 0;
 
-  // Step 1 "Next" is valid when at least one geo is added AND each added geo has ≥1 depot ticked
-  const geoStep1Valid = addedGeos.length > 0 && addedGeos.every(geo => {
+  // Each added geo must have ≥1 depot ticked (not relevant for remove-only flows)
+  const geoAddFlowValid = addedGeos.length === 0 || addedGeos.every(geo => {
     const geoDepots = geographyDepotMap[geo] || [];
     return geoDepots.some(d => addedDepots.includes(d));
   });
+  // Step 1 "Next" is valid: at least one change (add or remove) AND add-flow requirements met
+  const geoStep1Valid =
+    (addedGeos.length > 0 || removedGeos.length > 0 || removedDepots.length > 0) &&
+    geoAddFlowValid;
 
   // Step 4 "Next" is valid: when centralized, all newly added depots must have a sourcing depot assigned
   const geoStep4Valid = (() => {
@@ -2579,6 +2583,17 @@ export function RaiseAmendmentDialog({
 
   // Navigate within geo wizard, skipping Customer Chain if no MT channels
   const geoWizardNext = () => {
+    if (geoWizardStep === 1) {
+      // Pre-populate requestedChannelMapping for newly added geos with union of existing channels
+      const channelUnion = Array.from(new Set(Object.values(channelMapping).flat()));
+      setRequestedChannelMapping(prev => {
+        const seeded = { ...prev };
+        for (const geo of addedGeos) {
+          if (!(geo in seeded)) seeded[geo] = channelUnion;
+        }
+        return seeded;
+      });
+    }
     if (geoWizardStep === 2 && !hasCustomerChainStep) { setGeoWizardStep(4); return; }
     if (geoWizardStep === 4) { setStep("summary"); return; }
     setGeoWizardStep(s => s + 1);
@@ -2966,7 +2981,7 @@ export function RaiseAmendmentDialog({
                 removedDepots={removedDepots}
                 setRemovedDepots={setRemovedDepots}
               />
-              {addedGeos.length > 0 && !geoStep1Valid && (
+              {addedGeos.length > 0 && !geoAddFlowValid && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" data-testid="hint-geo-depot-required">
                   Select at least one depot for each added geography to proceed.
                 </p>
