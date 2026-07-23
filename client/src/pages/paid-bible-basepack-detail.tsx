@@ -11,7 +11,7 @@ import {
   Waypoints, Shuffle, ArrowRightLeft, GitCommit, CalendarCheck,
   CalendarX, Archive, Activity, AlertTriangle, ExternalLink,
   History, ChevronRight, ChevronDown, AlertCircle, BarChart2,
-  TrendingUp, ShieldCheck, Zap, Tag,
+  TrendingUp, ShieldCheck, Zap, Tag, CheckCircle2,
 } from "lucide-react";
 import { CbuDetailSection, type PendingSrRef } from "@/components/basepack-cbu-sections";
 import { SrStatusBadge } from "@/components/sr-detail-components";
@@ -288,7 +288,15 @@ function OverviewTab({ profile, pendingSrs }: { profile: BasepakProfile; pending
 
 // ─── CBUs Tab ─────────────────────────────────────────────────────────────────
 
-function DepotMstnBreakdown({ mstnByDepot, depots }: { mstnByDepot: Record<string, number>; depots: string[] }) {
+function DepotMstnBreakdown({
+  mstnByDepot, depots,
+  mstnGreenLock = {}, activatedDepots = {},
+}: {
+  mstnByDepot: Record<string, number>;
+  depots: string[];
+  mstnGreenLock?: Record<string, unknown>;
+  activatedDepots?: Record<string, unknown>;
+}) {
   const entries = depots
     .filter(d => mstnByDepot[d] != null)
     .map(d => ({ depot: d, pct: mstnByDepot[d] }));
@@ -300,20 +308,30 @@ function DepotMstnBreakdown({ mstnByDepot, depots }: { mstnByDepot: Record<strin
         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Depot-Level MSTN %</span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {entries.map(({ depot, pct }) => (
-          <div key={depot} className="flex flex-col gap-1" data-testid={`depot-mstn-${depot}`}>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-medium text-slate-700">{depot}</span>
-              <span className={`text-xs font-bold ${pct >= 80 ? "text-emerald-600" : "text-amber-600"}`}>{pct}%</span>
+        {entries.map(({ depot, pct }) => {
+          const greenLock = !!mstnGreenLock[depot];
+          const isGreen = pct >= 80 || greenLock;
+          const activated = !!activatedDepots[depot];
+          return (
+            <div key={depot} className="flex flex-col gap-1" data-testid={`depot-mstn-${depot}`}>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-medium text-slate-700">{depot}</span>
+                <div className="flex items-center gap-1">
+                  <span className={`text-xs font-bold ${isGreen ? "text-emerald-600" : "text-amber-600"}`}>{pct}%</span>
+                  {activated
+                    ? <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" title="Basepack activated for this DC" />
+                    : <AlertCircle  className="h-3 w-3 text-amber-400 shrink-0" title="Basepack activation pending for this DC" />}
+                </div>
+              </div>
+              <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${isGreen ? "bg-emerald-500" : "bg-amber-400"}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
             </div>
-            <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : "bg-amber-400"}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -405,7 +423,12 @@ function CbusTab({ cbus }: { cbus: CbuRecord[] }) {
                 {isExpanded && hasDepotBreakdown && (
                   <TableRow data-testid={`cbu-depot-breakdown-${cbu.id}`}>
                     <TableCell colSpan={8} className="p-0">
-                      <DepotMstnBreakdown mstnByDepot={mstnByDepot} depots={depots} />
+                      <DepotMstnBreakdown
+                        mstnByDepot={mstnByDepot}
+                        depots={depots}
+                        mstnGreenLock={(cbu as any).mstnGreenLock ?? {}}
+                        activatedDepots={(cbu as any).activatedDepots ?? {}}
+                      />
                     </TableCell>
                   </TableRow>
                 )}

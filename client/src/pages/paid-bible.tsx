@@ -2032,25 +2032,35 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                                   DC-wise MSTN — {m.code}
                                 </p>
                                 <div className="space-y-2">
-                                  {depotEntries.map(([depot, pct]) => (
-                                    <div key={depot} className="flex items-center gap-3">
-                                      <span className="text-[11px] font-mono text-muted-foreground w-12 shrink-0 text-right">{depot}</span>
-                                      <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
-                                        <div
-                                          className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-500"}`}
-                                          style={{ width: `${Math.min(pct, 100)}%` }}
-                                        />
+                                  {depotEntries.map(([depot, pct]) => {
+                                    const greenLock = !!((m as any).mstnGreenLock ?? {})[depot];
+                                    const isGreen = pct >= 80 || greenLock;
+                                    const activated = !!((m as any).activatedDepots ?? {})[depot];
+                                    return (
+                                      <div key={depot} className="flex items-center gap-3">
+                                        <span className="text-[11px] font-mono text-muted-foreground w-12 shrink-0 text-right">{depot}</span>
+                                        <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full transition-all ${isGreen ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-500"}`}
+                                            style={{ width: `${Math.min(pct, 100)}%` }}
+                                          />
+                                        </div>
+                                        <span className={`text-[11px] font-semibold w-10 shrink-0 ${isGreen ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-red-500"}`}>
+                                          {pct}%
+                                        </span>
+                                        {activated
+                                          ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" title="Basepack activated for this DC" />
+                                          : <AlertCircle  className="h-3.5 w-3.5 text-amber-400 shrink-0" title="Basepack activation pending for this DC" />}
                                       </div>
-                                      <span className={`text-[11px] font-semibold w-10 shrink-0 ${pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-red-500"}`}>
-                                        {pct}%
-                                      </span>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                                 <div className="flex items-center gap-4 mt-3 pt-2 border-t text-[10px] text-muted-foreground">
-                                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />≥ 80% cleared</span>
+                                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />≥ 80% cleared (locked green)</span>
                                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />50–79% partial</span>
                                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />{"< 50% critical"}</span>
+                                  <span className="flex items-center gap-1.5"><CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />Activated</span>
+                                  <span className="flex items-center gap-1.5"><AlertCircle className="h-2.5 w-2.5 text-amber-400" />Pending activation</span>
                                 </div>
                               </TableCell>
                             </TableRow>

@@ -81,6 +81,8 @@ class NetworkEntryModel(Base):
     price_updated_at = Column(DateTime, nullable=True)
     mstn_percentage = Column(Integer, nullable=True)
     mstn_by_depot = Column(JSONB, nullable=True, default={})
+    mstn_green_lock = Column(JSONB, nullable=True, default={})
+    activated_depots = Column(JSONB, nullable=True, default={})
     predecessor_doh = Column(Integer, nullable=True)
     successor_doh = Column(Integer, nullable=True)
     doh_snapshot_date = Column(String, nullable=True)
@@ -609,6 +611,12 @@ def run_migrations():
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS mstn_by_depot JSONB"
         ))
         conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS mstn_green_lock JSONB DEFAULT '{}'"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS activated_depots JSONB DEFAULT '{}'"
+        ))
+        conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS basepak_doh INTEGER"
         ))
         conn.execute(text(
@@ -663,6 +671,16 @@ def run_migrations():
               AND depot IS NOT NULL
               AND array_length(depot, 1) > 0
               AND (mstn_by_depot IS NULL OR mstn_by_depot = '{}')
+        """))
+        conn.execute(text("""
+            UPDATE network_entries
+            SET mstn_green_lock = COALESCE(mstn_green_lock, '{}') || (
+                SELECT COALESCE(jsonb_object_agg(key, value), '{}')
+                FROM jsonb_each(mstn_by_depot)
+                WHERE value::numeric >= 80
+            )
+            WHERE mstn_by_depot IS NOT NULL
+              AND mstn_by_depot != '{}'
         """))
         # ── CCR: CLOT (Customer Level of Trade) per depot per chain ────────────
         conn.execute(text(
@@ -999,6 +1017,8 @@ FIELD_MAP_TO_DB = {
     "priceUpdatedAt": "price_updated_at",
     "mstnPercentage": "mstn_percentage",
     "mstnByDepot": "mstn_by_depot",
+    "mstnGreenLock": "mstn_green_lock",
+    "activatedDepots": "activated_depots",
     "predecessorDoh": "predecessor_doh",
     "successorDoh": "successor_doh",
     "dohSnapshotDate": "doh_snapshot_date",
