@@ -11,7 +11,7 @@ import {
   Map as MapIcon, Radio, PackageSearch, AlertTriangle, AlertCircle,
   ChevronRight, ChevronLeft, CheckCircle2, ExternalLink,
   MapPin, Check, Plus, X, Lock, Users, CalendarClock,
-  Upload, FileSpreadsheet, Trash2, IndianRupee,
+  Upload, FileSpreadsheet, Trash2, IndianRupee, Network,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -812,6 +812,7 @@ function SourcingEditor({
   newMode, setNewMode,
   sourcingDepotMapping, setSourcingDepotMapping,
   inheritedMode, availableSourcingDepots,
+  geographyDepotMap,
 }: {
   currentGeo: string[];
   currentDepots: string[];
@@ -821,6 +822,7 @@ function SourcingEditor({
   setSourcingDepotMapping: (v: Record<string, string>) => void;
   inheritedMode?: "decentralized" | "centralized";
   availableSourcingDepots?: string[];
+  geographyDepotMap?: Record<string, string[]>;
 }) {
   const effectiveMode = inheritedMode ?? newMode;
   const depotPool = availableSourcingDepots ?? currentDepots;
@@ -907,21 +909,65 @@ function SourcingEditor({
         </div>
       )}
 
-      {/* Current coverage (read-only context) */}
+      {/* Current coverage — geo→depot table (sourcing-amendment) or flat list (geo-extension) */}
       {currentGeo.length > 0 && (
-        <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            {inheritedMode ? "Newly Added Depots" : "Current Distribution Coverage"}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {currentGeo.map(g => <Badge key={g} variant="secondary" className="text-xs">{g}</Badge>)}
-          </div>
-          {currentDepots.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {currentDepots.map(d => <Badge key={d} variant="outline" className="text-xs font-mono">{d}</Badge>)}
+        !inheritedMode && geographyDepotMap ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Network className="h-4 w-4 text-blue-500" />
+              <p className="text-sm font-semibold">Sourcing by Geography &amp; Depot</p>
             </div>
-          )}
-        </div>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/40 border-b">
+                    <th className="text-left py-2 px-3 font-medium text-xs text-muted-foreground w-[200px]">Geography</th>
+                    <th className="text-left py-2 px-3 font-medium text-xs text-muted-foreground">Depots</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentGeo.map((geo, idx) => {
+                    const depots = (geographyDepotMap[geo] || []).filter(d => currentDepots.includes(d));
+                    return (
+                      <tr key={geo} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                        <td className="py-2 px-3 border-r align-middle">
+                          <span className="flex items-center gap-2">
+                            <Check className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                            <span className="text-xs font-medium">{geo}</span>
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 align-middle">
+                          <div className="flex flex-wrap gap-1">
+                            {depots.length > 0
+                              ? depots.map(d => (
+                                  <span key={d} className="inline-block rounded px-1.5 py-0.5 text-[11px] font-mono bg-blue-50 text-blue-700 border border-blue-200">{d}</span>
+                                ))
+                              : <span className="text-xs text-muted-foreground italic">—</span>
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              {inheritedMode ? "Newly Added Depots" : "Current Distribution Coverage"}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {currentGeo.map(g => <Badge key={g} variant="secondary" className="text-xs">{g}</Badge>)}
+            </div>
+            {currentDepots.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {currentDepots.map(d => <Badge key={d} variant="outline" className="text-xs font-mono">{d}</Badge>)}
+              </div>
+            )}
+          </div>
+        )
       )}
 
       {/* Centralized: depot → sourcing depot mapping table */}
@@ -3052,6 +3098,7 @@ export function RaiseAmendmentDialog({
               setNewMode={setNewMode}
               sourcingDepotMapping={sourcingDepotMapping}
               setSourcingDepotMapping={setSourcingDepotMapping}
+              geographyDepotMap={geographyDepotMap}
             />
           )}
 
