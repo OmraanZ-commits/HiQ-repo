@@ -117,6 +117,8 @@ interface PbMaterial {
   mstnPct: number | null;
   networkChangeDate: string | null;
   mstnByDepot: Record<string, number>;
+  mstnGreenLock: Record<string, boolean>;
+  activatedDepots: Record<string, boolean>;
   mstnClear: "Yes" | "No" | null;
   basepakDoh: number | null;
   prodPlanMoc1: boolean | null;
@@ -1669,9 +1671,9 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
             priceEnd:          e.endDate ? formatDateDisplay(e.endDate) : "-",
             mstnPct,
             networkChangeDate: e.networkChangeDate ?? null,
-            mstnByDepot:       (e as any).mstnByDepot ?? {},
-            mstnGreenLock:     (e as any).mstnGreenLock ?? {},
-            activatedDepots:   (e as any).activatedDepots ?? {},
+            mstnByDepot:       (e as any).mstnByDepot    as Record<string, number>  ?? {},
+            mstnGreenLock:     (e as any).mstnGreenLock  as Record<string, boolean> ?? {},
+            activatedDepots:   (e as any).activatedDepots as Record<string, boolean> ?? {},
             mstnClear: e.typeOfNetwork === "NEW_LAUNCH"
               ? computeMstnClear([{ mstnByDepot: (e as any).mstnByDepot ?? {} }])
               : null,
@@ -2035,9 +2037,9 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                                 </p>
                                 <div className="space-y-2">
                                   {depotEntries.map(([depot, pct]) => {
-                                    const greenLock = !!((m as any).mstnGreenLock ?? {})[depot];
+                                    const greenLock = !!(m.mstnGreenLock ?? {})[depot];
                                     const isGreen = pct >= 80 || greenLock;
-                                    const activated = !!((m as any).activatedDepots ?? {})[depot];
+                                    const activated = !!(m.activatedDepots ?? {})[depot];
                                     return (
                                       <div key={depot} className="flex items-center gap-3">
                                         <span className="text-[11px] font-mono text-muted-foreground w-12 shrink-0 text-right">{depot}</span>
