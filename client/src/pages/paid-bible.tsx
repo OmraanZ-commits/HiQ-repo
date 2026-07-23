@@ -2616,7 +2616,8 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                                   hasPendingReactivationSr={serviceRequests.some(r =>
                                     r.srType === "basepack-status-change" &&
                                     r.basepackCode === bp.basepackCode &&
-                                    r.overallStatus === "pending"
+                                    r.overallStatus === "pending" &&
+                                    (r.depotDecisions?.length ?? 0) > 0
                                   )}
                                 />
                               )}
