@@ -306,25 +306,25 @@ export default function PaidBibleSummaryTab() {
       });
   }, [allMaterials, rawDateMap]);
 
-  const mstnByBp = useMemo(() => {
-    const groups = new Map<string, { name: string; smallC: string; cleared: number; notCleared: number; exception: number }>();
+  const mstnByScat = useMemo(() => {
+    const groups = new Map<string, { cleared: number; notCleared: number; exception: number }>();
     newLaunchRows
       .filter(row => {
         const y = row.launchYear ?? CURRENT_YEAR;
         return selYear >= 2028 ? y >= 2028 : y === selYear;
       })
       .forEach(row => {
-      const s = getMocStatus(row, selMoc, selYear);
-      if (s === "future" || s === "active") return;
-      const key = row.bpCode;
-      if (!groups.has(key)) groups.set(key, { name: row.description, smallC: row.salesCategory, cleared: 0, notCleared: 0, exception: 0 });
-      const g = groups.get(key)!;
-      if (s === "yes") g.cleared++;
-      else if (s === "no") g.notCleared++;
-      else g.exception++;
-    });
+        const s = getMocStatus(row, selMoc, selYear);
+        if (s === "future" || s === "active") return;
+        const key = row.salesCategory || "Other";
+        if (!groups.has(key)) groups.set(key, { cleared: 0, notCleared: 0, exception: 0 });
+        const g = groups.get(key)!;
+        if (s === "yes") g.cleared++;
+        else if (s === "no") g.notCleared++;
+        else g.exception++;
+      });
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [newLaunchRows, selMoc]);
+  }, [newLaunchRows, selMoc, selYear]);
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
@@ -1011,15 +1011,15 @@ export default function PaidBibleSummaryTab() {
             </span>
           ))}
         </div>
-        {mstnByBp.length === 0 ? (
+        {mstnByScat.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-slate-400 text-xs italic">
-            No new launch CBUs requiring MSTN check for MOC {selMoc}.
+            No new launch CBUs requiring MSTN check for {selYear} MOC {selMoc}.
           </div>
         ) : (
           <table className="w-full text-xs" data-testid="mstn-table">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left px-5 py-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wider">Basepack</th>
+              <tr className="border-b border-slate-100 bg-slate-50/50">
+                <th className="text-left px-5 py-2 font-semibold text-slate-500 text-[10px] uppercase tracking-wider">Small C</th>
                 <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-emerald-600">MSTN Cleared</th>
                 <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-red-600">Not Cleared</th>
                 <th className="text-center px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-amber-600">Exception</th>
@@ -1027,53 +1027,43 @@ export default function PaidBibleSummaryTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {mstnByBp.map(([bpCode, counts]) => {
+              {mstnByScat.map(([cat, counts]) => {
                 const total = counts.cleared + counts.notCleared + counts.exception;
-                const pct = total > 0 ? Math.round(counts.cleared / total * 100) : 0;
                 return (
-                  <tr key={bpCode} className="hover:bg-slate-50/50" data-testid={`mstn-row-${bpCode}`}>
-                    <td className="px-5 py-2.5">
-                      <span className="font-mono font-semibold text-[#1f36c7] text-[10px]">{bpCode}</span>
-                      {counts.name && (
-                        <p className="font-medium text-slate-700 mt-0.5 leading-tight">{counts.name}</p>
-                      )}
-                      <p className="text-[10px] text-slate-400 mt-0.5">{counts.smallC}</p>
-                      <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
+                  <tr key={cat} className="hover:bg-slate-50/50 transition-colors" data-testid={`mstn-row-${cat}`}>
+                    <td className="px-5 py-2.5 font-medium text-slate-700">{cat}</td>
+                    <td className="text-center px-4 py-2.5 tabular-nums">
+                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs">{counts.cleared}</span>
                     </td>
-                    <td className="text-center px-4 py-2.5">
-                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-black text-xs">{counts.cleared}</span>
-                    </td>
-                    <td className="text-center px-4 py-2.5">
+                    <td className="text-center px-4 py-2.5 tabular-nums">
                       {counts.notCleared > 0
-                        ? <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 font-black text-xs">{counts.notCleared}</span>
+                        ? <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 font-bold text-xs">{counts.notCleared}</span>
                         : <span className="text-slate-200">—</span>}
                     </td>
-                    <td className="text-center px-4 py-2.5">
+                    <td className="text-center px-4 py-2.5 tabular-nums">
                       {counts.exception > 0
-                        ? <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-black text-xs">{counts.exception}</span>
+                        ? <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-bold text-xs">{counts.exception}</span>
                         : <span className="text-slate-200">—</span>}
                     </td>
-                    <td className="text-center px-4 py-2.5 font-bold text-slate-600 tabular-nums">{total}</td>
+                    <td className="text-center px-4 py-2.5 font-bold text-slate-700 tabular-nums">{total}</td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-200 bg-slate-50">
-                <td className="px-5 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Basepacks</td>
+                <td className="px-5 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total</td>
                 <td className="text-center px-4 py-2.5 font-black text-emerald-600 tabular-nums">
-                  {mstnByBp.reduce((s, [, c]) => s + c.cleared, 0)}
+                  {mstnByScat.reduce((s, [, c]) => s + c.cleared, 0)}
                 </td>
                 <td className="text-center px-4 py-2.5 font-black text-red-600 tabular-nums">
-                  {mstnByBp.reduce((s, [, c]) => s + c.notCleared, 0)}
+                  {(() => { const n = mstnByScat.reduce((s, [, c]) => s + c.notCleared, 0); return n > 0 ? n : <span className="text-slate-300">—</span>; })()}
                 </td>
                 <td className="text-center px-4 py-2.5 font-black text-amber-600 tabular-nums">
-                  {mstnByBp.reduce((s, [, c]) => s + c.exception, 0)}
+                  {mstnByScat.reduce((s, [, c]) => s + c.exception, 0)}
                 </td>
                 <td className="text-center px-4 py-2.5 font-black text-[#1f36c7] tabular-nums">
-                  {mstnByBp.reduce((s, [, c]) => s + c.cleared + c.notCleared + c.exception, 0)}
+                  {mstnByScat.reduce((s, [, c]) => s + c.cleared + c.notCleared + c.exception, 0)}
                 </td>
               </tr>
             </tfoot>
