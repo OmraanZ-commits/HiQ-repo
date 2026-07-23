@@ -28,7 +28,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock,
+  Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock, Lock, Star,
   Search, Filter, ChevronRight, ChevronDown, FileText,
   Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, Eye,
   ShieldCheck, ShieldAlert, Send, ListChecks, BadgeCheck, BadgeX,
@@ -457,10 +457,10 @@ function MaterialsSubTable({
                                       <div className="flex items-center gap-1 flex-shrink-0">
                                         <span className={`text-xs font-bold ${pctCls}`}>{pct}%</span>
                                         {activated
-                                          ? <CheckCircle2 className="h-3 w-3 text-emerald-500" title="Activated" />
+                                          ? <Lock className="h-3.5 w-3.5 text-emerald-700" title="Activated" />
                                           : newlyEligible
-                                            ? <span className="text-[10px] font-bold text-amber-600" title="Newly MSTN-cleared — eligible for activation">★</span>
-                                            : <AlertCircle className="h-3 w-3 text-red-400" title="MSTN below threshold" />}
+                                            ? <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-400" title="MSTN cleared — eligible for activation" />
+                                            : <XCircle className="h-3.5 w-3.5 text-red-500" title="MSTN below threshold" />}
                                       </div>
                                     </div>
                                     <div className="h-1 rounded-full bg-white/60 overflow-hidden">
