@@ -117,9 +117,14 @@ class SrApprovalSaga:
     def _apply_bp_status_change(self, sr: dict, actioned_by: str):
         """
         On full approval of a basepack-status-change SR:
-        1. Write a basepack_status_override using requestedValue (targetStatus) from the SR.
-        2. Record the lifecycle date (activation / inactive / delist).
-        3. Mark depot decisions as activated in activated_depots on each network entry.
+        1. Merge approved depot decisions into activated_depots (additive, per CBU).
+        2. Derive effective status:
+           - Activation SRs (targetStatus == "Active Pack") with depot decisions:
+             "Active Pack" only if every depot listed in the SR's depotDecisions is
+             now activated across its CBU; otherwise "Partially Active".
+           - All other SR types: use targetStatus as-is.
+        3. Write the basepack_status_override using the effective status.
+        4. Record the lifecycle date and status history.
         """
         bp_id = sr.get("basepackCode") or sr.get("basepakCode")
         target_status = (
@@ -133,18 +138,70 @@ class SrApprovalSaga:
                            result={"reason": "No basepackCode on SR"})
             return
 
+        # ── Step 1: Merge approved depot decisions into activated_depots ─────
+        depot_decisions = sr.get("depotDecisions") or []
+        all_depots_activated = True   # starts True; falsified if any CBU is incomplete
+
+        if depot_decisions and self.list_master_service:
+            from collections import defaultdict
+            cbu_depots: dict = defaultdict(list)
+            all_cbu_codes: set = set()
+
+            for dd in depot_decisions:
+                cbu_code = dd.get("cbuCode")
+                depot_code = dd.get("depotCode")
+                if cbu_code:
+                    all_cbu_codes.add(cbu_code)
+                # Only persist depots that NCSM explicitly approved; skip pending/rejected.
+                if cbu_code and depot_code and dd.get("ncsmDecision") == "approved":
+                    cbu_depots[cbu_code].append(depot_code)
+
+            for cbu_code, depots in cbu_depots.items():
+                updated_row = self.list_master_service.merge_activated_depots_by_cbu(cbu_code, depots)
+                if target_status == "Active Pack" and updated_row:
+                    # After the merge, check whether every known depot for this CBU
+                    # is now in activated_depots (using the depot[] array as ground truth).
+                    activated = set((updated_row.get("activatedDepots") or {}).keys())
+                    all_known = set(updated_row.get("depot") or [])
+                    if all_known and not all_known.issubset(activated):
+                        all_depots_activated = False
+                elif target_status == "Active Pack":
+                    all_depots_activated = False  # merge returned nothing — treat as incomplete
+
+            # A CBU referenced in the SR but with zero approved depots → incomplete
+            if target_status == "Active Pack":
+                for cbu_code in all_cbu_codes:
+                    if cbu_code not in cbu_depots:
+                        all_depots_activated = False
+
+            self._log_step("mark_depots_activated", "completed",
+                           result={"cbuCount": len(cbu_depots),
+                                   "allDepotsCovered": all_depots_activated})
+
+        # ── Step 2: Derive effective status ──────────────────────────────────
+        # For activation SRs that carry depot decisions, "Active Pack" is only
+        # granted when every depot in every CBU is now activated; otherwise the
+        # basepack stays "Partially Active" until a follow-up SR covers the rest.
+        if target_status == "Active Pack" and depot_decisions:
+            effective_status = "Active Pack" if all_depots_activated else "Partially Active"
+        else:
+            effective_status = target_status
+
+        # ── Step 3: Write basepack status override ───────────────────────────
         override = InsertBasepakStatusOverride(
             bpId=bp_id,
             srId=self.sr_id,
-            status=target_status,
+            status=effective_status,
             appliedBy=actioned_by,
         )
         self.bp_status_service.apply_override(override)
         self._applied_bp_override = bp_id
         self._log_step("apply_bp_override", "completed",
-                       result={"bpId": bp_id, "status": target_status})
+                       result={"bpId": bp_id,
+                               "requestedStatus": target_status,
+                               "effectiveStatus": effective_status})
 
-        # Write lifecycle date AND status history together.
+        # ── Step 4: Lifecycle date and status history ─────────────────────────
         # Both are mandatory side effects of a fully-approved status-change SR.
         # If either fails the exception propagates up and marks the saga as failed.
         if self.paid_bible_service:
@@ -153,40 +210,23 @@ class SrApprovalSaga:
 
             self.paid_bible_service.apply_status_change_dates(
                 bp_code=bp_id,
-                target_status=target_status,
+                target_status=effective_status,
                 effective_date=effective_date,
             )
             self._log_step("apply_lifecycle_date", "completed",
-                           result={"bpId": bp_id, "targetStatus": target_status})
+                           result={"bpId": bp_id, "targetStatus": effective_status})
 
             self.paid_bible_service.add_status_history_entry(
                 bp_code=bp_id,
                 from_status=prev_status,
-                to_status=target_status,
+                to_status=effective_status,
                 effective_date=effective_date,
                 sr_id=self.sr_id,
                 actioned_by=actioned_by,
                 notes=f"Approved via SR {self.sr_id}",
             )
             self._log_step("write_status_history", "completed",
-                           result={"bpId": bp_id, "from": prev_status, "to": target_status})
-
-        # Mark depot decisions as activated in activated_depots on each network entry.
-        # Group depotDecisions by cbuCode and call merge_activated_depots_by_cbu once per CBU.
-        depot_decisions = sr.get("depotDecisions") or []
-        if depot_decisions and self.list_master_service:
-            from collections import defaultdict
-            cbu_depots: dict = defaultdict(list)
-            for dd in depot_decisions:
-                cbu_code = dd.get("cbuCode")
-                depot_code = dd.get("depotCode")
-                # Only persist depots that NCSM explicitly approved; skip pending/rejected.
-                if cbu_code and depot_code and dd.get("ncsmDecision") == "approved":
-                    cbu_depots[cbu_code].append(depot_code)
-            for cbu_code, depots in cbu_depots.items():
-                self.list_master_service.merge_activated_depots_by_cbu(cbu_code, depots)
-            self._log_step("mark_depots_activated", "completed",
-                           result={"cbuCount": len(cbu_depots)})
+                           result={"bpId": bp_id, "from": prev_status, "to": effective_status})
 
     # ── Effect: geo-extension ─────────────────────────────────────────────────
 
