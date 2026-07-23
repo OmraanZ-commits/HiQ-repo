@@ -2771,10 +2771,9 @@ export function RaiseAmendmentDialog({
     if (amendmentType === "geo-extension")     return addedGeos.length > 0 || removedGeos.length > 0 || removedDepots.length > 0;
     if (amendmentType === "channel-extension") return addedChannels.length > 0 || removedChannels.length > 0;
     if (amendmentType === "sourcing-amendment") {
-      const depotChange = saAddedDepots.length > 0 || saRemovedDepots.length > 0;
-      if (newMode === "decentralized") return depotChange || true;
-      // Centralized: newly added depots must all have a sourcing depot assigned
-      return depotChange || saAddedDepots.every(d => !!sourcingDepotMapping[d]);
+      if (newMode === "decentralized") return true;
+      // Centralized: must have at least one newly added depot AND all must have sourcing assigned
+      return saAddedDepots.length > 0 && saAddedDepots.every(d => !!sourcingDepotMapping[d]);
     }
     if (amendmentType === "customer-chain-amendment") {
       return mtGeos.some(geo => {
@@ -2793,7 +2792,7 @@ export function RaiseAmendmentDialog({
       return !!plcOldLotId && !!plcNewMrp && !!plcPricingEffectiveDate && scopeOk;
     }
     return false;
-  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, currentDepots, mtGeos, customerMapping, requestedCustomerMapping, requestedDate, currentNetworkChangeDate, plcOldLotId, plcNewMrp, plcPricingEffectiveDate, plcScopeType, plcNewChannels, plcNewGeos]);
+  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, saAddedDepots, saRemovedDepots, currentDepots, mtGeos, customerMapping, requestedCustomerMapping, requestedDate, currentNetworkChangeDate, plcOldLotId, plcNewMrp, plcPricingEffectiveDate, plcScopeType, plcNewChannels, plcNewGeos]);
 
   const reset = () => {
     setStep("type");
