@@ -1895,6 +1895,7 @@ function SummaryView({
   demandEstimateFile, setDemandEstimateFile,
   priceLotChangeData,
   geoSourcingMode,
+  geographyDepotMap,
 }: {
   amendmentType: SrType;
   currentGeo: string[];
