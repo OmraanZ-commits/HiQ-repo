@@ -682,6 +682,43 @@ def run_migrations():
             WHERE mstn_by_depot IS NOT NULL
               AND mstn_by_depot != '{}'
         """))
+        # ── Explicit MSTN overrides — correct stale hash-generated values ──────
+        # BP-2000 / CBU-50020001: depot list and per-depot MSTN levels were
+        # auto-generated via hashtext before explicit seed values were added.
+        # JSON passed as bind params to avoid SQLAlchemy treating `:N` as placeholders.
+        conn.execute(
+            text("""
+                UPDATE network_entries
+                SET depot          = ARRAY['MMDH','CHKH','BNDH','DLGI','KOPH'],
+                    mstn_by_depot  = cast(:mstn_2000 as jsonb),
+                    mstn_green_lock = cast(:lock_2000 as jsonb)
+                WHERE basepack = 'BP-2000' AND cbu_code = 'CBU-50020001'
+            """),
+            {
+                "mstn_2000": '{"MMDH":91,"CHKH":88,"BNDH":85,"DLGI":83,"KOPH":82}',
+                "lock_2000": '{"MMDH":true,"CHKH":true,"BNDH":true,"DLGI":true,"KOPH":true}',
+            }
+        )
+        # BP-700 / CBU-50007890: per-depot MSTN values (all < 80 → no green lock)
+        conn.execute(
+            text("""
+                UPDATE network_entries
+                SET mstn_by_depot  = cast(:mstn_7890 as jsonb),
+                    mstn_green_lock = '{}'::jsonb
+                WHERE basepack = 'BP-700' AND cbu_code = 'CBU-50007890'
+            """),
+            {"mstn_7890": '{"DLGH":18,"VABH":22,"PATH":31,"KOPH":25,"RJ2H":20,"INDH":33,"JPRH":28,"MMDH":29}'}
+        )
+        # BP-700 / CBU-50007891: per-depot MSTN values (all < 80 → no green lock)
+        conn.execute(
+            text("""
+                UPDATE network_entries
+                SET mstn_by_depot  = cast(:mstn_7891 as jsonb),
+                    mstn_green_lock = '{}'::jsonb
+                WHERE basepack = 'BP-700' AND cbu_code = 'CBU-50007891'
+            """),
+            {"mstn_7891": '{"DLGH":45,"VABH":62,"RJ2H":38,"INDH":71}'}
+        )
         # ── CCR: CLOT (Customer Level of Trade) per depot per chain ────────────
         conn.execute(text(
             "ALTER TABLE ccr_customer_code_mapping ADD COLUMN IF NOT EXISTS clot FLOAT DEFAULT 1.0"
