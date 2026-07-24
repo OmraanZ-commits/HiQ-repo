@@ -2778,7 +2778,9 @@ export function RaiseAmendmentDialog({
       const scopeOk = plcScopeType === "replace"
         || (plcScopeType === "new-channel" && plcNewChannels.length > 0)
         || (plcScopeType === "new-geo"     && plcNewGeos.length > 0);
-      return !!plcOldLotId && !!plcNewMrp && !!plcPricingEffectiveDate && scopeOk;
+      // Old lot is only required for "replace" scope; new-channel/new-geo retain the existing lot automatically
+      const lotOk = plcScopeType !== "replace" || !!plcOldLotId;
+      return lotOk && !!plcNewMrp && !!plcPricingEffectiveDate && scopeOk;
     }
     return false;
   }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, saAddedDepots, saRemovedDepots, currentDepots, mtGeos, customerMapping, requestedCustomerMapping, requestedDate, currentNetworkChangeDate, plcOldLotId, plcNewMrp, plcPricingEffectiveDate, plcScopeType, plcNewChannels, plcNewGeos]);
