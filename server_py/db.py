@@ -719,6 +719,24 @@ def run_migrations():
             """),
             {"mstn_7891": '{"DLGH":45,"VABH":62,"RJ2H":38,"INDH":71}'}
         )
+        # BP-1800 / CBU-50018001 (demo): Stock Movement Initiated, price active,
+        # mixed MSTN — 3 depots cleared (DLGH, MMDH, KOPH) and 2 below threshold
+        # (CHKH, BNDH) to showcase the partial-clearance scenario.
+        conn.execute(
+            text("""
+                UPDATE network_entries
+                SET depot           = ARRAY['DLGH','MMDH','CHKH','BNDH','KOPH'],
+                    mstn_by_depot   = cast(:mstn_1800 as jsonb),
+                    mstn_green_lock = cast(:lock_1800 as jsonb),
+                    mstn_percentage = 77,
+                    price_active    = true
+                WHERE basepack = 'BP-1800' AND cbu_code = 'CBU-50018001'
+            """),
+            {
+                "mstn_1800": '{"DLGH":92,"MMDH":85,"KOPH":88,"CHKH":74,"BNDH":46}',
+                "lock_1800": '{"DLGH":true,"MMDH":true,"KOPH":true}',
+            }
+        )
         # ── CCR: CLOT (Customer Level of Trade) per depot per chain ────────────
         conn.execute(text(
             "ALTER TABLE ccr_customer_code_mapping ADD COLUMN IF NOT EXISTS clot FLOAT DEFAULT 1.0"
