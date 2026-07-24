@@ -1567,17 +1567,6 @@ function PriceLotEditor({
         <Label className="text-sm font-semibold">New Price Lot Details</Label>
         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">New Price Lot Number</Label>
-            <input
-              type="text"
-              value={newLotNumber}
-              onChange={e => setNewLotNumber(e.target.value)}
-              placeholder={suggestedNewId ? `e.g. ${suggestedNewId}` : "e.g. 05"}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              data-testid="input-new-lot-number"
-            />
-          </div>
-          <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">New MRP (₹) <span className="text-red-500">*</span></Label>
             <input
               type="number"
