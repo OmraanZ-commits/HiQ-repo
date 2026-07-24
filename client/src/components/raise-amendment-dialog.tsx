@@ -1357,6 +1357,7 @@ interface PriceLotChangeData {
   newChannels: string[];
   newGeos: string[];
   newDepots: string[];
+  mrpPerUnit: string;
   retailerMargin: string;
   rsMargin: string;
   priceOff: string;
@@ -1396,6 +1397,7 @@ function PriceLotEditor({
   oldLotProductionDeactivDate, setOldLotProductionDeactivDate,
   newChannels, setNewChannels,
   newGeos, setNewGeos,
+  mrpPerUnit, setMrpPerUnit,
   retailerMargin, setRetailerMargin,
   rsMargin, setRsMargin,
   priceOff, setPriceOff,
@@ -1425,6 +1427,8 @@ function PriceLotEditor({
   setNewGeos: (v: string[]) => void;
   newDepots: string[];
   setNewDepots: (v: string[]) => void;
+  mrpPerUnit: string;
+  setMrpPerUnit: (v: string) => void;
   retailerMargin: string;
   setRetailerMargin: (v: string) => void;
   rsMargin: string;
@@ -1869,9 +1873,22 @@ function PriceLotEditor({
       <details className="group">
         <summary className="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground list-none select-none">
           <Plus className="h-3.5 w-3.5 transition-transform group-open:rotate-45" />
-          Optional fields (Margins &amp; Price Off)
+          Optional fields (MRP per unit, Margins &amp; Price Off)
         </summary>
         <div className="mt-3 grid grid-cols-2 gap-3 pl-5">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">MRP per unit (₹)</Label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={mrpPerUnit}
+              onChange={e => setMrpPerUnit(e.target.value)}
+              placeholder="e.g. 258"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-mrp-per-unit"
+            />
+          </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Retailer Margin</Label>
             <input
@@ -2765,6 +2782,7 @@ export function RaiseAmendmentDialog({
   const [plcNewChannels,           setPlcNewChannels]           = useState<string[]>([]);
   const [plcNewGeos,               setPlcNewGeos]               = useState<string[]>([]);
   const [plcNewDepots,             setPlcNewDepots]             = useState<string[]>([]);
+  const [plcMrpPerUnit,            setPlcMrpPerUnit]            = useState("");
   const [plcRetailerMargin,        setPlcRetailerMargin]        = useState("");
   const [plcRsMargin,              setPlcRsMargin]              = useState("");
   const [plcPriceOff,              setPlcPriceOff]              = useState("");
@@ -2900,6 +2918,7 @@ export function RaiseAmendmentDialog({
     setPlcNewChannels([]);
     setPlcNewGeos([]);
     setPlcNewDepots([]);
+    setPlcMrpPerUnit("");
     setPlcRetailerMargin("");
     setPlcRsMargin("");
     setPlcPriceOff("");
@@ -3328,6 +3347,8 @@ export function RaiseAmendmentDialog({
               setNewGeos={setPlcNewGeos}
               newDepots={plcNewDepots}
               setNewDepots={setPlcNewDepots}
+              mrpPerUnit={plcMrpPerUnit}
+              setMrpPerUnit={setPlcMrpPerUnit}
               retailerMargin={plcRetailerMargin}
               setRetailerMargin={setPlcRetailerMargin}
               rsMargin={plcRsMargin}
@@ -3381,6 +3402,7 @@ export function RaiseAmendmentDialog({
                 newChannels: plcNewChannels,
                 newGeos: plcNewGeos,
                 newDepots: plcNewDepots,
+                mrpPerUnit: plcMrpPerUnit,
                 retailerMargin: plcRetailerMargin,
                 rsMargin: plcRsMargin,
                 priceOff: plcPriceOff,
