@@ -165,7 +165,7 @@ export default function ServiceRequestDetailPage() {
 
   const { data: geoDepotMap } = useQuery<Record<string, string[]>>({
     queryKey: ["/api/reference-data/geography-depot-map"],
-    enabled: request?.srType === "geo-extension",
+    enabled: request?.srType === "geo-extension" || request?.srType === "price-lot-change",
   });
 
   if (!request) {
@@ -511,6 +511,60 @@ export default function ServiceRequestDetailPage() {
                             </Badge>
                           ))}
                         </div>
+                      </div>
+                    </div>
+                  ) : request.srType === "price-lot-change" ? (
+                    /* Price-lot-change: optional geo/DC additions + pricing change */
+                    <div className="space-y-3">
+                      {(request.addedGeos?.length ?? 0) > 0 && (
+                        <div className="rounded-xl border bg-white shadow-sm overflow-hidden" data-testid="section-price-lot-geo-addition">
+                          <div className="grid grid-cols-[1fr_1fr] px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                            <span>New Regions</span>
+                            <span>Distribution Centres</span>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {request.addedGeos!.map(geo => {
+                              const refDepots   = geoDepotMap?.[geo] ?? [];
+                              const addedDepots = request.addedDepots ?? [];
+                              const matched = addedDepots.filter(d => refDepots.includes(d));
+                              const depots = matched.length > 0 ? matched : addedDepots;
+                              return (
+                                <div key={geo} className="grid grid-cols-[1fr_1fr] items-center px-5 py-3" data-testid={`price-lot-geo-row-${geo}`}>
+                                  <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-normal w-fit" data-testid={`badge-price-lot-geo-${geo}`}>
+                                    {geo}
+                                  </Badge>
+                                  <div className="flex flex-wrap gap-1.5" data-testid={`price-lot-depots-for-${geo}`}>
+                                    {depots.length > 0 ? depots.map(d => (
+                                      <Badge key={d} className="bg-sky-100 text-sky-700 border border-sky-300 text-xs font-mono" data-testid={`badge-price-lot-depot-${d}`}>{d}</Badge>
+                                    )) : (
+                                      <span className="text-xs text-muted-foreground italic">—</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/40">
+                              <TableHead className="w-1/2 py-3 text-xs">Current Pricing</TableHead>
+                              <TableHead className="w-1/2 py-3 text-xs">Requested Pricing</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            <TableRow>
+                              <TableCell className="py-4 text-sm align-top whitespace-pre-wrap text-muted-foreground">
+                                {request.currentValue || "—"}
+                              </TableCell>
+                              <TableCell className="py-4 text-sm align-top whitespace-pre-wrap font-medium">
+                                {request.requestedValue || "—"}
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
                       </div>
                     </div>
                   ) : request.srType === "sourcing-amendment" && request.sourcingMode ? (
