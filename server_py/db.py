@@ -719,6 +719,14 @@ def run_migrations():
             """),
             {"mstn_7891": '{"DLGH":45,"VABH":62,"RJ2H":38,"INDH":71}'}
         )
+        # BP-1700 / CBU-50017001 & 50017002, BP-800 / CBU-50008902 (demo):
+        # MSTN ≥ 80% but price_active explicitly false → appear in Price Inactive tile.
+        conn.execute(text("""
+            UPDATE network_entries
+            SET price_active = false
+            WHERE (basepack = 'BP-1700' AND cbu_code IN ('CBU-50017001','CBU-50017002'))
+               OR (basepack = 'BP-800'  AND cbu_code = 'CBU-50008902')
+        """))
         # BP-1800 / CBU-50018001 (demo): Stock Movement Initiated, price active,
         # mixed MSTN — 3 depots cleared (DLGH, MMDH, KOPH) and 2 below threshold
         # (CHKH, BNDH) to showcase the partial-clearance scenario.

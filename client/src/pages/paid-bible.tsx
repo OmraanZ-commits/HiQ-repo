@@ -1751,7 +1751,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
             description:   e.materialDescription || e.basepackDescription || "-",
             networkStatus: ns,
             matStatus,
-            priceActive:   priceExpired ? false : MSTN_ACTIVE_STATUSES.has(ns),
+            priceActive:   priceExpired ? false : (MSTN_ACTIVE_STATUSES.has(ns) && (e as any).priceActive !== false),
             mrp:           "-",
             ean:           e.ean              || "-",
             grammage:      e.netWeight        ? `${e.netWeight}g` : "-",
