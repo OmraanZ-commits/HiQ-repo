@@ -321,7 +321,7 @@ function MaterialsSubTable({
             const depotEntries = Object.entries(m.mstnByDepot ?? {});
             const hasDepots = depotEntries.length > 0;
             const isExpanded = expandedMat === m.id;
-            const clearedDcCount = depotEntries.filter(([, pct]) => pct >= 80).length;
+            const clearedDcCount = depotEntries.filter(([depot, pct]) => pct >= 80 || !!(m.activatedDepots ?? {})[depot]).length;
             const totalDcCount = depotEntries.length;
             return (
               <Fragment key={m.id}>
