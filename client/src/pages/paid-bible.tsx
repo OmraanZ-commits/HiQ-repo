@@ -29,7 +29,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Download, Ticket, AlertTriangle, CheckCircle2, XCircle, Clock, Lock, Star,
+  Download, AlertTriangle, CheckCircle2, XCircle, Clock, Lock, Star,
   Search, Filter, ChevronRight, ChevronDown, FileText,
   Zap, MapPin, Package, User, X, BookOpen, RefreshCw, Pencil, Check, Eye,
   ShieldCheck, ShieldAlert, Send, ListChecks, BadgeCheck, BadgeX,
@@ -2335,7 +2335,6 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
 
             <div className="ml-auto flex items-center gap-2">
               <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-export" onClick={() => setExportOpen(true)}><Download className="h-3.5 w-3.5" /> Export</Button>
-              <Button size="sm" variant="outline" className="gap-1.5" data-testid="button-raise-ticket"><Ticket className="h-3.5 w-3.5" /> Raise Ticket</Button>
             </div>
           </div>
 
