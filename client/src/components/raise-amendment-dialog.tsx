@@ -1828,7 +1828,7 @@ function PriceLotEditor({
           {/* MRP — required for replace, shown prominently here */}
           {scopeType === "replace" && (
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">New MRP per unit (₹) <span className="text-red-500">*</span></Label>
+              <Label className="text-xs text-muted-foreground">New MRP (₹) <span className="text-red-500">*</span></Label>
               <input
                 type="number"
                 min="0"
