@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LineChart, Lock, Package, Layers3, Boxes, BarChart2, ChevronDown, ChevronRight } from "lucide-react";
+import { LineChart, Lock, Package, Layers3, Boxes, ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type DemandForecastEntry = {
@@ -53,21 +53,39 @@ function CbuSummaryStrip({
   const grandTotal = useMemo(() => Array.from(totals.values()).reduce((s, v) => s + v, 0), [totals]);
 
   return (
-    <div className="rounded-lg border border-[#1f36c7]/20 bg-gradient-to-r from-[#1f36c7]/5 to-[#0d8ecf]/5 p-4 mb-4" data-testid="cbu-summary-strip">
-      <div className="flex items-center gap-2 mb-3">
-        <BarChart2 className="h-3.5 w-3.5 text-[#1f36c7]" />
-        <span className="text-xs font-bold text-[#1f36c7] uppercase tracking-wide">CBU Total — All Depots &amp; Channels</span>
-        <span className="ml-auto text-[10px] text-muted-foreground font-medium">
-          Grand Total: <span className="font-black text-slate-700 tabular-nums">{formatQtyNum(grandTotal)}</span>
+    <div
+      className="rounded-xl border border-slate-200 bg-white overflow-hidden mb-4 shadow-sm"
+      data-testid="cbu-summary-strip"
+    >
+      {/* Header bar */}
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-[#1f36c7]/5 border-b border-[#1f36c7]/10">
+        <TrendingUp className="h-3.5 w-3.5 text-[#1f36c7]" />
+        <span className="text-[11px] font-bold text-[#1f36c7] uppercase tracking-widest">
+          CBU Total — All Depots &amp; Channels
         </span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 font-medium">Grand Total</span>
+          <span className="text-sm font-black text-slate-800 tabular-nums">{formatQtyNum(grandTotal)}</span>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {mocMonths.map(m => {
+
+      {/* Month tiles */}
+      <div className="flex flex-wrap gap-0 divide-x divide-slate-100">
+        {mocMonths.map((m, idx) => {
           const val = totals.get(m) ?? 0;
           return (
-            <div key={m} className="flex flex-col items-center rounded-md border border-[#1f36c7]/15 bg-white px-3 py-2 min-w-[80px]" data-testid={`cbu-total-${m}`}>
-              <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{m}</span>
-              <span className="text-sm font-black tabular-nums text-slate-800 mt-0.5">{formatQtyNum(val)}</span>
+            <div
+              key={m}
+              className={cn(
+                "flex flex-col items-center justify-center px-5 py-3 min-w-[90px] flex-1",
+                idx === mocMonths.length - 1 && "border-r-0"
+              )}
+              data-testid={`cbu-total-${m}`}
+            >
+              <span className="text-[10px] font-semibold text-slate-400 tracking-wide whitespace-nowrap">{m}</span>
+              <span className="text-base font-black tabular-nums text-slate-800 mt-0.5 leading-tight">
+                {formatQtyNum(val)}
+              </span>
             </div>
           );
         })}
@@ -102,52 +120,70 @@ function DepotSummaryTable({
   }, [entries, uom]);
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white mb-4 overflow-hidden" data-testid="depot-summary-table">
+    <div
+      className="rounded-xl border border-slate-200 bg-white mb-4 overflow-hidden shadow-sm"
+      data-testid="depot-summary-table"
+    >
+      {/* Collapsible header */}
       <button
         type="button"
-        className="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200 hover:bg-slate-100 transition-colors"
+        className="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200 hover:bg-slate-100/80 transition-colors"
         onClick={() => setExpanded(v => !v)}
         data-testid="btn-depot-summary-toggle"
       >
-        {expanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
-        <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Depot Summary — Channels Aggregated</span>
-        <span className="ml-1 text-[10px] text-muted-foreground font-normal">({depotRows.length} depots)</span>
+        {expanded
+          ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+          : <ChevronRight className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />}
+        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+          Depot Summary — Channels Aggregated
+        </span>
+        <span className="ml-1 text-[10px] text-slate-400 font-normal">({depotRows.length} depots)</span>
       </button>
+
       {expanded && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs" data-testid="table-depot-summary">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100">
-                <th className="text-left px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground sticky left-0 bg-slate-50/80">
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 sticky left-0 bg-slate-50 min-w-[80px]">
                   Depot
                 </th>
                 {mocMonths.map(m => (
-                  <th key={m} className="text-right px-3 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  <th key={m} className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
                     {m}
                   </th>
                 ))}
-                <th className="text-right px-4 py-2 font-semibold text-[10px] uppercase tracking-wider text-[#1f36c7]">
+                <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1f36c7]">
                   Depot Total
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
-              {depotRows.map(({ depot, byMoc }) => {
+            <tbody>
+              {depotRows.map(({ depot, byMoc }, i) => {
                 const rowTotal = Array.from(byMoc.values()).reduce((s, v) => s + v, 0);
                 return (
-                  <tr key={depot} className="hover:bg-slate-50/60 transition-colors" data-testid={`depot-row-${depot}`}>
-                    <td className="px-4 py-2 font-mono font-semibold text-slate-700 sticky left-0 bg-white">{depot}</td>
+                  <tr
+                    key={depot}
+                    className={cn(
+                      "border-b border-slate-50 hover:bg-blue-50/30 transition-colors",
+                      i % 2 === 1 && "bg-slate-50/40"
+                    )}
+                    data-testid={`depot-row-${depot}`}
+                  >
+                    <td className="px-4 py-2.5 font-mono font-semibold text-slate-700 sticky left-0 bg-inherit text-xs">
+                      {depot}
+                    </td>
                     {mocMonths.map(m => {
                       const val = byMoc.get(m) ?? 0;
                       return (
-                        <td key={m} className="px-3 py-2 text-right tabular-nums" data-testid={`depot-cell-${depot}-${m}`}>
+                        <td key={m} className="px-4 py-2.5 text-right tabular-nums text-xs" data-testid={`depot-cell-${depot}-${m}`}>
                           {val > 0
-                            ? <span className="font-medium text-slate-700">{formatQty(val)}</span>
-                            : <span className="text-slate-200">—</span>}
+                            ? <span className="text-slate-700">{formatQty(val)}</span>
+                            : <span className="text-slate-200 select-none">—</span>}
                         </td>
                       );
                     })}
-                    <td className="px-4 py-2 text-right tabular-nums font-black text-[#1f36c7]">
+                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-[#1f36c7] text-xs">
                       {rowTotal > 0 ? formatQtyNum(rowTotal) : "—"}
                     </td>
                   </tr>
@@ -155,17 +191,19 @@ function DepotSummaryTable({
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-slate-200 bg-slate-50/80">
-                <td className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide">All Depots</td>
+              <tr className="border-t-2 border-slate-300 bg-slate-50">
+                <td className="px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky left-0 bg-slate-50">
+                  All Depots
+                </td>
                 {mocMonths.map(m => {
                   const val = depotTotals.get(m) ?? 0;
                   return (
-                    <td key={m} className="px-3 py-2 text-right tabular-nums font-bold text-slate-700">
+                    <td key={m} className="px-4 py-2.5 text-right tabular-nums font-bold text-slate-700 text-xs">
                       {val > 0 ? formatQtyNum(val) : "—"}
                     </td>
                   );
                 })}
-                <td className="px-4 py-2 text-right tabular-nums font-black text-[#1f36c7]">
+                <td className="px-4 py-2.5 text-right tabular-nums font-black text-[#1f36c7] text-xs">
                   {formatQtyNum(Array.from(depotTotals.values()).reduce((s, v) => s + v, 0))}
                 </td>
               </tr>
@@ -296,44 +334,68 @@ export function DemandVisibilityTab({ basepack, cbuCode, isDraft }: { basepack: 
             {/* ── Depot-level Summary (channels aggregated) ── */}
             <DepotSummaryTable entries={filtered} mocMonths={mocMonths} uom={uom} />
 
-            {/* ── Detailed table: Depot × Channel × Sub-channel × MOC ── */}
-            <div className="flex items-center gap-2 mb-2 mt-1">
-              <LineChart className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Detail — By Depot, Channel &amp; Sub-Channel</span>
-            </div>
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm" data-testid="table-demand-visibility">
-                <thead>
-                  <tr className="bg-muted/50 text-left">
-                    <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Depot</th>
-                    <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Channel</th>
-                    <th className="px-3 py-2 font-medium text-xs text-muted-foreground">Sub Channel (MT)</th>
-                    {mocMonths.map(m => (
-                      <th key={m} className="px-3 py-2 font-medium text-xs text-muted-foreground text-right whitespace-nowrap">{m}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={i} className="border-t hover:bg-muted/30" data-testid={`row-demand-${r.depot}-${r.channelType}-${i}`}>
-                      <td className="px-3 py-2 font-mono text-xs">{r.depot}</td>
-                      <td className="px-3 py-2 text-xs">
-                        <span className={r.channelType === "MT" ? "text-[#0d8ecf] font-medium" : "text-emerald-600 font-medium"}>
-                          {r.channelType === "MT" ? "MT" : (r.forecastChannel ?? r.channelType)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">
-                        {r.channelType === "MT" ? (r.subChannel ?? "—") : "—"}
-                      </td>
+            {/* ── Detail: Depot × Channel × Sub-channel × MOC ── */}
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+              {/* Section header */}
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                <LineChart className="h-3.5 w-3.5 text-slate-400" />
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                  Detail — By Depot, Channel &amp; Sub-Channel
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs" data-testid="table-demand-visibility">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 min-w-[72px]">Depot</th>
+                      <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 min-w-[60px]">Channel</th>
+                      <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 min-w-[100px]">Sub Channel (MT)</th>
                       {mocMonths.map(m => (
-                        <td key={m} className="px-3 py-2 text-right tabular-nums" data-testid={`cell-demand-${r.depot}-${m}`}>
-                          {formatQty(r.byMoc.get(m) ?? 0)}
-                        </td>
+                        <th key={m} className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                          {m}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr
+                        key={i}
+                        className={cn(
+                          "border-b border-slate-50 hover:bg-blue-50/30 transition-colors",
+                          i % 2 === 1 && "bg-slate-50/40"
+                        )}
+                        data-testid={`row-demand-${r.depot}-${r.channelType}-${i}`}
+                      >
+                        <td className="px-4 py-2.5 font-mono font-semibold text-slate-700">{r.depot}</td>
+                        <td className="px-4 py-2.5">
+                          <span className={cn(
+                            "inline-block text-[10px] font-bold px-1.5 py-0.5 rounded",
+                            r.channelType === "MT"
+                              ? "bg-[#0d8ecf]/10 text-[#0d8ecf]"
+                              : "bg-emerald-50 text-emerald-700"
+                          )}>
+                            {r.channelType === "MT" ? "MT" : (r.forecastChannel ?? r.channelType)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-500">
+                          {r.channelType === "MT" ? (r.subChannel ?? "—") : "—"}
+                        </td>
+                        {mocMonths.map(m => (
+                          <td key={m} className="px-4 py-2.5 text-right tabular-nums" data-testid={`cell-demand-${r.depot}-${m}`}>
+                            {(() => {
+                              const val = r.byMoc.get(m) ?? 0;
+                              return val > 0
+                                ? <span className="text-slate-700">{formatQty(val)}</span>
+                                : <span className="text-slate-200 select-none">—</span>;
+                            })()}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         )}
