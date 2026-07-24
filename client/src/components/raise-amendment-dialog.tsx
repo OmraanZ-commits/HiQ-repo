@@ -1460,6 +1460,7 @@ function PriceLotEditor({
                 setScopeType(opt.value);
                 setNewChannels([]);
                 setNewGeos([]);
+                setNewDepots([]);
                 setOldLotId("");
               }}
               className={cn(
@@ -3000,8 +3001,13 @@ export function RaiseAmendmentDialog({
       justification: justification.trim(),
       approvers,
       overallStatus: "pending",
-      addedGeos: amendmentType === "geo-extension" ? addedGeos : amendmentType === "price-lot-change" ? plcNewGeos : [],
-      addedDepots: amendmentType === "geo-extension" ? addedDepots : amendmentType === "sourcing-amendment" ? saAddedDepots : amendmentType === "price-lot-change" ? plcNewDepots : [],
+      addedGeos: amendmentType === "geo-extension" ? addedGeos
+        : (amendmentType === "price-lot-change" && (plcScopeType === "new-geo" || plcScopeType === "new-region-channel")) ? plcNewGeos
+        : [],
+      addedDepots: amendmentType === "geo-extension" ? addedDepots
+        : amendmentType === "sourcing-amendment" ? saAddedDepots
+        : (amendmentType === "price-lot-change" && (plcScopeType === "new-geo" || plcScopeType === "new-region-channel")) ? plcNewDepots
+        : [],
       addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
       removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
       requestedChannelMapping: (amendmentType === "channel-extension" || amendmentType === "geo-extension") ? requestedChannelMapping : undefined,
