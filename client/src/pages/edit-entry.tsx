@@ -281,7 +281,7 @@ export default function EditEntry() {
     if (ftrImageRef.current) ftrImageRef.current.value = "";
   }
 
-  const { channelOverrides, sourcingOverrides, geoRemovalOverrides, requests: allRequests } = useSrStore();
+  const { channelOverrides, sourcingOverrides, geoRemovalOverrides, geoAdditionOverrides, requests: allRequests } = useSrStore();
   const handleRaiseAmendment = () => setShowAmendmentDialog(true);
 
   const cbuPendingSrs = useMemo(() => {
@@ -536,14 +536,14 @@ export default function EditEntry() {
       )
     : channelMapping;
 
-  // Apply approved geo-extension removal overrides
-  const inMemGeoRemoval = entry ? (geoRemovalOverrides[entry.id] ?? { removedGeos: [], removedDepots: [] }) : { removedGeos: [], removedDepots: [] };
-  const effectiveGeo = inMemGeoRemoval.removedGeos.length > 0
-    ? selectedGeo.filter(g => !inMemGeoRemoval.removedGeos.includes(g))
-    : selectedGeo;
-  const effectiveDepots = inMemGeoRemoval.removedDepots.length > 0
-    ? selectedDepots.filter(d => !inMemGeoRemoval.removedDepots.includes(d))
-    : selectedDepots;
+  // Apply approved geo-extension / price-lot-change geo removal overrides
+  const inMemGeoRemoval  = entry ? (geoRemovalOverrides[entry.id]  ?? { removedGeos: [], removedDepots: [] }) : { removedGeos: [], removedDepots: [] };
+  const inMemGeoAddition = entry ? (geoAdditionOverrides[entry.id] ?? { addedGeos: [],   addedDepots: [] })   : { addedGeos: [],   addedDepots: [] };
+  const baseGeo     = inMemGeoRemoval.removedGeos.length    > 0 ? selectedGeo.filter(g => !inMemGeoRemoval.removedGeos.includes(g))       : selectedGeo;
+  const baseDepots  = inMemGeoRemoval.removedDepots.length  > 0 ? selectedDepots.filter(d => !inMemGeoRemoval.removedDepots.includes(d))  : selectedDepots;
+  // Merge optimistic geo/depot additions (from approved price-lot-change with new regions)
+  const effectiveGeo    = inMemGeoAddition.addedGeos.length    > 0 ? Array.from(new Set([...baseGeo,    ...inMemGeoAddition.addedGeos]))    : baseGeo;
+  const effectiveDepots = inMemGeoAddition.addedDepots.length  > 0 ? Array.from(new Set([...baseDepots, ...inMemGeoAddition.addedDepots])) : baseDepots;
 
   // Apply approved sourcing-amendment overrides
   const inMemSourcingOverride = entry ? (sourcingOverrides[entry.id] ?? null) : null;

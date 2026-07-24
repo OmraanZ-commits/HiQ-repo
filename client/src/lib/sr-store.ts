@@ -334,6 +334,7 @@ let _bpStatusOverrides: Record<string, string> = {};
 let _channelOverrides: Record<string, string[]> = {};
 let _sourcingOverrides: Record<string, { mode: "decentralized" | "centralized"; depotMapping: Record<string, string>; centralizedGeos: string[]; centralizedDepots: string[] }> = {};
 let _geoRemovalOverrides: Record<string, { removedGeos: string[]; removedDepots: string[] }> = {};
+let _geoAdditionOverrides: Record<string, { addedGeos: string[]; addedDepots: string[] }> = {};
 let _customerMappingOverrides: Record<string, Record<string, string[]>> = {};
 let _networkChangeDateOverrides: Record<string, string> = {};
 let _depotDecisionOverrides: Record<string, DepotDecision[]> = {};
@@ -440,6 +441,10 @@ export function getSourcingOverrides(): Record<string, { mode: "decentralized" |
 
 export function getGeoRemovalOverrides(): Record<string, { removedGeos: string[]; removedDepots: string[] }> {
   return _geoRemovalOverrides;
+}
+
+export function getGeoAdditionOverrides(): Record<string, { addedGeos: string[]; addedDepots: string[] }> {
+  return _geoAdditionOverrides;
 }
 
 export function getCustomerMappingOverrides(): Record<string, Record<string, string[]>> {
@@ -565,17 +570,27 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
       if (sr.srType === "network-change-date-amendment" && sr.cbuId && sr.requestedDate) {
         _networkChangeDateOverrides = { ..._networkChangeDateOverrides, [sr.cbuId]: sr.requestedDate };
       }
-      // price-lot-change with geo extension: merge new geos/depots into removal overrides
-      // (addedGeos/addedDepots are already persisted via the backend saga; here we just
-      //  ensure the UI sees the new scope instantly by clearing any removal override for
-      //  those geos so they appear in the CBU's effective geography.)
+      // price-lot-change with geo extension: optimistically merge new geos/depots
+      // so the edit-entry page reflects the expanded scope immediately, before the
+      // backend saga completes and the query cache is invalidated.
       if (sr.srType === "price-lot-change" && sr.cbuId && (sr.addedGeos?.length || sr.addedDepots?.length)) {
-        const prev = _geoRemovalOverrides[sr.cbuId] ?? { removedGeos: [], removedDepots: [] };
+        // 1. Clear removal overrides for these newly-added geos/depots (in case they
+        //    were previously removed by another SR and are now being re-added).
+        const prevRemoval = _geoRemovalOverrides[sr.cbuId] ?? { removedGeos: [], removedDepots: [] };
         _geoRemovalOverrides = {
           ..._geoRemovalOverrides,
           [sr.cbuId]: {
-            removedGeos:   prev.removedGeos.filter(g => !(sr.addedGeos ?? []).includes(g)),
-            removedDepots: prev.removedDepots.filter(d => !(sr.addedDepots ?? []).includes(d)),
+            removedGeos:   prevRemoval.removedGeos.filter(g => !(sr.addedGeos ?? []).includes(g)),
+            removedDepots: prevRemoval.removedDepots.filter(d => !(sr.addedDepots ?? []).includes(d)),
+          },
+        };
+        // 2. Accumulate into addition overrides so effectiveGeo / effectiveDepots include them.
+        const prevAdd = _geoAdditionOverrides[sr.cbuId] ?? { addedGeos: [], addedDepots: [] };
+        _geoAdditionOverrides = {
+          ..._geoAdditionOverrides,
+          [sr.cbuId]: {
+            addedGeos:   Array.from(new Set([...prevAdd.addedGeos,   ...(sr.addedGeos   ?? [])])),
+            addedDepots: Array.from(new Set([...prevAdd.addedDepots, ...(sr.addedDepots ?? [])])),
           },
         };
       }
@@ -697,6 +712,7 @@ export function useSrStore() {
   const [channelOverrides, setChannelOverrides] = useState<Record<string, string[]>>(getChannelOverrides);
   const [sourcingOverrides, setSourcingOverrides] = useState<Record<string, { mode: "decentralized" | "centralized"; depotMapping: Record<string, string>; centralizedGeos: string[]; centralizedDepots: string[] }>>(getSourcingOverrides);
   const [geoRemovalOverrides, setGeoRemovalOverrides] = useState<Record<string, { removedGeos: string[]; removedDepots: string[] }>>(getGeoRemovalOverrides);
+  const [geoAdditionOverrides, setGeoAdditionOverrides] = useState<Record<string, { addedGeos: string[]; addedDepots: string[] }>>(getGeoAdditionOverrides);
   const [customerMappingOverrides, setCustomerMappingOverrides] = useState<Record<string, Record<string, string[]>>>(getCustomerMappingOverrides);
   const [networkChangeDateOverrides, setNetworkChangeDateOverrides] = useState<Record<string, string>>(getNetworkChangeDateOverrides);
   const [depotDecisionOverrides, setDepotDecisionOverrides] = useState<Record<string, DepotDecision[]>>(getDepotDecisionOverrides);
@@ -714,6 +730,7 @@ export function useSrStore() {
       setChannelOverrides({ ...getChannelOverrides() });
       setSourcingOverrides({ ...getSourcingOverrides() });
       setGeoRemovalOverrides({ ...getGeoRemovalOverrides() });
+      setGeoAdditionOverrides({ ...getGeoAdditionOverrides() });
       setCustomerMappingOverrides({ ...getCustomerMappingOverrides() });
       setNetworkChangeDateOverrides({ ...getNetworkChangeDateOverrides() });
       setDepotDecisionOverrides({ ...getDepotDecisionOverrides() });
@@ -722,7 +739,8 @@ export function useSrStore() {
   }, []);
 
   return {
-    requests, bpStatusOverrides, channelOverrides, sourcingOverrides, geoRemovalOverrides,
+    requests, bpStatusOverrides, channelOverrides, sourcingOverrides,
+    geoRemovalOverrides, geoAdditionOverrides,
     customerMappingOverrides, networkChangeDateOverrides, depotDecisionOverrides, bpDates,
   };
 }

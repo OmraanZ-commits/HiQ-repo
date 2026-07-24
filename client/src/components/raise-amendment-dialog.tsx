@@ -2869,7 +2869,8 @@ export function RaiseAmendmentDialog({
       // For each new geo, at least one of its depots must be selected
       const dcsCoverAllGeos = !needsGeos || plcNewGeos.every(geo => {
         const available = GEOGRAPHY_DEPOT_MAP[geo] || [];
-        return available.length === 0 || available.some(d => plcNewDepots.includes(d));
+        // Geo with no mapped depots blocks submission — it cannot be added via this flow
+        return available.length > 0 && available.some(d => plcNewDepots.includes(d));
       });
       const scopeOk =
         (plcScopeType === "replace"            && !!plcOldLotId) ||
