@@ -502,6 +502,64 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
+                  {/* ── Cumulative Pipeline ── */}
+                  {(() => {
+                    const maxCumul = pendingByStatusWithCumul[0]?.cumulativeCount ?? 1;
+                    const totalCBUs = pendingByStatusWithCumul[0]?.cumulativeCount ?? 0;
+                    const rows = pendingByStatusWithCumul.filter(r => r.cumulativeCount > 0);
+                    const BAR_COLORS: Record<string, string> = {
+                      "Draft":                       "bg-slate-400",
+                      "Active":                      "bg-green-500",
+                      "Pricing Updated":             "bg-blue-500",
+                      "Production Started":          "bg-amber-500",
+                      "FTR Approved":                "bg-cyan-500",
+                      "Stock Movement Initiated":    "bg-violet-500",
+                      "Network transition complete": "bg-emerald-500",
+                    };
+                    return (
+                      <Card className="overflow-hidden">
+                        <CardContent className="p-0">
+                          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/40">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Cumulative Pipeline</p>
+                            <span className="px-3 py-1 rounded-full bg-[#1f36c7] text-white text-[10px] font-bold">
+                              {totalCBUs} total CBUs
+                            </span>
+                          </div>
+                          <div className="px-5 py-4 space-y-2.5">
+                            {rows.map((r, i) => {
+                              const barPct = (r.cumulativeCount / maxCumul) * 100;
+                              const label = i === 0 ? "Total CBUs" : r.meta.label;
+                              const barColor = i === 0 ? "bg-slate-300" : (BAR_COLORS[r.status] ?? "bg-slate-400");
+                              const pct = Math.round(barPct);
+                              return (
+                                <div key={r.status} className="flex items-center gap-3" data-testid={`cumul-pipeline-${r.status}`}>
+                                  <div className="flex items-center gap-1.5 w-[148px] shrink-0">
+                                    <span className={`h-2 w-2 rounded-full shrink-0 ${r.meta.dot}`} />
+                                    <span className={`text-xs font-semibold ${r.meta.text} truncate`}>{label}</span>
+                                  </div>
+                                  <div className="flex-1 h-7 bg-muted/50 rounded-md overflow-hidden relative">
+                                    <div
+                                      className={`h-full rounded-md ${barColor} transition-all`}
+                                      style={{ width: `${barPct}%` }}
+                                    />
+                                    {pct > 12 && (
+                                      <span className="absolute inset-y-0 left-2 flex items-center text-[10px] font-bold text-white/90 pointer-events-none">
+                                        {pct}%
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-base font-black tabular-nums text-[#1f36c7] w-8 text-right shrink-0">
+                                    {r.cumulativeCount}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
+
                   {/* ── Pending by Status + Assignee (side by side) ── */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
@@ -600,47 +658,6 @@ export default function Dashboard() {
                   </Card>
 
                   </div>{/* end side-by-side grid */}
-
-                  {/* ── Cumulative Pipeline ── */}
-                  {(() => {
-                    const maxCumul = pendingByStatusWithCumul[0]?.cumulativeCount ?? 1;
-                    const totalCBUs = pendingByStatusWithCumul[0]?.cumulativeCount ?? 0;
-                    return (
-                      <Card>
-                        <CardContent className="p-0">
-                          <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cumulative Pipeline</p>
-                            <span className="px-2.5 py-0.5 rounded-full bg-[#1f36c7]/10 text-[#1f36c7] text-[10px] font-bold">
-                              {totalCBUs} total CBUs
-                            </span>
-                          </div>
-                          <div className="px-5 pb-4 space-y-3">
-                            {pendingByStatusWithCumul.filter(r => r.cumulativeCount > 0).map((r, i) => {
-                              const barPct = (r.cumulativeCount / maxCumul) * 100;
-                              const label = i === 0 ? "Total CBUs" : r.meta.label;
-                              return (
-                                <div key={r.status} className="flex items-center gap-4" data-testid={`cumul-pipeline-${r.status}`}>
-                                  <div className="flex items-center gap-2 w-[160px] shrink-0">
-                                    <span className={`h-2 w-2 rounded-full shrink-0 ${r.meta.dot}`} />
-                                    <span className={`text-xs font-medium ${r.meta.text} truncate`}>{label}</span>
-                                  </div>
-                                  <div className="flex-1 h-6 bg-muted/50 rounded-md overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-md ${r.meta.bar} opacity-60 transition-all`}
-                                      style={{ width: `${barPct}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-base font-black tabular-nums text-[#1f36c7] w-8 text-right shrink-0">
-                                    {r.cumulativeCount}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })()}
 
                   {/* ── BG summary ── */}
                   <Card>
