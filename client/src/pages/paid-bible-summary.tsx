@@ -459,26 +459,38 @@ export default function PaidBibleSummaryTab() {
               const p = srCountFiltered(def, "pending");
               const a = srCountFiltered(def, "approved");
               const r = srCountFiltered(def, "rejected");
+              const t = p + a + r;
+              const navFor = (status: string) => {
+                let url = `/paid-bible?tab=service-requests&srType=${encodeURIComponent(def.srType)}&status=${status}`;
+                if (def.targetStatus) url += `&targetStatus=${encodeURIComponent(def.targetStatus)}`;
+                return url;
+              };
               return (
                 <tr key={def.label} className="hover:bg-slate-50/80">
                   <td className="px-5 py-2.5 text-slate-700 font-medium">{def.label}</td>
                   <td className="px-4 py-2.5 text-center">
                     {p > 0 ? (
                       <button
-                        onClick={() => navigate("/paid-bible?tab=service-requests")}
+                        onClick={() => navigate(navFor("pending"))}
                         className="inline-flex items-center justify-center min-w-[2rem] px-2.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 font-black text-xs hover:bg-amber-100 transition-colors cursor-pointer"
                         data-testid={`sr-pending-bp-${def.targetStatus?.replace(/\s/g, "-").toLowerCase()}`}
                       >{p}</button>
                     ) : <span className="text-slate-300 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-center">
-                    {a > 0 ? <span className="font-black text-emerald-600 tabular-nums">{a}</span> : <span className="text-slate-300 text-xs">—</span>}
+                    {a > 0 ? (
+                      <button onClick={() => navigate(navFor("approved"))} className="font-black text-emerald-600 tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{a}</button>
+                    ) : <span className="text-slate-300 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-center">
-                    {r > 0 ? <span className="font-black text-red-500 tabular-nums">{r}</span> : <span className="text-slate-300 text-xs">—</span>}
+                    {r > 0 ? (
+                      <button onClick={() => navigate(navFor("rejected"))} className="font-black text-red-500 tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{r}</button>
+                    ) : <span className="text-slate-300 text-xs">—</span>}
                   </td>
                   <td className="px-5 py-2.5 text-center">
-                    <span className="font-black text-[#1f36c7] tabular-nums">{p + a + r}</span>
+                    {t > 0 ? (
+                      <button onClick={() => navigate(navFor("all"))} className="font-black text-[#1f36c7] tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{t}</button>
+                    ) : <span className="font-black text-[#1f36c7] tabular-nums">0</span>}
                   </td>
                 </tr>
               );
@@ -487,13 +499,24 @@ export default function PaidBibleSummaryTab() {
               const p = BP_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "pending"), 0);
               const a = BP_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "approved"), 0);
               const r = BP_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "rejected"), 0);
+              const t = p + a + r;
+              const navFor = (status: string) =>
+                `/paid-bible?tab=service-requests&srType=basepack-status-change&status=${status}`;
               return (
                 <tr className="bg-slate-50 border-y border-slate-200">
                   <td className="px-5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Basepack Subtotal</td>
-                  <td className="px-4 py-2 text-center"><span className={`text-xs font-black tabular-nums ${p > 0 ? "text-amber-700" : "text-slate-300"}`}>{p > 0 ? p : "—"}</span></td>
-                  <td className="px-4 py-2 text-center"><span className="text-xs font-black text-emerald-600 tabular-nums">{a}</span></td>
-                  <td className="px-4 py-2 text-center"><span className={`text-xs font-black tabular-nums ${r > 0 ? "text-red-500" : "text-slate-300"}`}>{r > 0 ? r : "—"}</span></td>
-                  <td className="px-5 py-2 text-center"><span className="text-xs font-black text-[#1f36c7] tabular-nums">{p + a + r}</span></td>
+                  <td className="px-4 py-2 text-center">
+                    {p > 0 ? <button onClick={() => navigate(navFor("pending"))} className={`text-xs font-black tabular-nums text-amber-700 hover:underline cursor-pointer bg-transparent border-none p-0`}>{p}</button> : <span className="text-xs font-black tabular-nums text-slate-300">—</span>}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {a > 0 ? <button onClick={() => navigate(navFor("approved"))} className="text-xs font-black text-emerald-600 tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{a}</button> : <span className="text-xs font-black text-emerald-600 tabular-nums">{a}</span>}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {r > 0 ? <button onClick={() => navigate(navFor("rejected"))} className={`text-xs font-black tabular-nums text-red-500 hover:underline cursor-pointer bg-transparent border-none p-0`}>{r}</button> : <span className="text-xs font-black tabular-nums text-slate-300">—</span>}
+                  </td>
+                  <td className="px-5 py-2 text-center">
+                    {t > 0 ? <button onClick={() => navigate(navFor("all"))} className="text-xs font-black text-[#1f36c7] tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{t}</button> : <span className="text-xs font-black text-[#1f36c7] tabular-nums">{t}</span>}
+                  </td>
                 </tr>
               );
             })()}
@@ -511,26 +534,35 @@ export default function PaidBibleSummaryTab() {
               const p = srCountFiltered(def, "pending");
               const a = srCountFiltered(def, "approved");
               const r = srCountFiltered(def, "rejected");
+              const t = p + a + r;
+              const navFor = (status: string) =>
+                `/paid-bible?tab=service-requests&srType=${encodeURIComponent(def.srType)}&status=${status}`;
               return (
                 <tr key={def.label} className="hover:bg-slate-50/80">
                   <td className="px-5 py-2.5 text-slate-700 font-medium">{def.label}</td>
                   <td className="px-4 py-2.5 text-center">
                     {p > 0 ? (
                       <button
-                        onClick={() => navigate("/paid-bible?tab=service-requests")}
+                        onClick={() => navigate(navFor("pending"))}
                         className="inline-flex items-center justify-center min-w-[2rem] px-2.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 font-black text-xs hover:bg-amber-100 transition-colors cursor-pointer"
                         data-testid={`sr-pending-${def.srType}`}
                       >{p}</button>
                     ) : <span className="text-slate-300 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-center">
-                    {a > 0 ? <span className="font-black text-emerald-600 tabular-nums">{a}</span> : <span className="text-slate-300 text-xs">—</span>}
+                    {a > 0 ? (
+                      <button onClick={() => navigate(navFor("approved"))} className="font-black text-emerald-600 tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{a}</button>
+                    ) : <span className="text-slate-300 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-center">
-                    {r > 0 ? <span className="font-black text-red-500 tabular-nums">{r}</span> : <span className="text-slate-300 text-xs">—</span>}
+                    {r > 0 ? (
+                      <button onClick={() => navigate(navFor("rejected"))} className="font-black text-red-500 tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{r}</button>
+                    ) : <span className="text-slate-300 text-xs">—</span>}
                   </td>
                   <td className="px-5 py-2.5 text-center">
-                    <span className="font-black text-[#1f36c7] tabular-nums">{p + a + r}</span>
+                    {t > 0 ? (
+                      <button onClick={() => navigate(navFor("all"))} className="font-black text-[#1f36c7] tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{t}</button>
+                    ) : <span className="font-black text-[#1f36c7] tabular-nums">0</span>}
                   </td>
                 </tr>
               );
@@ -539,13 +571,24 @@ export default function PaidBibleSummaryTab() {
               const p = AMEND_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "pending"), 0);
               const a = AMEND_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "approved"), 0);
               const r = AMEND_SR_DEFS.reduce((s, d) => s + srCountFiltered(d, "rejected"), 0);
+              const t = p + a + r;
+              const navFor = (status: string) =>
+                `/paid-bible?tab=service-requests&status=${status}`;
               return (
                 <tr className="bg-slate-50 border-y border-slate-200">
                   <td className="px-5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Amendment Subtotal</td>
-                  <td className="px-4 py-2 text-center"><span className={`text-xs font-black tabular-nums ${p > 0 ? "text-amber-700" : "text-slate-300"}`}>{p > 0 ? p : "—"}</span></td>
-                  <td className="px-4 py-2 text-center"><span className="text-xs font-black text-emerald-600 tabular-nums">{a}</span></td>
-                  <td className="px-4 py-2 text-center"><span className={`text-xs font-black tabular-nums ${r > 0 ? "text-red-500" : "text-slate-300"}`}>{r > 0 ? r : "—"}</span></td>
-                  <td className="px-5 py-2 text-center"><span className="text-xs font-black text-[#1f36c7] tabular-nums">{p + a + r}</span></td>
+                  <td className="px-4 py-2 text-center">
+                    {p > 0 ? <button onClick={() => navigate(navFor("pending"))} className="text-xs font-black tabular-nums text-amber-700 hover:underline cursor-pointer bg-transparent border-none p-0">{p}</button> : <span className="text-xs font-black tabular-nums text-slate-300">—</span>}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {a > 0 ? <button onClick={() => navigate(navFor("approved"))} className="text-xs font-black text-emerald-600 tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{a}</button> : <span className="text-xs font-black text-emerald-600 tabular-nums">{a}</span>}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {r > 0 ? <button onClick={() => navigate(navFor("rejected"))} className="text-xs font-black tabular-nums text-red-500 hover:underline cursor-pointer bg-transparent border-none p-0">{r}</button> : <span className="text-xs font-black tabular-nums text-slate-300">—</span>}
+                  </td>
+                  <td className="px-5 py-2 text-center">
+                    {t > 0 ? <button onClick={() => navigate(navFor("all"))} className="text-xs font-black text-[#1f36c7] tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{t}</button> : <span className="text-xs font-black text-[#1f36c7] tabular-nums">{t}</span>}
+                  </td>
                 </tr>
               );
             })()}
@@ -559,10 +602,18 @@ export default function PaidBibleSummaryTab() {
               return (
                 <tr className="border-t-2 border-[#1f36c7]/20 bg-[#1f36c7]/[0.03]">
                   <td className="px-5 py-2.5 text-[10px] font-black text-slate-600 uppercase tracking-wide">Grand Total</td>
-                  <td className="px-4 py-2.5 text-center"><span className={`text-sm font-black tabular-nums ${totP > 0 ? "text-amber-700" : "text-slate-300"}`}>{totP > 0 ? totP : "—"}</span></td>
-                  <td className="px-4 py-2.5 text-center"><span className="text-sm font-black text-emerald-600 tabular-nums">{totA}</span></td>
-                  <td className="px-4 py-2.5 text-center"><span className={`text-sm font-black tabular-nums ${totR > 0 ? "text-red-500" : "text-slate-300"}`}>{totR > 0 ? totR : "—"}</span></td>
-                  <td className="px-5 py-2.5 text-center"><span className="text-sm font-black text-[#1f36c7] tabular-nums">{totP + totA + totR}</span></td>
+                  <td className="px-4 py-2.5 text-center">
+                    {totP > 0 ? <button onClick={() => navigate("/paid-bible?tab=service-requests&status=pending")} className="text-sm font-black tabular-nums text-amber-700 hover:underline cursor-pointer bg-transparent border-none p-0">{totP}</button> : <span className="text-sm font-black tabular-nums text-slate-300">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {totA > 0 ? <button onClick={() => navigate("/paid-bible?tab=service-requests&status=approved")} className="text-sm font-black text-emerald-600 tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{totA}</button> : <span className="text-sm font-black text-emerald-600 tabular-nums">{totA}</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {totR > 0 ? <button onClick={() => navigate("/paid-bible?tab=service-requests&status=rejected")} className="text-sm font-black tabular-nums text-red-500 hover:underline cursor-pointer bg-transparent border-none p-0">{totR}</button> : <span className="text-sm font-black tabular-nums text-slate-300">—</span>}
+                  </td>
+                  <td className="px-5 py-2.5 text-center">
+                    {totP + totA + totR > 0 ? <button onClick={() => navigate("/paid-bible?tab=service-requests")} className="text-sm font-black text-[#1f36c7] tabular-nums hover:underline cursor-pointer bg-transparent border-none p-0">{totP + totA + totR}</button> : <span className="text-sm font-black text-[#1f36c7] tabular-nums">{totP + totA + totR}</span>}
+                  </td>
                 </tr>
               );
             })()}
@@ -570,7 +621,7 @@ export default function PaidBibleSummaryTab() {
         </table>
         <div className="px-5 py-2.5 border-t border-slate-100 bg-slate-50/50">
           <p className="text-[10px] text-slate-400">
-            <span className="font-semibold text-amber-600">Pending</span> counts are clickable — navigates to Service Requests page filtered by type.
+            All counts are clickable — navigates to the Service Requests page pre-filtered by type and status.
           </p>
         </div>
       </div>

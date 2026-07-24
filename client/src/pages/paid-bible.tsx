@@ -1,4 +1,4 @@
-import { useState, Fragment, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, Fragment, useMemo, lazy, Suspense } from "react";
 const PaidBibleSummaryTab = lazy(() => import("@/pages/paid-bible-summary"));
 import { useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -3123,10 +3123,26 @@ function ServiceRequestRow({ request, onView }: {
 }
 
 function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
+  const search = useSearch();
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [typeFilter,   setTypeFilter]   = useState<"all" | SrType>("all");
+  const [targetStatusFilter, setTargetStatusFilter] = useState("");
   const [cbuIdSearch,  setCbuIdSearch]  = useState("");
   const [, navigate] = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const status = params.get("status");
+    const srType = params.get("srType");
+    const targetStatus = params.get("targetStatus") ?? "";
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      setStatusFilter(status as "pending" | "approved" | "rejected");
+    } else if (!status) {
+      setStatusFilter("all");
+    }
+    setTypeFilter(srType && srType !== "all" ? (srType as SrType) : "all");
+    setTargetStatusFilter(targetStatus);
+  }, [search]);
 
   const pending  = requests.filter(r => r.overallStatus === "pending").length;
   const approved = requests.filter(r => r.overallStatus === "approved").length;
@@ -3135,10 +3151,19 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
   const filtered = requests.filter(r =>
     (statusFilter === "all" || r.overallStatus === statusFilter) &&
     (typeFilter   === "all" || r.srType       === typeFilter) &&
+    (!targetStatusFilter   || r.targetStatus  === targetStatusFilter) &&
     (cbuIdSearch.trim() === "" || (r.cbuCode ?? "").toLowerCase().includes(cbuIdSearch.trim().toLowerCase()))
   );
 
-  const hasFilters = statusFilter !== "all" || typeFilter !== "all" || cbuIdSearch.trim() !== "";
+  const hasFilters = statusFilter !== "all" || typeFilter !== "all" || targetStatusFilter !== "" || cbuIdSearch.trim() !== "";
+
+  const clearAllFilters = () => {
+    setStatusFilter("all");
+    setTypeFilter("all");
+    setTargetStatusFilter("");
+    setCbuIdSearch("");
+    navigate("/paid-bible?tab=service-requests");
+  };
 
   return (
     <div className="space-y-4">
@@ -3165,7 +3190,7 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
           ))}
           {hasFilters && (
             <Button size="sm" variant="ghost" className="h-7 text-xs px-2 gap-1"
-              onClick={() => { setStatusFilter("all"); setTypeFilter("all"); setCbuIdSearch(""); }}>
+              onClick={clearAllFilters}>
               <X className="h-3 w-3" /> Clear
             </Button>
           )}
@@ -3181,7 +3206,7 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
           <button
             key={value}
             data-testid={`type-filter-${value}`}
-            onClick={() => setTypeFilter(value)}
+            onClick={() => { setTypeFilter(value); setTargetStatusFilter(""); navigate("/paid-bible?tab=service-requests"); }}
             className={`text-xs px-3 py-1 rounded-full border transition-all font-medium ${
               typeFilter === value
                 ? "bg-[#1f36c7] text-white border-[#1f36c7]"
@@ -3191,6 +3216,16 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
             {label}
           </button>
         ))}
+        {targetStatusFilter && (
+          <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-slate-100 border border-slate-300 text-slate-600 font-medium">
+            {targetStatusFilter}
+            <button
+              data-testid="button-clear-target-status-filter"
+              onClick={() => { setTargetStatusFilter(""); navigate("/paid-bible?tab=service-requests" + (typeFilter !== "all" ? `&srType=${typeFilter}` : "") + (statusFilter !== "all" ? `&status=${statusFilter}` : "")); }}
+              className="ml-0.5 hover:text-slate-900"
+            ><X className="h-3 w-3" /></button>
+          </span>
+        )}
         <div className="relative ml-auto">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
@@ -3266,6 +3301,11 @@ export default function PaidBiblePage() {
   const search = useSearch();
   const initialTab = new URLSearchParams(search).get("tab") ?? "summary";
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const tab = new URLSearchParams(search).get("tab") ?? "summary";
+    setActiveTab(tab);
+  }, [search]);
   const moc = getCurrentMoc();
 
   const { requests: serviceRequests, bpStatusOverrides, depotDecisionOverrides, bpDates } = useSrStore();
