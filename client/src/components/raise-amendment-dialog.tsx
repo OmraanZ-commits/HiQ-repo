@@ -1825,22 +1825,22 @@ function PriceLotEditor({
       <div className="space-y-3">
         <Label className="text-sm font-semibold">New Price Lot</Label>
         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-          {/* MRP — required for replace, shown prominently here */}
-          {scopeType === "replace" && (
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">New MRP (₹) <span className="text-red-500">*</span></Label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={newMrp}
-                onChange={e => setNewMrp(e.target.value)}
-                placeholder="e.g. 258"
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                data-testid="input-new-mrp"
-              />
-            </div>
-          )}
+          {/* MRP — always shown; required only for replace scope */}
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">
+              New MRP (₹){scopeType === "replace" && <span className="text-red-500 ml-0.5">*</span>}
+            </Label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={newMrp}
+              onChange={e => setNewMrp(e.target.value)}
+              placeholder="e.g. 258"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-new-mrp"
+            />
+          </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Price Lot Start Date <span className="text-red-500">*</span></Label>
             <input
@@ -1869,22 +1869,9 @@ function PriceLotEditor({
       <details className="group">
         <summary className="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground list-none select-none">
           <Plus className="h-3.5 w-3.5 transition-transform group-open:rotate-45" />
-          Optional fields (MRP, Margins &amp; Price Off)
+          Optional fields (Margins &amp; Price Off)
         </summary>
         <div className="mt-3 grid grid-cols-2 gap-3 pl-5">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">MRP per unit (₹)</Label>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={newMrp}
-              onChange={e => setNewMrp(e.target.value)}
-              placeholder="e.g. 258"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              data-testid="input-new-mrp"
-            />
-          </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Retailer Margin</Label>
             <input
