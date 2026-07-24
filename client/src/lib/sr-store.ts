@@ -565,6 +565,20 @@ export function approveStep(requestId: string, stepIndex: number, comment?: stri
       if (sr.srType === "network-change-date-amendment" && sr.cbuId && sr.requestedDate) {
         _networkChangeDateOverrides = { ..._networkChangeDateOverrides, [sr.cbuId]: sr.requestedDate };
       }
+      // price-lot-change with geo extension: merge new geos/depots into removal overrides
+      // (addedGeos/addedDepots are already persisted via the backend saga; here we just
+      //  ensure the UI sees the new scope instantly by clearing any removal override for
+      //  those geos so they appear in the CBU's effective geography.)
+      if (sr.srType === "price-lot-change" && sr.cbuId && (sr.addedGeos?.length || sr.addedDepots?.length)) {
+        const prev = _geoRemovalOverrides[sr.cbuId] ?? { removedGeos: [], removedDepots: [] };
+        _geoRemovalOverrides = {
+          ..._geoRemovalOverrides,
+          [sr.cbuId]: {
+            removedGeos:   prev.removedGeos.filter(g => !(sr.addedGeos ?? []).includes(g)),
+            removedDepots: prev.removedDepots.filter(d => !(sr.addedDepots ?? []).includes(d)),
+          },
+        };
+      }
       fullyApprovedSr = { ...sr, approvers, overallStatus: "approved" };
     }
 

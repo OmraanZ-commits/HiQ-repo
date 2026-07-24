@@ -91,6 +91,8 @@ class SrApprovalSaga:
                     self._apply_customer_chain_amendment(sr, actioned_by)
                 elif sr_type == "network-change-date-amendment":
                     self._apply_network_change_date_amendment(sr, actioned_by)
+                elif sr_type == "price-lot-change":
+                    self._apply_price_lot_geo_extension(sr, actioned_by)
 
             return self._result("completed")
 
@@ -392,6 +394,25 @@ class SrApprovalSaga:
             "cbuId": cbu_id,
             "requestedCustomerMapping": requested_customer_mapping,
         })
+
+    # ── Effect: price-lot-change (geo extension side-effect) ─────────────────
+
+    def _apply_price_lot_geo_extension(self, sr: dict, actioned_by: str):
+        """
+        When a price-lot-change SR carries addedGeos / addedDepots (i.e. the user
+        extended the price lot to new regions), persist the geography expansion on
+        the CBU record using the same logic as a standalone geo-extension SR.
+        """
+        added_geos   = sr.get("addedGeos")   or []
+        added_depots = sr.get("addedDepots") or []
+
+        if not added_geos and not added_depots:
+            self._log_step("apply_price_lot_geo_extension", "skipped",
+                           result={"reason": "No new geos or depots on price-lot-change SR"})
+            return
+
+        # Delegate to the same geo-extension logic
+        self._apply_geo_extension(sr, actioned_by)
 
     # ── Effect: network-change-date-amendment ─────────────────────────────────
 

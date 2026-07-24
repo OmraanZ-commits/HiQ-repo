@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import type { PortalUser } from "@/lib/users-data";
 import type { ChannelDef, CustomerChainDef } from "@/lib/distribution-data";
-import { CUSTOMER_CHAINS, MT_SUB_CHANNELS } from "@/lib/distribution-data";
+import { CUSTOMER_CHAINS, MT_SUB_CHANNELS, GEOGRAPHY_DEPOT_MAP } from "@/lib/distribution-data";
 import {
   SR_TYPE_META, addRequest,
   type SrType, type ServiceRequest, type ApproverStep,
@@ -1356,6 +1356,7 @@ interface PriceLotChangeData {
   productionEndDate: string;
   newChannels: string[];
   newGeos: string[];
+  newDepots: string[];
   retailerMargin: string;
   rsMargin: string;
   priceOff: string;
@@ -1398,6 +1399,7 @@ function PriceLotEditor({
   retailerMargin, setRetailerMargin,
   rsMargin, setRsMargin,
   priceOff, setPriceOff,
+  newDepots, setNewDepots,
 }: {
   currentGeo: string[];
   currentChannels: string[];
@@ -1421,6 +1423,8 @@ function PriceLotEditor({
   setNewChannels: (v: string[]) => void;
   newGeos: string[];
   setNewGeos: (v: string[]) => void;
+  newDepots: string[];
+  setNewDepots: (v: string[]) => void;
   retailerMargin: string;
   setRetailerMargin: (v: string) => void;
   rsMargin: string;
@@ -1704,6 +1708,19 @@ function PriceLotEditor({
                           ? newGeos.filter(g => g !== c.name)
                           : [...newGeos, c.name];
                         setNewGeos(next);
+                        if (!selected) {
+                          // Auto-select the depot if this geo has exactly one
+                          const geoDepots = GEOGRAPHY_DEPOT_MAP[c.name] || [];
+                          if (geoDepots.length === 1 && !newDepots.includes(geoDepots[0])) {
+                            setNewDepots([...newDepots, geoDepots[0]]);
+                          }
+                        } else {
+                          // Deselect: remove depots unique to this geo (not shared with remaining selections)
+                          const remainingGeos = newGeos.filter(g => g !== c.name);
+                          const stillNeeded = new Set(remainingGeos.flatMap(g => GEOGRAPHY_DEPOT_MAP[g] || []));
+                          const geoDepots = GEOGRAPHY_DEPOT_MAP[c.name] || [];
+                          setNewDepots(newDepots.filter(d => !geoDepots.includes(d) || stillNeeded.has(d)));
+                        }
                       }}
                       className={cn(
                         "flex items-start gap-2 rounded-md border px-3 py-2 text-left transition-all",
@@ -1725,6 +1742,81 @@ function PriceLotEditor({
           {availableNewGeos.length > 0 && newGeos.length === 0 && (
             <p className="text-xs text-red-500">Select at least one new region.</p>
           )}
+        </div>
+      )}
+
+      {/* DC Selection — shown after regions are chosen, for new-geo and new-region-channel */}
+      {needsGeos && newGeos.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">
+            Distribution Centres (DCs) for New Regions <span className="text-red-500">*</span>
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Select the DCs that will serve each newly added region. At least one DC per region is required.
+          </p>
+          <div className="space-y-3">
+            {newGeos.map(geo => {
+              const availableDcs = GEOGRAPHY_DEPOT_MAP[geo] || [];
+              const allSelected  = availableDcs.length > 0 && availableDcs.every(d => newDepots.includes(d));
+              const anySelected  = availableDcs.some(d => newDepots.includes(d));
+              return (
+                <div key={geo} className="rounded-lg border border-blue-100 bg-blue-50/40 px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{geo}</span>
+                    {availableDcs.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (allSelected) {
+                            setNewDepots(newDepots.filter(d => !availableDcs.includes(d)));
+                          } else {
+                            const next = [...newDepots];
+                            availableDcs.forEach(d => { if (!next.includes(d)) next.push(d); });
+                            setNewDepots(next);
+                          }
+                        }}
+                        className="text-xs text-blue-600 underline"
+                        data-testid={`btn-plc-dc-selectall-${geo.replace(/\s+/g, "-").toLowerCase()}`}
+                      >
+                        {allSelected ? "Deselect all" : "Select all"}
+                      </button>
+                    )}
+                  </div>
+                  {availableDcs.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No DCs mapped for this region.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {availableDcs.map(dc => {
+                        const selected = newDepots.includes(dc);
+                        return (
+                          <button
+                            key={dc}
+                            type="button"
+                            onClick={() =>
+                              setNewDepots(selected ? newDepots.filter(d => d !== dc) : [...newDepots, dc])
+                            }
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-mono font-medium transition-all",
+                              selected
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                : "border-border hover:border-emerald-300 hover:bg-muted/20",
+                            )}
+                            data-testid={`btn-plc-dc-${dc.toLowerCase()}`}
+                          >
+                            {selected && <Check className="h-3 w-3" />}
+                            {dc}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {availableDcs.length > 0 && !anySelected && (
+                    <p className="text-xs text-red-500">Select at least one DC for {geo}.</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -2233,6 +2325,16 @@ function SummaryView({
                   </div>
                 </div>
               )}
+              {priceLotChangeData.newDepots.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Distribution Centres (DCs)</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {priceLotChangeData.newDepots.map(dc => (
+                      <Badge key={dc} className="bg-sky-100 text-sky-700 border border-sky-300 text-xs font-mono">{dc}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 pt-1 border-t">
                 {priceLotChangeData.oldLotInvoicingDeactivDate && (
                   <div>
@@ -2674,6 +2776,7 @@ export function RaiseAmendmentDialog({
   const [plcProductionEndDate,     setPlcProductionEndDate]     = useState("");
   const [plcNewChannels,           setPlcNewChannels]           = useState<string[]>([]);
   const [plcNewGeos,               setPlcNewGeos]               = useState<string[]>([]);
+  const [plcNewDepots,             setPlcNewDepots]             = useState<string[]>([]);
   const [plcRetailerMargin,        setPlcRetailerMargin]        = useState("");
   const [plcRsMargin,              setPlcRsMargin]              = useState("");
   const [plcPriceOff,              setPlcPriceOff]              = useState("");
@@ -2761,16 +2864,22 @@ export function RaiseAmendmentDialog({
       return !!requestedDate && requestedDate !== currentNetworkChangeDate;
     }
     if (amendmentType === "price-lot-change") {
+      const needsGeos = plcScopeType === "new-geo" || plcScopeType === "new-region-channel";
+      // For each new geo, at least one of its depots must be selected
+      const dcsCoverAllGeos = !needsGeos || plcNewGeos.every(geo => {
+        const available = GEOGRAPHY_DEPOT_MAP[geo] || [];
+        return available.length === 0 || available.some(d => plcNewDepots.includes(d));
+      });
       const scopeOk =
-        (plcScopeType === "replace"          && !!plcOldLotId) ||
-        (plcScopeType === "new-channel"       && plcNewChannels.length > 0) ||
-        (plcScopeType === "new-geo"           && plcNewGeos.length > 0) ||
-        (plcScopeType === "new-region-channel" && (plcNewChannels.length > 0 || plcNewGeos.length > 0));
+        (plcScopeType === "replace"            && !!plcOldLotId) ||
+        (plcScopeType === "new-channel"         && plcNewChannels.length > 0) ||
+        (plcScopeType === "new-geo"             && plcNewGeos.length > 0 && dcsCoverAllGeos) ||
+        (plcScopeType === "new-region-channel"  && (plcNewChannels.length > 0 || plcNewGeos.length > 0) && dcsCoverAllGeos);
       const mrpOk = plcScopeType !== "replace" || !!plcNewMrp;
       return !!plcPricingEffectiveDate && mrpOk && scopeOk;
     }
     return false;
-  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, saAddedDepots, saRemovedDepots, currentDepots, mtGeos, customerMapping, requestedCustomerMapping, requestedDate, currentNetworkChangeDate, plcOldLotId, plcNewMrp, plcPricingEffectiveDate, plcScopeType, plcNewChannels, plcNewGeos]);
+  }, [amendmentType, addedGeos, removedGeos, removedDepots, addedChannels, removedChannels, newMode, sourcingDepotMapping, saAddedDepots, saRemovedDepots, currentDepots, mtGeos, customerMapping, requestedCustomerMapping, requestedDate, currentNetworkChangeDate, plcOldLotId, plcNewMrp, plcPricingEffectiveDate, plcScopeType, plcNewChannels, plcNewGeos, plcNewDepots]);
 
   const reset = () => {
     setStep("type");
@@ -2801,6 +2910,7 @@ export function RaiseAmendmentDialog({
     setPlcProductionEndDate("");
     setPlcNewChannels([]);
     setPlcNewGeos([]);
+    setPlcNewDepots([]);
     setPlcRetailerMargin("");
     setPlcRsMargin("");
     setPlcPriceOff("");
@@ -2890,8 +3000,8 @@ export function RaiseAmendmentDialog({
       justification: justification.trim(),
       approvers,
       overallStatus: "pending",
-      addedGeos: amendmentType === "geo-extension" ? addedGeos : [],
-      addedDepots: amendmentType === "geo-extension" ? addedDepots : amendmentType === "sourcing-amendment" ? saAddedDepots : [],
+      addedGeos: amendmentType === "geo-extension" ? addedGeos : amendmentType === "price-lot-change" ? plcNewGeos : [],
+      addedDepots: amendmentType === "geo-extension" ? addedDepots : amendmentType === "sourcing-amendment" ? saAddedDepots : amendmentType === "price-lot-change" ? plcNewDepots : [],
       addedChannels: amendmentType === "channel-extension" ? addedChannels : [],
       removedChannels: amendmentType === "channel-extension" ? removedChannels : [],
       requestedChannelMapping: (amendmentType === "channel-extension" || amendmentType === "geo-extension") ? requestedChannelMapping : undefined,
@@ -3222,6 +3332,8 @@ export function RaiseAmendmentDialog({
               setNewChannels={setPlcNewChannels}
               newGeos={plcNewGeos}
               setNewGeos={setPlcNewGeos}
+              newDepots={plcNewDepots}
+              setNewDepots={setPlcNewDepots}
               retailerMargin={plcRetailerMargin}
               setRetailerMargin={setPlcRetailerMargin}
               rsMargin={plcRsMargin}
@@ -3274,6 +3386,7 @@ export function RaiseAmendmentDialog({
                 productionEndDate: plcProductionEndDate,
                 newChannels: plcNewChannels,
                 newGeos: plcNewGeos,
+                newDepots: plcNewDepots,
                 retailerMargin: plcRetailerMargin,
                 rsMargin: plcRsMargin,
                 priceOff: plcPriceOff,
