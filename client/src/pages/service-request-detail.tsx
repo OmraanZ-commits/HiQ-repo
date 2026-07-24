@@ -45,7 +45,15 @@ const TONE_BADGE: Record<string, string> = {
   neutral: "bg-amber-100 text-amber-700 border-amber-300",
 };
 
-function DemandVisibilityTable({ rows }: { rows: import("@/lib/sr-store").DemandVisibilityByCbu[] }) {
+function DemandVisibilityTable({
+  rows,
+  cbuToEntryId,
+}: {
+  rows: import("@/lib/sr-store").DemandVisibilityByCbu[];
+  cbuToEntryId?: Map<string, string>;
+}) {
+  const [, navigate] = useLocation();
+
   const months = Array.from(
     new Set(rows.flatMap(r => (r.byMonth ?? []).map(m => m.mocMonth)))
   ).sort();
@@ -74,10 +82,21 @@ function DemandVisibilityTable({ rows }: { rows: import("@/lib/sr-store").Demand
           {rows.map((d, i) => {
             const tone = _checkTone(d.status);
             const monthMap = new Map((d.byMonth ?? []).map(m => [m.mocMonth, m.totalUnits]));
+            const entryId = d.cbuCode ? cbuToEntryId?.get(d.cbuCode) : undefined;
             return (
-              <TableRow key={d.cbuCode || i} data-testid={`row-demand-visibility-${d.cbuCode || i}`}>
+              <TableRow
+                key={d.cbuCode || i}
+                data-testid={`row-demand-visibility-${d.cbuCode || i}`}
+                className={entryId ? "cursor-pointer hover:bg-blue-50/40 transition-colors" : ""}
+                onClick={entryId ? () => navigate(`/edit/${entryId}?tab=demand`) : undefined}
+              >
                 <TableCell className="text-xs">
-                  <div className="font-semibold text-foreground">{d.cbuCode || "—"}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-foreground">{d.cbuCode || "—"}</span>
+                    {entryId && (
+                      <span className="text-[10px] text-[#1f36c7] font-medium opacity-70 group-hover:opacity-100">→ View demand</span>
+                    )}
+                  </div>
                   {d.cbuDescription && (
                     <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">{d.cbuDescription}</div>
                   )}
@@ -193,6 +212,7 @@ export default function ServiceRequestDetailPage() {
   const pendingWith     = pendingApprover?.label ?? "—";
 
   const allCbus: CbuSectionRecord[] = bpProfile?.cbus ?? [];
+  const cbuToEntryId = new Map(allCbus.filter(c => c.cbuCode).map(c => [c.cbuCode!, c.id]));
   const relevantCbus = isCbu && request.cbuCode
     ? allCbus.filter(c => c.cbuCode === request.cbuCode)
     : allCbus;
@@ -291,7 +311,7 @@ export default function ServiceRequestDetailPage() {
                       Demand Visibility{hasMultiCbuDemand && demandByCbu!.length > 1 ? ` (${demandByCbu!.length} CBUs)` : ""}
                     </h3>
                     {hasMultiCbuDemand ? (
-                      <DemandVisibilityTable rows={demandByCbu!} />
+                      <DemandVisibilityTable rows={demandByCbu!} cbuToEntryId={cbuToEntryId} />
                     ) : (
                       <div className="grid grid-cols-4 gap-4">
                         <ValidationCheckCard
