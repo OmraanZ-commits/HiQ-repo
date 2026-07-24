@@ -1659,9 +1659,9 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
 
   useEffect(() => {
     const params = new URLSearchParams(search);
-    const smallC   = params.get("smallC");
+    const scat     = params.get("scat");
     const bpStatus = params.get("bpStatus");
-    setSmallCFilter(smallC ? [smallC] : []);
+    setScatFilter(scat ? [scat] : []);
     setBpStatusFilter(bpStatus ? [bpStatus] : []);
   }, [search]);
   const [exportOpen, setExportOpen]         = useState(false);
@@ -1683,6 +1683,15 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
   );
 
   const allBasepacks = useMemo<PbBasepack[]>(() => {
+    // Build a metadata map from ALL entries (including Draft) so fields like
+    // salesCategory, smallC, brand are available even if only Draft entries carry them.
+    const allGrouped = new Map<string, NetworkEntry[]>();
+    networkEntries.forEach(entry => {
+      const key = entry.basepack || entry.cbuCode || entry.id;
+      if (!allGrouped.has(key)) allGrouped.set(key, []);
+      allGrouped.get(key)!.push(entry);
+    });
+
     const grouped = new Map<string, NetworkEntry[]>();
     networkEntries
       .filter(entry => entry.networkStatus && entry.networkStatus !== "Draft")
@@ -1694,6 +1703,9 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
 
     return Array.from(grouped.entries()).map(([bpCode, entries]) => {
       const first    = entries[0];
+      // Use all entries (including Draft) to find metadata that might only exist on Draft rows
+      const allEntries = allGrouped.get(bpCode) ?? entries;
+      const meta     = allEntries[0];
       const statuses = entries.map(e => e.networkStatus);
       const eligibleEntries = entries.filter(e => MSTN_THRESHOLD_STATUSES.has(e.networkStatus ?? ""));
       const mstnYes  = eligibleEntries.length > 0 && eligibleEntries.every(e => {
@@ -1708,12 +1720,12 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
 
       return {
         id:             bpCode,
-        basepakName:    first.basepackDescription || first.materialDescription || bpCode,
+        basepakName:    meta.basepackDescription || meta.materialDescription || bpCode,
         basepackCode:   bpCode,
-        salesCategory:  first.salesCategory  || "-",
-        smallC:         first.smallC         || "-",
-        brand:          first.brand          || "-",
-        bg:             entries.find(e => e.bg)?.bg || "-",
+        salesCategory:  allEntries.find(e => e.salesCategory)?.salesCategory || "-",
+        smallC:         allEntries.find(e => e.smallC)?.smallC || "-",
+        brand:          allEntries.find(e => e.brand)?.brand || "-",
+        bg:             allEntries.find(e => e.bg)?.bg || "-",
         clusters:       clusters.length ? clusters.join(", ") : "All India",
         channels,
         mstnStatus:     mstnYes ? "Yes" : "No",

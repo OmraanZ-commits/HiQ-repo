@@ -398,7 +398,7 @@ export default function PaidBibleSummaryTab() {
                       <td key={d.key} className="text-center px-3 py-2.5 tabular-nums">
                         {d.count > 0
                           ? <button
-                              onClick={() => navigate(`/paid-bible?tab=overview&smallC=${encodeURIComponent(cat)}&bpStatus=${encodeURIComponent(d.key)}`)}
+                              onClick={() => navigate(`/paid-bible?tab=overview&scat=${encodeURIComponent(cat)}&bpStatus=${encodeURIComponent(d.key)}`)}
                               className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${d.light} hover:opacity-80 cursor-pointer border-none`}
                               data-testid={`pack-cell-${cat.replace(/\s/g,"-")}-${d.key.replace(/\s/g,"-")}`}
                             >{d.count}</button>
@@ -408,7 +408,7 @@ export default function PaidBibleSummaryTab() {
                     <td className="text-center px-4 py-2.5 tabular-nums">
                       {total > 0
                         ? <button
-                            onClick={() => navigate(`/paid-bible?tab=overview&smallC=${encodeURIComponent(cat)}`)}
+                            onClick={() => navigate(`/paid-bible?tab=overview&scat=${encodeURIComponent(cat)}`)}
                             className="font-bold text-slate-700 hover:underline cursor-pointer bg-transparent border-none p-0"
                             data-testid={`pack-row-total-${cat.replace(/\s/g,"-")}`}
                           >{total}</button>
