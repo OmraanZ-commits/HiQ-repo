@@ -132,6 +132,7 @@ interface PbBasepack {
   basepakName: string;
   basepackCode: string;
   salesCategory: string;
+  smallC: string;
   brand: string;
   bg: string;
   clusters: string;
@@ -1650,6 +1651,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
   const [mstnFilter, setMstnFilter]         = useState<string[]>([]);
   const [bgFilter, setBgFilter]             = useState<string[]>([]);
   const [scatFilter, setScatFilter]         = useState<string[]>([]);
+  const [smallCFilter, setSmallCFilter]     = useState<string[]>([]);
   const [formatFilter, setFormatFilter]     = useState<string[]>([]);
   const [subChFilter, setSubChFilter]       = useState<string[]>([]);
   const [customerFilter, setCustomerFilter] = useState<string[]>([]);
@@ -1700,6 +1702,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
         basepakName:    first.basepackDescription || first.materialDescription || bpCode,
         basepackCode:   bpCode,
         salesCategory:  first.salesCategory  || "-",
+        smallC:         first.smallC         || "-",
         brand:          first.brand          || "-",
         bg:             entries.find(e => e.bg)?.bg || "-",
         clusters:       clusters.length ? clusters.join(", ") : "All India",
@@ -1778,6 +1781,10 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
     () => [...new Set(allBasepacks.map(b => b.salesCategory))].filter(s => s && s !== "-").sort(),
     [allBasepacks],
   );
+  const smallCOptions = useMemo(
+    () => [...new Set(allBasepacks.map(b => b.smallC))].filter(s => s && s !== "-").sort(),
+    [allBasepacks],
+  );
   const formatOptions = useMemo(
     () => [...new Set(networkEntries.map(e => e.format).filter((f): f is string => Boolean(f)))].sort(),
     [networkEntries],
@@ -1801,12 +1808,13 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
       (mstnFilter.length     === 0 || mstnFilter.some(f => b.materials.some(m => m.mstnClear === f))) &&
       (bgFilter.length       === 0 || bgFilter.includes(b.bg)) &&
       (scatFilter.length     === 0 || scatFilter.includes(b.salesCategory)) &&
+      (smallCFilter.length   === 0 || smallCFilter.includes(b.smallC)) &&
       (!materialSearch || b.materials.some(m =>
         m.code.toLowerCase().includes(materialSearch.toLowerCase()) ||
         m.description.toLowerCase().includes(materialSearch.toLowerCase())
       ))
     );
-  }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, bgFilter, scatFilter, materialSearch]);
+  }), [allBasepacks, localBpStatus, searchBp, bpStatusFilter, channelFilter, locationFilter, mstnFilter, bgFilter, scatFilter, smallCFilter, materialSearch]);
 
   const ACTIVE_BP_STATUSES = new Set(["Active Pack", "Partially Active", "Seasonal Pack"]);
   const total       = allBasepacks.length;
@@ -1817,7 +1825,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
   const activeFilterCount = [
     bpStatusFilter.length > 0, channelFilter.length > 0,
     locationFilter.length > 0, mstnFilter.length > 0, bgFilter.length > 0, materialSearch !== "",
-    scatFilter.length > 0, formatFilter.length > 0, subChFilter.length > 0, customerFilter.length > 0,
+    scatFilter.length > 0, smallCFilter.length > 0, formatFilter.length > 0, subChFilter.length > 0, customerFilter.length > 0,
   ].filter(Boolean).length;
 
   const triggerCbus = useMemo(() => {
@@ -2375,6 +2383,17 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                 />
               </div>
               <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Small C</label>
+                <MultiSelectFilter
+                  options={smallCOptions.map(s => ({ value: s, label: s }))}
+                  value={smallCFilter}
+                  onChange={setSmallCFilter}
+                  placeholder="All"
+                  testId="select-small-c"
+                  width="w-44"
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Sales Category</label>
                 <MultiSelectFilter
                   options={scatOptions.map(s => ({ value: s, label: s }))}
@@ -2419,7 +2438,7 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
                 />
               </div>
               {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => { setBpStatusFilter([]); setChannelFilter([]); setLocationFilter([]); setMstnFilter([]); setBgFilter([]); setMaterialSearch(""); setScatFilter([]); setFormatFilter([]); setSubChFilter([]); setCustomerFilter([]); }} data-testid="button-clear-filters">
+                <Button variant="ghost" size="sm" onClick={() => { setBpStatusFilter([]); setChannelFilter([]); setLocationFilter([]); setMstnFilter([]); setBgFilter([]); setMaterialSearch(""); setScatFilter([]); setSmallCFilter([]); setFormatFilter([]); setSubChFilter([]); setCustomerFilter([]); }} data-testid="button-clear-filters">
                   Clear all
                 </Button>
               )}
