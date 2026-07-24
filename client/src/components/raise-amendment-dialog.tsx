@@ -2489,16 +2489,15 @@ function SummaryView({
         </div>
       </div>
 
-      {/* Demand Estimate Upload — channel amendment only */}
-      {amendmentType === "channel-extension" && (
-        <div className="space-y-1.5">
+      {/* Demand Estimate Upload — all amendment types */}
+      <div className="space-y-1.5">
           <Label className="text-sm font-medium flex items-center gap-1.5">
             <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
             Demand Estimate
             <span className="text-xs font-normal text-muted-foreground ml-1">(optional)</span>
           </Label>
           <p className="text-xs text-muted-foreground">
-            Upload your demand forecast Excel (.xlsx / .xls) to support this channel amendment. The file will be reviewed by the Demand Planner.
+            Upload your demand forecast Excel (.xlsx / .xls) to support this amendment request. The file will be reviewed by the Demand Planner.
           </p>
           {demandEstimateFile ? (
             <div
@@ -2546,7 +2545,6 @@ function SummaryView({
             </label>
           )}
         </div>
-      )}
     </div>
   );
 }
