@@ -3097,6 +3097,22 @@ function ServiceRequestRow({ request, onView }: {
         <p className="text-[10px] text-muted-foreground">{request.raisedAt}</p>
       </div>
 
+      {/* Aging */}
+      <div className="w-16 flex-shrink-0 hidden lg:block">
+        {(() => {
+          const raised = request.raisedAt ? new Date(request.raisedAt) : null;
+          if (!raised || isNaN(raised.getTime())) return <span className="text-xs text-muted-foreground">—</span>;
+          const today = new Date(); today.setHours(0, 0, 0, 0); raised.setHours(0, 0, 0, 0);
+          const days = Math.floor((today.getTime() - raised.getTime()) / (1000 * 60 * 60 * 24));
+          const color = days <= 3 ? "text-emerald-600" : days <= 7 ? "text-amber-600" : "text-red-600";
+          return (
+            <span className={`text-xs font-semibold tabular-nums ${color}`} data-testid={`text-aging-${request.id}`}>
+              {days}d
+            </span>
+          );
+        })()}
+      </div>
+
       {/* MSTN pill — only for basepack-status-change */}
       <div className="flex-shrink-0 hidden lg:flex w-20">
         {!isCbu && request.mstnCoverage !== undefined && (
@@ -3298,6 +3314,7 @@ function ServiceRequestsTab({ requests }: ServiceRequestsTabProps) {
             <div className="w-24 flex-shrink-0">Status</div>
             <div className="flex-1">Basepack</div>
             <div className="w-40 flex-shrink-0 hidden xl:block">Raised by</div>
+            <div className="w-16 flex-shrink-0 hidden lg:block">Aging</div>
             <div className="flex-shrink-0 hidden lg:block w-28">MSTN</div>
             <div className="w-32 flex-shrink-0 hidden md:block">Progress</div>
             <div className="w-16 flex-shrink-0" />
