@@ -2288,8 +2288,16 @@ function SummaryView({
         const isNewChannel = (ch: string) =>
           (priceLotChangeData.scopeType === "new-channel" || priceLotChangeData.scopeType === "new-region-channel")
           && priceLotChangeData.newChannels.includes(ch);
-        const isNewLotCell = (geo: string, ch: string) =>
-          priceLotChangeData.scopeType === "replace" || isNewGeo(geo) || isNewChannel(ch);
+        // For new-region-channel only the exact intersection (new geo AND new channel) gets PL-NEW.
+        // "Half-new" cells (new geo × existing channel, existing geo × new channel) have no lot in this scope.
+        const isNewLotCell = (geo: string, ch: string) => {
+          if (priceLotChangeData.scopeType === "replace") return true;
+          if (priceLotChangeData.scopeType === "new-region-channel") return isNewGeo(geo) && isNewChannel(ch);
+          return isNewGeo(geo) || isNewChannel(ch);
+        };
+        const hasNoLot = (geo: string, ch: string) =>
+          priceLotChangeData.scopeType === "new-region-channel" &&
+          (isNewGeo(geo) !== isNewChannel(ch)); // XOR — exactly one side is new
 
         return (
           <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
@@ -2329,15 +2337,20 @@ function SummaryView({
                       </td>
                       {displayChannels.map(ch => {
                         const isNew = isNewLotCell(geo, ch);
+                        const noLot = hasNoLot(geo, ch);
                         // Overlap only applies when the old lot actually covered this cell.
                         // New-channel and new-geo cells never had the old lot — no overlap.
                         const showOverlap = hasOverlap && !isNewChannel(ch) && !isNewGeo(geo);
                         return (
                           <td key={ch} className={cn(
                             "px-3 py-2.5 text-center font-mono",
-                            isNew ? "text-amber-700 font-semibold bg-amber-50" : "text-blue-700",
+                            noLot ? "text-muted-foreground/40 bg-muted/10"
+                              : isNew ? "text-amber-700 font-semibold bg-amber-50"
+                              : "text-blue-700",
                           )}>
-                            {isNew ? (
+                            {noLot ? (
+                              <span className="text-base leading-none">—</span>
+                            ) : isNew ? (
                               <span>
                                 {showOverlap ? (
                                   <span className="block">
