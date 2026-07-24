@@ -192,7 +192,19 @@ class MstnDohService:
 
         cleared = sum(1 for m in mats if is_cleared(m))
         mstn_coverage = round((cleared / total) * 100)
-        criteria_met = mstn_coverage >= 100
+
+        # DC-level 70% rule: ≥70% of distinct DCs must have MSTN ≥ 80%.
+        # Take the best score per depot across all materials.
+        depot_best: dict = {}
+        for m in mats:
+            for depot, pct in (m.mstnByDepot or {}).items():
+                if depot not in depot_best or pct > depot_best[depot]:
+                    depot_best[depot] = pct
+        dc_total = len(depot_best)
+        dc_cleared = sum(1 for p in depot_best.values() if p >= _MSTN_THRESHOLD)
+        dc_coverage_pct = round((dc_cleared / dc_total) * 100) if dc_total > 0 else 0
+        # criteria_met requires BOTH all CBUs cleared AND ≥70% of DCs cleared
+        criteria_met = mstn_coverage >= 100 and dc_coverage_pct >= 70
 
         # MOC in which the check is initiated = MOC before the network-change-date MOC
         check_moc_label = None
