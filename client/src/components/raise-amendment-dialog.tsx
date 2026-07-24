@@ -1353,6 +1353,7 @@ interface PriceLotChangeData {
   pricingEndDate: string;
   oldLotInvoicingDeactivDate: string;
   oldLotProductionDeactivDate: string;
+  productionStartDate: string;
   productionEndDate: string;
   newChannels: string[];
   newGeos: string[];
@@ -1395,6 +1396,8 @@ function PriceLotEditor({
   pricingEndDate, setPricingEndDate,
   oldLotInvoicingDeactivDate, setOldLotInvoicingDeactivDate,
   oldLotProductionDeactivDate, setOldLotProductionDeactivDate,
+  productionStartDate, setProductionStartDate,
+  productionEndDate, setProductionEndDate,
   newChannels, setNewChannels,
   newGeos, setNewGeos,
   mrpPerUnit, setMrpPerUnit,
@@ -1421,6 +1424,10 @@ function PriceLotEditor({
   setOldLotInvoicingDeactivDate: (v: string) => void;
   oldLotProductionDeactivDate: string;
   setOldLotProductionDeactivDate: (v: string) => void;
+  productionStartDate: string;
+  setProductionStartDate: (v: string) => void;
+  productionEndDate: string;
+  setProductionEndDate: (v: string) => void;
   newChannels: string[];
   setNewChannels: (v: string[]) => void;
   newGeos: string[];
@@ -1865,6 +1872,26 @@ function PriceLotEditor({
               data-testid="input-pricing-end-date"
             />
             <p className="text-xs text-muted-foreground">Leave blank for "till end"</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Production Start Date</Label>
+            <input
+              type="date"
+              value={productionStartDate}
+              onChange={e => setProductionStartDate(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-production-start-date"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Production End Date</Label>
+            <input
+              type="date"
+              value={productionEndDate}
+              onChange={e => setProductionEndDate(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              data-testid="input-production-end-date"
+            />
           </div>
         </div>
       </div>
@@ -2778,6 +2805,7 @@ export function RaiseAmendmentDialog({
   const [plcPricingEndDate,        setPlcPricingEndDate]        = useState("9999-12-31");
   const [plcOldLotInvoicingDeactiv,  setPlcOldLotInvoicingDeactiv]  = useState("");
   const [plcOldLotProductionDeactiv, setPlcOldLotProductionDeactiv] = useState("");
+  const [plcProductionStartDate,   setPlcProductionStartDate]   = useState("");
   const [plcProductionEndDate,     setPlcProductionEndDate]     = useState("");
   const [plcNewChannels,           setPlcNewChannels]           = useState<string[]>([]);
   const [plcNewGeos,               setPlcNewGeos]               = useState<string[]>([]);
@@ -2914,6 +2942,7 @@ export function RaiseAmendmentDialog({
     setPlcPricingEndDate("9999-12-31");
     setPlcOldLotInvoicingDeactiv("");
     setPlcOldLotProductionDeactiv("");
+    setPlcProductionStartDate("");
     setPlcProductionEndDate("");
     setPlcNewChannels([]);
     setPlcNewGeos([]);
@@ -3341,6 +3370,10 @@ export function RaiseAmendmentDialog({
               setOldLotInvoicingDeactivDate={setPlcOldLotInvoicingDeactiv}
               oldLotProductionDeactivDate={plcOldLotProductionDeactiv}
               setOldLotProductionDeactivDate={setPlcOldLotProductionDeactiv}
+              productionStartDate={plcProductionStartDate}
+              setProductionStartDate={setPlcProductionStartDate}
+              productionEndDate={plcProductionEndDate}
+              setProductionEndDate={setPlcProductionEndDate}
               newChannels={plcNewChannels}
               setNewChannels={setPlcNewChannels}
               newGeos={plcNewGeos}
@@ -3398,6 +3431,7 @@ export function RaiseAmendmentDialog({
                 pricingEndDate: plcPricingEndDate,
                 oldLotInvoicingDeactivDate: plcOldLotInvoicingDeactiv,
                 oldLotProductionDeactivDate: plcOldLotProductionDeactiv,
+                productionStartDate: plcProductionStartDate,
                 productionEndDate: plcProductionEndDate,
                 newChannels: plcNewChannels,
                 newGeos: plcNewGeos,
