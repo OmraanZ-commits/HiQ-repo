@@ -2167,8 +2167,9 @@ function SummaryView({
 
         {amendmentType === "price-lot-change" && priceLotChangeData && (() => {
           const oldLot = PLR_MOCK_LOTS.find(l => l.id === priceLotChangeData.oldLotId);
+          const effectiveOldEnd = priceLotChangeData.oldLotInvoicingDeactivDate || oldLot?.validTo || "9999-12-31";
           const hasOverlap = !!oldLot && !!priceLotChangeData.pricingEffectiveDate &&
-            oldLot.validTo >= priceLotChangeData.pricingEffectiveDate;
+            effectiveOldEnd >= priceLotChangeData.pricingEffectiveDate;
           return (
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-3">
@@ -2266,8 +2267,9 @@ function SummaryView({
       {/* Simulated Pricing Status Summary — price-lot-change only */}
       {amendmentType === "price-lot-change" && priceLotChangeData && priceLotChangeData.oldLotId && (() => {
         const oldLot = PLR_MOCK_LOTS.find(l => l.id === priceLotChangeData.oldLotId);
+        const effectiveOldEnd = priceLotChangeData.oldLotInvoicingDeactivDate || oldLot?.validTo || "9999-12-31";
         const hasOverlap = !!oldLot && !!priceLotChangeData.pricingEffectiveDate &&
-          oldLot.validTo >= priceLotChangeData.pricingEffectiveDate;
+          effectiveOldEnd >= priceLotChangeData.pricingEffectiveDate;
         const allGeos = [
           ...currentGeo,
           ...((priceLotChangeData.scopeType === "new-geo" || priceLotChangeData.scopeType === "new-region-channel")
