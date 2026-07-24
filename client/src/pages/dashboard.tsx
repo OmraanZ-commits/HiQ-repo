@@ -469,39 +469,6 @@ export default function Dashboard() {
                     ))}
                   </div>
 
-                  {/* ── Pipeline bar ── */}
-                  <Card>
-                    <CardContent className="p-5">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Status Pipeline</p>
-                      {/* segmented bar */}
-                      <div className="flex h-3 rounded-full overflow-hidden gap-px mb-4">
-                        {byStatus.map(({ status, count, meta }) =>
-                          count > 0 ? (
-                            <div
-                              key={status}
-                              title={`${status}: ${count}`}
-                              className={`${meta.bar} transition-all`}
-                              style={{ width: `${(count / total) * 100}%` }}
-                            />
-                          ) : null
-                        )}
-                      </div>
-                      {/* legend */}
-                      <div className="flex flex-wrap gap-x-4 gap-y-2">
-                        {byStatus.map(({ status, count, meta }) => (
-                          <div key={status} className="flex items-center gap-1.5" data-testid={`summary-status-${status}`}>
-                            <span className={`h-2 w-2 rounded-full shrink-0 ${meta.dot}`} />
-                            <span className="text-xs text-muted-foreground">{status}</span>
-                            <span className={`text-xs font-semibold tabular-nums ${meta.text}`}>{count}</span>
-                            <span className="text-[10px] text-muted-foreground/50">
-                              {total > 0 ? `(${Math.round((count / total) * 100)}%)` : ""}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* ── Cumulative Pipeline ── */}
                   {(() => {
                     const maxCumul = pendingByStatusWithCumul[0]?.cumulativeCount ?? 1;
@@ -542,7 +509,7 @@ export default function Dashboard() {
                                       className={`h-full rounded-md ${barColor} transition-all`}
                                       style={{ width: `${barPct}%` }}
                                     />
-                                    {pct > 12 && (
+                                    {pct > 6 && (
                                       <span className="absolute inset-y-0 left-2 flex items-center text-[10px] font-bold text-white/90 pointer-events-none">
                                         {pct}%
                                       </span>
