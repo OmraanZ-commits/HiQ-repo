@@ -397,11 +397,23 @@ export default function PaidBibleSummaryTab() {
                     {data.map(d => (
                       <td key={d.key} className="text-center px-3 py-2.5 tabular-nums">
                         {d.count > 0
-                          ? <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${d.light}`}>{d.count}</span>
+                          ? <button
+                              onClick={() => navigate(`/paid-bible?tab=overview&smallC=${encodeURIComponent(cat)}&bpStatus=${encodeURIComponent(d.key)}`)}
+                              className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${d.light} hover:opacity-80 cursor-pointer border-none`}
+                              data-testid={`pack-cell-${cat.replace(/\s/g,"-")}-${d.key.replace(/\s/g,"-")}`}
+                            >{d.count}</button>
                           : <span className="text-slate-200 text-sm">—</span>}
                       </td>
                     ))}
-                    <td className="text-center px-4 py-2.5 font-bold text-slate-700 tabular-nums">{total}</td>
+                    <td className="text-center px-4 py-2.5 tabular-nums">
+                      {total > 0
+                        ? <button
+                            onClick={() => navigate(`/paid-bible?tab=overview&smallC=${encodeURIComponent(cat)}`)}
+                            className="font-bold text-slate-700 hover:underline cursor-pointer bg-transparent border-none p-0"
+                            data-testid={`pack-row-total-${cat.replace(/\s/g,"-")}`}
+                          >{total}</button>
+                        : <span className="font-bold text-slate-700">0</span>}
+                    </td>
                   </tr>
                 );
               })}
@@ -415,12 +427,25 @@ export default function PaidBibleSummaryTab() {
                 {BP_STATUS_DEFS.map(d => {
                   const n = basepacks.filter(b => b.effectiveStatus === d.key).length;
                   return (
-                    <td key={d.key} className="text-center px-3 py-2.5 tabular-nums font-bold" style={{ color: n > 0 ? d.color : "#e2e8f0" }}>
-                      {n > 0 ? n : "—"}
+                    <td key={d.key} className="text-center px-3 py-2.5 tabular-nums font-bold">
+                      {n > 0
+                        ? <button
+                            onClick={() => navigate(`/paid-bible?tab=overview&bpStatus=${encodeURIComponent(d.key)}`)}
+                            className="font-bold hover:underline cursor-pointer bg-transparent border-none p-0"
+                            style={{ color: d.color }}
+                            data-testid={`pack-col-total-${d.key.replace(/\s/g,"-")}`}
+                          >{n}</button>
+                        : <span style={{ color: "#e2e8f0" }}>—</span>}
                     </td>
                   );
                 })}
-                <td className="text-center px-4 py-2.5 font-black text-[#1f36c7] tabular-nums">{totalBps}</td>
+                <td className="text-center px-4 py-2.5 tabular-nums">
+                  <button
+                    onClick={() => navigate("/paid-bible?tab=overview")}
+                    className="font-black text-[#1f36c7] hover:underline cursor-pointer bg-transparent border-none p-0"
+                    data-testid="pack-grand-total"
+                  >{totalBps}</button>
+                </td>
               </tr>
             </tfoot>
           </table>

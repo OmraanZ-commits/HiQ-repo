@@ -1637,6 +1637,7 @@ interface OverviewTabProps {
 
 function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivation, onRequestInactivation, onRequestDelisting, serviceRequests, bpDates, users }: OverviewTabProps) {
   const [, navigate] = useLocation();
+  const search = useSearch();
 
   const { data: networkEntries = [], isLoading } = useQuery<NetworkEntry[]>({
     queryKey: ["/api/network-entries"],
@@ -1655,6 +1656,14 @@ function OverviewTab({ localBpStatus, depotDecisionOverrides, onRequestActivatio
   const [formatFilter, setFormatFilter]     = useState<string[]>([]);
   const [subChFilter, setSubChFilter]       = useState<string[]>([]);
   const [customerFilter, setCustomerFilter] = useState<string[]>([]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const smallC   = params.get("smallC");
+    const bpStatus = params.get("bpStatus");
+    setSmallCFilter(smallC ? [smallC] : []);
+    setBpStatusFilter(bpStatus ? [bpStatus] : []);
+  }, [search]);
   const [exportOpen, setExportOpen]         = useState(false);
   const [showFilters, setShowFilters]       = useState(false);
   const [expandedId, setExpandedId]         = useState<string | null>(null);
