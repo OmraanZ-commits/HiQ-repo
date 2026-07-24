@@ -2327,6 +2327,9 @@ function SummaryView({
                       </td>
                       {displayChannels.map(ch => {
                         const isNew = isNewLotCell(geo, ch);
+                        // Overlap only applies when the old lot actually covered this cell.
+                        // New-channel and new-geo cells never had the old lot — no overlap.
+                        const showOverlap = hasOverlap && !isNewChannel(ch) && !isNewGeo(geo);
                         return (
                           <td key={ch} className={cn(
                             "px-3 py-2.5 text-center font-mono",
@@ -2334,7 +2337,7 @@ function SummaryView({
                           )}>
                             {isNew ? (
                               <span>
-                                {hasOverlap ? (
+                                {showOverlap ? (
                                   <span className="block">
                                     <span className="text-blue-600">PL-{priceLotChangeData.oldLotId}</span>
                                     <span className="text-amber-500">, </span>
@@ -2345,7 +2348,7 @@ function SummaryView({
                                 )}
                                 {priceLotChangeData.newMrp && (
                                   <span className="block text-[10px] font-normal">
-                                    {hasOverlap ? (
+                                    {showOverlap ? (
                                       <>
                                         <span className="text-blue-500">₹{oldLot ? oldLot.mrp.toFixed(0) : "—"}</span>
                                         <span className="text-slate-400"> / </span>
