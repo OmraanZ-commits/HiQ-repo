@@ -3097,9 +3097,9 @@ function ServiceRequestRow({ request, onView }: {
         <p className="text-[10px] text-muted-foreground">{request.raisedAt}</p>
       </div>
 
-      {/* Aging */}
+      {/* Aging — only meaningful for pending SRs */}
       <div className="w-16 flex-shrink-0 hidden lg:block">
-        {(() => {
+        {request.overallStatus === "pending" ? (() => {
           const raised = request.raisedAt ? new Date(request.raisedAt) : null;
           if (!raised || isNaN(raised.getTime())) return <span className="text-xs text-muted-foreground">—</span>;
           const today = new Date(); today.setHours(0, 0, 0, 0); raised.setHours(0, 0, 0, 0);
@@ -3110,7 +3110,7 @@ function ServiceRequestRow({ request, onView }: {
               {days}d
             </span>
           );
-        })()}
+        })() : <span className="text-xs text-muted-foreground">—</span>}
       </div>
 
       {/* MSTN pill — only for basepack-status-change */}
