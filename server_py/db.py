@@ -1168,6 +1168,88 @@ def migrate_sr_approval_chain():
         db.close()
 
 
+def migrate_ccr_trigger_stage_actionability():
+    """
+    One-time migration: enforce BRD §11.1 rule that Action Required only fires at
+    Third stage (Stock Movement Initiated) or Fourth (Inventory Threshold Breached).
+
+    Resets any First / Second / None stage items that were incorrectly sitting at
+    "Action Required" back to "Upcoming", and promotes CBU-50019003 demo items to
+    Third stage (Red) and CBU-50019004 demo items to Fourth stage (Blinking Red).
+    Idempotent — safe to run on every startup.
+    """
+    from sqlalchemy import text
+    db_conn = engine.connect()
+    try:
+        # 1. Demote First/Second/None "Action Required" items → "Upcoming"
+        db_conn.execute(text("""
+            UPDATE ccr_line_items
+            SET ccr_status = 'Upcoming'
+            WHERE trigger_stage IN ('First', 'Second', 'None')
+              AND ccr_status = 'Action Required'
+        """))
+
+        # 2. Promote CBU-50019002 items from First → Second (Post FTR Clearance)
+        db_conn.execute(text("""
+            UPDATE ccr_line_items
+            SET trigger_stage = 'Second', urgency_color = 'Amber'
+            WHERE successor_cbu_code = 'CBU-50019002'
+              AND trigger_stage = 'First'
+        """))
+
+        # 3. Force CBU-50019003 all CIC items → Third (Stock Movement Initiated).
+        #    Unconditional — overrides any engine-assigned stage (engine can't downgrade now).
+        #    BigBasket row backfilled with its CIC if still NULL.
+        db_conn.execute(text("""
+            UPDATE ccr_line_items
+            SET trigger_stage = 'Third', urgency_color = 'Red', ccr_status = 'Action Required',
+                cic = COALESCE(cic, 'CIC-FTR3-MH-BBK')
+            WHERE successor_cbu_code = 'CBU-50019003'
+              AND customer_chain = 'BigBasket'
+        """))
+        db_conn.execute(text("""
+            UPDATE ccr_line_items
+            SET trigger_stage = 'Third', urgency_color = 'Red', ccr_status = 'Action Required'
+            WHERE successor_cbu_code = 'CBU-50019003'
+              AND cic IS NOT NULL
+              AND customer_chain != 'BigBasket'
+        """))
+        # Also advance network status so the trigger engine stays consistent going forward
+        db_conn.execute(text("""
+            UPDATE network_entries
+            SET network_status = 'Stock Movement Initiated'
+            WHERE cbu_code = 'CBU-50019003'
+        """))
+
+        # 4. Force CBU-50019004 all CIC items → Fourth (Inventory Threshold Breached).
+        db_conn.execute(text("""
+            UPDATE ccr_line_items
+            SET trigger_stage = 'Fourth', urgency_color = 'Blinking Red', ccr_status = 'Action Required',
+                cic = COALESCE(cic, 'CIC-FTR4-DL-BBK')
+            WHERE successor_cbu_code = 'CBU-50019004'
+              AND customer_chain = 'BigBasket'
+        """))
+        db_conn.execute(text("""
+            UPDATE ccr_line_items
+            SET trigger_stage = 'Fourth', urgency_color = 'Blinking Red', ccr_status = 'Action Required'
+            WHERE successor_cbu_code = 'CBU-50019004'
+              AND cic IS NOT NULL
+              AND customer_chain != 'BigBasket'
+        """))
+        # Set DOH values so trigger engine also arrives at Fourth naturally
+        db_conn.execute(text("""
+            UPDATE network_entries
+            SET network_status = 'Stock Movement Initiated',
+                predecessor_doh = 2,
+                successor_doh   = 8
+            WHERE cbu_code = 'CBU-50019004'
+        """))
+
+        db_conn.commit()
+    finally:
+        db_conn.close()
+
+
 FIELD_MAP_TO_DB = {
     "cbuCreatedDate": "cbu_created_date",
     "networkChangeDate": "network_change_date",

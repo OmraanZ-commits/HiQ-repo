@@ -936,7 +936,11 @@ export default function CcrDetailPage() {
   }
 
   const isCompleted = item.ccrStatus === "Completed";
-  const isActionRequired = item.ccrStatus === "Action Required";
+  // BRD §11.1: Take Action is only available once Stock Movement Initiated (Third stage+).
+  // Prior to that the CBU has not flowed into Paid Bible and the basepack is not active.
+  const isActionRequired =
+    item.ccrStatus === "Action Required" &&
+    (item.triggerStage === "Third" || item.triggerStage === "Fourth");
 
   return (
     <div className="min-h-screen bg-background">

@@ -763,27 +763,35 @@ class CcrStorage:
                 if new_stage is None:
                     continue
 
-                changed = False
-                stage_advanced = current_stage != new_stage
-
-                if stage_advanced:
-                    row.trigger_stage = new_stage
-                    row.urgency_color = new_color
-                    # Fresh 3-day SLA window at each new stage
-                    row.escalation_due_at = now + timedelta(days=3)
-                    row.escalated_at = None
-                    changed = True
-                else:
-                    # Stage unchanged — only sync urgency_color if it drifted
-                    if row.urgency_color != new_color:
+                # BRD §11.1: trigger stages are a one-way progression.
+                # Never allow the engine to move an item backward
+                # (e.g. from Third back to Second because the network status
+                # snapshot still shows "FTR Approved").
+                STAGE_ORDER = {"None": 0, "First": 1, "Second": 2, "Third": 3, "Fourth": 4}
+                if STAGE_ORDER.get(new_stage, 0) <= STAGE_ORDER.get(current_stage, 0):
+                    # Stage is the same or would regress — only sync color if it drifted
+                    if current_stage == new_stage and row.urgency_color != new_color:
                         row.urgency_color = new_color
-                        changed = True
+                        row.updated_at = now
+                        updated += 1
+                    continue
+
+                changed = False
+                # new_stage is strictly higher than current_stage
+                row.trigger_stage = new_stage
+                row.urgency_color = new_color
+                # Fresh 3-day SLA window at each new stage
+                row.escalation_due_at = now + timedelta(days=3)
+                row.escalated_at = None
+                changed = True
 
                 # ── Sync ccr_status with trigger activation ───────────────────
-                # Any active trigger stage (First–Fourth) promotes the item to
-                # "Action Required" so the workspace Action Required tab is accurate.
+                # BRD rule: Action Required only activates at Third stage and above
+                # (Stock Movement Initiated), because prior to that the CBU has not
+                # flowed into Paid Bible and the basepack is not yet active.
+                # First / Second stage items remain "Upcoming".
                 # Completed items are never demoted.
-                if new_stage != "None" and row.ccr_status not in ("Completed",):
+                if new_stage in ("Third", "Fourth") and row.ccr_status not in ("Completed",):
                     if row.ccr_status != "Action Required":
                         row.ccr_status = "Action Required"
                         changed = True
