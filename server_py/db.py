@@ -961,6 +961,19 @@ def run_migrations():
             except Exception:
                 pass
 
+        # ── Seed customer_mapping for demo network entries ────────────────────
+        # customer_mapping drives the "applicable chains" dropdown on the CCR
+        # Configure page.  It maps geo regions to lists of 4-letter NV codes
+        # that are then translated to CCR chain names via NV_CODE_TO_CCR_CHAIN.
+        # For the demo all new-launch CBUs are available to all five chains,
+        # so we write a national mapping (keyed by "ALL") with the five codes.
+        # Only rows that still have null / empty customer_mapping are touched.
+        conn.execute(text("""
+            UPDATE network_entries
+            SET customer_mapping = '{"ALL": ["BLIT", "BIGB", "SWIN", "RELI", "DMAR"]}'::jsonb
+            WHERE (customer_mapping IS NULL OR customer_mapping = '{}'::jsonb)
+        """))
+
         # ── CCR tables ──────────────────────────────────────────
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS ccr_customer_master (

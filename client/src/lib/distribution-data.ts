@@ -183,5 +183,5 @@ export const NV_CODE_TO_CCR_CHAIN: Record<string, string> = {
   BIGB: "BigBasket",
   SWIN: "Swiggy Instamart",
   RELI: "Reliance Smart",
-  // DMart: add code here once confirmed
+  DMAR: "DMart",
 };

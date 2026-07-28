@@ -822,6 +822,7 @@ export default function CcrMasterMaintenancePage() {
                 onCbuChange={handleCbuChange}
                 postingStatusMap={postingStatusMap}
                 onNavigate={navigate}
+                chainSummary={depotChangeSummary}
               />
             </TabsContent>
 
@@ -835,6 +836,7 @@ export default function CcrMasterMaintenancePage() {
                 onCbuChange={handleCbuChange}
                 postingStatusMap={postingStatusMap}
                 onNavigate={navigate}
+                chainSummary={depotChangeSummary}
               />
             </TabsContent>
 

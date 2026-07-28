@@ -25,6 +25,7 @@ _NV_CODE_TO_CCR_CHAIN: dict = {
     "BIGB": "BigBasket",
     "SWIN": "Swiggy Instamart",
     "RELI": "Reliance Smart",
+    "DMAR": "DMart",
 }
 
 
@@ -246,11 +247,19 @@ class CcrStorage:
         """
         db = SessionLocal()
         try:
+            # Mirror the client-side isEligibleCbu logic: include any CBU whose
+            # type_of_network is NOT a relaunch change type.  The DB stores both
+            # "NEW_LAUNCH" and "New Launch" (legacy), so filtering for a single
+            # value would silently miss half the demo CBUs.
+            _RELAUNCH_TYPES = [
+                "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM",
+                "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
+            ]
             ne_rows = db.query(
                 NetworkEntryModel.cbu_code,
                 NetworkEntryModel.customer_mapping,
             ).filter(
-                NetworkEntryModel.type_of_network == "NEW_LAUNCH"
+                ~NetworkEntryModel.type_of_network.in_(_RELAUNCH_TYPES)
             ).all()
 
             # Distinct (cbu_code, customer_chain) pairs that have saved CIC rows
