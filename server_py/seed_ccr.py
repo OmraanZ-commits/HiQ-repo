@@ -145,7 +145,7 @@ CCR_RULESET_SEEDS = [
         "content_update_required": True,
         "rundown_required": True,
         "auto_ccr": False,
-        "notes": "Combined change; most complex; full manual CCR with new CIC and rundown.",
+        "notes": "Artwork and packaging relaunch — reuse existing CIC; content update and predecessor rundown required.",
     },
     {
         "network_change_type": "Formulation + Artwork Change",
