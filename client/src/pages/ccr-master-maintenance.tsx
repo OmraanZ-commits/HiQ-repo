@@ -323,7 +323,6 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
             <TableHead className="text-xs font-semibold w-[8%]">Type of Network</TableHead>
             <TableHead className="text-xs font-semibold w-[8%]">Network Start Date</TableHead>
             <TableHead className="text-xs font-semibold w-[16%]">Network Status</TableHead>
-            <TableHead className="text-xs font-semibold text-center w-[4%]">Trigger</TableHead>
             <TableHead className="text-xs font-semibold w-[7%]">Posting Status</TableHead>
             <TableHead className="text-xs font-semibold pr-4 text-right w-[5%]">Action</TableHead>
           </TableRow>
@@ -365,9 +364,6 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               </TableCell>
               <TableCell>
                 <LifecycleStatusCell status={entry.networkStatus} />
-              </TableCell>
-              <TableCell className="text-center">
-                <TriggerDot status={entry.networkStatus} />
               </TableCell>
               <TableCell>
                 <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
