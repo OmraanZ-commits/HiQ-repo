@@ -553,16 +553,14 @@ export default function CcrWorkspacePage() {
 
   const allItems = lineItemsData?.items ?? [];
 
-  // Relaunch-only: CCR applies to relaunch / predecessor–successor CBUs only.
-  // New launch CBUs are handled in Master Maintenance, not here.
+  // Relaunch-only: CCR applies exclusively to relaunch CBUs.
+  // Pack changes, extensions, and new launches are managed in other flows.
+  // The backend already enforces this; the frontend mirrors it so counts
+  // are consistent even if stale cache data sneaks in.
   const relaunchItems = useMemo(() => {
     return allItems.filter(item => {
       const entry = entryMap.get(item.successorCbuCode ?? "");
-      return (
-        RELAUNCH_TYPES.has(entry?.typeOfNetwork ?? "") ||
-        !!entry?.predecessorCode ||
-        !!item.predecessorCbuCode
-      );
+      return RELAUNCH_TYPES.has(entry?.typeOfNetwork ?? "");
     });
   }, [allItems, entryMap]);
 

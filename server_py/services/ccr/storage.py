@@ -304,6 +304,15 @@ class CcrStorage:
 
     # ── Line Items ──────────────────────────────────────────────
 
+    # CCR is exclusively for relaunch CBUs. These are the qualifying
+    # type_of_network values; pack changes, extensions, new launches etc. are
+    # managed in other flows and must not appear in the CCR workspace.
+    RELAUNCH_NW_TYPES = {
+        "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM",
+        "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
+        "Relaunch",  # legacy label used in older seed rows
+    }
+
     def get_line_items(
         self,
         cse_id: Optional[str] = None,
@@ -313,7 +322,15 @@ class CcrStorage:
     ) -> dict:
         db = SessionLocal()
         try:
-            q = db.query(CcrLineItemModel)
+            # Restrict to relaunch CBUs by joining network_entries.
+            q = (
+                db.query(CcrLineItemModel)
+                .join(
+                    NetworkEntryModel,
+                    NetworkEntryModel.cbu_code == CcrLineItemModel.successor_cbu_code,
+                )
+                .filter(NetworkEntryModel.type_of_network.in_(self.RELAUNCH_NW_TYPES))
+            )
             if cse_id:
                 customer_chains = (
                     db.query(CcrCustomerMasterModel.customer_chain)
