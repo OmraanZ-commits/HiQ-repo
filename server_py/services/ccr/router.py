@@ -9,33 +9,15 @@ from server_py.db import SessionLocal, CcrCustomerMasterModel
 
 async def _get_session_user() -> dict:
     """
-    Derive the 'logged-in' user server-side using the same logic as GET /api/me.
+    Derive the 'logged-in' user server-side.
     In production this would read identity from a JWT or session cookie.
-    For the demo it queries the first CSE in the customer master — same deterministic
-    source used by /api/me — so the result is always consistent.
-    Returns {"cseId": str | None, "isAdmin": bool, "customerChains": List[str]}.
+    For the demo the session is treated as an admin/supervisor (no CSE restriction)
+    so the client-side "My Items / All Items" toggle fully controls scope.
+    When the client passes a cse_id query param the server honours it to scope
+    to that CSE's chains; when absent (All Items) all line items are returned.
+    Returns {"cseId": None, "isAdmin": True, "customerChains": []}.
     """
-    db = SessionLocal()
-    try:
-        row = (
-            db.query(CcrCustomerMasterModel)
-            .filter(CcrCustomerMasterModel.cse_id.isnot(None))
-            .order_by(CcrCustomerMasterModel.cse_id)
-            .first()
-        )
-        cse_id = row.cse_id if row else None
-        if cse_id:
-            chains = [
-                r.customer_chain
-                for r in db.query(CcrCustomerMasterModel)
-                .filter(CcrCustomerMasterModel.cse_id == cse_id)
-                .all()
-            ]
-        else:
-            chains = []
-    finally:
-        db.close()
-    return {"cseId": cse_id, "isAdmin": cse_id is None, "customerChains": chains}
+    return {"cseId": None, "isAdmin": True, "customerChains": []}
 
 
 def _assert_item_access(item: dict, session_user: dict) -> None:
