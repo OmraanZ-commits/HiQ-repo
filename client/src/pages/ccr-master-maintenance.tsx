@@ -317,12 +317,13 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="text-xs font-semibold pl-4 w-[10%]">CBU Code</TableHead>
-            <TableHead className="text-xs font-semibold w-[15%]">Material Description</TableHead>
+            <TableHead className="text-xs font-semibold w-[14%]">Material Description</TableHead>
             <TableHead className="text-xs font-semibold w-[7%]">Brand</TableHead>
-            <TableHead className="text-xs font-semibold w-[8%]">BG</TableHead>
+            <TableHead className="text-xs font-semibold w-[7%]">BG</TableHead>
             <TableHead className="text-xs font-semibold w-[8%]">Type of Network</TableHead>
             <TableHead className="text-xs font-semibold w-[8%]">Network Start Date</TableHead>
-            <TableHead className="text-xs font-semibold w-[16%]">Network Status</TableHead>
+            <TableHead className="text-xs font-semibold w-[14%]">Network Status</TableHead>
+            <TableHead className="text-xs font-semibold text-center w-[10%]">Chain Mapping</TableHead>
             <TableHead className="text-xs font-semibold w-[7%]">Posting Status</TableHead>
             <TableHead className="text-xs font-semibold pr-4 text-right w-[5%]">Action</TableHead>
           </TableRow>
@@ -344,11 +345,6 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               </TableCell>
               <TableCell className="text-sm">
                 <span className="truncate block">{entry.materialDescription || entry.basepackDescription || "—"}</span>
-                {chainSummary && chainSummary[entry.cbuCode ?? ""] && (
-                  <span className="text-[10px] text-slate-400 font-medium mt-0.5 block" data-testid={`text-chain-progress-${entry.cbuCode}`}>
-                    {chainSummary[entry.cbuCode ?? ""].saved.length} of {chainSummary[entry.cbuCode ?? ""].applicable.length} chains mapped
-                  </span>
-                )}
               </TableCell>
               <TableCell className="text-sm font-semibold truncate">
                 {entry.brand || "—"}
@@ -364,6 +360,34 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               </TableCell>
               <TableCell>
                 <LifecycleStatusCell status={entry.networkStatus} />
+              </TableCell>
+              <TableCell className="text-center" data-testid={`cell-chain-mapping-${entry.cbuCode}`}>
+                {(() => {
+                  const prog = chainSummary?.[entry.cbuCode ?? ""];
+                  if (!prog) return <span className="text-xs text-muted-foreground">—</span>;
+                  const { saved, applicable } = prog;
+                  const total = applicable.length;
+                  const done = saved.length;
+                  const complete = total > 0 && done === total;
+                  const none = done === 0;
+                  return (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span
+                        className={`text-xs font-semibold ${complete ? "text-emerald-600" : none ? "text-slate-400" : "text-amber-600"}`}
+                      >
+                        {done}/{total}
+                      </span>
+                      {total > 0 && (
+                        <div className="w-14 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${complete ? "bg-emerald-500" : none ? "bg-slate-300" : "bg-amber-400"}`}
+                            style={{ width: `${Math.round((done / total) * 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </TableCell>
               <TableCell>
                 <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
