@@ -490,7 +490,8 @@ export default function CcrMasterMaintenancePage() {
   const newLaunchEntries = useMemo(
     () => eligibleEntries.filter(e => {
       const s = depotChangeSummary[e.cbuCode ?? ""];
-      return !s || s.status === "none";
+      // "partial" (some chains saved) must stay in this tab — not disappear
+      return !s || s.status === "none" || s.status === "partial";
     }),
     [eligibleEntries, depotChangeSummary],
   );
