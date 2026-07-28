@@ -797,6 +797,30 @@ def run_migrations():
             ("CBU-50016902","BP-1700","DMart",         "DMT-TN-001","CIC-BP1700-TN-DMT","MT Retail","CHKH"),
             ("CBU-50016902","BP-1700","BigBasket",     "BBK-DL-001","CIC-BP1700-DL-BBK","Ecom","DLGH"),
             ("CBU-50016902","BP-1700","Blinkit",       "BLK-DL-001","CIC-BP1700-DL-BLK","Qcom","DLGH"),
+            # ── CBU-50018902 / BP-D650 / Dove 650ml predecessor (pred of CBU-50019003) ──
+            # Geography: MUMBAI-PUNE (MMDH) / DELHI-GREATER DELHI (DLGH).
+            # Channels: MT Retail (DMart), MT (Reliance Smart), Ecom (BigBasket), Qcom (Blinkit).
+            # Matches the 5 Action Required line items seeded for CBU-50019003 in seed_ccr.py.
+            ("CBU-50018902","BP-D650","DMart",         "DMT-MH-001","CIC-D650-MH-DMT","MT Retail","MMDH"),
+            ("CBU-50018902","BP-D650","DMart",         "DMT-DL-001","CIC-D650-DL-DMT","MT Retail","DLGH"),
+            ("CBU-50018902","BP-D650","Reliance Smart","RLI-MH-001","CIC-D650-MH-RLI","MT","MMDH"),
+            ("CBU-50018902","BP-D650","Blinkit",       "BLK-MH-001","CIC-D650-MH-BLK","Qcom","MMDH"),
+            ("CBU-50018902","BP-D650","BigBasket",     "BBK-MH-001","CIC-D650-MH-BBK","Ecom","MMDH"),
+            # ── CBU-50018906 / BP-DX500 / Domex 500ml predecessor (pred of CBU-50019007) ─
+            # Geography: MUMBAI-PUNE (MMDH) / GUJARAT (AMDH / VJDH for DMart Gujarat).
+            # Channels: MT Retail (DMart), MT (Reliance Smart), Qcom (Swiggy Instamart).
+            # Matches the 4 line items seeded for CBU-50019007 in seed_ccr.py.
+            ("CBU-50018906","BP-DX500","DMart",            "DMT-GJ-001","CIC-DX500-GJ-DMT","MT Retail","VJDH"),
+            ("CBU-50018906","BP-DX500","DMart",            "DMT-MH-001","CIC-DX500-MH-DMT","MT Retail","MMDH"),
+            ("CBU-50018906","BP-DX500","Reliance Smart",   "RLI-MH-001","CIC-DX500-MH-RLI","MT","MMDH"),
+            ("CBU-50018906","BP-DX500","Swiggy Instamart", "SWG-MH-001","CIC-DX500-MH-SWG","Qcom","MMDH"),
+            # ── CBU-50006700 / BP-V500 / Vim 500ml predecessor (pred of CBU-50006789) ───
+            # Geography: TAMIL NADU (CHKH) / KARNATAKA (BNDH).
+            # Channels: Ecom (BigBasket), MT Retail (DMart), MT (Reliance Smart).
+            # Matches the 3 Upcoming line items seeded for CBU-50006789 in seed_ccr.py.
+            ("CBU-50006700","BP-V500","BigBasket",     "BBK-KA-001","CIC-V500-KA-BBK","Ecom","BNDH"),
+            ("CBU-50006700","BP-V500","DMart",         "DMT-TN-001","CIC-V500-TN-DMT","MT Retail","CHKH"),
+            ("CBU-50006700","BP-V500","Reliance Smart","RLI-TN-001","CIC-V500-TN-RLI","MT","CHKH"),
             # ── CBU-50018901 / BP-1901 / Sunsilk predecessor (active workspace demo) ─
             # Predecessor of CBU-50019002 (RL_ART_PKG, FTR Approved in CCR workspace).
             # Geography: MUMBAI-PUNE (MMDH) / TAMIL NADU (CHKH) / KARNATAKA (BNDH).
