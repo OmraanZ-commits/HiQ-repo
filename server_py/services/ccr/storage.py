@@ -650,9 +650,15 @@ class CcrStorage:
             if cbu:
                 entry_map[cbu] = e
 
+        # BRD §11.1 trigger order:
+        #   First  ← Production Started        (Amber)
+        #   Second ← Post FTR Clearance / FTR Approved  (Amber)
+        #   Third  ← Stock Movement Initiated  (Red)
+        #   Fourth ← Inventory Threshold (DOH) (Blinking Red)
         STATUS_TO_STAGE = {
-            "FTR Approved":             ("First",  "Amber"),
-            "Stock Movement Initiated": ("Second", "Red"),
+            "Production Started":       ("First",  "Amber"),
+            "FTR Approved":             ("Second", "Amber"),
+            "Stock Movement Initiated": ("Third",  "Red"),
         }
 
         db = SessionLocal()
@@ -717,23 +723,24 @@ class CcrStorage:
                 new_color: str | None = None
 
                 # ── Stage mapping: lifecycle status → trigger stage ───────────
-                # Stages MUST follow the required progression order:
-                #   First  ← FTR Approved
-                #   Second ← Stock Movement Initiated
-                #   Third  ← DOH threshold (only from Second-stage context)
+                # Stages MUST follow the BRD §11.1 progression order:
+                #   First  ← Production Started
+                #   Second ← FTR Approved
+                #   Third  ← Stock Movement Initiated
+                #   Fourth ← DOH threshold (only from Third-stage context)
                 #
-                # DOH Third Intimation is gated: it may only fire when the network
-                # status is already "Stock Movement Initiated" (Second stage context)
-                # OR the line item is already at Second/Third stage.  This prevents
-                # an item jumping from First directly to Third out of sequence.
+                # DOH Fourth Intimation is gated: it may only fire when the network
+                # status is already "Stock Movement Initiated" (Third stage context)
+                # OR the line item is already at Third/Fourth stage.  This prevents
+                # an item jumping from Second directly to Fourth out of sequence.
                 if net_status in STATUS_TO_STAGE:
                     new_stage, new_color = STATUS_TO_STAGE[net_status]
 
-                # DOH gate: can only promote to Third from a Second-stage context
+                # DOH gate: can only promote to Fourth from a Third-stage context
                 basic_doh_met = bool(succ_doh) and succ_doh > 5 and (pred_doh or 0) < 3
                 doh_context_ok = (
                     net_status == "Stock Movement Initiated"
-                    or current_stage in ("Second", "Third")
+                    or current_stage in ("Third", "Fourth")
                 )
                 if basic_doh_met and doh_context_ok:
                     if coverage == "National":
@@ -751,7 +758,7 @@ class CcrStorage:
 
                     if doh_eligible:
                         # DOH overrides the lifecycle-status stage (highest severity)
-                        new_stage, new_color = "Third", "Blinking Red"
+                        new_stage, new_color = "Fourth", "Blinking Red"
 
                 if new_stage is None:
                     continue

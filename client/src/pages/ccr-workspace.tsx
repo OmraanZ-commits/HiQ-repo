@@ -77,19 +77,21 @@ const STATUS_IDX: Record<string, number> = {
 };
 const FTR_APPROVED_IDX = 4;
 
-const TRIGGER_STAGE_ORDER = ["First", "Second", "Third", "None"];
+const TRIGGER_STAGE_ORDER = ["First", "Second", "Third", "Fourth", "None"];
 
 const TRIGGER_STAGE_LABEL: Record<string, string> = {
-  First:  "1st Intimation",
-  Second: "2nd Intimation",
-  Third:  "3rd Intimation",
+  First:  "Production Started",
+  Second: "Post FTR Clearance",
+  Third:  "Stock Movement Initiated",
+  Fourth: "Inventory Threshold Breached",
   None:   "—",
 };
 
 const TRIGGER_STAGE_COLOR: Record<string, string> = {
   First:  "bg-amber-100 text-amber-700 border-amber-200",
-  Second: "bg-red-100 text-red-700 border-red-200",
-  Third:  "bg-rose-100 text-rose-800 border-rose-400",
+  Second: "bg-amber-100 text-amber-700 border-amber-200",
+  Third:  "bg-red-100 text-red-700 border-red-200",
+  Fourth: "bg-rose-100 text-rose-800 border-rose-400",
   None:   "bg-muted text-muted-foreground border-border",
 };
 
@@ -668,7 +670,7 @@ export default function CcrWorkspacePage() {
             <div>
               <h2 className="text-xl font-bold" data-testid="text-page-title">CCR Workspace</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Relaunch CBU transitions (FTR Approved+) — trigger stages, SLA tracking, and escalation
+                Relaunch CBU transitions (Production Started+) — trigger stages, SLA tracking, and escalation
               </p>
             </div>
           </div>
