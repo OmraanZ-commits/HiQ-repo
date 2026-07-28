@@ -199,11 +199,14 @@ class CcrStorage:
         """
         Returns per-CBU posting status for all CBUs that have CIC mapping rows.
         Pending: no rows exist (caller defaults; absent keys = Pending)
-        Saved:   rows exist, not all Mapped (partial / Non-Mapped rows present)
-        Posted:  all rows for the CBU have status='Mapped'
+        Saved:   rows exist, but either not all applicable chains are configured
+                 OR not all rows have status='Mapped'
+        Posted:  ALL applicable chains have ≥1 CIC row (chain_completion = complete)
+                 AND every CIC row for this CBU has status='Mapped'
         """
         db = SessionLocal()
         try:
+            # Row-level: count total rows and Mapped rows per CBU
             rows = db.query(CcrCicMappingModel.cbu_code, CcrCicMappingModel.status).all()
             agg: dict = {}
             for r in rows:
@@ -213,9 +216,37 @@ class CcrStorage:
                 agg[cbu]["total"] += 1
                 if r.status == "Mapped":
                     agg[cbu]["mapped"] += 1
+
+            # Chain-level: which CBUs have all applicable chains configured
+            # (reuse chain completion logic inline to avoid a second DB round-trip)
+            ne_rows = db.query(
+                NetworkEntryModel.cbu_code,
+                NetworkEntryModel.customer_mapping,
+            ).all()
+
+            cic_chain_rows = db.query(
+                CcrCicMappingModel.cbu_code,
+                CcrCicMappingModel.customer_chain,
+            ).distinct().all()
+
+            saved_chains_by_cbu: dict = {}
+            for r in cic_chain_rows:
+                saved_chains_by_cbu.setdefault(r.cbu_code, set()).add(r.customer_chain)
+
+            all_chains_complete: set = set()
+            for ne in ne_rows:
+                applicable = _derive_applicable_chains(ne.customer_mapping)
+                if not applicable:
+                    continue
+                saved = saved_chains_by_cbu.get(ne.cbu_code, set())
+                if saved >= applicable:
+                    all_chains_complete.add(ne.cbu_code)
+
             result = {}
             for cbu, counts in agg.items():
-                if counts["mapped"] == counts["total"]:
+                all_mapped = counts["mapped"] == counts["total"]
+                chains_complete = cbu in all_chains_complete
+                if all_mapped and chains_complete:
                     result[cbu] = "Posted"
                 else:
                     result[cbu] = "Saved"

@@ -487,18 +487,31 @@ export default function CcrMasterMaintenancePage() {
     [networkEntries],
   );
 
+  // "CBU Overview" tab — chains not yet fully configured (none or partial)
   const newLaunchEntries = useMemo(
     () => eligibleEntries.filter(e => {
       const s = depotChangeSummary[e.cbuCode ?? ""];
-      // "partial" (some chains saved) must stay in this tab — not disappear
+      const posting = postingStatusMap[e.cbuCode ?? ""];
+      if (posting === "Posted") return false;           // lives in Posted tab
       return !s || s.status === "none" || s.status === "partial";
     }),
-    [eligibleEntries, depotChangeSummary],
+    [eligibleEntries, depotChangeSummary, postingStatusMap],
   );
 
+  // "Completed" tab — all chains configured but not yet fully posted
   const completedEntries = useMemo(
-    () => eligibleEntries.filter(e => depotChangeSummary[e.cbuCode ?? ""]?.status === "complete"),
-    [eligibleEntries, depotChangeSummary],
+    () => eligibleEntries.filter(e => {
+      const s = depotChangeSummary[e.cbuCode ?? ""];
+      const posting = postingStatusMap[e.cbuCode ?? ""];
+      return s?.status === "complete" && posting !== "Posted";
+    }),
+    [eligibleEntries, depotChangeSummary, postingStatusMap],
+  );
+
+  // "Posted" tab — all chains configured AND all rows Mapped
+  const postedEntries = useMemo(
+    () => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Posted"),
+    [eligibleEntries, postingStatusMap],
   );
 
   const networkEntry = useMemo(
@@ -809,6 +822,18 @@ export default function CcrMasterMaintenancePage() {
                     </span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger
+                  value="posted"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
+                  data-testid="tab-posted"
+                >
+                  Posted
+                  {postedEntries.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
+                      {postedEntries.length}
+                    </span>
+                  )}
+                </TabsTrigger>
               </TabsList>
             </CardHeader>
 
@@ -830,8 +855,22 @@ export default function CcrMasterMaintenancePage() {
             <TabsContent value="completed" className="mt-0">
               <CbuTable
                 entries={completedEntries}
-                emptyMessage="No completed mappings yet."
+                emptyMessage="No CBUs ready to post yet — configure all customer chains first."
                 testId="completed"
+                isLoading={isLoading}
+                selectedCbu={selectedCbu}
+                onCbuChange={handleCbuChange}
+                postingStatusMap={postingStatusMap}
+                onNavigate={navigate}
+                chainSummary={depotChangeSummary}
+              />
+            </TabsContent>
+
+            <TabsContent value="posted" className="mt-0">
+              <CbuTable
+                entries={postedEntries}
+                emptyMessage="No posted CBUs yet."
+                testId="posted"
                 isLoading={isLoading}
                 selectedCbu={selectedCbu}
                 onCbuChange={handleCbuChange}
