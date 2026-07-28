@@ -700,15 +700,32 @@ export default function CcrWorkspacePage() {
                   </SelectContent>
                 </Select>
               ) : (
-                /* Non-admin CSE: read-only identity badge */
-                <div
-                  className="h-8 px-3 flex items-center border border-border rounded-md text-xs bg-muted/40 text-muted-foreground gap-1"
-                  data-testid="badge-cse-identity"
-                >
-                  <span className="font-medium text-foreground">
-                    {currentUser?.name ?? currentUser?.email?.split("@")[0] ?? "Loading…"}
-                  </span>
-                  <span className="opacity-60">— My Workspace</span>
+                /* Non-admin CSE: name badge + My / All toggle */
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="h-8 px-3 flex items-center border border-border rounded-md text-xs bg-muted/40 text-muted-foreground gap-1"
+                    data-testid="badge-cse-identity"
+                  >
+                    <span className="font-medium text-foreground">
+                      {currentUser?.name ?? currentUser?.email?.split("@")[0] ?? "Loading…"}
+                    </span>
+                  </div>
+                  <div className="flex items-center border border-border rounded-md overflow-hidden text-xs h-8">
+                    <button
+                      className={`px-3 h-full transition-colors ${selectedCse !== "all" ? "bg-primary text-primary-foreground font-medium" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                      onClick={() => handleCseChange(currentUser?.cseId ?? "")}
+                      data-testid="btn-scope-mine"
+                    >
+                      My Items
+                    </button>
+                    <button
+                      className={`px-3 h-full border-l border-border transition-colors ${selectedCse === "all" ? "bg-primary text-primary-foreground font-medium" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                      onClick={() => handleCseChange("all")}
+                      data-testid="btn-scope-all"
+                    >
+                      All Items
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
