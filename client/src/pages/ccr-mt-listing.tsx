@@ -88,7 +88,7 @@ export default function CcrMtListingPage() {
         e.typeOfNetwork === "EXTENSION" ||
         e.typeOfNetwork === "Extension")
       && !!(e as any).predecessorCode
-      && (STATUS_IDX[e.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"]
+      && (STATUS_IDX[e.networkStatus ?? ""] ?? 0) >= STATUS_IDX["FTR Approved"]
     ),
     [networkEntries],
   );

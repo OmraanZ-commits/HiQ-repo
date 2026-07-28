@@ -797,6 +797,24 @@ def run_migrations():
             ("CBU-50016902","BP-1700","DMart",         "DMT-TN-001","CIC-BP1700-TN-DMT","MT Retail","CHKH"),
             ("CBU-50016902","BP-1700","BigBasket",     "BBK-DL-001","CIC-BP1700-DL-BBK","Ecom","DLGH"),
             ("CBU-50016902","BP-1700","Blinkit",       "BLK-DL-001","CIC-BP1700-DL-BLK","Qcom","DLGH"),
+            # ── CBU-50018901 / BP-1901 / Sunsilk predecessor (active workspace demo) ─
+            # Predecessor of CBU-50019002 (RL_ART_PKG, FTR Approved in CCR workspace).
+            # Geography: MUMBAI-PUNE (MMDH) / TAMIL NADU (CHKH) / KARNATAKA (BNDH).
+            # Channels: MT, MT LFS (≡ MT Retail for CCR), Ecom, Qcom.
+            # Data flows from Network Visibility (network_entries CBU-50018901) and
+            # Paid Bible (BP-1901 activation/inactive lifecycle dates seeded below).
+            ("CBU-50018901","BP-1901","Reliance Smart","RLI-MH-001","CIC-BP1901-MH-RLI","MT","MMDH"),
+            ("CBU-50018901","BP-1901","Reliance Smart","RLI-TN-001","CIC-BP1901-TN-RLI","MT","CHKH"),
+            ("CBU-50018901","BP-1901","Reliance Smart","RLI-KA-001","CIC-BP1901-KA-RLI","MT","BNDH"),
+            ("CBU-50018901","BP-1901","DMart",         "DMT-MH-001","CIC-BP1901-MH-DMT","MT Retail","MMDH"),
+            ("CBU-50018901","BP-1901","DMart",         "DMT-TN-001","CIC-BP1901-TN-DMT","MT Retail","CHKH"),
+            ("CBU-50018901","BP-1901","DMart",         "DMT-KA-001","CIC-BP1901-KA-DMT","MT Retail","BNDH"),
+            ("CBU-50018901","BP-1901","BigBasket",     "BBK-MH-001","CIC-BP1901-MH-BBK","Ecom","MMDH"),
+            ("CBU-50018901","BP-1901","BigBasket",     "BBK-TN-001","CIC-BP1901-TN-BBK","Ecom","CHKH"),
+            ("CBU-50018901","BP-1901","BigBasket",     "BBK-KA-001","CIC-BP1901-KA-BBK","Ecom","BNDH"),
+            ("CBU-50018901","BP-1901","Blinkit",       "BLK-MH-001","CIC-BP1901-MH-BLK","Qcom","MMDH"),
+            ("CBU-50018901","BP-1901","Blinkit",       "BLK-TN-001","CIC-BP1901-TN-BLK","Qcom","CHKH"),
+            ("CBU-50018901","BP-1901","Blinkit",       "BLK-KA-001","CIC-BP1901-KA-BLK","Qcom","BNDH"),
         ]
         for (cbu, bp, chain, ccode, cic, ch, depot) in _pred_cic_rows:
             conn.execute(text("""
@@ -811,6 +829,19 @@ def run_migrations():
                 )
             """), {"cbu": cbu, "bp": bp, "chain": chain, "ccode": ccode,
                    "cic": cic, "ch": ch, "depot": depot})
+        # ─────────────────────────────────────────────────────────────────────
+
+        # ── Paid Bible: BP-1901 lifecycle dates ──────────────────────────────
+        # BP-1901 (Sunsilk predecessor) was activated in June 2024 when it
+        # launched as CBU-50018901. Its inactive_date is set to July 2026 because
+        # it is being phased out by the RL_ART_PKG relaunch (CBU-50019002 / BP-FTR2).
+        # This is the Paid Bible source of truth for the predecessor basepack — the
+        # MT Listing page uses it to confirm the "old" CIC rows are on a deactivating SKU.
+        conn.execute(text("""
+            INSERT INTO basepack_lifecycle_dates (bp_code, activation_date, inactive_date, delist_date)
+            VALUES ('BP-1901', '2024-06-15T00:00:00+00:00', '2026-07-01T00:00:00+00:00', NULL)
+            ON CONFLICT (bp_code) DO NOTHING
+        """))
         # ─────────────────────────────────────────────────────────────────────
 
         conn.execute(text("""

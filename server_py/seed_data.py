@@ -1054,6 +1054,60 @@ SEEDS = [
         prodPlanMoc3=False,
     ),
 
+    # ── CBU-50018901: Sunsilk predecessor — Network Visibility source of truth ──
+    # This is the original Sunsilk 340ml pack being relaunched (artwork + pack change)
+    # as CBU-50019002 (RL_ART_PKG). Status = "Network transition complete" because
+    # the relaunch is in flight. Seeded here so Network Visibility shows the full
+    # predecessor-to-successor lineage and the CCR MT Listing page has real data to
+    # pull through the before/after CIC view.
+    InsertNetworkEntry(
+        cbuCreatedDate="2024-06-01",
+        networkChangeDate="2026-07-01",
+        annexureNumber="ANN-2024-061",
+        basepack="BP-1901",
+        basepackDescription="Sunsilk Lusciously Thick & Long Shampoo 340ml (Old Pack)",
+        bg="Beauty and Wellness",
+        profitCentre="PC-BPC-11",
+        salesCategory="Hair Care",
+        smallC="SC-011",
+        brand="Sunsilk",
+        format="Liquid",
+        cbuCode="CBU-50018901",
+        materialDescription="Sunsilk Lusciously Thick & Long Shampoo 340ml Bottle (Old Artwork)",
+        typeOfNetwork="New Launch",
+        copyCbu=None,
+        year=2024,
+        networkStatus="Network transition complete",
+        startDate="2024-06-15",
+        endDate="2026-09-30",
+        caseConfig="24x1",
+        ean="8901030900001",
+        netWeight=340,
+        grossWeight=375,
+        length=220,
+        width=70,
+        height=70,
+        itf="18901030900018",
+        predecessorCode=None,
+        successorCode="CBU-50019002",
+        csdIndexNo="CSD-8901",
+        pcAtChannelState="PC-2024-Q2-Pan",
+        sourcingMatrixSection="Updated",
+        assignedPerson="Priya Kapoor",
+        geography=["MUMBAI-PUNE", "TAMIL NADU", "KARNATAKA", "ANDHRA PRADESH-TELANGANA"],
+        depot=["MMDH", "CHKH", "BNDH", "HYRH"],
+        channel=["GT", "MT", "MT LFS", "Ecom"],
+        channelMapping={
+            "MUMBAI-PUNE": ["GT", "MT", "MT LFS", "Ecom"],
+            "TAMIL NADU": ["GT", "MT", "Ecom"],
+            "KARNATAKA": ["GT", "MT", "Ecom"],
+            "ANDHRA PRADESH-TELANGANA": ["GT", "MT"],
+        },
+        prodPlanMoc1=True,
+        prodPlanMoc2=True,
+        prodPlanMoc3=True,
+    ),
+
     InsertNetworkEntry(
         cbuCreatedDate="2026-03-05",
         networkChangeDate=_future(35),
