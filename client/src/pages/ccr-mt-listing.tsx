@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { List } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { List, Zap } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,16 +49,104 @@ type MtListingResponse = {
   error?: string;
 };
 
-// ─── Status index for filtering ───────────────────────────────────────────────
+// ─── ATP mock-data helpers ────────────────────────────────────────────────────
+
+/** Deterministic hash so ATP values are stable for a given CBU/customer key. */
+function simpleHash(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
+
+const VALID_DAYS_BY_CHAIN: Record<string, number> = {
+  "Blinkit":          90,
+  "BigBasket":       108,
+  "DMart":           120,
+  "Reliance Smart":  120,
+  "Swiggy Instamart": 90,
+};
+
+type AtpBatch = {
+  customerCode: string;
+  customerChain: string;
+  depot: string;
+  batch: string;
+  productionDate: string;
+  stockAgeDays: number;
+  validDays: number;
+  rawAtp: number;
+  pricingValid: boolean;
+  isFresh: boolean;
+  freshAtp: number;
+};
+
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
+}
+
+function generateAtpBatches(rows: MtListingRow[]): AtpBatch[] {
+  const predRows = rows.filter(r => r.rowType === "predecessor");
+  const today = new Date();
+  const batches: AtpBatch[] = [];
+
+  for (const row of predRows) {
+    const validDays = VALID_DAYS_BY_CHAIN[row.customerChain] ?? 100;
+    const baseKey  = row.customerCode + (row.depot ?? "") + row.cbuCode;
+    // ~87.5 % of customer codes have valid pricing
+    const pricingValid = (simpleHash(row.customerCode + "price") % 8) > 0;
+
+    for (let b = 1; b <= 2; b++) {
+      const bk = baseKey + String(b);
+      const stockAge = 20 + (simpleHash(bk + "age") % 130);   // 20–149 days
+      const rawAtp   = 150 + (simpleHash(bk + "atp") % 750);  // 150–899 units
+      const isFresh  = pricingValid && stockAge <= validDays;
+
+      const prodDate = new Date(today);
+      prodDate.setDate(prodDate.getDate() - stockAge);
+
+      batches.push({
+        customerCode:  row.customerCode,
+        customerChain: row.customerChain,
+        depot:         row.depot ?? "—",
+        batch:         `B${String(b).padStart(3, "0")}`,
+        productionDate: fmtDate(prodDate),
+        stockAgeDays:  stockAge,
+        validDays,
+        rawAtp,
+        pricingValid,
+        isFresh,
+        freshAtp: isFresh ? rawAtp : 0,
+      });
+    }
+  }
+  return batches;
+}
+
+type Recommendation = { label: string; variant: "retain" | "monitor" | "successor" | "inactive" };
+
+function getRecommendation(batches: AtpBatch[]): Recommendation {
+  if (!batches.length) return { label: "No Data", variant: "inactive" };
+  if (!batches[0].pricingValid) return { label: "Price Not Active", variant: "inactive" };
+  const freshAtp = batches.reduce((s, b) => s + b.freshAtp, 0);
+  if (freshAtp >= 400) return { label: "Retain Mapping",       variant: "retain" };
+  if (freshAtp > 0)   return { label: "Monitor",              variant: "monitor" };
+  return               { label: "Recommend Successor",  variant: "successor" };
+}
+
+const REC_STYLES: Record<Recommendation["variant"], string> = {
+  retain:    "bg-emerald-100 text-emerald-700",
+  monitor:   "bg-amber-100   text-amber-700",
+  successor: "bg-blue-100    text-blue-700",
+  inactive:  "bg-red-100     text-red-700",
+};
+
+// ─── Status / type helpers ────────────────────────────────────────────────────
 
 const STATUS_IDX: Record<string, number> = {
-  "Draft": 0,
-  "Active": 1,
-  "Pricing Updated": 2,
-  "Production Started": 3,
-  "FTR Approved": 4,
-  "Stock Movement Initiated": 5,
-  "Network transition complete": 6,
+  "Draft": 0, "Active": 1, "Pricing Updated": 2, "Production Started": 3,
+  "FTR Approved": 4, "Stock Movement Initiated": 5, "Network transition complete": 6,
 };
 
 const RELAUNCH_TYPES = new Set([
@@ -68,7 +157,7 @@ const RELAUNCH_TYPES = new Set([
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CcrMtListingPage() {
-  const [selectedCbu, setSelectedCbu] = useState<string>("");
+  const [selectedCbu,   setSelectedCbu]   = useState<string>("");
   const [selectedChain, setSelectedChain] = useState<string>("all");
 
   const { data: networkEntries = [], isLoading: entriesLoading } = useQuery<NetworkEntry[]>({
@@ -100,10 +189,7 @@ export default function CcrMtListingPage() {
     const seen = new Set<string>();
     const chains: string[] = [];
     for (const row of mtListingData.rows) {
-      if (!seen.has(row.customerChain)) {
-        seen.add(row.customerChain);
-        chains.push(row.customerChain);
-      }
+      if (!seen.has(row.customerChain)) { seen.add(row.customerChain); chains.push(row.customerChain); }
     }
     return chains;
   }, [mtListingData?.rows]);
@@ -115,7 +201,18 @@ export default function CcrMtListingPage() {
     return mtListingData.rows.filter(r => r.customerChain === selectedChain);
   }, [mtListingData?.rows, selectedChain]);
 
-  const isLoading = entriesLoading;
+  // ATP mock data (predecessor rows only, filtered by chain)
+  const allAtpBatches   = useMemo(() => generateAtpBatches(filteredRows), [filteredRows]);
+  const atpByCode       = useMemo(() => {
+    const map: Record<string, AtpBatch[]> = {};
+    for (const b of allAtpBatches) {
+      if (!map[b.customerCode]) map[b.customerCode] = [];
+      map[b.customerCode].push(b);
+    }
+    return map;
+  }, [allAtpBatches]);
+
+  const hasData = selectedCbu && !mtListingLoading && mtListingData && !mtListingData.error;
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,19 +237,13 @@ export default function CcrMtListingPage() {
           </CardHeader>
           <CardContent className="p-4 space-y-4">
 
-            {/* Filters row */}
+            {/* ── Shared filters ─────────────────────────────────────── */}
             <div className="flex flex-wrap items-center gap-3">
-              {/* CBU selector */}
-              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                Select CBU
-              </label>
-              {isLoading ? (
+              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Select CBU</label>
+              {entriesLoading ? (
                 <Skeleton className="h-8 w-72" />
               ) : (
-                <Select
-                  value={selectedCbu}
-                  onValueChange={v => { setSelectedCbu(v); setSelectedChain("all"); }}
-                >
+                <Select value={selectedCbu} onValueChange={v => { setSelectedCbu(v); setSelectedChain("all"); }}>
                   <SelectTrigger className="h-8 text-xs w-72" data-testid="select-mt-listing-cbu">
                     <SelectValue placeholder="Choose a relaunch / extension CBU…" />
                   </SelectTrigger>
@@ -169,13 +260,10 @@ export default function CcrMtListingPage() {
                 </Select>
               )}
 
-              {/* Customer chain filter — only shown once data is loaded */}
               {availableChains.length > 0 && (
                 <>
                   <span className="text-muted-foreground text-xs">|</span>
-                  <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                    Customer Chain
-                  </label>
+                  <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Customer Chain</label>
                   <Select value={selectedChain} onValueChange={setSelectedChain}>
                     <SelectTrigger className="h-8 text-xs w-44" data-testid="select-mt-listing-chain">
                       <SelectValue placeholder="All chains" />
@@ -197,41 +285,23 @@ export default function CcrMtListingPage() {
               )}
             </div>
 
-            {/* Legend */}
-            <div className="flex items-center gap-5 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-2.5 rounded-full bg-violet-500" />
-                Listing-Based (Ecom / Qcom) — predecessor &amp; successor coexist
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" />
-                Non-Listing (MT / MT Retail) — predecessor deactivated, successor takes over
-              </span>
-            </div>
-
-            {/* No CBU selected */}
+            {/* ── Empty / loading / error states (outside tabs) ──────── */}
             {!selectedCbu && (
               <div className="py-12 text-center text-sm text-muted-foreground">
                 Select a relaunch or extension CBU above to view its MT listing impact.
               </div>
             )}
-
-            {/* Loading */}
             {selectedCbu && mtListingLoading && (
               <div className="space-y-2">
                 {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             )}
-
-            {/* Error / no predecessor */}
             {selectedCbu && !mtListingLoading && mtListingData?.error && (
-              <div className="py-12 text-center text-sm text-muted-foreground">
-                {mtListingData.error}
-              </div>
+              <div className="py-12 text-center text-sm text-muted-foreground">{mtListingData.error}</div>
             )}
 
-            {/* CBU details header + table */}
-            {selectedCbu && !mtListingLoading && mtListingData && !mtListingData.error && (
+            {/* ── Main content — shared summary + tabs ───────────────── */}
+            {hasData && (
               <>
                 {/* Summary strip */}
                 <div className="flex flex-wrap gap-6 text-xs bg-muted/30 rounded-md px-4 py-3 border">
@@ -268,96 +338,229 @@ export default function CcrMtListingPage() {
                     No predecessor CIC mappings found. Configure the predecessor CBU first.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table data-testid="table-mt-listing" className="w-full">
-                      <TableHeader>
-                        <TableRow className="bg-muted/30 hover:bg-muted/30">
-                          <TableHead className="text-xs font-semibold w-[5%]">Type</TableHead>
-                          <TableHead className="text-xs font-semibold w-[9%]">Ship-to Party</TableHead>
-                          <TableHead className="text-xs font-semibold w-[11%]">Material (CBU)</TableHead>
-                          <TableHead className="text-xs font-semibold w-[8%]">Basepack</TableHead>
-                          <TableHead className="text-xs font-semibold w-[12%]">CIC Code</TableHead>
-                          <TableHead className="text-xs font-semibold w-[8%]">Case Config</TableHead>
-                          <TableHead className="text-xs font-semibold w-[11%]">EAN Code</TableHead>
-                          <TableHead className="text-xs font-semibold text-right w-[6%]">MRP</TableHead>
-                          <TableHead className="text-xs font-semibold text-right w-[7%]">Landing Cost</TableHead>
-                          <TableHead className="text-xs font-semibold text-center w-[9%]">Status</TableHead>
-                          <TableHead className="text-xs font-semibold w-[6%]">Plant</TableHead>
-                          {/* Scenario is a chain-level attribute — shown once per group via rowSpan */}
-                          <TableHead className="text-xs font-semibold w-[8%]">Scenario</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(() => {
-                          const groups: Record<string, MtListingRow[]> = {};
-                          for (const row of filteredRows) {
-                            if (!groups[row.customerChain]) groups[row.customerChain] = [];
-                            groups[row.customerChain].push(row);
-                          }
-                          return Object.entries(groups).flatMap(([chain, chainRows]) =>
-                            chainRows.map((row, idx) => {
-                              const isPred = row.rowType === "predecessor";
-                              const entryMeta = isPred
-                                ? mtListingData!.predecessorCbu
-                                : mtListingData!.successorCbu;
-                              const isFirstInGroup = idx === 0;
-                              return (
+                  <Tabs defaultValue="listing">
+                    <TabsList className="h-8">
+                      <TabsTrigger value="listing" className="text-xs h-7 px-3 gap-1.5">
+                        <List className="h-3 w-3" /> MT Listing
+                      </TabsTrigger>
+                      <TabsTrigger value="atp" className="text-xs h-7 px-3 gap-1.5">
+                        <Zap className="h-3 w-3" /> ATP Criteria
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* ── Tab 1: MT Listing ─────────────────────────── */}
+                    <TabsContent value="listing" className="mt-3 space-y-3">
+                      {/* Legend */}
+                      <div className="flex items-center gap-5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full bg-violet-500" />
+                          Listing-Based (Ecom / Qcom) — predecessor &amp; successor coexist
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" />
+                          Non-Listing (MT / MT Retail) — predecessor deactivated, successor takes over
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <Table data-testid="table-mt-listing" className="w-full">
+                          <TableHeader>
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                              <TableHead className="text-xs font-semibold w-[5%]">Type</TableHead>
+                              <TableHead className="text-xs font-semibold w-[9%]">Ship-to Party</TableHead>
+                              <TableHead className="text-xs font-semibold w-[11%]">Material (CBU)</TableHead>
+                              <TableHead className="text-xs font-semibold w-[8%]">Basepack</TableHead>
+                              <TableHead className="text-xs font-semibold w-[12%]">CIC Code</TableHead>
+                              <TableHead className="text-xs font-semibold w-[8%]">Case Config</TableHead>
+                              <TableHead className="text-xs font-semibold w-[11%]">EAN Code</TableHead>
+                              <TableHead className="text-xs font-semibold text-right w-[6%]">MRP</TableHead>
+                              <TableHead className="text-xs font-semibold text-right w-[7%]">Landing Cost</TableHead>
+                              <TableHead className="text-xs font-semibold text-center w-[9%]">Status</TableHead>
+                              <TableHead className="text-xs font-semibold w-[6%]">Plant</TableHead>
+                              <TableHead className="text-xs font-semibold w-[8%]">Scenario</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(() => {
+                              const groups: Record<string, MtListingRow[]> = {};
+                              for (const row of filteredRows) {
+                                if (!groups[row.customerChain]) groups[row.customerChain] = [];
+                                groups[row.customerChain].push(row);
+                              }
+                              return Object.entries(groups).flatMap(([chain, chainRows]) =>
+                                chainRows.map((row, idx) => {
+                                  const isPred = row.rowType === "predecessor";
+                                  const entryMeta = isPred ? mtListingData!.predecessorCbu : mtListingData!.successorCbu;
+                                  const isFirstInGroup = idx === 0;
+                                  return (
+                                    <TableRow
+                                      key={`${row.customerCode}-${row.rowType}`}
+                                      className={[
+                                        isPred
+                                          ? row.status === "INACTIVE" ? "bg-red-50/60" : "bg-white"
+                                          : "bg-emerald-50/50",
+                                        isFirstInGroup ? "border-t-2 border-t-slate-200" : "",
+                                      ].join(" ")}
+                                      data-testid={`row-mt-listing-${row.customerCode}-${row.rowType}`}
+                                    >
+                                      <TableCell className="py-2">
+                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isPred ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>
+                                          {isPred ? "OLD" : "NEW"}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-xs font-mono py-2">{row.customerCode}</TableCell>
+                                      <TableCell className="text-xs font-mono py-2">
+                                        <div className="truncate">{row.cbuCode}</div>
+                                        {isFirstInGroup && (
+                                          <div className="text-[10px] text-muted-foreground font-normal mt-0.5 truncate">{chain}</div>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-xs font-mono py-2">{row.basepack ?? "—"}</TableCell>
+                                      <TableCell className="text-xs font-mono py-2">{row.cic ?? "—"}</TableCell>
+                                      <TableCell className="text-xs py-2">{entryMeta?.caseConfig ?? "—"}</TableCell>
+                                      <TableCell className="text-xs font-mono py-2">{entryMeta?.ean ?? "—"}</TableCell>
+                                      <TableCell className="text-xs text-right py-2 text-muted-foreground">—</TableCell>
+                                      <TableCell className="text-xs text-right py-2 text-muted-foreground">—</TableCell>
+                                      <TableCell className="text-center py-2">
+                                        <span
+                                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.status === "MAPPED" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
+                                          data-testid={`badge-mt-status-${row.customerCode}-${row.rowType}`}
+                                        >
+                                          {row.status}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-xs font-mono py-2">{row.depot ?? "—"}</TableCell>
+                                      {isFirstInGroup ? (
+                                        <TableCell className="py-2 align-middle" rowSpan={chainRows.length}>
+                                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${row.listingBased ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>
+                                            {row.scenarioLabel}
+                                          </span>
+                                        </TableCell>
+                                      ) : null}
+                                    </TableRow>
+                                  );
+                                })
+                              );
+                            })()}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TabsContent>
+
+                    {/* ── Tab 2: ATP Criteria ───────────────────────── */}
+                    <TabsContent value="atp" className="mt-3 space-y-3">
+
+                      {/* Info bar */}
+                      <div className="flex flex-wrap items-start gap-4 text-xs bg-blue-50 border border-blue-100 rounded-md px-4 py-3">
+                        <div className="flex items-start gap-1.5 text-blue-700">
+                          <Zap className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span className="font-medium">Auto-CCR ATP Criteria</span>
+                        </div>
+                        <span className="text-blue-600">
+                          Evaluated at <span className="font-mono">Customer Code × CBU × Depot × Batch</span> after the latest ECC allocation cycle.
+                          Freshness = <span className="font-mono">Current Date − Production Date ≤ Valid Days (BSS Master)</span>.
+                          Only pricing-active, fresh batches contribute to Fresh ATP.
+                        </span>
+                      </div>
+
+                      {/* Legend */}
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />Retain Mapping (Fresh ATP ≥ 400)
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />Monitor (Fresh ATP &gt; 0)
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />Recommend Successor (Fresh ATP = 0)
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />Price Not Active (excluded)
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <Table data-testid="table-atp-criteria" className="w-full">
+                          <TableHeader>
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                              <TableHead className="text-xs font-semibold w-[10%]">Ship-to Party</TableHead>
+                              <TableHead className="text-xs font-semibold w-[7%]">Depot</TableHead>
+                              <TableHead className="text-xs font-semibold w-[6%]">Batch</TableHead>
+                              <TableHead className="text-xs font-semibold w-[9%]">Prod Date</TableHead>
+                              <TableHead className="text-xs font-semibold text-right w-[8%]">Stock Age</TableHead>
+                              <TableHead className="text-xs font-semibold text-right w-[8%]">Valid Days</TableHead>
+                              <TableHead className="text-xs font-semibold text-center w-[9%]">Freshness</TableHead>
+                              <TableHead className="text-xs font-semibold text-right w-[8%]">Raw ATP</TableHead>
+                              <TableHead className="text-xs font-semibold text-center w-[10%]">Price Check</TableHead>
+                              <TableHead className="text-xs font-semibold text-right w-[8%]">Fresh ATP</TableHead>
+                              <TableHead className="text-xs font-semibold text-center w-[12%]">Recommendation</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {Object.entries(atpByCode).flatMap(([code, batches]) => {
+                              const rec = getRecommendation(batches);
+                              return batches.map((b, idx) => (
                                 <TableRow
-                                  key={`${row.customerCode}-${row.rowType}`}
+                                  key={`${code}-${b.batch}`}
                                   className={[
-                                    isPred
-                                      ? row.status === "INACTIVE" ? "bg-red-50/60" : "bg-white"
-                                      : "bg-emerald-50/50",
-                                    isFirstInGroup ? "border-t-2 border-t-slate-200" : "",
+                                    b.isFresh ? "bg-emerald-50/40" : b.pricingValid ? "bg-orange-50/30" : "bg-red-50/30",
+                                    idx === 0 ? "border-t-2 border-t-slate-200" : "",
                                   ].join(" ")}
-                                  data-testid={`row-mt-listing-${row.customerCode}-${row.rowType}`}
                                 >
-                                  <TableCell className="py-2">
-                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isPred ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>
-                                      {isPred ? "OLD" : "NEW"}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-xs font-mono py-2">{row.customerCode}</TableCell>
                                   <TableCell className="text-xs font-mono py-2">
-                                    <div className="truncate">{row.cbuCode}</div>
-                                    {isFirstInGroup && (
-                                      <div className="text-[10px] text-muted-foreground font-normal mt-0.5 truncate">{chain}</div>
+                                    {code}
+                                    {idx === 0 && (
+                                      <div className="text-[10px] text-muted-foreground mt-0.5">{b.customerChain}</div>
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-xs font-mono py-2">{row.basepack ?? "—"}</TableCell>
-                                  <TableCell className="text-xs font-mono py-2">{row.cic ?? "—"}</TableCell>
-                                  <TableCell className="text-xs py-2">{entryMeta?.caseConfig ?? "—"}</TableCell>
-                                  <TableCell className="text-xs font-mono py-2">{entryMeta?.ean ?? "—"}</TableCell>
-                                  <TableCell className="text-xs text-right py-2 text-muted-foreground">—</TableCell>
-                                  <TableCell className="text-xs text-right py-2 text-muted-foreground">—</TableCell>
-                                  <TableCell className="text-center py-2">
-                                    <span
-                                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.status === "MAPPED" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
-                                      data-testid={`badge-mt-status-${row.customerCode}-${row.rowType}`}
-                                    >
-                                      {row.status}
+                                  <TableCell className="text-xs font-mono py-2">{b.depot}</TableCell>
+                                  <TableCell className="text-xs font-mono py-2">{b.batch}</TableCell>
+                                  <TableCell className="text-xs py-2">{b.productionDate}</TableCell>
+                                  <TableCell className="text-xs text-right py-2">
+                                    <span className={b.stockAgeDays > b.validDays ? "text-red-600 font-medium" : "text-foreground"}>
+                                      {b.stockAgeDays}d
                                     </span>
                                   </TableCell>
-                                  <TableCell className="text-xs font-mono py-2">{row.depot ?? "—"}</TableCell>
-                                  {/* Scenario: shown once per chain group, spanning both OLD+NEW rows */}
-                                  {isFirstInGroup ? (
-                                    <TableCell
-                                      className="py-2 align-middle"
-                                      rowSpan={chainRows.length}
-                                    >
-                                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${row.listingBased ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>
-                                        {row.scenarioLabel}
+                                  <TableCell className="text-xs text-right py-2 text-muted-foreground">{b.validDays}d</TableCell>
+                                  <TableCell className="text-center py-2">
+                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${b.isFresh ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700"}`}>
+                                      {b.isFresh ? "Fresh" : "Non-Fresh"}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-right font-mono py-2">{b.rawAtp.toLocaleString()}</TableCell>
+                                  <TableCell className="text-center py-2">
+                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${b.pricingValid ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                      {b.pricingValid ? "Valid" : "Invalid"}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-right font-mono py-2">
+                                    <span className={b.freshAtp > 0 ? "text-emerald-700 font-semibold" : "text-muted-foreground"}>
+                                      {b.freshAtp > 0 ? b.freshAtp.toLocaleString() : "—"}
+                                    </span>
+                                  </TableCell>
+                                  {/* Recommendation — rowSpan across both batches */}
+                                  {idx === 0 && (
+                                    <TableCell className="text-center py-2 align-middle" rowSpan={batches.length}>
+                                      <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${REC_STYLES[rec.variant]}`}>
+                                        {rec.label}
                                       </span>
                                     </TableCell>
-                                  ) : null}
+                                  )}
                                 </TableRow>
-                              );
-                            })
-                          );
-                        })()}
-                      </TableBody>
-                    </Table>
-                  </div>
+                              ));
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Per-customer summary footer */}
+                      <div className="text-xs text-muted-foreground pt-1 border-t">
+                        Showing ATP evaluation for <span className="font-medium text-foreground">{Object.keys(atpByCode).length}</span> ship-to parties
+                        ({allAtpBatches.filter(b => b.isFresh).length} fresh batches of {allAtpBatches.length} total).
+                        Recommendations update after each ECC allocation cycle.
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 )}
               </>
             )}
