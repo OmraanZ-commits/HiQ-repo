@@ -28,9 +28,10 @@ const NETWORK_NAV = [
 ];
 
 const CCR_NAV = [
-  { label: "Workspace", path: "/ccr" },
+  { label: "Workspace",         path: "/ccr" },
   { label: "Master Maintenance", path: "/ccr/master-maintenance" },
-  { label: "MT Listing", path: "/ccr/mt-listing" },
+  { label: "MT Listing",         path: "/ccr/mt-listing" },
+  { label: "Customer Profile",   path: "/ccr/customer-profile" },
 ];
 
 function relativeTime(ts: number): string {
