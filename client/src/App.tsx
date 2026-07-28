@@ -18,6 +18,7 @@ import CcrMasterMaintenancePage from "@/pages/ccr-master-maintenance";
 import CcrWorkspacePage from "@/pages/ccr-workspace";
 import CcrDetailPage from "@/pages/ccr-detail";
 import CcrConfigurePage from "@/pages/ccr-configure";
+import CcrMtListingPage from "@/pages/ccr-mt-listing";
 
 function Router() {
   return (
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/admin" component={AdminCenterPage} />
       <Route path="/ccr" component={CcrWorkspacePage} />
       <Route path="/ccr/master-maintenance" component={CcrMasterMaintenancePage} />
+      <Route path="/ccr/mt-listing" component={CcrMtListingPage} />
       <Route path="/ccr/line-items/:id" component={CcrDetailPage} />
       <Route path="/ccr/configure/:cbuCode" component={CcrConfigurePage} />
       <Route component={NotFound} />
