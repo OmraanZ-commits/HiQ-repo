@@ -327,14 +327,36 @@ function TakeActionDialog({
 }: TakeActionDialogProps) {
   const { toast } = useToast();
 
+  // Explicit map from typeOfNetwork codes (stored in network_entries) to the
+  // human-readable ruleset entry names (stored in ccr_ruleset.network_change_type).
+  // This replaces the previous fragile fuzzy-match + alphabetical-fallback logic.
+  const NW_TYPE_TO_RULESET: Record<string, string> = {
+    "RL_ART_PKG":  "Artwork + Packaging Change",
+    "RL_ART_FORM": "Formulation + Artwork Change",
+    "RL_PKG_FORM": "Packaging Change",
+    "RL_ART":      "Artwork Change",
+    "RL_FORM":     "Formulation Change",
+    "RL_PKG":      "Packaging Change",
+    "RL_PRICE":    "Pricing Change ≤10%",
+    "Relaunch":    "Artwork + Packaging Change",
+    // Extension / pack-change types (outside CCR scope but included for completeness)
+    "EXTENSION":   "Artwork Change",
+    "Pack Change": "Packaging Change",
+  };
+
   // Find matching ruleset rule by network change type
   const matchedRule = useMemo(() => {
     const nwType = networkEntry?.typeOfNetwork;
     if (!nwType) return null;
+    const targetName = NW_TYPE_TO_RULESET[nwType];
+    if (targetName) {
+      const found = ruleset.find(r => r.networkChangeType === targetName);
+      if (found) return found;
+    }
+    // Fallback: partial match (handles any unmapped custom types)
     return ruleset.find(r =>
-      r.networkChangeType.toLowerCase().includes(nwType.toLowerCase()) ||
-      nwType.toLowerCase().includes(r.networkChangeType.toLowerCase().split(" ")[0])
-    ) ?? ruleset[0] ?? null;
+      r.networkChangeType.toLowerCase().includes(nwType.toLowerCase())
+    ) ?? null;
   }, [ruleset, networkEntry]);
 
   // Structured override type: tracks each parameter change with old/new/timestamp

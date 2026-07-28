@@ -141,7 +141,7 @@ CCR_RULESET_SEEDS = [
     },
     {
         "network_change_type": "Artwork + Packaging Change",
-        "new_cic_required": True,
+        "new_cic_required": False,  # Relaunch: successor inherits predecessor CIC — reuse is the default
         "content_update_required": True,
         "rundown_required": True,
         "auto_ccr": False,
