@@ -766,12 +766,14 @@ def run_migrations():
         conn.execute(text(
             "ALTER TABLE ccr_customer_code_mapping ADD COLUMN IF NOT EXISTS listing_based BOOLEAN NOT NULL DEFAULT false"
         ))
-        # Ecom / Qcom chains are listing-based (allow predecessor + successor coexistence)
+        # BRD §1: listing_based is NOT derivable from channel alone.
+        # Only SBM accounts (Metro, WalMart — not in this demo dataset) are listing-based.
+        # All five demo chains (BigBasket, Blinkit, Swiggy, DMart, Reliance Smart) are Non-Listing.
+        # Apply explicit per-chain corrections so any pre-existing rows get the right value
+        # regardless of what the old channel-based migration wrote.
         conn.execute(text(
-            "UPDATE ccr_customer_code_mapping SET listing_based = true  WHERE channel IN ('Ecom', 'Qcom')"
-        ))
-        conn.execute(text(
-            "UPDATE ccr_customer_code_mapping SET listing_based = false WHERE channel IN ('MT', 'MT Retail')"
+            "UPDATE ccr_customer_code_mapping SET listing_based = false "
+            "WHERE customer_chain IN ('BigBasket','Blinkit','Swiggy Instamart','DMart','Reliance Smart')"
         ))
 
         # ── CCR: predecessor CIC mappings for extension/relaunch demo CBUs ──

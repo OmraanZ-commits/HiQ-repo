@@ -420,9 +420,13 @@ class CcrStorage:
     def seed_customers(self, seeds: List[dict]) -> None:
         db = SessionLocal()
         try:
-            existing = {r.customer_chain for r in db.query(CcrCustomerMasterModel.customer_chain).all()}
+            existing = {
+                r.customer_chain: r
+                for r in db.query(CcrCustomerMasterModel).all()
+            }
             for s in seeds:
-                if s["customer_chain"] not in existing:
+                row = existing.get(s["customer_chain"])
+                if row is None:
                     db.add(CcrCustomerMasterModel(
                         id=uuid.uuid4(),
                         customer_chain=s["customer_chain"],
@@ -431,6 +435,12 @@ class CcrStorage:
                         cse_id=s.get("cse_id"),
                         created_at=datetime.now(timezone.utc),
                     ))
+                else:
+                    # Idempotent correction: bring existing rows in line with BRD seed values
+                    row.coverage_type = s["coverage_type"]
+                    row.behaviour_type = s["behaviour_type"]
+                    if s.get("cse_id"):
+                        row.cse_id = s["cse_id"]
             db.commit()
         finally:
             db.close()
@@ -439,16 +449,13 @@ class CcrStorage:
         db = SessionLocal()
         try:
             existing = {
-                (r.customer_chain, r.customer_code, r.depot)
-                for r in db.query(
-                    CcrCustomerCodeMappingModel.customer_chain,
-                    CcrCustomerCodeMappingModel.customer_code,
-                    CcrCustomerCodeMappingModel.depot,
-                ).all()
+                (r.customer_chain, r.customer_code, r.depot): r
+                for r in db.query(CcrCustomerCodeMappingModel).all()
             }
             for s in seeds:
                 key = (s["customer_chain"], s["customer_code"], s["depot"])
-                if key not in existing:
+                row = existing.get(key)
+                if row is None:
                     db.add(CcrCustomerCodeMappingModel(
                         id=uuid.uuid4(),
                         customer_chain=s["customer_chain"],
@@ -456,7 +463,14 @@ class CcrStorage:
                         depot=s["depot"],
                         sub_channel=s.get("sub_channel"),
                         channel=s.get("channel", "MT"),
+                        listing_based=s.get("listing_based", False),
                     ))
+                else:
+                    # Idempotent correction: update channel and listing_based to BRD values
+                    row.channel = s.get("channel", row.channel)
+                    row.listing_based = s.get("listing_based", False)
+                    if s.get("sub_channel"):
+                        row.sub_channel = s["sub_channel"]
             db.commit()
         finally:
             db.close()
@@ -500,9 +514,13 @@ class CcrStorage:
     def seed_ruleset(self, seeds: List[dict]) -> None:
         db = SessionLocal()
         try:
-            existing = {r.network_change_type for r in db.query(CcrRulesetModel.network_change_type).all()}
+            existing = {
+                r.network_change_type: r
+                for r in db.query(CcrRulesetModel).all()
+            }
             for s in seeds:
-                if s["network_change_type"] not in existing:
+                row = existing.get(s["network_change_type"])
+                if row is None:
                     db.add(CcrRulesetModel(
                         id=uuid.uuid4(),
                         network_change_type=s["network_change_type"],
@@ -512,6 +530,14 @@ class CcrStorage:
                         auto_ccr=s.get("auto_ccr", False),
                         notes=s.get("notes"),
                     ))
+                else:
+                    # Idempotent correction: keep ruleset in sync with BRD seed values
+                    row.new_cic_required = s.get("new_cic_required", False)
+                    row.content_update_required = s.get("content_update_required", False)
+                    row.rundown_required = s.get("rundown_required", False)
+                    row.auto_ccr = s.get("auto_ccr", False)
+                    if s.get("notes"):
+                        row.notes = s["notes"]
             db.commit()
         finally:
             db.close()

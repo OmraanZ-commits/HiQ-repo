@@ -4,30 +4,35 @@
 
 CCR_CUSTOMER_SEEDS = [
     {
+        # BRD §1: Regional, SBM/Listing Based = No → Non-Listing
         "customer_chain": "Blinkit",
-        "coverage_type": "National",
-        "behaviour_type": "Listing",
+        "coverage_type": "Regional",
+        "behaviour_type": "Non-Listing",
         "cse_id": "priya.patel@unilever.com",
     },
     {
+        # BRD §1: National, SBM/Listing Based = No → Non-Listing
         "customer_chain": "Swiggy Instamart",
         "coverage_type": "National",
-        "behaviour_type": "Listing",
+        "behaviour_type": "Non-Listing",
         "cse_id": "ankit.verma@unilever.com",
     },
     {
+        # Physical MT Retail; listing_based=False on all codes → Non-Listing
         "customer_chain": "DMart",
         "coverage_type": "National",
-        "behaviour_type": "Listing",
+        "behaviour_type": "Non-Listing",
         "cse_id": "priya.patel@unilever.com",
     },
     {
+        # Physical MT Retail; listing_based=False on all codes → Non-Listing
         "customer_chain": "Reliance Smart",
         "coverage_type": "National",
-        "behaviour_type": "Listing",
+        "behaviour_type": "Non-Listing",
         "cse_id": "vikram.singh@unilever.com",
     },
     {
+        # BRD §1: National, SBM/Listing Based = No → Non-Listing
         "customer_chain": "BigBasket",
         "coverage_type": "National",
         "behaviour_type": "Non-Listing",
@@ -35,42 +40,43 @@ CCR_CUSTOMER_SEEDS = [
     },
 ]
 
-# Customer code + depot mappings. channel="MT" per task specification;
-# sub_channel carries the customer-specific identity for display purposes.
+# Customer code + depot mappings.
+# channel reflects the actual trade channel; listing_based=True only for SBM accounts (e.g. Metro, WalMart).
+# BRD §1: BigBasket = National/No, Blinkit = Regional/No, Swiggy = National/No → all listing_based=False.
 CCR_CODE_MAPPING_SEEDS = [
-    # Blinkit — quick-commerce arm, mapped under MT umbrella
-    {"customer_chain": "Blinkit", "customer_code": "BLK-DL-001", "depot": "DLGH", "sub_channel": "Blinkit",  "channel": "MT"},
-    {"customer_chain": "Blinkit", "customer_code": "BLK-JP-001", "depot": "JPRH", "sub_channel": "Blinkit",  "channel": "MT"},
-    {"customer_chain": "Blinkit", "customer_code": "BLK-MH-001", "depot": "MMDH", "sub_channel": "Blinkit",  "channel": "MT"},
-    {"customer_chain": "Blinkit", "customer_code": "BLK-MH-002", "depot": "SHAH", "sub_channel": "Blinkit",  "channel": "MT"},
-    {"customer_chain": "Blinkit", "customer_code": "BLK-KA-001", "depot": "BNDH", "sub_channel": "Blinkit",  "channel": "MT"},
-    {"customer_chain": "Blinkit", "customer_code": "BLK-TN-001", "depot": "CHKH", "sub_channel": "Blinkit",  "channel": "MT"},
-    # Swiggy Instamart
-    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-DL-001", "depot": "DLGH", "sub_channel": "Swiggy", "channel": "MT"},
-    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-MH-001", "depot": "MMDH", "sub_channel": "Swiggy", "channel": "MT"},
-    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-KA-001", "depot": "BNDH", "sub_channel": "Swiggy", "channel": "MT"},
-    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-TN-001", "depot": "CHKH", "sub_channel": "Swiggy", "channel": "MT"},
-    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-WB-001", "depot": "KOPH", "sub_channel": "Swiggy", "channel": "MT"},
-    # DMart — MT Retail
-    {"customer_chain": "DMart", "customer_code": "DMT-DL-001", "depot": "DLGH", "sub_channel": "DMart", "channel": "MT"},
-    {"customer_chain": "DMart", "customer_code": "DMT-MH-001", "depot": "MMDH", "sub_channel": "DMart", "channel": "MT"},
-    {"customer_chain": "DMart", "customer_code": "DMT-GJ-001", "depot": "VJDH", "sub_channel": "DMart", "channel": "MT"},
-    {"customer_chain": "DMart", "customer_code": "DMT-TN-001", "depot": "CHKH", "sub_channel": "DMart", "channel": "MT"},
-    {"customer_chain": "DMart", "customer_code": "DMT-KA-001", "depot": "BNDH", "sub_channel": "DMart", "channel": "MT"},
-    {"customer_chain": "DMart", "customer_code": "DMT-UP-001", "depot": "VABH", "sub_channel": "DMart", "channel": "MT"},
-    {"customer_chain": "DMart", "customer_code": "DMT-RJ-001", "depot": "RJ2H", "sub_channel": "DMart", "channel": "MT"},
-    # Reliance Smart
-    {"customer_chain": "Reliance Smart", "customer_code": "RLI-DL-001", "depot": "DLGH", "sub_channel": "Reliance Smart", "channel": "MT"},
-    {"customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "depot": "MMDH", "sub_channel": "Reliance Smart", "channel": "MT"},
-    {"customer_chain": "Reliance Smart", "customer_code": "RLI-GJ-001", "depot": "VJDH", "sub_channel": "Reliance Smart", "channel": "MT"},
-    {"customer_chain": "Reliance Smart", "customer_code": "RLI-TN-001", "depot": "CHKH", "sub_channel": "Reliance Smart", "channel": "MT"},
-    {"customer_chain": "Reliance Smart", "customer_code": "RLI-KA-001", "depot": "BNDH", "sub_channel": "Reliance Smart", "channel": "MT"},
-    # BigBasket
-    {"customer_chain": "BigBasket", "customer_code": "BBK-DL-001", "depot": "DLGH", "sub_channel": "BigBasket", "channel": "MT"},
-    {"customer_chain": "BigBasket", "customer_code": "BBK-MH-001", "depot": "MMDH", "sub_channel": "BigBasket", "channel": "MT"},
-    {"customer_chain": "BigBasket", "customer_code": "BBK-KA-001", "depot": "BNDH", "sub_channel": "BigBasket", "channel": "MT"},
-    {"customer_chain": "BigBasket", "customer_code": "BBK-TN-001", "depot": "CHKH", "sub_channel": "BigBasket", "channel": "MT"},
-    {"customer_chain": "BigBasket", "customer_code": "BBK-WB-001", "depot": "KOPH", "sub_channel": "BigBasket", "channel": "MT"},
+    # Blinkit — Qcom (quick-commerce), Regional, SBM=No → listing_based=False
+    {"customer_chain": "Blinkit", "customer_code": "BLK-DL-001", "depot": "DLGH", "sub_channel": "Blinkit", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Blinkit", "customer_code": "BLK-JP-001", "depot": "JPRH", "sub_channel": "Blinkit", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Blinkit", "customer_code": "BLK-MH-001", "depot": "MMDH", "sub_channel": "Blinkit", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Blinkit", "customer_code": "BLK-MH-002", "depot": "SHAH", "sub_channel": "Blinkit", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Blinkit", "customer_code": "BLK-KA-001", "depot": "BNDH", "sub_channel": "Blinkit", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Blinkit", "customer_code": "BLK-TN-001", "depot": "CHKH", "sub_channel": "Blinkit", "channel": "Qcom", "listing_based": False},
+    # Swiggy Instamart — Qcom, National, SBM=No → listing_based=False
+    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-DL-001", "depot": "DLGH", "sub_channel": "Swiggy", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-MH-001", "depot": "MMDH", "sub_channel": "Swiggy", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-KA-001", "depot": "BNDH", "sub_channel": "Swiggy", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-TN-001", "depot": "CHKH", "sub_channel": "Swiggy", "channel": "Qcom", "listing_based": False},
+    {"customer_chain": "Swiggy Instamart", "customer_code": "SWG-WB-001", "depot": "KOPH", "sub_channel": "Swiggy", "channel": "Qcom", "listing_based": False},
+    # DMart — MT Retail (physical store), listing_based=False
+    {"customer_chain": "DMart", "customer_code": "DMT-DL-001", "depot": "DLGH", "sub_channel": "DMart", "channel": "MT Retail", "listing_based": False},
+    {"customer_chain": "DMart", "customer_code": "DMT-MH-001", "depot": "MMDH", "sub_channel": "DMart", "channel": "MT Retail", "listing_based": False},
+    {"customer_chain": "DMart", "customer_code": "DMT-GJ-001", "depot": "VJDH", "sub_channel": "DMart", "channel": "MT Retail", "listing_based": False},
+    {"customer_chain": "DMart", "customer_code": "DMT-TN-001", "depot": "CHKH", "sub_channel": "DMart", "channel": "MT Retail", "listing_based": False},
+    {"customer_chain": "DMart", "customer_code": "DMT-KA-001", "depot": "BNDH", "sub_channel": "DMart", "channel": "MT Retail", "listing_based": False},
+    {"customer_chain": "DMart", "customer_code": "DMT-UP-001", "depot": "VABH", "sub_channel": "DMart", "channel": "MT Retail", "listing_based": False},
+    {"customer_chain": "DMart", "customer_code": "DMT-RJ-001", "depot": "RJ2H", "sub_channel": "DMart", "channel": "MT Retail", "listing_based": False},
+    # Reliance Smart — MT, listing_based=False
+    {"customer_chain": "Reliance Smart", "customer_code": "RLI-DL-001", "depot": "DLGH", "sub_channel": "Reliance Smart", "channel": "MT", "listing_based": False},
+    {"customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "depot": "MMDH", "sub_channel": "Reliance Smart", "channel": "MT", "listing_based": False},
+    {"customer_chain": "Reliance Smart", "customer_code": "RLI-GJ-001", "depot": "VJDH", "sub_channel": "Reliance Smart", "channel": "MT", "listing_based": False},
+    {"customer_chain": "Reliance Smart", "customer_code": "RLI-TN-001", "depot": "CHKH", "sub_channel": "Reliance Smart", "channel": "MT", "listing_based": False},
+    {"customer_chain": "Reliance Smart", "customer_code": "RLI-KA-001", "depot": "BNDH", "sub_channel": "Reliance Smart", "channel": "MT", "listing_based": False},
+    # BigBasket — Ecom, National, SBM=No → listing_based=False
+    {"customer_chain": "BigBasket", "customer_code": "BBK-DL-001", "depot": "DLGH", "sub_channel": "BigBasket", "channel": "Ecom", "listing_based": False},
+    {"customer_chain": "BigBasket", "customer_code": "BBK-MH-001", "depot": "MMDH", "sub_channel": "BigBasket", "channel": "Ecom", "listing_based": False},
+    {"customer_chain": "BigBasket", "customer_code": "BBK-KA-001", "depot": "BNDH", "sub_channel": "BigBasket", "channel": "Ecom", "listing_based": False},
+    {"customer_chain": "BigBasket", "customer_code": "BBK-TN-001", "depot": "CHKH", "sub_channel": "BigBasket", "channel": "Ecom", "listing_based": False},
+    {"customer_chain": "BigBasket", "customer_code": "BBK-WB-001", "depot": "KOPH", "sub_channel": "BigBasket", "channel": "Ecom", "listing_based": False},
 ]
 
 # NOTE: CIC mappings for CBU-50019001 through CBU-50019007 are intentionally NOT
@@ -116,20 +122,22 @@ CCR_RULESET_SEEDS = [
         "notes": "Weight change implies new EAN; new CIC and predecessor rundown mandatory.",
     },
     {
+        # BRD §3.5: No for all Ecom/Qcom accounts; Yes only for SBM (Metro/WalMart — not in demo dataset)
         "network_change_type": "Case Config Change",
-        "new_cic_required": True,
+        "new_cic_required": False,
         "content_update_required": False,
         "rundown_required": True,
         "auto_ccr": False,
-        "notes": "Case count or ITF change; new CIC needed; manual rundown coordination.",
+        "notes": "Case count or ITF change; no new CIC for Ecom/Qcom accounts; rundown required.",
     },
     {
+        # BRD §3.9: Yes for BigBasket and SBM accounts; majority-Yes rule applied
         "network_change_type": "Pricing Change >10%",
-        "new_cic_required": False,
-        "content_update_required": False,
+        "new_cic_required": True,
+        "content_update_required": True,
         "rundown_required": False,
-        "auto_ccr": True,
-        "notes": "Price-only change >10%; auto-CCR sent for customer acknowledgment.",
+        "auto_ccr": False,
+        "notes": "Significant price change; new CIC required for most accounts; content update needed.",
     },
     {
         "network_change_type": "Pricing Change ≤10%",
