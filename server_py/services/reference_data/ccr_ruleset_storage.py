@@ -116,25 +116,29 @@ class CcrRulesetStorage:
         """Seed accounts; returns {name: id} mapping for rule seeding."""
         db = SessionLocal()
         try:
-            existing = {r.account_name: str(r.id) for r in db.query(CcrAccountModel).all()}
-            if existing:
-                return existing
-            result = {}
+            existing = {r.account_name: r for r in db.query(CcrAccountModel).all()}
+            result = {name: str(row.id) for name, row in existing.items()}
             for s in seeds:
-                entry = CcrAccountModel(
-                    id=uuid.uuid4(),
-                    account_name=s["accountName"],
-                    ccr_action=s["ccrAction"],
-                    sbm_listing_based=s["sbmListingBased"],
-                    pixel_required=s.get("pixelRequired", "N"),
-                    content_required=s.get("contentRequired", "N"),
-                    customer_update_timeline=s.get("customerUpdateTimeline"),
-                    is_active=True,
-                    created_at=datetime.now(timezone.utc),
-                )
-                db.add(entry)
-                db.flush()
-                result[s["accountName"]] = str(entry.id)
+                row = existing.get(s["accountName"])
+                if row is None:
+                    entry = CcrAccountModel(
+                        id=uuid.uuid4(),
+                        account_name=s["accountName"],
+                        ccr_action=s["ccrAction"],
+                        sbm_listing_based=s["sbmListingBased"],
+                        pixel_required=s.get("pixelRequired", "N"),
+                        content_required=s.get("contentRequired", "N"),
+                        customer_update_timeline=s.get("customerUpdateTimeline"),
+                        is_active=True,
+                        created_at=datetime.now(timezone.utc),
+                    )
+                    db.add(entry)
+                    db.flush()
+                    result[s["accountName"]] = str(entry.id)
+                else:
+                    # Idempotent correction: keep display fields in sync with BRD seed values
+                    row.ccr_action = s["ccrAction"]
+                    row.sbm_listing_based = s["sbmListingBased"]
             db.commit()
             return result
         finally:
