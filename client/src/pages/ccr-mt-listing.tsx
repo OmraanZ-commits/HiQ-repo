@@ -69,6 +69,7 @@ const RELAUNCH_TYPES = new Set([
 
 export default function CcrMtListingPage() {
   const [selectedCbu, setSelectedCbu] = useState<string>("");
+  const [selectedChain, setSelectedChain] = useState<string>("all");
 
   const { data: networkEntries = [], isLoading: entriesLoading } = useQuery<NetworkEntry[]>({
     queryKey: ["/api/network-entries"],
@@ -92,6 +93,27 @@ export default function CcrMtListingPage() {
     ),
     [networkEntries],
   );
+
+  // Distinct customer chains available for the loaded MT listing data
+  const availableChains = useMemo(() => {
+    if (!mtListingData?.rows?.length) return [];
+    const seen = new Set<string>();
+    const chains: string[] = [];
+    for (const row of mtListingData.rows) {
+      if (!seen.has(row.customerChain)) {
+        seen.add(row.customerChain);
+        chains.push(row.customerChain);
+      }
+    }
+    return chains;
+  }, [mtListingData?.rows]);
+
+  // Rows filtered by selected chain
+  const filteredRows = useMemo(() => {
+    if (!mtListingData?.rows) return [];
+    if (selectedChain === "all") return mtListingData.rows;
+    return mtListingData.rows.filter(r => r.customerChain === selectedChain);
+  }, [mtListingData?.rows, selectedChain]);
 
   const isLoading = entriesLoading;
 
@@ -118,15 +140,19 @@ export default function CcrMtListingPage() {
           </CardHeader>
           <CardContent className="p-4 space-y-4">
 
-            {/* CBU selector */}
-            <div className="flex items-center gap-3">
+            {/* Filters row */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* CBU selector */}
               <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
                 Select CBU
               </label>
               {isLoading ? (
                 <Skeleton className="h-8 w-72" />
               ) : (
-                <Select value={selectedCbu} onValueChange={setSelectedCbu}>
+                <Select
+                  value={selectedCbu}
+                  onValueChange={v => { setSelectedCbu(v); setSelectedChain("all"); }}
+                >
                   <SelectTrigger className="h-8 text-xs w-72" data-testid="select-mt-listing-cbu">
                     <SelectValue placeholder="Choose a relaunch / extension CBU…" />
                   </SelectTrigger>
@@ -136,14 +162,36 @@ export default function CcrMtListingPage() {
                     )}
                     {eligibleEntries.map(e => (
                       <SelectItem key={e.cbuCode ?? ""} value={e.cbuCode ?? ""}>
-                        {e.cbuCode} — {e.materialDescription || e.basepackDescription || e.basepack}
+                        {e.cbuCode} — {e.materialDescription || (e as any).basepackDescription || e.basepack}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
+
+              {/* Customer chain filter — only shown once data is loaded */}
+              {availableChains.length > 0 && (
+                <>
+                  <span className="text-muted-foreground text-xs">|</span>
+                  <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                    Customer Chain
+                  </label>
+                  <Select value={selectedChain} onValueChange={setSelectedChain}>
+                    <SelectTrigger className="h-8 text-xs w-44" data-testid="select-mt-listing-chain">
+                      <SelectValue placeholder="All chains" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All chains</SelectItem>
+                      {availableChains.map(chain => (
+                        <SelectItem key={chain} value={chain}>{chain}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+
               {eligibleEntries.length > 0 && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground ml-auto">
                   {eligibleEntries.length} CBU{eligibleEntries.length !== 1 ? "s" : ""} eligible
                 </span>
               )}
@@ -235,13 +283,14 @@ export default function CcrMtListingPage() {
                           <TableHead className="text-xs font-semibold text-right w-[7%]">Landing Cost</TableHead>
                           <TableHead className="text-xs font-semibold text-center w-[9%]">Status</TableHead>
                           <TableHead className="text-xs font-semibold w-[6%]">Plant</TableHead>
+                          {/* Scenario is a chain-level attribute — shown once per group via rowSpan */}
                           <TableHead className="text-xs font-semibold w-[8%]">Scenario</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {(() => {
                           const groups: Record<string, MtListingRow[]> = {};
-                          for (const row of mtListingData.rows) {
+                          for (const row of filteredRows) {
                             if (!groups[row.customerChain]) groups[row.customerChain] = [];
                             groups[row.customerChain].push(row);
                           }
@@ -249,8 +298,8 @@ export default function CcrMtListingPage() {
                             chainRows.map((row, idx) => {
                               const isPred = row.rowType === "predecessor";
                               const entryMeta = isPred
-                                ? mtListingData.predecessorCbu
-                                : mtListingData.successorCbu;
+                                ? mtListingData!.predecessorCbu
+                                : mtListingData!.successorCbu;
                               const isFirstInGroup = idx === 0;
                               return (
                                 <TableRow
@@ -290,11 +339,17 @@ export default function CcrMtListingPage() {
                                     </span>
                                   </TableCell>
                                   <TableCell className="text-xs font-mono py-2">{row.depot ?? "—"}</TableCell>
-                                  <TableCell className="py-2">
-                                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${row.listingBased ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>
-                                      {row.scenarioLabel}
-                                    </span>
-                                  </TableCell>
+                                  {/* Scenario: shown once per chain group, spanning both OLD+NEW rows */}
+                                  {isFirstInGroup ? (
+                                    <TableCell
+                                      className="py-2 align-middle"
+                                      rowSpan={chainRows.length}
+                                    >
+                                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${row.listingBased ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>
+                                        {row.scenarioLabel}
+                                      </span>
+                                    </TableCell>
+                                  ) : null}
                                 </TableRow>
                               );
                             })
