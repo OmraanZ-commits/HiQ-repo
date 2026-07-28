@@ -167,11 +167,30 @@ CCR_LINE_ITEM_SEEDS = [
     {"predecessor_cbu_code": "CBU-50018900", "successor_cbu_code": "CBU-50019001", "customer_chain": "Reliance Smart", "customer_code": "RLI-DL-001", "cic": "CIC-FTR1-DL-RLI", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Semi-Auto"},
     {"predecessor_cbu_code": "CBU-50018900", "successor_cbu_code": "CBU-50019001", "customer_chain": "Blinkit",        "customer_code": "BLK-DL-001", "cic": None,               "trigger_stage": "None",   "urgency_color": "None",  "ccr_status": "Upcoming",        "execution_type": "None"},
 
-    # ── CBU-50019002 (Sunsilk Shampoo 340ml) ──
-    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "DMart",          "customer_code": "DMT-MH-001", "cic": "CIC-FTR2-MH-DMT", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
-    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "DMart",          "customer_code": "DMT-TN-001", "cic": "CIC-FTR2-TN-DMT", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Completed",       "execution_type": "Auto"},
-    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "BigBasket",      "customer_code": "BBK-MH-001", "cic": "CIC-FTR2-MH-BBK", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming",        "execution_type": "Auto"},
-    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "cic": None,               "trigger_stage": "None",   "urgency_color": "None",  "ccr_status": "Upcoming",        "execution_type": "None"},
+    # ── CBU-50019002 (Sunsilk Shampoo 340ml) — full set matching 12 predecessor CIC rows ──
+    # CBU-50018901 (predecessor / BP-1901) has 12 CIC mappings:
+    #   MT Retail — DMart  at MMDH / CHKH / BNDH   (Non-Listing: CIC transferred to successor)
+    #   MT        — Reliance Smart at MMDH / CHKH / BNDH (Non-Listing)
+    #   Ecom      — BigBasket at MMDH / CHKH / BNDH (Listing-Based: predecessor + successor coexist)
+    #   Qcom      — Blinkit  at MMDH / CHKH / BNDH  (Listing-Based)
+    # Most are "Action Required" so the evaluator can walk through the full CIC evaluation flow.
+    # CIC values are the proposed successor codes derived from the predecessor's CIC.
+    # ── MT Retail / DMart ────────────────────────────────────────────────────────
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "DMart",           "customer_code": "DMT-MH-001", "cic": "CIC-FTR2-MH-DMT", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "DMart",           "customer_code": "DMT-TN-001", "cic": "CIC-FTR2-TN-DMT", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Completed",       "execution_type": "Auto"},
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "DMart",           "customer_code": "DMT-KA-001", "cic": "CIC-FTR2-KA-DMT", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
+    # ── MT / Reliance Smart ──────────────────────────────────────────────────────
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Reliance Smart",  "customer_code": "RLI-MH-001", "cic": "CIC-FTR2-MH-RLI", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Reliance Smart",  "customer_code": "RLI-TN-001", "cic": "CIC-FTR2-TN-RLI", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Reliance Smart",  "customer_code": "RLI-KA-001", "cic": "CIC-FTR2-KA-RLI", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Semi-Auto"},
+    # ── Ecom / BigBasket (Listing-Based — predecessor + successor CIC coexist) ───
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "BigBasket",       "customer_code": "BBK-MH-001", "cic": "CIC-FTR2-MH-BBK", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Auto"},
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "BigBasket",       "customer_code": "BBK-TN-001", "cic": "CIC-FTR2-TN-BBK", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Completed",       "execution_type": "Auto"},
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "BigBasket",       "customer_code": "BBK-KA-001", "cic": "CIC-FTR2-KA-BBK", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Auto"},
+    # ── Qcom / Blinkit (Listing-Based) ───────────────────────────────────────────
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Blinkit",         "customer_code": "BLK-MH-001", "cic": "CIC-FTR2-MH-BLK", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Auto"},
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Blinkit",         "customer_code": "BLK-TN-001", "cic": "CIC-FTR2-TN-BLK", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Upcoming",        "execution_type": "Auto"},
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Blinkit",         "customer_code": "BLK-KA-001", "cic": "CIC-FTR2-KA-BLK", "trigger_stage": "First", "urgency_color": "Amber", "ccr_status": "Upcoming",        "execution_type": "Auto"},
 
     # ── CBU-50019003 (Dove Shampoo 650ml) ──
     {"predecessor_cbu_code": "CBU-50018902", "successor_cbu_code": "CBU-50019003", "customer_chain": "DMart",          "customer_code": "DMT-MH-001", "cic": "CIC-FTR3-MH-DMT", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
