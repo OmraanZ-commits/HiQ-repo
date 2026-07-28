@@ -188,13 +188,12 @@ export default function CcrConfigurePage() {
     enabled: !!decodedCbu && !!selectedChain,
   });
 
-  // All CIC mappings for this CBU — powers the Mapped depot count in the stats strip
+  // All CIC mappings for this CBU (all chains) — powers the chain completion counter
   const { data: allCicMappings = [] } = useQuery<CicMapping[]>({
     queryKey: ["/api/ccr/cic-mappings", decodedCbu],
     queryFn: () =>
-      fetch(`/api/ccr/cic-mappings?cbuCode=${encodeURIComponent(decodedCbu)}`).then(r => r.json()),
+      fetch(`/api/ccr/cic-mappings?cbu_code=${encodeURIComponent(decodedCbu)}`).then(r => r.json()),
     enabled: !!decodedCbu,
-    staleTime: 30_000,
   });
 
   const { data: bpStatusMap = {} } = useQuery<Record<string, string>>({
@@ -239,19 +238,17 @@ export default function CcrConfigurePage() {
     return result;
   }, [entry]);
 
+  // A chain counts as "configured" once it has ≥1 saved CIC row (matching the
+  // depot-change-summary server logic).  We only count chains that are in the
+  // applicable set so predecessor/test rows from other CBUs don't inflate it.
   const chainCompletionStats = useMemo(() => {
-    const byChain = new Map<string, { mapped: number; total: number }>();
+    const configuredChains = new Set<string>();
     for (const m of allCicMappings) {
-      const s = byChain.get(m.customerChain) ?? { mapped: 0, total: 0 };
-      s.total++;
-      if (m.status === "Mapped") s.mapped++;
-      byChain.set(m.customerChain, s);
+      if (applicableChains.has(m.customerChain)) {
+        configuredChains.add(m.customerChain);
+      }
     }
-    let completed = 0;
-    for (const [, s] of byChain) {
-      if (s.total > 0 && s.mapped === s.total) completed++;
-    }
-    return { applicable: applicableChains.size, completed };
+    return { applicable: applicableChains.size, completed: configuredChains.size };
   }, [allCicMappings, applicableChains]);
 
   // ── Derived: mapping grid ────────────────────────────────────────────────────
