@@ -190,12 +190,12 @@ NETWORK_CHANGE_TYPE_SEEDS = [
 
 CCR_ACCOUNT_SEEDS = [
     {"accountName": "BIGBASKET",         "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
-    {"accountName": "CLOUD TAIL",        "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
-    {"accountName": "FLIPKART",          "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
-    {"accountName": "AMAZON",            "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
-    {"accountName": "JIOMART",           "ccrAction": "National", "sbmListingBased": "Listing Based", "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "3 weeks"},
+    {"accountName": "CLOUD TAIL",        "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "FLIPKART",          "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "AMAZON",            "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "4 weeks"},
+    {"accountName": "JIOMART",           "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "Y", "contentRequired": "Y", "customerUpdateTimeline": "3 weeks"},
     {"accountName": "BLINKIT",           "ccrAction": "Regional", "sbmListingBased": "Non-Listing",   "pixelRequired": "Y", "contentRequired": "N", "customerUpdateTimeline": "2 weeks"},
-    {"accountName": "ZEPTO",             "ccrAction": "National", "sbmListingBased": "SBM",           "pixelRequired": "Y", "contentRequired": "N", "customerUpdateTimeline": "2 weeks"},
+    {"accountName": "ZEPTO",             "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "Y", "contentRequired": "N", "customerUpdateTimeline": "2 weeks"},
     {"accountName": "SWIGGY INSTAMART",  "ccrAction": "National", "sbmListingBased": "Non-Listing",   "pixelRequired": "Y", "contentRequired": "N", "customerUpdateTimeline": "2 weeks"},
     {"accountName": "D-MART",            "ccrAction": "Regional", "sbmListingBased": "Non-Listing",   "pixelRequired": "N", "contentRequired": "N", "customerUpdateTimeline": "6 weeks"},
     {"accountName": "MORE RETAIL",       "ccrAction": "Regional", "sbmListingBased": "Non-Listing",   "pixelRequired": "N", "contentRequired": "N", "customerUpdateTimeline": "4 weeks"},
