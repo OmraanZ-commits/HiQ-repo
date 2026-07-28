@@ -1238,3 +1238,99 @@ class CcrStorage:
             db.commit()
         finally:
             db.close()
+
+    # ── MT Listing ─────────────────────────────────────────────────────────────
+
+    def get_mt_listing(self, successor_cbu_code: str) -> dict:
+        """
+        Returns the MT listing view for a relaunch/extension CBU (Case 1: existing CIC reused).
+
+        Scenario per BRD §10.6:
+          - listing_based = True  (Ecom / Qcom): predecessor stays MAPPED, successor row ADDED
+          - listing_based = False (MT / MT Retail): predecessor becomes INACTIVE, successor MAPPED
+        """
+        db = SessionLocal()
+        try:
+            succ_entry = (
+                db.query(NetworkEntryModel)
+                .filter(NetworkEntryModel.cbu_code == successor_cbu_code)
+                .first()
+            )
+            if not succ_entry:
+                return {"error": "CBU not found", "rows": []}
+
+            predecessor_code = succ_entry.predecessor_code
+            if not predecessor_code:
+                return {"error": "No predecessor for this CBU", "rows": []}
+
+            pred_entry = (
+                db.query(NetworkEntryModel)
+                .filter(NetworkEntryModel.cbu_code == predecessor_code)
+                .first()
+            )
+
+            def _entry_meta(e) -> dict:
+                if not e:
+                    return {}
+                return {
+                    "cbuCode": e.cbu_code,
+                    "basepack": e.basepack,
+                    "caseConfig": e.case_config,
+                    "ean": e.ean,
+                    "netWeight": e.net_weight,
+                    "materialDescription": e.material_description,
+                }
+
+            pred_rows = (
+                db.query(CcrCicMappingModel)
+                .filter(CcrCicMappingModel.cbu_code == predecessor_code)
+                .order_by(CcrCicMappingModel.customer_chain, CcrCicMappingModel.customer_code)
+                .all()
+            )
+
+            all_codes = {r.customer_code for r in pred_rows}
+            code_rows = (
+                db.query(CcrCustomerCodeMappingModel)
+                .filter(CcrCustomerCodeMappingModel.customer_code.in_(all_codes))
+                .all()
+            ) if all_codes else []
+            listing_map: dict = {r.customer_code: bool(r.listing_based) for r in code_rows}
+
+            output_rows = []
+            for r in pred_rows:
+                lb = listing_map.get(r.customer_code, False)
+                label = "Listing-Based" if lb else "Non-Listing"
+                output_rows.append({
+                    "rowType": "predecessor",
+                    "customerChain": r.customer_chain,
+                    "customerCode": r.customer_code,
+                    "cic": r.cic,
+                    "channel": r.channel,
+                    "depot": r.depot,
+                    "status": "MAPPED" if lb else "INACTIVE",
+                    "listingBased": lb,
+                    "scenarioLabel": label,
+                    "basepack": r.basepack or succ_entry.basepack,
+                    "cbuCode": predecessor_code,
+                })
+                output_rows.append({
+                    "rowType": "successor",
+                    "customerChain": r.customer_chain,
+                    "customerCode": r.customer_code,
+                    "cic": r.cic,
+                    "channel": r.channel,
+                    "depot": r.depot,
+                    "status": "MAPPED",
+                    "listingBased": lb,
+                    "scenarioLabel": label,
+                    "basepack": succ_entry.basepack,
+                    "cbuCode": successor_cbu_code,
+                })
+
+            return {
+                "successorCbu": _entry_meta(succ_entry),
+                "predecessorCbu": _entry_meta(pred_entry) if pred_entry else {"cbuCode": predecessor_code},
+                "rows": output_rows,
+            }
+        finally:
+            db.close()

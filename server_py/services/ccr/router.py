@@ -91,6 +91,16 @@ class AppendAuditLogRequest(BaseModel):
 
 
 
+@router.get("/mt-listing")
+async def get_mt_listing(cbu_code: str = Query(...)):
+    """
+    MT listing view for a relaunch/extension CBU where the existing CIC is reused
+    (BRD §10.5 Case 1 / §10.6). Shows predecessor and successor rows with
+    listing-based vs non-listing scenario classification.
+    """
+    return _svc().get_mt_listing(cbu_code)
+
+
 @router.get("/customers")
 async def get_customers():
     return _svc().get_all_customers()

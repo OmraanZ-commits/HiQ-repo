@@ -34,6 +34,9 @@ class CcrService:
     def get_chain_completion_summary(self) -> dict:
         return self.storage.get_chain_completion_summary()
 
+    def get_mt_listing(self, successor_cbu_code: str) -> dict:
+        return self.storage.get_mt_listing(successor_cbu_code)
+
     # ── Ruleset ─────────────────────────────────────────────────
 
     def get_ruleset(self) -> List[dict]:

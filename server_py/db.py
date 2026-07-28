@@ -402,6 +402,7 @@ class CcrCustomerCodeMappingModel(Base):
     depot = Column(String, nullable=False)
     sub_channel = Column(String, nullable=True)
     channel = Column(String, nullable=False, default="MT")
+    listing_based = Column(Boolean, nullable=False, default=False)
 
 
 class CcrCicMappingModel(Base):
@@ -761,6 +762,55 @@ def run_migrations():
                 "UPDATE ccr_customer_code_mapping SET clot = :v "
                 "WHERE depot = :d AND (clot IS NULL OR clot = 1.0)"
             ), {"d": depot_code, "v": clot_val})
+        # ── CCR: listing_based flag on customer code mapping ─────────────────
+        conn.execute(text(
+            "ALTER TABLE ccr_customer_code_mapping ADD COLUMN IF NOT EXISTS listing_based BOOLEAN NOT NULL DEFAULT false"
+        ))
+        # Ecom / Qcom chains are listing-based (allow predecessor + successor coexistence)
+        conn.execute(text(
+            "UPDATE ccr_customer_code_mapping SET listing_based = true  WHERE channel IN ('Ecom', 'Qcom')"
+        ))
+        conn.execute(text(
+            "UPDATE ccr_customer_code_mapping SET listing_based = false WHERE channel IN ('MT', 'MT Retail')"
+        ))
+
+        # ── CCR: predecessor CIC mappings for extension/relaunch demo CBUs ──
+        # CBU-50008901 is the predecessor of CBU-50008902 (Closeup, BP-800, EXTENSION).
+        # CBU-50016902 is the predecessor of CBU-50017003 (Pepsodent, BP-1700, EXTENSION).
+        # Seeding their CIC rows so the MT Listing tab can show the before/after view.
+        _pred_cic_rows = [
+            # ── CBU-50008901 / BP-800 / Closeup predecessor ──────────────────
+            ("CBU-50008901","BP-800","Reliance Smart","RLI-DL-001","CIC-BP800-DL-RLI","MT","DLGH"),
+            ("CBU-50008901","BP-800","Reliance Smart","RLI-KA-001","CIC-BP800-KA-RLI","MT","BNDH"),
+            ("CBU-50008901","BP-800","Reliance Smart","RLI-TN-001","CIC-BP800-TN-RLI","MT","CHKH"),
+            ("CBU-50008901","BP-800","DMart",         "DMT-DL-001","CIC-BP800-DL-DMT","MT Retail","DLGH"),
+            ("CBU-50008901","BP-800","DMart",         "DMT-KA-001","CIC-BP800-KA-DMT","MT Retail","BNDH"),
+            ("CBU-50008901","BP-800","DMart",         "DMT-TN-001","CIC-BP800-TN-DMT","MT Retail","CHKH"),
+            ("CBU-50008901","BP-800","BigBasket",     "BBK-DL-001","CIC-BP800-DL-BBK","Ecom","DLGH"),
+            ("CBU-50008901","BP-800","BigBasket",     "BBK-KA-001","CIC-BP800-KA-BBK","Ecom","BNDH"),
+            ("CBU-50008901","BP-800","Blinkit",       "BLK-DL-001","CIC-BP800-DL-BLK","Qcom","DLGH"),
+            ("CBU-50008901","BP-800","Blinkit",       "BLK-KA-001","CIC-BP800-KA-BLK","Qcom","BNDH"),
+            # ── CBU-50016902 / BP-1700 / Pepsodent predecessor ───────────────
+            ("CBU-50016902","BP-1700","Reliance Smart","RLI-DL-001","CIC-BP1700-DL-RLI","MT","DLGH"),
+            ("CBU-50016902","BP-1700","Reliance Smart","RLI-KA-001","CIC-BP1700-KA-RLI","MT","BNDH"),
+            ("CBU-50016902","BP-1700","DMart",         "DMT-DL-001","CIC-BP1700-DL-DMT","MT Retail","DLGH"),
+            ("CBU-50016902","BP-1700","DMart",         "DMT-TN-001","CIC-BP1700-TN-DMT","MT Retail","CHKH"),
+            ("CBU-50016902","BP-1700","BigBasket",     "BBK-DL-001","CIC-BP1700-DL-BBK","Ecom","DLGH"),
+            ("CBU-50016902","BP-1700","Blinkit",       "BLK-DL-001","CIC-BP1700-DL-BLK","Qcom","DLGH"),
+        ]
+        for (cbu, bp, chain, ccode, cic, ch, depot) in _pred_cic_rows:
+            conn.execute(text("""
+                INSERT INTO ccr_cic_mapping
+                    (id, cbu_code, basepack, customer_chain, customer_code, cic,
+                     channel, depot, status, sourcing_depot, sourcing_type, pricing_status, sales_org)
+                SELECT gen_random_uuid(), :cbu, :bp, :chain, :ccode, :cic,
+                       :ch, :depot, 'Mapped', :depot, 'Decentralized', 'Available', '1000'
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM ccr_cic_mapping
+                    WHERE cbu_code = :cbu AND customer_code = :ccode
+                )
+            """), {"cbu": cbu, "bp": bp, "chain": chain, "ccode": ccode,
+                   "cic": cic, "ch": ch, "depot": depot})
         # ─────────────────────────────────────────────────────────────────────
 
         conn.execute(text("""
