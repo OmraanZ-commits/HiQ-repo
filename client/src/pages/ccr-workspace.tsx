@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import {
   GitCompareArrows, Download, RefreshCw, Filter, X, AlertTriangle,
-  Clock, CheckCircle2, Zap, ChevronDown, User,
+  Clock, CheckCircle2, Zap, ChevronDown, User, Siren, Play,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -151,7 +151,12 @@ function slaDaysLeft(escalationDueAt: string | null): number | null {
   return Math.ceil((due.getTime() - Date.now()) / 86_400_000);
 }
 
-function SlaChip({ escalationDueAt }: { escalationDueAt: string | null }) {
+// SLA window is only applicable to the Fourth trigger (3-day action window before escalation).
+// All other stages show a plain dash — they have no SLA deadline.
+function SlaChip({ escalationDueAt, triggerStage }: { escalationDueAt: string | null; triggerStage: string }) {
+  if (triggerStage !== "Fourth") {
+    return <span className="text-xs text-muted-foreground" data-testid="chip-sla-none">—</span>;
+  }
   const days = slaDaysLeft(escalationDueAt);
   if (days === null) {
     return <span className="text-xs text-muted-foreground" data-testid="chip-sla-none">—</span>;
@@ -331,7 +336,7 @@ function LineItemRow({
       </TableCell>
 
       <TableCell className="py-2.5">
-        <SlaChip escalationDueAt={item.escalationDueAt} />
+        <SlaChip escalationDueAt={item.escalationDueAt} triggerStage={item.triggerStage} />
       </TableCell>
 
       <TableCell className="py-2.5">
@@ -588,22 +593,20 @@ export default function CcrWorkspacePage() {
     });
   }, [relaunchItems, filterStages, filterEscalated, filterNwTypes, entryMap]);
 
-  // ── Status gating ─────────────────────────────────────────────────────────
-  // Items whose successor CBU has reached FTR Approved (idx ≥ 4) are shown in
-  // Action Required / Completed based on their ccrStatus.
-  // Items whose successor CBU is still pre-FTR are always routed to Upcoming.
-  const postFtrItems = filteredItems.filter(item => {
-    const entry = entryMap.get(item.successorCbuCode ?? "");
-    return (STATUS_IDX[entry?.networkStatus ?? ""] ?? 0) >= FTR_APPROVED_IDX;
-  });
-  const preFtrItems = filteredItems.filter(item => {
-    const entry = entryMap.get(item.successorCbuCode ?? "");
-    return (STATUS_IDX[entry?.networkStatus ?? ""] ?? 0) < FTR_APPROVED_IDX;
-  });
-
-  const actionRequired = postFtrItems.filter(i => i.ccrStatus === "Action Required");
-  const upcoming       = [...preFtrItems, ...postFtrItems.filter(i => i.ccrStatus === "Upcoming")];
-  const completed      = postFtrItems.filter(i => i.ccrStatus === "Completed");
+  // ── View routing ──────────────────────────────────────────────────────────
+  // Four views per BRD:
+  //   Immediate Actions — Stage 3 (Stock Movement) or 4 (Inventory Threshold): red/blinking-red urgency
+  //   Actions to Start  — Stage 1 (Production Started) or 2 (Post FTR): amber urgency, action required
+  //   Upcoming          — no trigger fired yet, or post-FTR status still "Upcoming"
+  //   Completed         — CIC transition done
+  const immediateActions = filteredItems.filter(i =>
+    i.ccrStatus === "Action Required" && (i.triggerStage === "Third" || i.triggerStage === "Fourth"),
+  );
+  const actionsToStart = filteredItems.filter(i =>
+    i.ccrStatus === "Action Required" && (i.triggerStage === "First" || i.triggerStage === "Second"),
+  );
+  const upcoming  = filteredItems.filter(i => i.ccrStatus === "Upcoming");
+  const completed = filteredItems.filter(i => i.ccrStatus === "Completed");
 
   // "Active filters" only tracks the filter-panel knobs (not CSE scope, which is
   // a persistent scope selector shown separately from the Filters panel).
@@ -670,7 +673,7 @@ export default function CcrWorkspacePage() {
             <div>
               <h2 className="text-xl font-bold" data-testid="text-page-title">CCR Workspace</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Relaunch CBU transitions (Production Started+) — trigger stages, SLA tracking, and escalation
+                Relaunch CBU transitions — 4 trigger stages · SLA window on 4th trigger · escalation after 3 days
               </p>
             </div>
           </div>
@@ -866,10 +869,10 @@ export default function CcrWorkspacePage() {
         {!isLoading && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="summary-strip">
             {[
-              { label: "Total Items",     value: filteredItems.length,   accent: "from-[#1f36c7] to-[#0d8ecf]",      testId: "metric-total" },
-              { label: "Action Required", value: actionRequired.length,  accent: "from-red-600 to-red-400",           testId: "metric-action-required" },
-              { label: "Upcoming",        value: upcoming.length,        accent: "from-amber-500 to-amber-400",       testId: "metric-upcoming" },
-              { label: "Completed",       value: completed.length,       accent: "from-emerald-600 to-emerald-400",   testId: "metric-completed" },
+              { label: "Total Items",       value: filteredItems.length,      accent: "from-[#1f36c7] to-[#0d8ecf]",    testId: "metric-total" },
+              { label: "Immediate Actions", value: immediateActions.length,   accent: "from-red-600 to-red-400",         testId: "metric-immediate-actions" },
+              { label: "Actions to Start",  value: actionsToStart.length,     accent: "from-amber-500 to-amber-400",     testId: "metric-actions-to-start" },
+              { label: "Completed",         value: completed.length,          accent: "from-emerald-600 to-emerald-400", testId: "metric-completed" },
             ].map(m => (
               <div
                 key={m.label}
@@ -883,28 +886,49 @@ export default function CcrWorkspacePage() {
           </div>
         )}
 
-        {/* Three-tab workspace */}
+        {/* Four-tab workspace */}
         <Card>
-          <Tabs defaultValue="action-required" data-testid="workspace-tabs">
+          <Tabs defaultValue="immediate-actions" data-testid="workspace-tabs">
             <div className="border-b border-border/60 px-4 pt-3">
               <TabsList className="h-9 bg-transparent p-0 gap-1">
+
+                {/* Tab 1 — Immediate Actions: Stage 3-4, loss started / new stock available */}
                 <TabsTrigger
-                  value="action-required"
+                  value="immediate-actions"
                   className="gap-1.5 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:rounded-b-none rounded-t-md px-3 h-9"
-                  data-testid="tab-action-required"
+                  data-testid="tab-immediate-actions"
                 >
-                  <Clock className="h-3.5 w-3.5" />
-                  Action Required
-                  {actionRequired.length > 0 && (
+                  <Siren className="h-3.5 w-3.5 text-red-500" />
+                  Immediate Actions
+                  {immediateActions.length > 0 && (
                     <span
                       className="ml-1 min-w-[18px] px-1 h-[18px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
-                      data-testid="badge-action-required-count"
+                      data-testid="badge-immediate-actions-count"
                     >
-                      {actionRequired.length}
+                      {immediateActions.length}
                     </span>
                   )}
                 </TabsTrigger>
 
+                {/* Tab 2 — Actions to Start: Stage 1-2, post first trigger, network still amber */}
+                <TabsTrigger
+                  value="actions-to-start"
+                  className="gap-1.5 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:rounded-b-none rounded-t-md px-3 h-9"
+                  data-testid="tab-actions-to-start"
+                >
+                  <Play className="h-3.5 w-3.5 text-amber-500" />
+                  Actions to Start
+                  {actionsToStart.length > 0 && (
+                    <span
+                      className="ml-1 min-w-[18px] px-1 h-[18px] bg-amber-400 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
+                      data-testid="badge-actions-to-start-count"
+                    >
+                      {actionsToStart.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+
+                {/* Tab 3 — Upcoming: no trigger fired yet */}
                 <TabsTrigger
                   value="upcoming"
                   className="gap-1.5 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:rounded-b-none rounded-t-md px-3 h-9"
@@ -920,6 +944,7 @@ export default function CcrWorkspacePage() {
                   </span>
                 </TabsTrigger>
 
+                {/* Tab 4 — Completed */}
                 <TabsTrigger
                   value="completed"
                   className="gap-1.5 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:rounded-b-none rounded-t-md px-3 h-9"
@@ -934,11 +959,16 @@ export default function CcrWorkspacePage() {
                     {completed.length}
                   </span>
                 </TabsTrigger>
+
               </TabsList>
             </div>
 
-            <TabsContent value="action-required" className="mt-0">
-              <TabPanel items={actionRequired} entryMap={entryMap} loading={isLoading} />
+            <TabsContent value="immediate-actions" className="mt-0">
+              <TabPanel items={immediateActions} entryMap={entryMap} loading={isLoading} />
+            </TabsContent>
+
+            <TabsContent value="actions-to-start" className="mt-0">
+              <TabPanel items={actionsToStart} entryMap={entryMap} loading={isLoading} />
             </TabsContent>
 
             <TabsContent value="upcoming" className="mt-0">
