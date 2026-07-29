@@ -426,7 +426,7 @@ export default function CcrMtListingPage() {
                                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.status === "MAPPED" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
                                           data-testid={`badge-mt-status-${row.customerCode}-${row.rowType}`}
                                         >
-                                          {row.status}
+                                          {row.status === "INACTIVE" ? "Non-Geo" : row.status}
                                         </span>
                                       </TableCell>
                                       <TableCell className="text-xs font-mono py-2">{row.depot ?? "—"}</TableCell>
