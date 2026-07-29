@@ -9,7 +9,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, Zap } from "lucide-react";
+import { List, Zap, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import * as XLSX from "xlsx";
 import type { NetworkEntry } from "@shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -230,6 +232,60 @@ export default function CcrMtListingPage() {
   }, [allAtpBatches]);
 
   const hasData = selectedCbu && !mtListingLoading && mtListingData && !mtListingData.error;
+
+  function handleExport() {
+    if (!mtListingData) return;
+    const wb = XLSX.utils.book_new();
+
+    // ── Sheet 1: MT Listing ────────────────────────────────────────────────
+    const listingRows = filteredRows.map(row => {
+      const meta = row.rowType === "predecessor"
+        ? mtListingData.predecessorCbu
+        : mtListingData.successorCbu;
+      return {
+        "Type":              row.rowType === "predecessor" ? "OLD" : "NEW",
+        "Ship-to Party":     row.customerCode,
+        "Customer Chain":    row.customerChain,
+        "Material (CBU)":    row.cbuCode,
+        "Basepack":          row.basepack ?? "",
+        "CIC Code":          row.cic ?? "",
+        "Case Config":       meta?.caseConfig ?? "",
+        "EAN Code":          meta?.ean ?? "",
+        "MRP":               "",
+        "Landing Cost":      "",
+        "Status":            row.status === "INACTIVE" ? "Non-Geo" : row.status,
+        "Plant":             row.depot ?? "",
+        "Scenario":          row.scenarioLabel,
+        "Listing-Based":     row.listingBased ? "Yes" : "No",
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(listingRows), "MT Listing");
+
+    // ── Sheet 2: ATP Criteria (only when listing chain selected) ──────────
+    if (isListingChainSelected && allAtpBatches.length > 0) {
+      const atpRows = allAtpBatches.map(b => {
+        const rec = getRecommendation(atpByCode[b.customerCode] ?? []);
+        return {
+          "Ship-to Party":  b.customerCode,
+          "Customer Chain": b.customerChain,
+          "Depot":          b.depot,
+          "Batch":          b.batch,
+          "Production Date":b.productionDate,
+          "Stock Age (d)":  b.stockAgeDays,
+          "Valid Days":     b.validDays,
+          "Fresh":          b.isFresh ? "Yes" : "No",
+          "Raw ATP":        b.rawAtp,
+          "Price Check":    b.pricingValid ? "Valid" : "Invalid",
+          "Fresh ATP":      b.freshAtp > 0 ? b.freshAtp : 0,
+          "Recommendation": rec.label,
+        };
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(atpRows), "ATP Criteria");
+    }
+
+    const chainPart = selectedChain === "all" ? "All-Chains" : selectedChain.replace(/\s+/g, "-");
+    XLSX.writeFile(wb, `MT_Listing_${selectedCbu}_${chainPart}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -601,6 +657,22 @@ export default function CcrMtListingPage() {
                   </Tabs>
                 )}
               </>
+            )}
+
+            {/* ── Export action ─────────────────────────────────────── */}
+            {hasData && filteredRows.length > 0 && (
+              <div className="flex justify-end pt-2 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  data-testid="button-generate-mt-listing-excel"
+                  className="gap-1.5"
+                >
+                  <Download className="h-4 w-4" />
+                  Generate MT Listing Excel
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
