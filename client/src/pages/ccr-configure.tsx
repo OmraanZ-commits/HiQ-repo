@@ -798,23 +798,21 @@ export default function CcrConfigurePage() {
                         </TableCell>
                         <TableCell className="text-center" data-testid={`cell-ncsm-${row.customerCode}`}>
                           {(() => {
-                            const decision = ncsmDecisions[row.depot];
-                            // Effective sourcing depot: centralized uses the select-map, decentralized uses saved value
+                            // Sourcing DC present → DC was selected by NP and reviewed by NCSM
+                            // Sourcing DC absent → NP never put this DC in the distribution matrix → always plain dash
                             const hasSourcingDepot = !!(sourcingDepotMap[row.id] || row.sourcingDepot);
+                            if (!hasSourcingDepot) {
+                              return <span className="text-muted-foreground text-xs">—</span>;
+                            }
+                            const decision = ncsmDecisions[row.depot];
                             if (decision === "approved") {
-                              // ✓ — NCSM ticked this DC (it has / had a sourcing DC)
                               return <CheckCircle2 className="h-4 w-4 text-emerald-600 inline-block" title="NCSM approved" />;
                             }
                             if (decision === "rejected") {
-                              // ✕ — NCSM crossed this DC; sourcing DC was cleared as a result
                               return <XCircle className="h-4 w-4 text-red-500 inline-block" title="NCSM rejected" />;
                             }
-                            if (decision === "pending" && hasSourcingDepot) {
-                              // — only when a sourcing DC exists: DC was submitted to NCSM but not yet decided
-                              return <Minus className="h-4 w-4 text-amber-400 inline-block" title="Awaiting NCSM decision" />;
-                            }
-                            // No sourcing DC and no final NCSM decision → NP never selected this DC; Non-Geo by exclusion
-                            return <span className="text-muted-foreground text-xs">—</span>;
+                            // pending or no record yet — DC has sourcing DC but NCSM hasn't decided
+                            return <Minus className="h-4 w-4 text-amber-400 inline-block" title="Awaiting NCSM decision" />;
                           })()}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.subChannel}</TableCell>
