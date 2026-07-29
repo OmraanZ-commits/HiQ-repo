@@ -137,7 +137,7 @@ function StatusBadge({ status, pbStatus }: { status: DepotStatus; pbStatus?: str
   );
   return (
     <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs" data-testid="badge-status-non-mapped">
-      <XCircle className="h-3 w-3 mr-1" />Non-Mapped
+      <XCircle className="h-3 w-3 mr-1" />Non-GeoAttached
     </Badge>
   );
 }
@@ -383,7 +383,7 @@ export default function CcrConfigurePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", decodedCbu] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
-      toast({ title: "Mapping saved", description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-Mapped.` });
+      toast({ title: "Mapping saved", description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-GeoAttached.` });
     },
     onError: (err: Error) => {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
@@ -670,7 +670,7 @@ export default function CcrConfigurePage() {
                         {mappedCount} Mapped
                       </Badge>
                       <Badge variant="outline" className="text-slate-500 text-xs" data-testid="badge-non-mapped-count">
-                        {nonMappedCount} Non-Mapped
+                        {nonMappedCount} Non-GeoAttached
                       </Badge>
                     </>
                   )}
@@ -752,7 +752,6 @@ export default function CcrConfigurePage() {
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Status</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Pricing</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sourcing DC</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Sourcing Type</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -817,7 +816,6 @@ export default function CcrConfigurePage() {
                             </Select>
                           )}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{row.sourcingType}</TableCell>
                       </TableRow>
                     );
                     })}
