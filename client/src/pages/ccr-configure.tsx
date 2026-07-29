@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  ArrowLeft, CheckCircle2, XCircle,
+  ArrowLeft, CheckCircle2, XCircle, Minus,
   Save, Download, AlertTriangle, MapPin, Warehouse,
   Hash, Tag, Link2, Package, TrendingUp,
 } from "lucide-react";
@@ -199,6 +199,13 @@ export default function CcrConfigurePage() {
   const { data: bpStatusMap = {} } = useQuery<Record<string, string>>({
     queryKey: ["/api/basepack-status"],
     queryFn: () => fetch("/api/basepack-status").then(r => r.ok ? r.json() : {}),
+  });
+
+  // NCSM depot decisions from Paid Bible activation SRs  { depotCode → "approved"|"rejected"|"pending" }
+  const { data: ncsmDecisions = {} } = useQuery<Record<string, string>>({
+    queryKey: ["/api/ccr/ncsm-depot-decisions", decodedCbu],
+    queryFn: () => fetch(`/api/ccr/ncsm-depot-decisions/${encodeURIComponent(decodedCbu)}`).then(r => r.ok ? r.json() : {}),
+    enabled: !!decodedCbu,
   });
 
   // ── Derived: entry + MSTN ────────────────────────────────────────────────────
@@ -748,6 +755,7 @@ export default function CcrConfigurePage() {
                       <TableHead className="text-xs font-semibold whitespace-nowrap">CIC</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sales Org</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">DC</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap text-center">NCSM</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sub Channel</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Status</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Pricing</TableHead>
@@ -787,6 +795,17 @@ export default function CcrConfigurePage() {
                           data-testid={`text-depot-${row.customerCode}`}
                         >
                           {row.depot}
+                        </TableCell>
+                        <TableCell className="text-center" data-testid={`cell-ncsm-${row.customerCode}`}>
+                          {ncsmDecisions[row.depot] === "approved" ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 inline-block" title="NCSM approved" />
+                          ) : ncsmDecisions[row.depot] === "rejected" ? (
+                            <XCircle className="h-4 w-4 text-red-500 inline-block" title="NCSM rejected" />
+                          ) : ncsmDecisions[row.depot] === "pending" ? (
+                            <Minus className="h-4 w-4 text-amber-400 inline-block" title="NCSM decision pending" />
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.subChannel}</TableCell>
                         <TableCell data-testid={`cell-status-${row.customerCode}`}>

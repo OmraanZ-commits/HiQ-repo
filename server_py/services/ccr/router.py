@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, Any, List
 
 from server_py.services.ccr.service import CcrService
-from server_py.db import SessionLocal, CcrCustomerMasterModel
+from server_py.db import SessionLocal, CcrCustomerMasterModel, ServiceRequestModel
 
 
 async def _get_session_user() -> dict:
@@ -131,6 +131,36 @@ async def get_cic_mappings(
 @router.put("/cic-mappings")
 async def upsert_cic_mappings(req: UpsertCicMappingsRequest):
     return _svc().upsert_cic_mappings(req.mappings)
+
+
+@router.get("/ncsm-depot-decisions/{cbu_code}")
+async def get_ncsm_depot_decisions(cbu_code: str):
+    """
+    Return the most-recent NCSM decision for every depot that has ever been
+    included in an activation SR for this CBU.
+
+    Response shape:  { "<DEPOT_CODE>": "approved" | "rejected" | "pending" }
+    """
+    db = SessionLocal()
+    try:
+        srs = (
+            db.query(ServiceRequestModel)
+            .filter(ServiceRequestModel.depot_decisions.isnot(None))
+            .order_by(ServiceRequestModel.created_at.asc())   # asc so later rows overwrite earlier
+            .all()
+        )
+        result: dict = {}
+        for sr in srs:
+            decisions = sr.depot_decisions or []
+            for d in decisions:
+                if d.get("cbuCode") == cbu_code:
+                    depot = d.get("depotCode")
+                    decision = d.get("ncsmDecision", "pending")
+                    if depot:
+                        result[depot] = decision
+        return result
+    finally:
+        db.close()
 
 
 class PostCbusRequest(BaseModel):
