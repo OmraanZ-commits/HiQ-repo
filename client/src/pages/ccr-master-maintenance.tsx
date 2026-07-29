@@ -345,15 +345,15 @@ function CbuTable({
                 />
               </TableHead>
             )}
-            <TableHead className={`text-xs font-semibold w-[9%] ${selectable ? "" : "pl-4"}`}>CBU Code</TableHead>
+            <TableHead className={`text-xs font-semibold w-[8%] ${selectable ? "" : "pl-4"}`}>Basepack ID</TableHead>
+            <TableHead className="text-xs font-semibold w-[9%]">Basepack Status</TableHead>
+            <TableHead className="text-xs font-semibold w-[9%]">CBU Code</TableHead>
             <TableHead className="text-xs font-semibold w-[12%]">Material Description</TableHead>
             <TableHead className="text-xs font-semibold w-[6%]">Brand</TableHead>
             <TableHead className="text-xs font-semibold w-[5%]">BG</TableHead>
             <TableHead className="text-xs font-semibold w-[7%]">Type of Network</TableHead>
             <TableHead className="text-xs font-semibold w-[7%]">Network Start Date</TableHead>
             <TableHead className="text-xs font-semibold w-[12%]">Network Status</TableHead>
-            <TableHead className="text-xs font-semibold w-[8%]">Basepack ID</TableHead>
-            <TableHead className="text-xs font-semibold w-[9%]">Basepack Status</TableHead>
             <TableHead className="text-xs font-semibold text-center w-[9%]">Chain Mapping</TableHead>
             <TableHead className="text-xs font-semibold w-[6%]">Posting Status</TableHead>
             <TableHead className="text-xs font-semibold pr-4 text-right w-[5%]">Action</TableHead>
@@ -381,7 +381,29 @@ function CbuTable({
                   />
                 </TableCell>
               )}
-              <TableCell className={`font-mono text-xs font-medium truncate ${selectable ? "" : "pl-4"}`}>
+              {/* ── Basepack ID ── */}
+              <TableCell className={`text-xs font-mono truncate ${selectable ? "" : "pl-4"}`}>
+                {entry.basepack ?? "—"}
+              </TableCell>
+              {/* ── Basepack Status ── */}
+              <TableCell>
+                {(() => {
+                  const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
+                  if (!bpStatus) return <span className="text-xs text-muted-foreground">—</span>;
+                  const styles =
+                    bpStatus === "Active"         ? "bg-emerald-100 text-emerald-700" :
+                    bpStatus === "Draft"           ? "bg-amber-100 text-amber-700" :
+                    bpStatus.includes("Delisted")  ? "bg-red-100 text-red-700" :
+                    bpStatus === "Inactive"         ? "bg-slate-100 text-slate-500" :
+                                                     "bg-slate-100 text-slate-600";
+                  return (
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${styles}`}>
+                      {bpStatus}
+                    </span>
+                  );
+                })()}
+              </TableCell>
+              <TableCell className="font-mono text-xs font-medium truncate">
                 {entry.cbuCode}
               </TableCell>
               <TableCell className="text-sm">
@@ -401,28 +423,6 @@ function CbuTable({
               </TableCell>
               <TableCell>
                 <LifecycleStatusCell status={entry.networkStatus} />
-              </TableCell>
-              {/* ── Basepack ID ── */}
-              <TableCell className="text-xs font-mono truncate">
-                {entry.basepack ?? "—"}
-              </TableCell>
-              {/* ── Basepack Status ── */}
-              <TableCell>
-                {(() => {
-                  const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
-                  if (!bpStatus) return <span className="text-xs text-muted-foreground">—</span>;
-                  const styles =
-                    bpStatus === "Active"              ? "bg-emerald-100 text-emerald-700" :
-                    bpStatus === "Draft"               ? "bg-amber-100 text-amber-700" :
-                    bpStatus.includes("Delisted")      ? "bg-red-100 text-red-700" :
-                    bpStatus === "Inactive"             ? "bg-slate-100 text-slate-500" :
-                                                         "bg-slate-100 text-slate-600";
-                  return (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${styles}`}>
-                      {bpStatus}
-                    </span>
-                  );
-                })()}
               </TableCell>
               <TableCell className="text-center" data-testid={`cell-chain-mapping-${entry.cbuCode}`}>
                 {(() => {
