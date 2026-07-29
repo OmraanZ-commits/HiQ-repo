@@ -353,7 +353,7 @@ export default function CcrConfigurePage() {
     if (pbBlocked) errs.push(`Paid Bible status "${basepackStatus}" blocks mapping — resolve in Paid Bible first`);
     if (sourcingMode === "centralized" && rows.length > 0) {
       const missing = rows.filter(r => !r.pbOverridden && r.status === "Mapped" && !r.sourcingDepot);
-      if (missing.length > 0) errs.push(`${missing.length} Mapped row(s) are missing a Sourcing Depot`);
+      if (missing.length > 0) errs.push(`${missing.length} Mapped row(s) are missing a Sourcing DC`);
     }
     return errs;
   }, [selectedChain, entry, cicInput, existingCicMappings, pbBlocked, basepackStatus, sourcingMode, rows]);
@@ -644,7 +644,7 @@ export default function CcrConfigurePage() {
                 <AlertDescription className="text-amber-700 text-xs">
                   <strong>Paid Bible override:</strong> Basepack{" "}
                   <span className="font-mono">{entry.basepack}</span> is marked{" "}
-                  <strong>"{basepackStatus}"</strong>. All depot rows show this status automatically.
+                  <strong>"{basepackStatus}"</strong>. All DC rows show this status automatically.
                   Mapping submission is blocked until the Paid Bible status is resolved.
                 </AlertDescription>
               </Alert>
@@ -652,13 +652,13 @@ export default function CcrConfigurePage() {
           </CardContent>
         </Card>
 
-        {/* ── Depot Mapping Grid ────────────────────────────────────────────── */}
+        {/* ── DC Mapping Grid ────────────────────────────────────────────── */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Warehouse className="h-4 w-4 text-primary" />
-                Depot Mapping Grid
+                DC Mapping Grid
                 {selectedChain && <span className="ml-1 text-muted-foreground font-normal">— {selectedChain}</span>}
               </CardTitle>
               {rows.length > 0 && (
@@ -718,7 +718,7 @@ export default function CcrConfigurePage() {
             {/* No chain selected */}
             {!selectedChain && (
               <div className="px-4 pb-6 text-center text-sm text-muted-foreground py-10" data-testid="text-select-chain">
-                Select a Customer Chain to load the depot mapping grid.
+                Select a Customer Chain to load the DC mapping grid.
               </div>
             )}
 
@@ -733,7 +733,7 @@ export default function CcrConfigurePage() {
             {!gridLoading && rows.length > 0 && (
               <div ref={staleGridRef} className="overflow-x-auto">
                 <div className="px-4 pt-3 pb-1 flex items-center gap-3 text-xs text-muted-foreground border-b">
-                  <span>Depot:</span>
+                  <span>DC:</span>
                   <span className="text-emerald-700 font-semibold">Green — in this CBU's NV distribution</span>
                   <span className="text-muted-foreground">·</span>
                   <span className="text-amber-600">Amber — not in NV distribution</span>
@@ -747,11 +747,11 @@ export default function CcrConfigurePage() {
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Customer Code</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">CIC</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sales Org</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Depot</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">DC</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sub Channel</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Status</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Pricing</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Sourcing Depot</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">Sourcing DC</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sourcing Type</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -807,7 +807,7 @@ export default function CcrConfigurePage() {
                               onValueChange={v => handleSourcingDepotChange(row.id, v)}
                             >
                               <SelectTrigger className="h-7 text-xs w-36" data-testid={`select-sourcing-depot-${row.customerCode}`}>
-                                <SelectValue placeholder="Select depot…" />
+                                <SelectValue placeholder="Select DC…" />
                               </SelectTrigger>
                               <SelectContent>
                                 {allDepots.map(d => (
@@ -833,7 +833,7 @@ export default function CcrConfigurePage() {
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
                       <TableHead className="text-xs font-semibold">Customer Code</TableHead>
-                      <TableHead className="text-xs font-semibold">Depot</TableHead>
+                      <TableHead className="text-xs font-semibold">DC</TableHead>
                       <TableHead className="text-xs font-semibold">Sub Channel</TableHead>
                       <TableHead className="text-xs font-semibold">Channel</TableHead>
                     </TableRow>

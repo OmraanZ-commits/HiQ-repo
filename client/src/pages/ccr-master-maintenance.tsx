@@ -662,7 +662,7 @@ export default function CcrMasterMaintenancePage() {
     if (sourcingMode === "centralized" && rows.length > 0) {
       const missingDepot = rows.filter(r => !r.pbOverridden && r.status === "Mapped" && !r.sourcingDepot);
       if (missingDepot.length > 0) {
-        errs.push(`${missingDepot.length} Mapped row(s) are missing a Sourcing Depot selection`);
+        errs.push(`${missingDepot.length} Mapped row(s) are missing a Sourcing DC selection`);
       }
     }
     return errs;
@@ -783,7 +783,7 @@ export default function CcrMasterMaintenancePage() {
         <div>
           <h2 className="text-xl font-bold text-foreground">CCR Master Maintenance</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Configure Customer Code-to-CIC depot mappings for new launch CBUs
+            Configure Customer Code-to-CIC DC mappings for new launch CBUs
           </p>
         </div>
 
