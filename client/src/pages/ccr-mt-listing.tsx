@@ -159,6 +159,7 @@ const RELAUNCH_TYPES = new Set([
 export default function CcrMtListingPage() {
   const [selectedCbu,   setSelectedCbu]   = useState<string>("");
   const [selectedChain, setSelectedChain] = useState<string>("all");
+  const [activeTab,     setActiveTab]     = useState<string>("listing");
 
   const { data: networkEntries = [], isLoading: entriesLoading } = useQuery<NetworkEntry[]>({
     queryKey: ["/api/network-entries"],
@@ -200,6 +201,22 @@ export default function CcrMtListingPage() {
     if (selectedChain === "all") return mtListingData.rows;
     return mtListingData.rows.filter(r => r.customerChain === selectedChain);
   }, [mtListingData?.rows, selectedChain]);
+
+  // Which chains in the current data are listing-based (unlock ATP Criteria tab)
+  const chainIsListing = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const row of mtListingData?.rows ?? []) {
+      if (row.listingBased) map[row.customerChain] = true;
+      else if (!(row.customerChain in map)) map[row.customerChain] = false;
+    }
+    return map;
+  }, [mtListingData?.rows]);
+
+  // ATP tab visible only when the selected chain (or any chain if "all") is listing-based
+  const isListingChainSelected = useMemo(() => {
+    if (selectedChain === "all") return Object.values(chainIsListing).some(Boolean);
+    return chainIsListing[selectedChain] ?? false;
+  }, [selectedChain, chainIsListing]);
 
   // ATP mock data (predecessor rows only, filtered by chain)
   const allAtpBatches   = useMemo(() => generateAtpBatches(filteredRows), [filteredRows]);
@@ -264,14 +281,33 @@ export default function CcrMtListingPage() {
                 <>
                   <span className="text-muted-foreground text-xs">|</span>
                   <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Customer Chain</label>
-                  <Select value={selectedChain} onValueChange={setSelectedChain}>
-                    <SelectTrigger className="h-8 text-xs w-44" data-testid="select-mt-listing-chain">
+                  <Select
+                    value={selectedChain}
+                    onValueChange={v => {
+                      setSelectedChain(v);
+                      // Drop to MT Listing tab if the newly selected chain has no ATP data
+                      const nextIsListing = v === "all"
+                        ? Object.values(chainIsListing).some(Boolean)
+                        : (chainIsListing[v] ?? false);
+                      if (!nextIsListing) setActiveTab("listing");
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-52" data-testid="select-mt-listing-chain">
                       <SelectValue placeholder="All chains" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All chains</SelectItem>
                       {availableChains.map(chain => (
-                        <SelectItem key={chain} value={chain}>{chain}</SelectItem>
+                        <SelectItem key={chain} value={chain}>
+                          <span className="flex items-center gap-1.5">
+                            {chain}
+                            {chainIsListing[chain] && (
+                              <span className="text-[9px] font-semibold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full leading-none">
+                                Listing
+                              </span>
+                            )}
+                          </span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -338,14 +374,16 @@ export default function CcrMtListingPage() {
                     No predecessor CIC mappings found. Configure the predecessor CBU first.
                   </div>
                 ) : (
-                  <Tabs defaultValue="listing">
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="h-8">
                       <TabsTrigger value="listing" className="text-xs h-7 px-3 gap-1.5">
                         <List className="h-3 w-3" /> MT Listing
                       </TabsTrigger>
-                      <TabsTrigger value="atp" className="text-xs h-7 px-3 gap-1.5">
-                        <Zap className="h-3 w-3" /> ATP Criteria
-                      </TabsTrigger>
+                      {isListingChainSelected && (
+                        <TabsTrigger value="atp" className="text-xs h-7 px-3 gap-1.5">
+                          <Zap className="h-3 w-3" /> ATP Criteria
+                        </TabsTrigger>
+                      )}
                     </TabsList>
 
                     {/* ── Tab 1: MT Listing ─────────────────────────── */}

@@ -38,6 +38,13 @@ CCR_CUSTOMER_SEEDS = [
         "behaviour_type": "Non-Listing",
         "cse_id": "ankit.verma@unilever.com",
     },
+    {
+        # SBM / Listing Based = Yes → ATP Criteria tab unlocked for this chain
+        "customer_chain": "Metro Cash & Carry",
+        "coverage_type": "Regional",
+        "behaviour_type": "Listing Based",
+        "cse_id": "ankit.verma@unilever.com",
+    },
 ]
 
 # Customer code + depot mappings.
@@ -77,6 +84,11 @@ CCR_CODE_MAPPING_SEEDS = [
     {"customer_chain": "BigBasket", "customer_code": "BBK-KA-001", "depot": "BNDH", "sub_channel": "BigBasket", "channel": "Ecom", "listing_based": False},
     {"customer_chain": "BigBasket", "customer_code": "BBK-TN-001", "depot": "CHKH", "sub_channel": "BigBasket", "channel": "Ecom", "listing_based": False},
     {"customer_chain": "BigBasket", "customer_code": "BBK-WB-001", "depot": "KOPH", "sub_channel": "BigBasket", "channel": "Ecom", "listing_based": False},
+    # Metro Cash & Carry — Regional, SBM/Listing Based = Yes → listing_based=True
+    # ATP Criteria tab is only shown for Listing-Based chains (SBM accounts).
+    {"customer_chain": "Metro Cash & Carry", "customer_code": "MCC-DL-001", "depot": "DLGH", "sub_channel": "Metro C&C", "channel": "MT", "listing_based": True},
+    {"customer_chain": "Metro Cash & Carry", "customer_code": "MCC-MH-001", "depot": "MMDH", "sub_channel": "Metro C&C", "channel": "MT", "listing_based": True},
+    {"customer_chain": "Metro Cash & Carry", "customer_code": "MCC-KA-001", "depot": "BNDH", "sub_channel": "Metro C&C", "channel": "MT", "listing_based": True},
 ]
 
 # NOTE: CIC mappings for CBU-50019001 through CBU-50019007 are intentionally NOT
