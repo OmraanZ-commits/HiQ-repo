@@ -239,4 +239,36 @@ CCR_LINE_ITEM_SEEDS = [
     {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "DMart",          "customer_code": "DMT-GJ-001", "cic": "CIC-FTR7-GJ-DMT", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming",        "execution_type": "Manual"},
     {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "cic": "CIC-FTR7-MH-RLI", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Semi-Auto"},
     {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "Swiggy Instamart","customer_code": "SWG-MH-001", "cic": None,               "trigger_stage": "None",   "urgency_color": "None",  "ccr_status": "Upcoming",        "execution_type": "None"},
+
+    # ── CBU-50017001 (Pepsodent RL_PKG) — Fourth / 2 days left ──────────────
+    # Inventory threshold breached; successor stock available; 2-day SLA window.
+    {"predecessor_cbu_code": "CBU-50018907", "successor_cbu_code": "CBU-50017001", "customer_chain": "BigBasket",       "customer_code": "BBK-DL-001", "cic": "CIC-P1-BBK-DL-F4", "trigger_stage": "Fourth", "urgency_color": "Blinking Red", "ccr_status": "Action Required", "execution_type": "Manual",    "escalation_due_days": 2},
+    {"predecessor_cbu_code": "CBU-50018907", "successor_cbu_code": "CBU-50017001", "customer_chain": "BigBasket",       "customer_code": "BBK-MH-001", "cic": "CIC-P1-BBK-MH-F4", "trigger_stage": "Fourth", "urgency_color": "Blinking Red", "ccr_status": "Action Required", "execution_type": "Manual",    "escalation_due_days": 2},
+    {"predecessor_cbu_code": "CBU-50018907", "successor_cbu_code": "CBU-50017001", "customer_chain": "Swiggy Instamart","customer_code": "SWG-DL-001", "cic": "CIC-P1-SWG-DL-F4", "trigger_stage": "Fourth", "urgency_color": "Blinking Red", "ccr_status": "Action Required", "execution_type": "Semi-Auto", "escalation_due_days": 2},
+
+    # ── CBU-50017002 (Pepsodent RL_ART) — Fourth / 1 day left ───────────────
+    {"predecessor_cbu_code": "CBU-50018908", "successor_cbu_code": "CBU-50017002", "customer_chain": "BigBasket",       "customer_code": "BBK-KA-001", "cic": "CIC-P2-BBK-KA-F4", "trigger_stage": "Fourth", "urgency_color": "Blinking Red", "ccr_status": "Action Required", "execution_type": "Semi-Auto", "escalation_due_days": 1},
+    {"predecessor_cbu_code": "CBU-50018908", "successor_cbu_code": "CBU-50017002", "customer_chain": "Swiggy Instamart","customer_code": "SWG-MH-001", "cic": "CIC-P2-SWG-MH-F4", "trigger_stage": "Fourth", "urgency_color": "Blinking Red", "ccr_status": "Action Required", "execution_type": "Auto",      "escalation_due_days": 1},
+
+    # ── CBU-50007892 (Brooke Bond RL_ART_PKG) — Fourth / Overdue, escalated ─
+    # SLA breached 3 days ago; escalation already triggered.
+    {"predecessor_cbu_code": "CBU-50018909", "successor_cbu_code": "CBU-50007892", "customer_chain": "BigBasket",       "customer_code": "BBK-TN-001", "cic": "CIC-BB-BBK-TN-F4", "trigger_stage": "Fourth", "urgency_color": "Blinking Red", "ccr_status": "Action Required", "execution_type": "Auto",      "escalation_due_days": -3, "escalated": True},
+    {"predecessor_cbu_code": "CBU-50018909", "successor_cbu_code": "CBU-50007892", "customer_chain": "BigBasket",       "customer_code": "BBK-WB-001", "cic": "CIC-BB-BBK-WB-F4", "trigger_stage": "Fourth", "urgency_color": "Blinking Red", "ccr_status": "Action Required", "execution_type": "Auto",      "escalation_due_days": -3, "escalated": True},
+    {"predecessor_cbu_code": "CBU-50018909", "successor_cbu_code": "CBU-50007892", "customer_chain": "Swiggy Instamart","customer_code": "SWG-KA-001", "cic": "CIC-BB-SWG-KA-F4", "trigger_stage": "Fourth", "urgency_color": "Blinking Red", "ccr_status": "Action Required", "execution_type": "Auto",      "escalation_due_days": -3, "escalated": True},
+
+    # ── CBU-50015678 (Comfort RL_PKG) — Second / Actions to Start ────────────
+    # Post FTR clearance; CCR action now required to update chain listings.
+    {"predecessor_cbu_code": "CBU-50018910", "successor_cbu_code": "CBU-50015678", "customer_chain": "BigBasket",       "customer_code": "BBK-DL-001", "cic": "CIC-CF-BBK-DL-F2", "trigger_stage": "Second", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
+    {"predecessor_cbu_code": "CBU-50018910", "successor_cbu_code": "CBU-50015678", "customer_chain": "BigBasket",       "customer_code": "BBK-MH-001", "cic": "CIC-CF-BBK-MH-F2", "trigger_stage": "Second", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
+    {"predecessor_cbu_code": "CBU-50018910", "successor_cbu_code": "CBU-50015678", "customer_chain": "Swiggy Instamart","customer_code": "SWG-DL-001", "cic": "CIC-CF-SWG-DL-F2", "trigger_stage": "Second", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Semi-Auto"},
+    {"predecessor_cbu_code": "CBU-50018910", "successor_cbu_code": "CBU-50015678", "customer_chain": "Swiggy Instamart","customer_code": "SWG-MH-001", "cic": "CIC-CF-SWG-MH-F2", "trigger_stage": "Second", "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Semi-Auto"},
+
+    # ── CBU-50012345 (Vaseline RL_FORM) — First / Upcoming ───────────────────
+    {"predecessor_cbu_code": "CBU-50018911", "successor_cbu_code": "CBU-50012345", "customer_chain": "BigBasket",       "customer_code": "BBK-KA-001", "cic": "CIC-VS-BBK-KA-F1", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Semi-Auto"},
+    {"predecessor_cbu_code": "CBU-50018911", "successor_cbu_code": "CBU-50012345", "customer_chain": "BigBasket",       "customer_code": "BBK-TN-001", "cic": "CIC-VS-BBK-TN-F1", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Semi-Auto"},
+    {"predecessor_cbu_code": "CBU-50018911", "successor_cbu_code": "CBU-50012345", "customer_chain": "Swiggy Instamart","customer_code": "SWG-KA-001", "cic": "CIC-VS-SWG-KA-F1", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Auto"},
+
+    # ── CBU-50010123 (Rin RL_PKG) — None / Upcoming ──────────────────────────
+    {"predecessor_cbu_code": "CBU-50018912", "successor_cbu_code": "CBU-50010123", "customer_chain": "Swiggy Instamart","customer_code": "SWG-WB-001", "cic": None,               "trigger_stage": "None",   "urgency_color": "None",  "ccr_status": "Upcoming", "execution_type": "None"},
+    {"predecessor_cbu_code": "CBU-50018912", "successor_cbu_code": "CBU-50010123", "customer_chain": "BigBasket",       "customer_code": "BBK-WB-001", "cic": None,               "trigger_stage": "None",   "urgency_color": "None",  "ccr_status": "Upcoming", "execution_type": "None"},
 ]
