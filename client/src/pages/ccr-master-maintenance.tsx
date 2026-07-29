@@ -345,18 +345,17 @@ function CbuTable({
                 />
               </TableHead>
             )}
-            <TableHead className={`text-xs font-semibold w-[8%] ${selectable ? "" : "pl-4"}`}>Basepack ID</TableHead>
-            <TableHead className="text-xs font-semibold w-[9%]">Basepack Status</TableHead>
-            <TableHead className="text-xs font-semibold w-[9%]">CBU Code</TableHead>
-            <TableHead className="text-xs font-semibold w-[12%]">Material Description</TableHead>
-            <TableHead className="text-xs font-semibold w-[6%]">Brand</TableHead>
-            <TableHead className="text-xs font-semibold w-[5%]">BG</TableHead>
-            <TableHead className="text-xs font-semibold w-[7%]">Type of Network</TableHead>
-            <TableHead className="text-xs font-semibold w-[7%]">Network Start Date</TableHead>
-            <TableHead className="text-xs font-semibold w-[12%]">Network Status</TableHead>
-            <TableHead className="text-xs font-semibold text-center w-[9%]">Chain Mapping</TableHead>
-            <TableHead className="text-xs font-semibold w-[6%]">Posting Status</TableHead>
-            <TableHead className="text-xs font-semibold pr-4 text-right w-[5%]">Action</TableHead>
+            <TableHead className={`text-xs font-semibold whitespace-nowrap w-[7%] ${selectable ? "" : "pl-4"}`}>Basepack ID</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Basepack Status</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">CBU Code</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[15%]">Material Description</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Brand</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Type of Network</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Network Start Date</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[14%]">Network Status</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap text-center w-[9%]">Chain Mapping</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Posting Status</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[5%]">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -382,11 +381,11 @@ function CbuTable({
                 </TableCell>
               )}
               {/* ── Basepack ID ── */}
-              <TableCell className={`text-xs font-mono truncate ${selectable ? "" : "pl-4"}`}>
+              <TableCell className={`py-2 text-xs font-mono ${selectable ? "" : "pl-4"}`}>
                 {entry.basepack ?? "—"}
               </TableCell>
               {/* ── Basepack Status ── */}
-              <TableCell>
+              <TableCell className="py-2">
                 {(() => {
                   const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
                   if (!bpStatus) return <span className="text-xs text-muted-foreground">—</span>;
@@ -403,25 +402,22 @@ function CbuTable({
                   );
                 })()}
               </TableCell>
-              <TableCell className="font-mono text-xs font-medium truncate">
+              <TableCell className="py-2 font-mono text-xs font-medium">
                 {entry.cbuCode}
               </TableCell>
-              <TableCell className="text-sm">
-                <span className="truncate block">{entry.materialDescription || entry.basepackDescription || "—"}</span>
+              <TableCell className="py-2 text-xs">
+                <span className="truncate block max-w-full">{entry.materialDescription || entry.basepackDescription || "—"}</span>
               </TableCell>
-              <TableCell className="text-sm font-semibold truncate">
+              <TableCell className="py-2 text-xs font-semibold truncate">
                 {entry.brand || "—"}
               </TableCell>
-              <TableCell className="text-sm text-muted-foreground truncate">
-                {entry.bg || "—"}
-              </TableCell>
-              <TableCell className="text-xs font-mono truncate">
+              <TableCell className="py-2 text-xs font-mono truncate">
                 {getNetworkChangeTypeName(entry.typeOfNetwork)}
               </TableCell>
-              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+              <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
                 {formatCbuDate((entry as any).startDate)}
               </TableCell>
-              <TableCell>
+              <TableCell className="py-2">
                 <LifecycleStatusCell status={entry.networkStatus} />
               </TableCell>
               <TableCell className="text-center" data-testid={`cell-chain-mapping-${entry.cbuCode}`}>
