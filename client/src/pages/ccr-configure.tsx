@@ -758,7 +758,6 @@ export default function CcrConfigurePage() {
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sales Org</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">DC</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap text-center">NCSM</TableHead>
-                      <TableHead className="text-xs font-semibold whitespace-nowrap">Sub Channel</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Status</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Pricing</TableHead>
                       <TableHead className="text-xs font-semibold whitespace-nowrap">Sourcing DC</TableHead>
@@ -817,7 +816,6 @@ export default function CcrConfigurePage() {
                             return <Minus className="h-4 w-4 text-amber-400 inline-block" title="Awaiting NCSM decision" />;
                           })()}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{row.subChannel}</TableCell>
                         <TableCell data-testid={`cell-status-${row.customerCode}`}>
                           <StatusBadge status={effectiveStatus} pbStatus={row.pbStatus} />
                         </TableCell>
@@ -861,7 +859,6 @@ export default function CcrConfigurePage() {
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
                       <TableHead className="text-xs font-semibold">Customer Code</TableHead>
                       <TableHead className="text-xs font-semibold">DC</TableHead>
-                      <TableHead className="text-xs font-semibold">Sub Channel</TableHead>
                       <TableHead className="text-xs font-semibold">Channel</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -870,7 +867,6 @@ export default function CcrConfigurePage() {
                       <TableRow key={cm.id} className="opacity-60" data-testid={`row-preview-${cm.customerCode}`}>
                         <TableCell className="font-mono text-xs font-medium">{cm.customerCode}</TableCell>
                         <TableCell className="text-sm">{cm.depot}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{cm.subChannel}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{cm.channel}</TableCell>
                       </TableRow>
                     ))}
