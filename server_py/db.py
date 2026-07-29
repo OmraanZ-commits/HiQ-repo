@@ -426,6 +426,15 @@ class CcrCicMappingModel(Base):
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
+class CcrPostedCbuModel(Base):
+    """Records CBUs that have been explicitly posted (notification sent to stakeholders)."""
+    __tablename__ = "ccr_posted_cbus"
+
+    cbu_code = Column(String, primary_key=True)
+    posted_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    posted_by = Column(String, nullable=True)
+
+
 class CcrRulesetModel(Base):
     __tablename__ = "ccr_ruleset"
 

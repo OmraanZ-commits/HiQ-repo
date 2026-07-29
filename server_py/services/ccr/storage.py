@@ -8,6 +8,7 @@ from server_py.db import (
     CcrCustomerMasterModel,
     CcrCustomerCodeMappingModel,
     CcrCicMappingModel,
+    CcrPostedCbuModel,
     CcrRulesetModel,
     CcrLineItemModel,
     CcrAuditLogModel,
@@ -199,46 +200,58 @@ class CcrStorage:
         """
         Returns per-CBU posting status for all CBUs that have CIC mapping rows.
         Pending: no rows exist (caller defaults; absent keys = Pending)
-        Saved:   rows exist, but either not all applicable chains are configured
-                 OR not all rows have status='Mapped'
-        Posted:  ALL applicable chains have ≥1 CIC row (chain_completion = complete)
-                 AND every CIC row for this CBU has status='Mapped'
-
-        Uses get_chain_completion_summary() for the chain-level check so both
-        endpoints share exactly the same filtering logic (type_of_network guard,
-        _NV_CODE_TO_CCR_CHAIN mapping, etc.) and can never disagree.
+        Saved:   rows exist but not yet explicitly posted
+        Posted:  CBU has been explicitly posted via post_cbus() (in ccr_posted_cbus)
         """
         db = SessionLocal()
         try:
-            # Row-level: count total rows and Mapped rows per CBU
-            rows = db.query(CcrCicMappingModel.cbu_code, CcrCicMappingModel.status).all()
-            agg: dict = {}
-            for r in rows:
-                cbu = r.cbu_code
-                if cbu not in agg:
-                    agg[cbu] = {"total": 0, "mapped": 0}
-                agg[cbu]["total"] += 1
-                if r.status == "Mapped":
-                    agg[cbu]["mapped"] += 1
+            # Which CBUs have any CIC rows at all?
+            cbus_with_rows = {
+                r.cbu_code
+                for r in db.query(CcrCicMappingModel.cbu_code).distinct().all()
+            }
+            # Which CBUs have been explicitly posted?
+            posted_cbus = {
+                r.cbu_code
+                for r in db.query(CcrPostedCbuModel.cbu_code).all()
+            }
         finally:
             db.close()
 
-        # Chain-level: delegate to the authoritative method so the filter
-        # (type_of_network exclusion, NV-code mapping) is never duplicated.
-        chain_summary = self.get_chain_completion_summary()
-        all_chains_complete = {
-            cbu for cbu, info in chain_summary.items() if info["status"] == "complete"
-        }
-
         result = {}
-        for cbu, counts in agg.items():
-            all_mapped = counts["mapped"] == counts["total"]
-            chains_complete = cbu in all_chains_complete
-            if all_mapped and chains_complete:
+        for cbu in cbus_with_rows:
+            result[cbu] = "Posted" if cbu in posted_cbus else "Saved"
+        # Also surface Posted CBUs that may no longer have CIC rows (edge case)
+        for cbu in posted_cbus:
+            if cbu not in result:
                 result[cbu] = "Posted"
-            else:
-                result[cbu] = "Saved"
         return result
+
+    def post_cbus(self, cbu_codes: list, posted_by: str = "system") -> dict:
+        """
+        Explicitly mark a list of CBUs as Posted.
+        Idempotent: re-posting an already-posted CBU is a no-op.
+        Returns {"posted": [cbu_codes that were newly inserted]}.
+        """
+        db = SessionLocal()
+        try:
+            now = datetime.now(timezone.utc)
+            newly_posted = []
+            for cbu_code in cbu_codes:
+                existing = db.query(CcrPostedCbuModel).filter(
+                    CcrPostedCbuModel.cbu_code == cbu_code
+                ).first()
+                if not existing:
+                    db.add(CcrPostedCbuModel(
+                        cbu_code=cbu_code,
+                        posted_at=now,
+                        posted_by=posted_by,
+                    ))
+                    newly_posted.append(cbu_code)
+            db.commit()
+            return {"posted": newly_posted, "already_posted": [c for c in cbu_codes if c not in newly_posted]}
+        finally:
+            db.close()
 
     def get_chain_completion_summary(self) -> dict:
         """

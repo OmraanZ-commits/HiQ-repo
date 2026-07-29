@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -17,8 +18,11 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Download, Save, AlertTriangle, CheckCircle2, XCircle,
-  Warehouse, Hash, MapPin, Tag, RefreshCw,
+  Warehouse, Hash, MapPin, Tag, RefreshCw, Send, Mail,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -295,9 +299,18 @@ type CbuTableProps = {
   postingStatusMap: Record<string, string>;
   onNavigate: (path: string) => void;
   chainSummary?: Record<string, ChainProgress>;
+  // Bulk-select (only used in Completed tab)
+  selectable?: boolean;
+  selectedCbus?: Set<string>;
+  onToggle?: (cbuCode: string) => void;
+  onToggleAll?: (checked: boolean) => void;
 };
 
-function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange, postingStatusMap, onNavigate, chainSummary }: CbuTableProps) {
+function CbuTable({
+  entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange,
+  postingStatusMap, onNavigate, chainSummary,
+  selectable, selectedCbus, onToggle, onToggleAll,
+}: CbuTableProps) {
   if (isLoading) {
     return (
       <div className="p-4 space-y-2">
@@ -312,12 +325,26 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
       </div>
     );
   }
+
+  const allSelected = selectable && entries.length > 0 && entries.every(e => selectedCbus?.has(e.cbuCode ?? ""));
+  const someSelected = selectable && entries.some(e => selectedCbus?.has(e.cbuCode ?? "")) && !allSelected;
+
   return (
     <div className="overflow-x-auto">
       <Table data-testid={`table-${testId}`} className="w-full table-fixed">
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="text-xs font-semibold pl-4 w-[10%]">CBU Code</TableHead>
+            {selectable && (
+              <TableHead className="w-[3%] pl-4">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  onCheckedChange={(v) => onToggleAll?.(!!v)}
+                  aria-label="Select all"
+                  data-testid="checkbox-select-all"
+                />
+              </TableHead>
+            )}
+            <TableHead className={`text-xs font-semibold w-[10%] ${selectable ? "" : "pl-4"}`}>CBU Code</TableHead>
             <TableHead className="text-xs font-semibold w-[14%]">Material Description</TableHead>
             <TableHead className="text-xs font-semibold w-[7%]">Brand</TableHead>
             <TableHead className="text-xs font-semibold w-[7%]">BG</TableHead>
@@ -341,7 +368,17 @@ function CbuTable({ entries, emptyMessage, testId, isLoading, selectedCbu, onCbu
               }
               data-testid={`row-cbu-${entry.cbuCode}`}
             >
-              <TableCell className="font-mono text-xs font-medium pl-4 truncate">
+              {selectable && (
+                <TableCell className="pl-4" onClick={e => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedCbus?.has(entry.cbuCode ?? "") ?? false}
+                    onCheckedChange={() => onToggle?.(entry.cbuCode ?? "")}
+                    aria-label={`Select ${entry.cbuCode}`}
+                    data-testid={`checkbox-${entry.cbuCode}`}
+                  />
+                </TableCell>
+              )}
+              <TableCell className={`font-mono text-xs font-medium truncate ${selectable ? "" : "pl-4"}`}>
                 {entry.cbuCode}
               </TableCell>
               <TableCell className="text-sm">
@@ -439,6 +476,9 @@ export default function CcrMasterMaintenancePage() {
   const [sourcingDepotMap, setSourcingDepotMap] = useState<Record<string, string>>({});
   const [centralizedMappedSet, setCentralizedMappedSet] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>("new-launch");
+  // Bulk-select state for Completed tab
+  const [completedSelected, setCompletedSelected] = useState<Set<string>>(new Set());
+  const [postDialogOpen, setPostDialogOpen] = useState(false);
 
   // ── Data Queries ────────────────────────────────────────────────────────────
 
@@ -668,6 +708,26 @@ export default function CcrMasterMaintenancePage() {
     return errs;
   }, [selectedChain, selectedCbu, cbuIsEligible, cicInput, existingCicMappings, pbBlocked, basepackStatus, sourcingMode, rows]);
 
+  // ── Post & Notify Mutation ──────────────────────────────────────────────────
+
+  const postMutation = useMutation({
+    mutationFn: async (cbuCodes: string[]) =>
+      apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" }),
+    onSuccess: (_data, cbuCodes) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
+      setCompletedSelected(new Set());
+      setPostDialogOpen(false);
+      toast({
+        title: "Notifications sent",
+        description: `${cbuCodes.length} CBU${cbuCodes.length > 1 ? "s" : ""} posted — stakeholder emails queued.`,
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Post failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   // ── Save Mutation ───────────────────────────────────────────────────────────
 
   const saveMutation = useMutation({
@@ -767,6 +827,20 @@ export default function CcrMasterMaintenancePage() {
     setSourcingDepotMap(prev => ({ ...prev, [rowId]: depot }));
   }
 
+  // ── Completed-tab bulk selection helpers ─────────────────────────────────────
+
+  function handleToggleCompleted(cbuCode: string) {
+    setCompletedSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(cbuCode)) next.delete(cbuCode); else next.add(cbuCode);
+      return next;
+    });
+  }
+
+  function handleToggleAllCompleted(checked: boolean) {
+    setCompletedSelected(checked ? new Set(completedEntries.map(e => e.cbuCode ?? "")) : new Set());
+  }
+
   const isLoading = customersLoading || entriesLoading;
   const gridLoading = codeMappingsLoading || cicLoading;
   const canSave = validationErrors.length === 0 && rows.length > 0 && !saveMutation.isPending;
@@ -853,6 +927,32 @@ export default function CcrMasterMaintenancePage() {
             </TabsContent>
 
             <TabsContent value="completed" className="mt-0">
+              {/* ── Bulk-select action bar ── */}
+              {completedSelected.size > 0 && (
+                <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
+                  <span className="text-sm text-blue-800 font-medium">
+                    {completedSelected.size} CBU{completedSelected.size > 1 ? "s" : ""} selected
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-blue-700"
+                      onClick={() => setCompletedSelected(new Set())}
+                    >
+                      Clear selection
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 bg-[#1f36c7] hover:bg-[#1730b0]"
+                      onClick={() => setPostDialogOpen(true)}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      Post &amp; Notify
+                    </Button>
+                  </div>
+                </div>
+              )}
               <CbuTable
                 entries={completedEntries}
                 emptyMessage="No CBUs ready to post yet — configure all customer chains first."
@@ -863,6 +963,10 @@ export default function CcrMasterMaintenancePage() {
                 postingStatusMap={postingStatusMap}
                 onNavigate={navigate}
                 chainSummary={depotChangeSummary}
+                selectable
+                selectedCbus={completedSelected}
+                onToggle={handleToggleCompleted}
+                onToggleAll={handleToggleAllCompleted}
               />
             </TabsContent>
 
@@ -884,6 +988,64 @@ export default function CcrMasterMaintenancePage() {
         </Card>
 
       </div>
+
+      {/* ── Post & Notify confirmation dialog ─────────────────────────────────── */}
+      <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-[#1f36c7]" />
+              Post &amp; Notify Stakeholders
+            </DialogTitle>
+            <DialogDescription>
+              A DC mapping template will be sent to the relevant stakeholders for the
+              {completedSelected.size === 1 ? " following CBU" : ` following ${completedSelected.size} CBUs`}.
+              Once posted, the CBUs will move to the <strong>Posted</strong> tab.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-1.5 max-h-48 overflow-y-auto">
+            {[...completedSelected].map(cbu => {
+              const entry = completedEntries.find(e => e.cbuCode === cbu);
+              return (
+                <div key={cbu} className="flex items-start gap-2 px-3 py-2 rounded-md bg-muted/40 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="font-mono text-xs text-muted-foreground">{cbu}</span>
+                    {entry && (
+                      <p className="text-xs text-foreground leading-tight mt-0.5">
+                        {entry.materialDescription || entry.basepackDescription || "—"}
+                        {entry.brand && <span className="text-muted-foreground"> · {entry.brand}</span>}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPostDialogOpen(false)}
+              disabled={postMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 bg-[#1f36c7] hover:bg-[#1730b0]"
+              disabled={postMutation.isPending}
+              onClick={() => postMutation.mutate([...completedSelected])}
+            >
+              <Send className="h-3.5 w-3.5" />
+              {postMutation.isPending ? "Posting…" : "Confirm & Post"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

@@ -133,6 +133,22 @@ async def upsert_cic_mappings(req: UpsertCicMappingsRequest):
     return _svc().upsert_cic_mappings(req.mappings)
 
 
+class PostCbusRequest(BaseModel):
+    cbu_codes: List[str]
+    posted_by: str = "system"
+
+
+@router.post("/post-cbus")
+async def post_cbus(req: PostCbusRequest):
+    """
+    Explicitly mark a list of CBUs as Posted (notification sent).
+    Idempotent: re-posting an already-posted CBU is a no-op.
+    """
+    if not req.cbu_codes:
+        raise HTTPException(status_code=400, detail="cbu_codes must not be empty")
+    return _svc().post_cbus(cbu_codes=req.cbu_codes, posted_by=req.posted_by)
+
+
 @router.get("/ruleset")
 async def get_ruleset():
     return _svc().get_ruleset()
