@@ -599,11 +599,14 @@ export default function CcrWorkspacePage() {
   //   Actions to Start  — Stage 1 (Production Started) or 2 (Post FTR): amber urgency, action required
   //   Upcoming          — no trigger fired yet, or post-FTR status still "Upcoming"
   //   Completed         — CIC transition done
+  // Immediate Actions = only Fourth trigger (inventory threshold breached; loss imminent)
+  // Actions to Start  = First / Second / Third (post first trigger through stock movement)
   const immediateActions = filteredItems.filter(i =>
-    i.ccrStatus === "Action Required" && (i.triggerStage === "Third" || i.triggerStage === "Fourth"),
+    i.ccrStatus === "Action Required" && i.triggerStage === "Fourth",
   );
   const actionsToStart = filteredItems.filter(i =>
-    i.ccrStatus === "Action Required" && (i.triggerStage === "First" || i.triggerStage === "Second"),
+    i.ccrStatus === "Action Required" &&
+    (i.triggerStage === "First" || i.triggerStage === "Second" || i.triggerStage === "Third"),
   );
   const upcoming  = filteredItems.filter(i => i.ccrStatus === "Upcoming");
   const completed = filteredItems.filter(i => i.ccrStatus === "Completed");
