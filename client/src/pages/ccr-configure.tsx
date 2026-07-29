@@ -137,7 +137,7 @@ function StatusBadge({ status, pbStatus }: { status: DepotStatus; pbStatus?: str
   );
   return (
     <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs" data-testid="badge-status-non-mapped">
-      <XCircle className="h-3 w-3 mr-1" />Non-GeoAttached
+      <XCircle className="h-3 w-3 mr-1" />Non-Geo
     </Badge>
   );
 }
@@ -383,7 +383,7 @@ export default function CcrConfigurePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", decodedCbu] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
-      toast({ title: "Mapping saved", description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-GeoAttached.` });
+      toast({ title: "Mapping saved", description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-Geo.` });
     },
     onError: (err: Error) => {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
@@ -670,7 +670,7 @@ export default function CcrConfigurePage() {
                         {mappedCount} Mapped
                       </Badge>
                       <Badge variant="outline" className="text-slate-500 text-xs" data-testid="badge-non-mapped-count">
-                        {nonMappedCount} Non-GeoAttached
+                        {nonMappedCount} Non-Geo
                       </Badge>
                     </>
                   )}
