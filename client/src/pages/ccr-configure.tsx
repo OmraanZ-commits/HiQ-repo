@@ -310,7 +310,9 @@ export default function CcrConfigurePage() {
       } else if (srcMode === "decentralized") {
         const isMapped = (entry.depot ?? []).includes(cm.depot);
         status = isMapped ? "Mapped" : "Non-Mapped";
-        sourcingDepot = isMapped ? cm.depot : "";
+        // Prefer the saved sourcing_depot value (covers NCSM-rejected DCs that still
+        // have a sourcing DC recorded); fall back to the depot itself when mapped.
+        sourcingDepot = existing?.sourcingDepot ?? (isMapped ? cm.depot : "");
       } else {
         const isMapped = (entry.depot ?? []).includes(cm.depot);
         status = isMapped ? "Mapped" : "Non-Mapped";
