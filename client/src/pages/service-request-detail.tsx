@@ -167,7 +167,7 @@ export default function ServiceRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
-  const { requests } = useSrStore();
+  const { requests, isLoading } = useSrStore();
   const request = requests.find(r => r.id === id);
 
   // Hooks must be called unconditionally — before any early return
@@ -187,6 +187,21 @@ export default function ServiceRequestDetailPage() {
     enabled: request?.srType === "geo-extension" || request?.srType === "price-lot-change",
   });
 
+  // While the store is still fetching from the API, show a skeleton so we
+  // don't incorrectly flash "not found" before data has arrived.
+  if (isLoading && !request) {
+    return (
+      <div className="min-h-screen bg-background">
+        <UnileverHeader module="paid-bible" activeTab="service-requests"
+          onTabChange={tab => navigate(`/paid-bible?tab=${tab}`)} />
+        <div className="flex items-center justify-center py-40 flex-col gap-4">
+          <div className="h-8 w-8 rounded-full border-2 border-[#1f36c7] border-t-transparent animate-spin" />
+          <p className="text-muted-foreground text-sm">Loading service request…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!request) {
     return (
       <div className="min-h-screen bg-background">
@@ -204,7 +219,10 @@ export default function ServiceRequestDetailPage() {
   }
 
   const isCbu           = CBU_SR_TYPES.includes(request.srType);
-  const meta            = SR_TYPE_META[request.srType];
+  const meta            = SR_TYPE_META[request.srType] ?? {
+    label: "Unknown", description: "Unknown request type",
+    colorClass: "bg-slate-100 text-slate-500 border-slate-200",
+  };
   const doneSteps       = request.approvers.filter(a => a.status === "approved").length;
   const pct             = request.approvers.length > 0 ? (doneSteps / request.approvers.length) * 100 : 0;
   const pendingApprovals = request.approvers.filter(a => a.status === "pending").length;

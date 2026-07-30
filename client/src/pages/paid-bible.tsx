@@ -3051,7 +3051,10 @@ function ServiceRequestRow({ request, onView }: {
   onView: (r: ServiceRequest) => void;
 }) {
   const isCbu     = CBU_SR_TYPES.includes(request.srType);
-  const meta      = SR_TYPE_META[request.srType];
+  const meta      = SR_TYPE_META[request.srType] ?? {
+    label: "Unknown", description: "Unknown request type",
+    colorClass: "bg-slate-100 text-slate-500 border-slate-200",
+  };
   const doneSteps = request.approvers.filter(a => a.status === "approved").length;
   const total     = request.approvers.length;
   const pct       = total > 0 ? (doneSteps / total) * 100 : 0;

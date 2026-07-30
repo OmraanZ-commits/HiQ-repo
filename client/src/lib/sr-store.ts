@@ -340,6 +340,7 @@ let _networkChangeDateOverrides: Record<string, string> = {};
 let _depotDecisionOverrides: Record<string, DepotDecision[]> = {};
 let _bpDates: Record<string, BpDates> = {};
 let _initialised = false;
+let _loading = false;
 const _listeners = new Set<() => void>();
 
 function notify() {
@@ -349,6 +350,8 @@ function notify() {
 // ─── Backend Hydration ────────────────────────────────────────────────────────
 
 async function _loadFromBackend(): Promise<void> {
+  _loading = true;
+  notify();
   try {
     const [srsRaw, bpStatusRaw, bpDatesRaw] = await Promise.all([
       fetch("/api/service-requests").then(r => r.ok ? r.json() : []),
@@ -410,12 +413,16 @@ async function _loadFromBackend(): Promise<void> {
     }
 
     _initialised = true;
+    _loading = false;
     notify();
   } catch {
     _initialised = true;
+    _loading = false;
     notify();
   }
 }
+
+export function getIsLoading() { return _loading; }
 
 // ─── Public Getters ──────────────────────────────────────────────────────────
 
@@ -708,6 +715,9 @@ function _applyDateFromSr(dates: Record<string, BpDates>, sr: ServiceRequest) {
 
 export function useSrStore() {
   const [requests, setRequests] = useState<ServiceRequest[]>(getRequests);
+  // isLoading starts true when the store has never been loaded (_initialised=false),
+  // so the detail page never flashes "not found" before the API fetch completes.
+  const [isLoading, setIsLoading] = useState<boolean>(() => !_initialised);
   const [bpStatusOverrides, setBpStatusOverridesState] = useState<Record<string, string>>(getBpStatusOverrides);
   const [channelOverrides, setChannelOverrides] = useState<Record<string, string[]>>(getChannelOverrides);
   const [sourcingOverrides, setSourcingOverrides] = useState<Record<string, { mode: "decentralized" | "centralized"; depotMapping: Record<string, string>; centralizedGeos: string[]; centralizedDepots: string[] }>>(getSourcingOverrides);
@@ -719,13 +729,11 @@ export function useSrStore() {
   const [bpDates, setBpDatesState] = useState<Record<string, BpDates>>(getBpDates);
 
   useEffect(() => {
-    // Load backend state on mount if not already done
-    if (!_initialised) {
-      _loadFromBackend();
-    }
-
-    return subscribe(() => {
+    // Register subscriber FIRST so notify() calls from inside _loadFromBackend
+    // are caught and update state correctly.
+    const unsub = subscribe(() => {
       setRequests([...getRequests()]);
+      setIsLoading(getIsLoading());
       setBpStatusOverridesState({ ...getBpStatusOverrides() });
       setChannelOverrides({ ...getChannelOverrides() });
       setSourcingOverrides({ ...getSourcingOverrides() });
@@ -736,10 +744,18 @@ export function useSrStore() {
       setDepotDecisionOverrides({ ...getDepotDecisionOverrides() });
       setBpDatesState({ ...getBpDates() });
     });
+
+    // Trigger backend hydration AFTER subscriber is registered so notify()
+    // calls from within _loadFromBackend are caught by the subscriber above.
+    if (!_initialised) {
+      _loadFromBackend();
+    }
+
+    return unsub;
   }, []);
 
   return {
-    requests, bpStatusOverrides, channelOverrides, sourcingOverrides,
+    requests, isLoading, bpStatusOverrides, channelOverrides, sourcingOverrides,
     geoRemovalOverrides, geoAdditionOverrides,
     customerMappingOverrides, networkChangeDateOverrides, depotDecisionOverrides, bpDates,
   };
