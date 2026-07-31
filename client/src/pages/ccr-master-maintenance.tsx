@@ -827,7 +827,7 @@ export default function CcrMasterMaintenancePage() {
               <TabsList className="h-9 bg-transparent border-0 p-0 gap-0 justify-start rounded-none overflow-x-auto flex-shrink-0">
                 <TabTrigger
                   value="overview"
-                  label="CBU Overview"
+                  label="Network Mapping Pending"
                   count={overviewEntries.length}
                 />
                 <TabTrigger
