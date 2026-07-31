@@ -377,17 +377,17 @@ function LineItemRow({
 
       <TableCell className="py-2.5 text-center">
         {item.newCicRequired
-          ? <CheckCircle2 className="h-4 w-4 text-red-500 inline-block" />
+          ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
           : <span className="text-muted-foreground/40 text-sm">—</span>}
       </TableCell>
       <TableCell className="py-2.5 text-center">
         {item.contentUpdateRequired
-          ? <CheckCircle2 className="h-4 w-4 text-amber-500 inline-block" />
+          ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
           : <span className="text-muted-foreground/40 text-sm">—</span>}
       </TableCell>
       <TableCell className="py-2.5 text-center">
         {item.rundownRequired
-          ? <CheckCircle2 className="h-4 w-4 text-violet-500 inline-block" />
+          ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
           : <span className="text-muted-foreground/40 text-sm">—</span>}
       </TableCell>
 
