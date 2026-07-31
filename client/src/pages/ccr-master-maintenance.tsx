@@ -1,28 +1,24 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Download, Save, AlertTriangle, CheckCircle2, XCircle,
-  Warehouse, Hash, MapPin, Tag, RefreshCw, Send, Mail,
+  CheckCircle2, Send, Mail, ChevronRight, ChevronDown, Tag, Building2,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -37,72 +33,12 @@ type Customer = {
   behaviourType: string;
 };
 
-type CodeMapping = {
-  id: string;
-  customerChain: string;
-  customerCode: string;
-  depot: string;
-  subChannel: string;
-  channel: string;
-};
-
-type CicMapping = {
-  id: string;
-  cbuCode: string;
-  basepack: string | null;
-  customerChain: string;
-  customerCode: string;
-  cic: string | null;
-  salesOrg: string;
-  channel: string;
-  depot: string | null;
-  status: string;
-  sourcingDepot: string | null;
-  sourcingType: string;
-  pricingStatus: string;
-};
-
-
-type PricingStatus = "Available" | "Not Available" | "Partial";
-
-// Depot status can be Mapped, Non-Mapped, or the actual Paid Bible status string
-type DepotStatus = "Mapped" | "Non-Mapped" | string;
-
-type DepotRow = {
-  id: string;
-  customerCode: string;
-  depot: string;
-  subChannel: string;
-  channel: string;
-  status: DepotStatus;       // "Mapped" | "Non-Mapped" | PB status string
-  pricingStatus: PricingStatus;
-  sourcingDepot: string;
-  sourcingType: string;
-  cic: string;
-  salesOrg: string;
-  existingCicId?: string;
-  pbOverridden: boolean;     // true when PB status is blocking
-  pbStatus?: string;         // exact PB status value if blocking
-};
-
-// ─── New Launch filter ────────────────────────────────────────────────────────
-// Per BRD §8: Master Maintenance is applicable only for new launch CBUs.
-// CCR (relaunch / predecessor-successor transitions) is handled separately.
+// ─── Eligibility ──────────────────────────────────────────────────────────────
 
 const RELAUNCH_TYPES = new Set([
   "RL_ART_PKG", "RL_ART_FORM", "RL_PKG_FORM",
   "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
 ]);
-
-function isEligibleCbu(entry: NetworkEntry): boolean {
-  // Only CBUs that have reached or crossed "Production Started" (index >= 3)
-  const statusIdx = STATUS_IDX[entry.networkStatus ?? ""] ?? 0;
-  if (statusIdx < STATUS_IDX["Production Started"]) return false;
-  // Exclude relaunch change types; new launches (even with a predecessor record) are included
-  return !RELAUNCH_TYPES.has(entry.typeOfNetwork ?? "");
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const STATUS_IDX: Record<string, number> = {
   "Draft": 0,
@@ -114,96 +50,13 @@ const STATUS_IDX: Record<string, number> = {
   "Network transition complete": 6,
 };
 
-/**
- * Per-row pricing derivation.
- * Uses `price_active` + `pc_at_channel_state` for row-level determination:
- * - priceActive === false → Not Available (explicitly inactive)
- * - priceActive === true, pcAtChannelState set → Partial (channel/state-specific, not all depots guaranteed)
- * - priceActive === true, pcAtChannelState null → Available (all-India pricing)
- * - priceActive null, status >= Pricing Updated, no pcAtChannelState → Available
- * - priceActive null, status >= Pricing Updated, pcAtChannelState set → Partial
- * - priceActive null, status Active → Partial (pricing not yet confirmed)
- * - priceActive null, status Draft → Not Available
- */
-function computeRowPricingStatus(entry: NetworkEntry): PricingStatus {
-  const idx = STATUS_IDX[entry.networkStatus ?? ""] ?? 0;
-
-  if (entry.priceActive === false) return "Not Available";
-
-  if (entry.priceActive === true) {
-    return entry.pcAtChannelState ? "Partial" : "Available";
-  }
-
-  // priceActive is null / not set — derive from status + pcAtChannelState
-  if (idx >= 2) {
-    return entry.pcAtChannelState ? "Partial" : "Available";
-  }
-  if (idx >= 1) return "Partial";
-  return "Not Available";
+function isEligibleCbu(entry: NetworkEntry): boolean {
+  const statusIdx = STATUS_IDX[entry.networkStatus ?? ""] ?? 0;
+  if (statusIdx < STATUS_IDX["Production Started"]) return false;
+  return !RELAUNCH_TYPES.has(entry.typeOfNetwork ?? "");
 }
 
-function getSourcingMode(entry: NetworkEntry): "decentralized" | "centralized" {
-  try {
-    const parsed = JSON.parse(entry.sourcingMatrixSection ?? "");
-    return (parsed?.mode as "decentralized" | "centralized") || "decentralized";
-  } catch {
-    return "decentralized";
-  }
-}
-
-// Exact PB status strings that block mapping
-const BLOCKED_BP_STATUSES = new Set(["Inactive Pack", "Stock Base Delisted", "Delisted Packs"]);
-
-function isBpBlocked(status: string | undefined): boolean {
-  return !!status && BLOCKED_BP_STATUSES.has(status);
-}
-
-// ─── Badge helpers ────────────────────────────────────────────────────────────
-
-function StatusBadge({ status, pbStatus }: { status: DepotStatus; pbStatus?: string }) {
-  // Show the exact Paid Bible status string when overriding
-  if (pbStatus) {
-    return (
-      <Badge
-        variant="outline"
-        className="text-amber-700 border-amber-300 bg-amber-50 text-xs whitespace-nowrap"
-        data-testid="badge-status-pb-override"
-      >
-        {pbStatus}
-      </Badge>
-    );
-  }
-  if (status === "Mapped") return (
-    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs" data-testid="badge-status-mapped">
-      <CheckCircle2 className="h-3 w-3 mr-1" />Mapped
-    </Badge>
-  );
-  return (
-    <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs" data-testid="badge-status-non-mapped">
-      <XCircle className="h-3 w-3 mr-1" />Non-Mapped
-    </Badge>
-  );
-}
-
-function PricingBadge({ status }: { status: PricingStatus }) {
-  if (status === "Available") return (
-    <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 text-xs" data-testid="badge-pricing-available">
-      Available
-    </Badge>
-  );
-  if (status === "Not Available") return (
-    <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 text-xs" data-testid="badge-pricing-unavailable">
-      Not Available
-    </Badge>
-  );
-  return (
-    <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs" data-testid="badge-pricing-partial">
-      Partial
-    </Badge>
-  );
-}
-
-// ─── CCR Dashboard cell helpers ───────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatCbuDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
@@ -215,57 +68,40 @@ function formatCbuDate(dateStr: string | null | undefined): string {
   }
 }
 
-function getInitials(name: string | null | undefined): string {
-  if (!name) return "?";
-  return name.trim().split(/\s+/).map(w => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
-}
+const LIFECYCLE_SHORT: Record<string, string> = {
+  "FTR Approved": "FTR Approved",
+  "Stock Movement Initiated": "Stock Moving",
+  "Network transition complete": "NTC ✓",
+};
 
-const AVATAR_COLORS = [
-  "bg-blue-600", "bg-violet-600", "bg-emerald-600",
-  "bg-amber-600", "bg-rose-600", "bg-cyan-600", "bg-indigo-600",
-];
+// ─── Small badge/cell components ─────────────────────────────────────────────
 
-function avatarColor(name: string | null | undefined): string {
-  if (!name) return "bg-slate-400";
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
-
-function AssignedPersonCell({ name }: { name: string | null | undefined }) {
-  if (!name) return <span className="text-xs text-muted-foreground">—</span>;
+function BpStatusBadge({ status }: { status: string | null }) {
+  if (!status) return <span className="text-xs text-muted-foreground">—</span>;
+  const styles =
+    status === "Active"         ? "bg-emerald-100 text-emerald-700" :
+    status === "Draft"          ? "bg-amber-100 text-amber-700" :
+    status.includes("Delisted") ? "bg-red-100 text-red-700" :
+    status === "Inactive"       ? "bg-slate-100 text-slate-500" :
+                                  "bg-slate-100 text-slate-600";
   return (
-    <div className="flex items-center gap-2 whitespace-nowrap">
-      <span className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-white text-[10px] font-semibold flex-shrink-0 ${avatarColor(name)}`}>
-        {getInitials(name)}
-      </span>
-      <span className="text-sm">{name}</span>
-    </div>
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${styles}`}>
+      {status}
+    </span>
   );
 }
 
-// Abbreviated labels for network statuses used inside the compact table badge
-const LIFECYCLE_SHORT: Record<string, string> = {
-  "FTR Approved":                  "FTR Approved",
-  "Stock Movement Initiated":      "Stock Moving",
-  "Network transition complete":   "NTC ✓",
-};
-
-function LifecycleStatusCell({ status }: { status: string | null | undefined }) {
+function NetworkStatusBadge({ status }: { status: string | null | undefined }) {
   const idx = STATUS_IDX[status ?? ""] ?? -1;
   if (idx >= 4) {
     const short = LIFECYCLE_SHORT[status ?? ""] ?? status;
-    // "Network transition complete" is the settled end-state — use a muted chip
     const isNtc = status === "Network transition complete";
     return (
       <span
         title={status ?? undefined}
         className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
-          isNtc
-            ? "bg-[#1f36c7]/10 text-[#1f36c7]"
-            : "bg-primary text-primary-foreground"
+          isNtc ? "bg-[#1f36c7]/10 text-[#1f36c7]" : "bg-primary text-primary-foreground"
         }`}
-        data-testid="badge-lifecycle-active"
       >
         {short}
       </span>
@@ -278,229 +114,329 @@ function LifecycleStatusCell({ status }: { status: string | null | undefined }) 
   );
 }
 
-function TriggerDot({ status }: { status: string | null | undefined }) {
-  const idx = STATUS_IDX[status ?? ""] ?? -1;
-  if (idx < 3) return <span className="text-xs text-muted-foreground">—</span>;
-  if (idx >= 5) return <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" title="Red" />;
-  return <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" title="Amber" />;
-}
-
 function PostingStatusBadge({ status }: { status: string }) {
   if (status === "Posted") return (
-    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs" data-testid="badge-posting-posted">
-      Posted
-    </Badge>
+    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Posted</Badge>
   );
   if (status === "Saved") return (
-    <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs" data-testid="badge-posting-saved">
-      Saved
+    <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">Saved</Badge>
+  );
+  return (
+    <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs">Pending</Badge>
+  );
+}
+
+function ChainMappingBadge({ mapped }: { mapped: boolean }) {
+  if (mapped) return (
+    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs gap-1">
+      <CheckCircle2 className="h-3 w-3" /> Mapped
     </Badge>
   );
   return (
-    <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs" data-testid="badge-posting-pending">
-      Pending
-    </Badge>
+    <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs">Not Mapped</Badge>
   );
 }
 
-// ─── CBU Table (shared across tabs) ──────────────────────────────────────────
+// ─── Chain summary data type ──────────────────────────────────────────────────
 
-type ChainProgress = { applicable: string[]; saved: string[]; status: string };
+type ChainCompletionEntry = { applicable: string[]; saved: string[]; status: "complete" | "partial" | "none" };
 
-type CbuTableProps = {
-  entries: NetworkEntry[];
-  emptyMessage: string;
-  testId: string;
-  isLoading: boolean;
-  selectedCbu: string;
-  onCbuChange: (cbu: string) => void;
-  postingStatusMap: Record<string, string>;
-  bpStatusMap: Record<string, string>;
-  onNavigate: (path: string) => void;
-  chainSummary?: Record<string, ChainProgress>;
-  // Bulk-select (only used in Completed tab)
-  selectable?: boolean;
-  selectedCbus?: Set<string>;
-  onToggle?: (cbuCode: string) => void;
-  onToggleAll?: (checked: boolean) => void;
+type ChainGroup = {
+  customer: Customer;
+  chainName: string;
+  cbus: NetworkEntry[];
+  mappedCount: number;    // CBUs where this chain appears in saved[]
+  totalCount: number;
+  postedCount: number;
 };
 
-function CbuTable({
-  entries, emptyMessage, testId, isLoading, selectedCbu, onCbuChange,
-  postingStatusMap, bpStatusMap, onNavigate, chainSummary,
-  selectable, selectedCbus, onToggle, onToggleAll,
-}: CbuTableProps) {
+// ─── Chain-Grouped View ───────────────────────────────────────────────────────
+
+type ChainGroupedViewProps = {
+  entries: NetworkEntry[];
+  customers: Customer[];
+  depotChangeSummary: Record<string, ChainCompletionEntry>;
+  postingStatusMap: Record<string, string>;
+  bpStatusMap: Record<string, string>;
+  isLoading: boolean;
+  emptyMessage: string;
+  // Filters (already applied to entries by parent, but chain/text filters applied here)
+  filterChain: string;
+  filterBasepack: string;
+  filterCbu: string;
+  filterNetworkType: string;
+  // Expand state
+  expandedChains: Set<string>;
+  onToggleChain: (chain: string) => void;
+  // Selection (Completed tab)
+  selectable?: boolean;
+  selectedCbus?: Set<string>;
+  onToggleCbu?: (cbuCode: string) => void;
+  onToggleAll?: (cbuCodes: string[], checked: boolean) => void;
+  // Navigation
+  onNavigate: (path: string) => void;
+};
+
+function ChainGroupedView({
+  entries, customers, depotChangeSummary, postingStatusMap, bpStatusMap,
+  isLoading, emptyMessage,
+  filterChain, filterBasepack, filterCbu, filterNetworkType,
+  expandedChains, onToggleChain,
+  selectable, selectedCbus, onToggleCbu, onToggleAll,
+  onNavigate,
+}: ChainGroupedViewProps) {
+
+  // Build chain groups from the tab-filtered entries
+  const chainGroups: ChainGroup[] = useMemo(() => {
+    // Map chain → CBUs (from depotChangeSummary.applicable)
+    const chainMap: Record<string, NetworkEntry[]> = {};
+    entries.forEach(entry => {
+      const summary = depotChangeSummary[entry.cbuCode ?? ""];
+      const applicable = summary?.applicable ?? [];
+      applicable.forEach(chain => {
+        if (!chainMap[chain]) chainMap[chain] = [];
+        chainMap[chain].push(entry);
+      });
+    });
+
+    return customers
+      .map(customer => {
+        const chain = customer.customerChain;
+        let cbus = chainMap[chain] ?? [];
+
+        // Apply text/type filters
+        if (filterBasepack) cbus = cbus.filter(e => (e.basepack ?? "").toLowerCase().includes(filterBasepack.toLowerCase()));
+        if (filterCbu) cbus = cbus.filter(e => (e.cbuCode ?? "").toLowerCase().includes(filterCbu.toLowerCase()));
+        if (filterNetworkType !== "all") cbus = cbus.filter(e => e.typeOfNetwork === filterNetworkType);
+        // Apply chain filter
+        if (filterChain !== "all" && chain !== filterChain) return null;
+
+        if (cbus.length === 0) return null;
+
+        const mappedCount = cbus.filter(e =>
+          depotChangeSummary[e.cbuCode ?? ""]?.saved?.includes(chain)
+        ).length;
+        const postedCount = cbus.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Posted").length;
+
+        return { customer, chainName: chain, cbus, mappedCount, totalCount: cbus.length, postedCount };
+      })
+      .filter(Boolean) as ChainGroup[];
+  }, [entries, customers, depotChangeSummary, postingStatusMap, filterChain, filterBasepack, filterCbu, filterNetworkType]);
+
   if (isLoading) {
     return (
       <div className="p-4 space-y-2">
-        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-      </div>
-    );
-  }
-  if (entries.length === 0) {
-    return (
-      <div className="py-10 text-center text-sm text-muted-foreground" data-testid={`empty-${testId}`}>
-        {emptyMessage}
+        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
       </div>
     );
   }
 
-  const allSelected = selectable && entries.length > 0 && entries.every(e => selectedCbus?.has(e.cbuCode ?? ""));
-  const someSelected = selectable && entries.some(e => selectedCbus?.has(e.cbuCode ?? "")) && !allSelected;
+  if (chainGroups.length === 0) {
+    return (
+      <div className="py-10 text-center text-sm text-muted-foreground">{emptyMessage}</div>
+    );
+  }
 
   return (
-    <div className="overflow-x-auto">
-      <Table data-testid={`table-${testId}`} className="w-full table-fixed">
-        <TableHeader>
-          <TableRow className="bg-muted/30 hover:bg-muted/30">
-            {selectable && (
-              <TableHead className="w-[3%] pl-4">
-                <Checkbox
-                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                  onCheckedChange={(v) => onToggleAll?.(!!v)}
-                  aria-label="Select all"
-                  data-testid="checkbox-select-all"
-                />
-              </TableHead>
-            )}
-            <TableHead className={`text-xs font-semibold whitespace-nowrap w-[7%] ${selectable ? "" : "pl-4"}`}>Basepack ID</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Basepack Status</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">CBU Code</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[13%]">Material Description</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[6%]">Brand</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Type of Network</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Network Start Date</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[13%]">Network Status</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap text-center w-[9%]">Chain Mapping</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Posting Status</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[5%]">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {entries.map((entry, rowIdx) => (
-            <TableRow
-              key={entry.id}
-              onClick={() => onCbuChange(entry.cbuCode ?? "")}
-              className={
-                selectedCbu === entry.cbuCode
-                  ? "bg-blue-50 border-l-2 border-l-[#1f36c7] cursor-pointer"
-                  : `cursor-pointer hover:bg-muted/40 ${rowIdx % 2 === 1 ? "bg-muted/15" : ""}`
-              }
-              data-testid={`row-cbu-${entry.cbuCode}`}
+    <div className="divide-y">
+      {chainGroups.map(group => {
+        const isExpanded = expandedChains.has(group.chainName);
+        const pct = group.totalCount > 0 ? Math.round((group.mappedCount / group.totalCount) * 100) : 0;
+        const allMapped = group.mappedCount === group.totalCount;
+        const noneMapped = group.mappedCount === 0;
+
+        // For selectable tabs: all selectable CBUs in this chain
+        const selectableCbusInGroup = selectable
+          ? group.cbus.filter(e => postingStatusMap[e.cbuCode ?? ""] !== "Posted").map(e => e.cbuCode ?? "")
+          : [];
+        const allGroupSelected = selectable && selectableCbusInGroup.length > 0
+          && selectableCbusInGroup.every(c => selectedCbus?.has(c));
+        const someGroupSelected = selectable
+          && selectableCbusInGroup.some(c => selectedCbus?.has(c))
+          && !allGroupSelected;
+
+        return (
+          <div key={group.chainName} className="bg-background">
+            {/* ── Chain header row ─────────────────────────────────────── */}
+            <div
+              className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors select-none"
+              onClick={() => onToggleChain(group.chainName)}
             >
-              {selectable && (
-                <TableCell className="pl-4" onClick={e => e.stopPropagation()}>
-                  <Checkbox
-                    checked={selectedCbus?.has(entry.cbuCode ?? "") ?? false}
-                    onCheckedChange={() => onToggle?.(entry.cbuCode ?? "")}
-                    aria-label={`Select ${entry.cbuCode}`}
-                    data-testid={`checkbox-${entry.cbuCode}`}
-                  />
-                </TableCell>
-              )}
-              {/* ── Basepack ID ── */}
-              <TableCell className={`py-2 text-xs font-mono ${selectable ? "" : "pl-4"}`}>
-                {entry.basepack ?? "—"}
-              </TableCell>
-              {/* ── Basepack Status ── */}
-              <TableCell className="py-2">
-                {(() => {
-                  const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
-                  if (!bpStatus) return <span className="text-xs text-muted-foreground">—</span>;
-                  const styles =
-                    bpStatus === "Active"         ? "bg-emerald-100 text-emerald-700" :
-                    bpStatus === "Draft"           ? "bg-amber-100 text-amber-700" :
-                    bpStatus.includes("Delisted")  ? "bg-red-100 text-red-700" :
-                    bpStatus === "Inactive"         ? "bg-slate-100 text-slate-500" :
-                                                     "bg-slate-100 text-slate-600";
-                  return (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${styles}`}>
-                      {bpStatus}
+              {/* Expand toggle */}
+              <span className="text-muted-foreground flex-shrink-0">
+                {isExpanded
+                  ? <ChevronDown className="h-4 w-4" />
+                  : <ChevronRight className="h-4 w-4" />}
+              </span>
+
+              {/* Chain name + tags */}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="font-semibold text-sm text-foreground truncate">{group.chainName}</span>
+                {group.customer.coverageType && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 whitespace-nowrap flex-shrink-0">
+                    {group.customer.coverageType}
+                  </span>
+                )}
+                {group.customer.behaviourType && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 whitespace-nowrap flex-shrink-0">
+                    {group.customer.behaviourType}
+                  </span>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div className="flex items-center gap-5 flex-shrink-0">
+                {/* CBU count */}
+                <div className="text-center hidden sm:block">
+                  <div className="text-xs font-semibold text-foreground">{group.totalCount}</div>
+                  <div className="text-[10px] text-muted-foreground">CBUs</div>
+                </div>
+
+                {/* Mapping progress */}
+                <div className="flex flex-col items-end gap-0.5 w-28">
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] text-muted-foreground">Mapped</span>
+                    <span className={`text-[10px] font-semibold ${allMapped ? "text-emerald-600" : noneMapped ? "text-slate-400" : "text-amber-600"}`}>
+                      {group.mappedCount}/{group.totalCount}
                     </span>
-                  );
-                })()}
-              </TableCell>
-              <TableCell className="py-2 font-mono text-xs font-medium">
-                {entry.cbuCode}
-              </TableCell>
-              <TableCell className="py-2 text-xs">
-                <span className="truncate block max-w-full">{entry.materialDescription || entry.basepackDescription || "—"}</span>
-              </TableCell>
-              <TableCell className="py-2 text-xs font-semibold truncate">
-                {entry.brand || "—"}
-              </TableCell>
-              <TableCell className="py-2 text-xs font-mono whitespace-nowrap">
-                {getNetworkChangeTypeName(entry.typeOfNetwork)}
-              </TableCell>
-              <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
-                {formatCbuDate((entry as any).startDate)}
-              </TableCell>
-              <TableCell className="py-2">
-                <LifecycleStatusCell status={entry.networkStatus} />
-              </TableCell>
-              <TableCell className="text-center" data-testid={`cell-chain-mapping-${entry.cbuCode}`}>
-                {(() => {
-                  const prog = chainSummary?.[entry.cbuCode ?? ""];
-                  if (!prog) return <span className="text-xs text-muted-foreground">—</span>;
-                  const { saved, applicable } = prog;
-                  const total = applicable.length;
-                  const done = saved.length;
-                  const complete = total > 0 && done === total;
-                  const none = done === 0;
-                  return (
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span
-                        className={`text-xs font-semibold ${complete ? "text-emerald-600" : none ? "text-slate-400" : "text-amber-600"}`}
-                      >
-                        {done}/{total}
-                      </span>
-                      {total > 0 && (
-                        <div className="w-14 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${complete ? "bg-emerald-500" : none ? "bg-slate-300" : "bg-amber-400"}`}
-                            style={{ width: `${Math.round((done / total) * 100)}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </TableCell>
-              <TableCell>
-                <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
-              </TableCell>
-              <TableCell className="pr-4 text-right">
-                {(() => {
-                  const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
-                  const isActiveBp = bpStatus === "Active";
-                  const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
-                  const canConfigure = isActiveBp && networkOk;
-                  const disabledTitle = !isActiveBp
-                    ? "Configure is only available for Active basepacks"
-                    : "CCR mapping is only available after Stock Movement Initiated";
-                  return (
-                    <div title={canConfigure ? undefined : disabledTitle} className="inline-block">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs px-2.5"
-                        disabled={!canConfigure}
-                        data-testid={`btn-configure-${entry.cbuCode}`}
-                        onClick={e => {
-                          e.stopPropagation();
-                          onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`);
-                        }}
-                      >
-                        Configure
-                      </Button>
-                    </div>
-                  );
-                })()}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${allMapped ? "bg-emerald-500" : noneMapped ? "bg-slate-200" : "bg-amber-400"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Posted count */}
+                {group.postedCount > 0 && (
+                  <div className="text-center hidden md:block">
+                    <div className="text-xs font-semibold text-emerald-600">{group.postedCount}</div>
+                    <div className="text-[10px] text-muted-foreground">Posted</div>
+                  </div>
+                )}
+
+                {/* Status chip */}
+                <div className="w-24 text-right">
+                  {allMapped ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Complete</span>
+                  ) : noneMapped ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Not Started</span>
+                  ) : (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">In Progress</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Expanded: CBU sub-table ───────────────────────────────── */}
+            {isExpanded && (
+              <div className="border-t bg-muted/5">
+                <div className="overflow-x-auto">
+                  <Table className="w-full table-fixed">
+                    <TableHeader>
+                      <TableRow className="bg-muted/20 hover:bg-muted/20">
+                        {/* indent spacer */}
+                        <TableHead className="w-[2%]" />
+                        {selectable && (
+                          <TableHead className="w-[3%]">
+                            <Checkbox
+                              checked={allGroupSelected ? true : someGroupSelected ? "indeterminate" : false}
+                              onCheckedChange={v => onToggleAll?.(selectableCbusInGroup, !!v)}
+                              aria-label={`Select all in ${group.chainName}`}
+                            />
+                          </TableHead>
+                        )}
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Basepack ID</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">BP Status</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">CBU Code</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[16%]">Material Description</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Brand</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[9%]">Network Type</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[10%]">Network Start Date</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Network Status</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Chain Status</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Posting</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[6%]">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.cbus.map((entry, rowIdx) => {
+                        const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
+                        const isActiveBp = bpStatus === "Active";
+                        const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+                        const canConfigure = isActiveBp && networkOk;
+                        const disabledTitle = !isActiveBp
+                          ? "Configure is only available for Active basepacks"
+                          : "CCR mapping is only available after Stock Movement Initiated";
+                        const mappedForChain = depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(group.chainName) ?? false;
+                        const isSelected = selectable && selectedCbus?.has(entry.cbuCode ?? "");
+
+                        return (
+                          <TableRow
+                            key={`${group.chainName}-${entry.id}`}
+                            className={`${isSelected ? "bg-blue-50" : rowIdx % 2 === 1 ? "bg-muted/10" : ""} hover:bg-muted/20`}
+                          >
+                            {/* indent spacer */}
+                            <TableCell className="pl-8" />
+                            {selectable && (
+                              <TableCell onClick={e => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={isSelected ?? false}
+                                  onCheckedChange={() => onToggleCbu?.(entry.cbuCode ?? "")}
+                                  aria-label={`Select ${entry.cbuCode}`}
+                                />
+                              </TableCell>
+                            )}
+                            <TableCell className="py-2 text-xs font-mono">{entry.basepack ?? "—"}</TableCell>
+                            <TableCell className="py-2"><BpStatusBadge status={bpStatus} /></TableCell>
+                            <TableCell className="py-2 font-mono text-xs font-medium">{entry.cbuCode}</TableCell>
+                            <TableCell className="py-2 text-xs">
+                              <span className="truncate block max-w-full">
+                                {entry.materialDescription || entry.basepackDescription || "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2 text-xs font-semibold truncate">{entry.brand || "—"}</TableCell>
+                            <TableCell className="py-2 text-xs whitespace-nowrap">
+                              {getNetworkChangeTypeName(entry.typeOfNetwork)}
+                            </TableCell>
+                            <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
+                              {formatCbuDate((entry as any).startDate)}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <NetworkStatusBadge status={entry.networkStatus} />
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <ChainMappingBadge mapped={mappedForChain} />
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
+                            </TableCell>
+                            <TableCell className="pr-4 py-2 text-right">
+                              <div title={canConfigure ? undefined : disabledTitle} className="inline-block">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs px-2.5"
+                                  disabled={!canConfigure}
+                                  onClick={() => onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`)}
+                                >
+                                  Configure
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -512,17 +448,48 @@ export default function CcrMasterMaintenancePage() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
 
-  const [selectedChain, setSelectedChain] = useState<string>("");
-  const [selectedCbu, setSelectedCbu] = useState<string>("");
-  const [cicInput, setCicInput] = useState<string>("");
-  const [sourcingDepotMap, setSourcingDepotMap] = useState<Record<string, string>>({});
-  const [centralizedMappedSet, setCentralizedMappedSet] = useState<Set<string>>(new Set());
+  // ── Filter state ───────────────────────────────────────────────────────────
+  const [filterChain, setFilterChain] = useState<string>("all");
+  const [filterBasepack, setFilterBasepack] = useState<string>("");
+  const [filterCbu, setFilterCbu] = useState<string>("");
+  const [filterNetworkType, setFilterNetworkType] = useState<string>("all");
+
+  // ── Expand/collapse ────────────────────────────────────────────────────────
+  const [expandedChains, setExpandedChains] = useState<Set<string>>(new Set());
+
+  function toggleChain(chain: string) {
+    setExpandedChains(prev => {
+      const next = new Set(prev);
+      if (next.has(chain)) next.delete(chain); else next.add(chain);
+      return next;
+    });
+  }
+
+  // ── Tabs ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<string>("new-launch");
-  // Bulk-select state for Completed tab
+
+  // ── Bulk-select (Completed tab) ────────────────────────────────────────────
   const [completedSelected, setCompletedSelected] = useState<Set<string>>(new Set());
   const [postDialogOpen, setPostDialogOpen] = useState(false);
 
-  // ── Data Queries ────────────────────────────────────────────────────────────
+  function handleToggleCbu(cbuCode: string) {
+    setCompletedSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(cbuCode)) next.delete(cbuCode); else next.add(cbuCode);
+      return next;
+    });
+  }
+
+  function handleToggleAll(cbuCodes: string[], checked: boolean) {
+    setCompletedSelected(prev => {
+      const next = new Set(prev);
+      if (checked) cbuCodes.forEach(c => next.add(c));
+      else cbuCodes.forEach(c => next.delete(c));
+      return next;
+    });
+  }
+
+  // ── Data queries ───────────────────────────────────────────────────────────
 
   const { data: customers = [], isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["/api/ccr/customers"],
@@ -530,22 +497,6 @@ export default function CcrMasterMaintenancePage() {
 
   const { data: networkEntries = [], isLoading: entriesLoading } = useQuery<NetworkEntry[]>({
     queryKey: ["/api/network-entries"],
-  });
-
-  const { data: codeMappings = [], isLoading: codeMappingsLoading } = useQuery<CodeMapping[]>({
-    queryKey: ["/api/ccr/customers", selectedChain, "code-mapping"],
-    queryFn: () =>
-      fetch(`/api/ccr/customers/${encodeURIComponent(selectedChain)}/code-mapping`)
-        .then(r => r.json()),
-    enabled: !!selectedChain,
-  });
-
-  const { data: existingCicMappings = [], isLoading: cicLoading } = useQuery<CicMapping[]>({
-    queryKey: ["/api/ccr/cic-mappings", selectedCbu, selectedChain],
-    queryFn: () =>
-      fetch(`/api/ccr/cic-mappings?cbu_code=${encodeURIComponent(selectedCbu)}&customer_chain=${encodeURIComponent(selectedChain)}`)
-        .then(r => r.json()),
-    enabled: !!selectedCbu && !!selectedChain,
   });
 
   const { data: bpStatusMap = {} } = useQuery<Record<string, string>>({
@@ -557,200 +508,51 @@ export default function CcrMasterMaintenancePage() {
     queryKey: ["/api/ccr/cic-mappings/summary"],
   });
 
-  type ChainCompletionEntry = { applicable: string[]; saved: string[]; status: "complete" | "partial" | "none" };
   const { data: depotChangeSummary = {} } = useQuery<Record<string, ChainCompletionEntry>>({
     queryKey: ["/api/ccr/cic-mappings/depot-change-summary"],
   });
 
-  // ── Derived values ──────────────────────────────────────────────────────────
+  // ── Derived: eligible entries ──────────────────────────────────────────────
 
   const eligibleEntries = useMemo(
     () => networkEntries.filter(isEligibleCbu),
     [networkEntries],
   );
 
-  // "CBU Overview" tab — chains not yet fully configured (none or partial)
+  // "CBU Overview" — not fully mapped or not yet saved for all chains
   const newLaunchEntries = useMemo(
     () => eligibleEntries.filter(e => {
       const s = depotChangeSummary[e.cbuCode ?? ""];
-      const posting = postingStatusMap[e.cbuCode ?? ""];
-      if (posting === "Posted") return false;           // lives in Posted tab
+      if (postingStatusMap[e.cbuCode ?? ""] === "Posted") return false;
       return !s || s.status === "none" || s.status === "partial";
     }),
     [eligibleEntries, depotChangeSummary, postingStatusMap],
   );
 
-  // "Completed" tab — all chains configured but not yet fully posted
+  // "Completed" — all chains mapped, not yet posted
   const completedEntries = useMemo(
     () => eligibleEntries.filter(e => {
       const s = depotChangeSummary[e.cbuCode ?? ""];
-      const posting = postingStatusMap[e.cbuCode ?? ""];
-      return s?.status === "complete" && posting !== "Posted";
+      return s?.status === "complete" && postingStatusMap[e.cbuCode ?? ""] !== "Posted";
     }),
     [eligibleEntries, depotChangeSummary, postingStatusMap],
   );
 
-  // "Posted" tab — all chains configured AND all rows Mapped
+  // "Posted"
   const postedEntries = useMemo(
     () => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Posted"),
     [eligibleEntries, postingStatusMap],
   );
 
-  const networkEntry = useMemo(
-    () => networkEntries.find(e => e.cbuCode === selectedCbu) ?? null,
-    [networkEntries, selectedCbu],
-  );
+  // ── Derived: unique network types for filter dropdown ──────────────────────
 
-  // Guard: selected CBU must be in the eligible list
-  const cbuIsEligible = useMemo(
-    () => !selectedCbu || eligibleEntries.some(e => e.cbuCode === selectedCbu),
-    [eligibleEntries, selectedCbu],
-  );
+  const networkTypes = useMemo(() => {
+    const s = new Set<string>();
+    eligibleEntries.forEach(e => { if (e.typeOfNetwork) s.add(e.typeOfNetwork); });
+    return Array.from(s).sort();
+  }, [eligibleEntries]);
 
-  const sourcingMode = useMemo(
-    () => (networkEntry ? getSourcingMode(networkEntry) : "decentralized"),
-    [networkEntry],
-  );
-
-  const basepackStatus: string | undefined = useMemo(() => {
-    if (!networkEntry?.basepack) return undefined;
-    return (bpStatusMap as Record<string, string>)[networkEntry.basepack];
-  }, [networkEntry, bpStatusMap]);
-
-  const pbBlocked = isBpBlocked(basepackStatus);
-
-  // Keyed by `${customerCode}::${depot}` — depot-granular so multiple depots
-  // per customer code each have their own entry (no overwrite collision).
-  const cicByKey = useMemo(() => {
-    const map: Record<string, CicMapping> = {};
-    existingCicMappings.forEach(m => {
-      const k = `${m.customerCode}::${m.depot ?? ""}`;
-      map[k] = m;
-    });
-    return map;
-  }, [existingCicMappings]);
-
-  // ── Hydrate centralized UI state from persisted mappings ────────────────────
-  // State keys are cm.id (code-mapping row ID) — depot-granular, never collides.
-  const hydratedKeyRef = useRef<string>("");
-
-  useEffect(() => {
-    if (!existingCicMappings.length || !codeMappings.length || !networkEntry) return;
-    const key = `${selectedCbu}::${selectedChain}`;
-    if (hydratedKeyRef.current === key) return;
-    hydratedKeyRef.current = key;
-
-    if (getSourcingMode(networkEntry) !== "centralized") return;
-
-    // Build composite → cm.id lookup from loaded code mappings
-    const depotKeyToCmId: Record<string, string> = {};
-    codeMappings.forEach(cm => {
-      depotKeyToCmId[`${cm.customerCode}::${cm.depot}`] = cm.id;
-    });
-
-    const newMapped = new Set<string>();
-    const newSourcingMap: Record<string, string> = {};
-    existingCicMappings.forEach(m => {
-      if (m.status === "Mapped") {
-        const cmId = depotKeyToCmId[`${m.customerCode}::${m.depot ?? ""}`];
-        if (cmId) {
-          newMapped.add(cmId);
-          if (m.sourcingDepot) newSourcingMap[cmId] = m.sourcingDepot;
-        }
-      }
-    });
-    if (newMapped.size > 0) {
-      setCentralizedMappedSet(newMapped);
-      setSourcingDepotMap(newSourcingMap);
-    }
-  }, [existingCicMappings, codeMappings, networkEntry, selectedCbu, selectedChain]);
-
-  const allDepots = useMemo(
-    () => Array.from(new Set(codeMappings.map(m => m.depot))).sort(),
-    [codeMappings],
-  );
-
-  // ── Row computation ─────────────────────────────────────────────────────────
-
-  const rows: DepotRow[] = useMemo(() => {
-    if (!codeMappings.length || !networkEntry) return [];
-
-    // Per-row pricing (same entry, same result for all rows currently — but row-level for future depot-specific pricing)
-    const rowPricing = computeRowPricingStatus(networkEntry);
-    const srcMode = getSourcingMode(networkEntry);
-    const srcType = srcMode === "decentralized" ? "Decentralized" : "Centralized";
-
-    return codeMappings.map(cm => {
-      // Depot-granular lookup: one entry per customerCode::depot combo
-      const existing = cicByKey[`${cm.customerCode}::${cm.depot}`];
-      const effectiveCic = cicInput || existing?.cic || "";
-
-      let status: DepotStatus;
-      let sourcingDepot: string;
-      let pbStatus: string | undefined;
-
-      if (pbBlocked) {
-        status = basepackStatus!;
-        sourcingDepot = existing?.sourcingDepot ?? "";
-        pbStatus = basepackStatus;
-      } else if (srcMode === "decentralized") {
-        status = "Mapped";
-        sourcingDepot = cm.depot;
-      } else {
-        // Use cm.id as the row key — depot-granular, no customerCode collision
-        const isMapped = centralizedMappedSet.has(cm.id);
-        status = isMapped ? "Mapped" : "Non-Mapped";
-        sourcingDepot = isMapped ? (sourcingDepotMap[cm.id] || "") : "";
-      }
-
-      return {
-        id: cm.id,
-        customerCode: cm.customerCode,
-        depot: cm.depot,
-        subChannel: cm.subChannel,
-        channel: cm.channel || "MT",
-        status,
-        pricingStatus: rowPricing,
-        sourcingDepot,
-        sourcingType: srcType,
-        cic: effectiveCic,
-        salesOrg: existing?.salesOrg ?? "1000",
-        existingCicId: existing?.id,
-        pbOverridden: pbBlocked,
-        pbStatus,
-      };
-    });
-  }, [
-    codeMappings, networkEntry, cicInput, sourcingMode,
-    sourcingDepotMap, centralizedMappedSet, cicByKey,
-    pbBlocked, basepackStatus,
-  ]);
-
-  const mappedCount = rows.filter(r => !r.pbOverridden && r.status === "Mapped").length;
-  const nonMappedCount = rows.filter(r => !r.pbOverridden && r.status === "Non-Mapped").length;
-
-  // ── Validation ──────────────────────────────────────────────────────────────
-
-  const validationErrors: string[] = useMemo(() => {
-    const errs: string[] = [];
-    if (!selectedChain) errs.push("Select a Customer Chain");
-    if (!selectedCbu) errs.push("Select a CBU");
-    if (selectedCbu && !cbuIsEligible) errs.push("CBU is not a relaunch or successor — only eligible CBUs may be mapped");
-    if (selectedCbu && cbuIsEligible && !cicInput && !existingCicMappings.some(m => m.cic)) {
-      errs.push("Enter a CIC code");
-    }
-    if (pbBlocked) errs.push(`Paid Bible status "${basepackStatus}" blocks mapping — resolve in Paid Bible first`);
-    // In centralized mode, every Mapped row must have a sourcing depot selected
-    if (sourcingMode === "centralized" && rows.length > 0) {
-      const missingDepot = rows.filter(r => !r.pbOverridden && r.status === "Mapped" && !r.sourcingDepot);
-      if (missingDepot.length > 0) {
-        errs.push(`${missingDepot.length} Mapped row(s) are missing a Sourcing DC selection`);
-      }
-    }
-    return errs;
-  }, [selectedChain, selectedCbu, cbuIsEligible, cicInput, existingCicMappings, pbBlocked, basepackStatus, sourcingMode, rows]);
-
-  // ── Post & Notify Mutation ──────────────────────────────────────────────────
+  // ── Post & Notify mutation ─────────────────────────────────────────────────
 
   const postMutation = useMutation({
     mutationFn: async (cbuCodes: string[]) =>
@@ -770,124 +572,26 @@ export default function CcrMasterMaintenancePage() {
     },
   });
 
-  // ── Save Mutation ───────────────────────────────────────────────────────────
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      // Send ALL rows (Mapped + Non-Mapped) so the server has a complete picture
-      const payload = rows.map(r => ({
-        cbuCode: selectedCbu,
-        basepack: networkEntry?.basepack ?? null,
-        customerChain: selectedChain,
-        customerCode: r.customerCode,
-        cic: r.cic || null,
-        salesOrg: r.salesOrg,
-        channel: r.channel,
-        depot: r.depot,
-        status: r.pbOverridden ? "Non-Mapped" : r.status,
-        sourcingDepot: r.sourcingDepot || null,
-        sourcingType: r.sourcingType,
-        pricingStatus: r.pricingStatus,
-      }));
-      return apiRequest("PUT", "/api/ccr/cic-mappings", { mappings: payload });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", selectedCbu, selectedChain] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
-      toast({
-        title: "Mapping saved",
-        description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-Mapped.`,
-      });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
-    },
-  });
-
-  // ── Export ──────────────────────────────────────────────────────────────────
-
-  function handleExport() {
-    if (!rows.length) return;
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const data = rows.map(r => ({
-      "CBU Code": selectedCbu,
-      "Basepack": networkEntry?.basepack ?? "",
-      "Customer Chain": selectedChain,
-      "Customer Code": r.customerCode,
-      "CIC": r.cic,
-      "Sales Org": r.salesOrg,
-      "Channel": r.channel,
-      "Depot": r.depot,
-      "Sub Channel": r.subChannel,
-      "Status": r.pbOverridden ? r.pbStatus ?? "Non-Mapped" : r.status,
-      "Pricing Status": r.pricingStatus,
-      "Sourcing Depot": r.sourcingDepot,
-      "Sourcing Type": r.sourcingType,
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "CCR Mapping");
-    XLSX.writeFile(wb, `CCR_Mapping_${selectedCbu}_${selectedChain}_${today}.xlsx`);
-  }
-
-  // ── Handlers ────────────────────────────────────────────────────────────────
-
-  function handleChainChange(chain: string) {
-    setSelectedChain(chain);
-    setSourcingDepotMap({});
-    setCentralizedMappedSet(new Set());
-  }
-
-  function handleCbuChange(cbuCode: string) {
-    setSelectedCbu(cbuCode);
-    setCicInput("");
-    setSourcingDepotMap({});
-    setCentralizedMappedSet(new Set());
-  }
-
-  // Handlers use cm.id (depot-granular) — not customerCode — so each depot row
-  // is independently toggleable even when multiple share the same customer code.
-  function toggleCentralizedMapped(rowId: string) {
-    setCentralizedMappedSet(prev => {
-      const next = new Set(prev);
-      if (next.has(rowId)) {
-        next.delete(rowId);
-        setSourcingDepotMap(sm => {
-          const n = { ...sm };
-          delete n[rowId];
-          return n;
-        });
-      } else {
-        next.add(rowId);
-      }
-      return next;
-    });
-  }
-
-  function handleSourcingDepotChange(rowId: string, depot: string) {
-    setSourcingDepotMap(prev => ({ ...prev, [rowId]: depot }));
-  }
-
-  // ── Completed-tab bulk selection helpers ─────────────────────────────────────
-
-  function handleToggleCompleted(cbuCode: string) {
-    setCompletedSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(cbuCode)) next.delete(cbuCode); else next.add(cbuCode);
-      return next;
-    });
-  }
-
-  function handleToggleAllCompleted(checked: boolean) {
-    setCompletedSelected(checked ? new Set(completedEntries.map(e => e.cbuCode ?? "")) : new Set());
-  }
-
   const isLoading = customersLoading || entriesLoading;
-  const gridLoading = codeMappingsLoading || cicLoading;
-  const canSave = validationErrors.length === 0 && rows.length > 0 && !saveMutation.isPending;
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Shared view props ──────────────────────────────────────────────────────
+
+  const sharedViewProps = {
+    customers,
+    depotChangeSummary,
+    postingStatusMap,
+    bpStatusMap,
+    isLoading,
+    filterChain,
+    filterBasepack,
+    filterCbu,
+    filterNetworkType,
+    expandedChains,
+    onToggleChain: toggleChain,
+    onNavigate: navigate,
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-background">
@@ -899,25 +603,101 @@ export default function CcrMasterMaintenancePage() {
         <div>
           <h2 className="text-xl font-bold text-foreground">CCR Master Maintenance</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Configure Customer Code-to-CIC DC mappings for new launch CBUs
+            Customer chain–level view of CCR mappings for new launch CBUs
           </p>
         </div>
 
-        {/* ── CBU Overview Tabs ────────────────────────────────────────────────── */}
-        <Card>
+        {/* ── Filter bar ──────────────────────────────────────────────────── */}
+        <Card className="px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground flex-shrink-0">
+              <Tag className="h-3.5 w-3.5" />
+              Filters
+            </div>
+
+            {/* Customer Chain */}
+            <div className="flex-1 min-w-[160px] max-w-[200px]">
+              <Select value={filterChain} onValueChange={setFilterChain}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="All Chains" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All Chains</SelectItem>
+                  {customers.map(c => (
+                    <SelectItem key={c.id} value={c.customerChain} className="text-xs">
+                      {c.customerChain}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Base Pack */}
+            <div className="flex-1 min-w-[130px] max-w-[160px]">
+              <Input
+                placeholder="Base Pack…"
+                value={filterBasepack}
+                onChange={e => setFilterBasepack(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            {/* CBU */}
+            <div className="flex-1 min-w-[130px] max-w-[160px]">
+              <Input
+                placeholder="CBU code…"
+                value={filterCbu}
+                onChange={e => setFilterCbu(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            {/* Network Type */}
+            <div className="flex-1 min-w-[140px] max-w-[180px]">
+              <Select value={filterNetworkType} onValueChange={setFilterNetworkType}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="All Network Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All Network Types</SelectItem>
+                  {networkTypes.map(t => (
+                    <SelectItem key={t} value={t} className="text-xs">
+                      {getNetworkChangeTypeName(t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear */}
+            {(filterChain !== "all" || filterBasepack || filterCbu || filterNetworkType !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-muted-foreground"
+                onClick={() => {
+                  setFilterChain("all");
+                  setFilterBasepack("");
+                  setFilterCbu("");
+                  setFilterNetworkType("all");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+        </Card>
+
+        {/* ── Main chain-grouped table ─────────────────────────────────────── */}
+        <Card className="overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <CardHeader className="pb-0 border-b">
-              <div className="flex items-center justify-between mb-3">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Tag className="h-4 w-4 text-primary" />
-                  CBU Overview
-                </CardTitle>
-              </div>
-              <TabsList className="h-9 bg-transparent border-0 p-0 gap-0 w-full justify-start rounded-none">
+
+            {/* Tab header */}
+            <div className="border-b px-4 pt-3 flex items-center justify-between">
+              <TabsList className="h-9 bg-transparent border-0 p-0 gap-0 justify-start rounded-none">
                 <TabsTrigger
                   value="new-launch"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
-                  data-testid="tab-new-launch"
                 >
                   CBU Overview
                   {newLaunchEntries.length > 0 && (
@@ -929,7 +709,6 @@ export default function CcrMasterMaintenancePage() {
                 <TabsTrigger
                   value="completed"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
-                  data-testid="tab-completed"
                 >
                   Completed
                   {completedEntries.length > 0 && (
@@ -941,7 +720,6 @@ export default function CcrMasterMaintenancePage() {
                 <TabsTrigger
                   value="posted"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
-                  data-testid="tab-posted"
                 >
                   Posted
                   {postedEntries.length > 0 && (
@@ -951,26 +729,19 @@ export default function CcrMasterMaintenancePage() {
                   )}
                 </TabsTrigger>
               </TabsList>
-            </CardHeader>
+            </div>
 
-            {/* ── Tab content ───────────────────────────────────────────── */}
+            {/* ── CBU Overview tab ──────────────────────────────────────── */}
             <TabsContent value="new-launch" className="mt-0">
-              <CbuTable
+              <ChainGroupedView
+                {...sharedViewProps}
                 entries={newLaunchEntries}
                 emptyMessage="No unmapped new launch CBUs."
-                testId="new-launch"
-                isLoading={isLoading}
-                selectedCbu={selectedCbu}
-                onCbuChange={handleCbuChange}
-                postingStatusMap={postingStatusMap}
-                bpStatusMap={bpStatusMap}
-                onNavigate={navigate}
-                chainSummary={depotChangeSummary}
               />
             </TabsContent>
 
+            {/* ── Completed tab ─────────────────────────────────────────── */}
             <TabsContent value="completed" className="mt-0">
-              {/* ── Bulk-select action bar ── */}
               {completedSelected.size > 0 && (
                 <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
                   <span className="text-sm text-blue-800 font-medium">
@@ -978,8 +749,7 @@ export default function CcrMasterMaintenancePage() {
                   </span>
                   <div className="flex items-center gap-2">
                     <Button
-                      size="sm"
-                      variant="ghost"
+                      size="sm" variant="ghost"
                       className="h-7 text-xs text-blue-700"
                       onClick={() => setCompletedSelected(new Set())}
                     >
@@ -996,36 +766,23 @@ export default function CcrMasterMaintenancePage() {
                   </div>
                 </div>
               )}
-              <CbuTable
+              <ChainGroupedView
+                {...sharedViewProps}
                 entries={completedEntries}
                 emptyMessage="No CBUs ready to post yet — configure all customer chains first."
-                testId="completed"
-                isLoading={isLoading}
-                selectedCbu={selectedCbu}
-                onCbuChange={handleCbuChange}
-                postingStatusMap={postingStatusMap}
-                bpStatusMap={bpStatusMap}
-                onNavigate={navigate}
-                chainSummary={depotChangeSummary}
                 selectable
                 selectedCbus={completedSelected}
-                onToggle={handleToggleCompleted}
-                onToggleAll={handleToggleAllCompleted}
+                onToggleCbu={handleToggleCbu}
+                onToggleAll={handleToggleAll}
               />
             </TabsContent>
 
+            {/* ── Posted tab ────────────────────────────────────────────── */}
             <TabsContent value="posted" className="mt-0">
-              <CbuTable
+              <ChainGroupedView
+                {...sharedViewProps}
                 entries={postedEntries}
                 emptyMessage="No posted CBUs yet."
-                testId="posted"
-                isLoading={isLoading}
-                selectedCbu={selectedCbu}
-                onCbuChange={handleCbuChange}
-                postingStatusMap={postingStatusMap}
-                bpStatusMap={bpStatusMap}
-                onNavigate={navigate}
-                chainSummary={depotChangeSummary}
               />
             </TabsContent>
 
@@ -1034,7 +791,7 @@ export default function CcrMasterMaintenancePage() {
 
       </div>
 
-      {/* ── Post & Notify confirmation dialog ─────────────────────────────────── */}
+      {/* ── Post & Notify dialog ──────────────────────────────────────────────── */}
       <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1071,8 +828,7 @@ export default function CcrMasterMaintenancePage() {
 
           <DialogFooter className="gap-2">
             <Button
-              variant="outline"
-              size="sm"
+              variant="outline" size="sm"
               onClick={() => setPostDialogOpen(false)}
               disabled={postMutation.isPending}
             >
