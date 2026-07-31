@@ -864,11 +864,11 @@ export default function CcrWorkspacePage() {
         {showFilters && (
           <Card data-testid="filters-panel">
             <CardContent className="p-4">
-              <div className="flex items-start gap-4 flex-wrap">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Network Change Type</label>
+              <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Network Change Type</label>
                   <MultiSelectFilter
-                    label="Types"
+                    label="All Types"
                     options={nwTypeOptions}
                     selected={filterNwTypes}
                     onChange={handleNwTypesChange}
@@ -876,10 +876,10 @@ export default function CcrWorkspacePage() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Trigger Stage</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Trigger Stage</label>
                   <MultiSelectFilter
-                    label="Stages"
+                    label="All Stages"
                     options={TRIGGER_STAGE_ORDER.filter(s => s !== "None").map(s => s)}
                     selected={filterStages}
                     onChange={handleStagesChange}
@@ -887,8 +887,8 @@ export default function CcrWorkspacePage() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Escalation</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Escalation</label>
                   <Button
                     variant={filterEscalated ? "secondary" : "outline"}
                     size="sm"
@@ -901,8 +901,8 @@ export default function CcrWorkspacePage() {
                   </Button>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Actions Required</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Actions Required</label>
                   <div className="flex gap-1.5">
                     <Button
                       variant={filterNewCic ? "secondary" : "outline"}
@@ -938,19 +938,16 @@ export default function CcrWorkspacePage() {
                 </div>
 
                 {hasActiveFilters && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground opacity-0 select-none">x</label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs gap-1 text-muted-foreground"
-                      onClick={clearFilters}
-                      data-testid="button-clear-filters"
-                    >
-                      <X className="h-3 w-3" />
-                      Clear all
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1 text-muted-foreground"
+                    onClick={clearFilters}
+                    data-testid="button-clear-filters"
+                  >
+                    <X className="h-3 w-3" />
+                    Clear all
+                  </Button>
                 )}
               </div>
 
