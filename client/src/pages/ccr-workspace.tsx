@@ -483,6 +483,9 @@ export default function CcrWorkspacePage() {
   const [filterStages, setFilterStages] = useState<string[]>(parseMulti(initialParams.get("stage")));
   const [filterNwTypes, setFilterNwTypes] = useState<string[]>(parseMulti(initialParams.get("nwType")));
   const [filterEscalated, setFilterEscalated] = useState(initialParams.get("escalated") === "1");
+  const [filterNewCic, setFilterNewCic] = useState(initialParams.get("newCic") === "1");
+  const [filterContentUpdate, setFilterContentUpdate] = useState(initialParams.get("contentUpdate") === "1");
+  const [filterRundown, setFilterRundown] = useState(initialParams.get("rundown") === "1");
   const [showFilters, setShowFilters] = useState(false);
 
   // ── Sync filter changes back to URL ──────────────────────────────────────
@@ -491,12 +494,18 @@ export default function CcrWorkspacePage() {
     stages: string[],
     nwTypes: string[],
     escalated: boolean,
+    newCic: boolean,
+    contentUpdate: boolean,
+    rundown: boolean,
   ) => {
     const p = new URLSearchParams();
     if (cse && cse !== "all") p.set("cse", cse);
     if (stages.length > 0) p.set("stage", stages.join(","));
     if (nwTypes.length > 0) p.set("nwType", nwTypes.join(","));
     if (escalated) p.set("escalated", "1");
+    if (newCic) p.set("newCic", "1");
+    if (contentUpdate) p.set("contentUpdate", "1");
+    if (rundown) p.set("rundown", "1");
     const qs = p.toString();
     navigate(`/ccr${qs ? `?${qs}` : ""}`, { replace: true });
   }, [navigate]);
@@ -519,33 +528,45 @@ export default function CcrWorkspacePage() {
       const cseId = currentUser.cseId ?? "all";
       if (cseId !== selectedCse) {
         setSelectedCse(cseId);
-        syncUrl(cseId, filterStages, filterNwTypes, filterEscalated);
+        syncUrl(cseId, filterStages, filterNwTypes, filterEscalated, filterNewCic, filterContentUpdate, filterRundown);
       }
     } else {
       // Admin: respect URL override; default to "all" if no param
       if (urlCse) return;
       if (selectedCse !== "all") {
         setSelectedCse("all");
-        syncUrl("all", filterStages, filterNwTypes, filterEscalated);
+        syncUrl("all", filterStages, filterNwTypes, filterEscalated, filterNewCic, filterContentUpdate, filterRundown);
       }
     }
   }, [currentUser]);
 
   function handleCseChange(v: string) {
     setSelectedCse(v);
-    syncUrl(v, filterStages, filterNwTypes, filterEscalated);
+    syncUrl(v, filterStages, filterNwTypes, filterEscalated, filterNewCic, filterContentUpdate, filterRundown);
   }
   function handleStagesChange(v: string[]) {
     setFilterStages(v);
-    syncUrl(selectedCse, v, filterNwTypes, filterEscalated);
+    syncUrl(selectedCse, v, filterNwTypes, filterEscalated, filterNewCic, filterContentUpdate, filterRundown);
   }
   function handleNwTypesChange(v: string[]) {
     setFilterNwTypes(v);
-    syncUrl(selectedCse, filterStages, v, filterEscalated);
+    syncUrl(selectedCse, filterStages, v, filterEscalated, filterNewCic, filterContentUpdate, filterRundown);
   }
   function handleEscalatedChange(v: boolean) {
     setFilterEscalated(v);
-    syncUrl(selectedCse, filterStages, filterNwTypes, v);
+    syncUrl(selectedCse, filterStages, filterNwTypes, v, filterNewCic, filterContentUpdate, filterRundown);
+  }
+  function handleNewCicChange(v: boolean) {
+    setFilterNewCic(v);
+    syncUrl(selectedCse, filterStages, filterNwTypes, filterEscalated, v, filterContentUpdate, filterRundown);
+  }
+  function handleContentUpdateChange(v: boolean) {
+    setFilterContentUpdate(v);
+    syncUrl(selectedCse, filterStages, filterNwTypes, filterEscalated, filterNewCic, v, filterRundown);
+  }
+  function handleRundownChange(v: boolean) {
+    setFilterRundown(v);
+    syncUrl(selectedCse, filterStages, filterNwTypes, filterEscalated, filterNewCic, filterContentUpdate, v);
   }
   function clearFilters() {
     // Restore logged-in CSE scope, not "all"
@@ -554,7 +575,10 @@ export default function CcrWorkspacePage() {
     setFilterStages([]);
     setFilterNwTypes([]);
     setFilterEscalated(false);
-    syncUrl(defaultCse, [], [], false);
+    setFilterNewCic(false);
+    setFilterContentUpdate(false);
+    setFilterRundown(false);
+    syncUrl(defaultCse, [], [], false, false, false, false);
   }
 
   // ── Queries ───────────────────────────────────────────────────────────────
@@ -639,9 +663,12 @@ export default function CcrWorkspacePage() {
         const entry = entryMap.get(item.successorCbuCode ?? "");
         if (!filterNwTypes.includes(entry?.typeOfNetwork ?? "")) return false;
       }
+      if (filterNewCic && !item.newCicRequired) return false;
+      if (filterContentUpdate && !item.contentUpdateRequired) return false;
+      if (filterRundown && !item.rundownRequired) return false;
       return true;
     });
-  }, [relaunchItems, filterStages, filterEscalated, filterNwTypes, entryMap]);
+  }, [relaunchItems, filterStages, filterEscalated, filterNwTypes, filterNewCic, filterContentUpdate, filterRundown, entryMap]);
 
   // ── View routing ──────────────────────────────────────────────────────────
   // Four views per BRD:
@@ -667,7 +694,10 @@ export default function CcrWorkspacePage() {
   const hasActiveFilters =
     filterStages.length > 0 ||
     filterNwTypes.length > 0 ||
-    filterEscalated;
+    filterEscalated ||
+    filterNewCic ||
+    filterContentUpdate ||
+    filterRundown;
 
   // ── Trigger engine mutation ───────────────────────────────────────────────
   const evaluateMutation = useMutation({
@@ -871,6 +901,42 @@ export default function CcrWorkspacePage() {
                   </Button>
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Actions Required</label>
+                  <div className="flex gap-1.5">
+                    <Button
+                      variant={filterNewCic ? "secondary" : "outline"}
+                      size="sm"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={() => handleNewCicChange(!filterNewCic)}
+                      data-testid="button-filter-new-cic"
+                    >
+                      <CheckCircle2 className={`h-3 w-3 ${filterNewCic ? "text-slate-700" : "text-muted-foreground"}`} />
+                      New CIC
+                    </Button>
+                    <Button
+                      variant={filterContentUpdate ? "secondary" : "outline"}
+                      size="sm"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={() => handleContentUpdateChange(!filterContentUpdate)}
+                      data-testid="button-filter-content-update"
+                    >
+                      <CheckCircle2 className={`h-3 w-3 ${filterContentUpdate ? "text-slate-700" : "text-muted-foreground"}`} />
+                      Content Update
+                    </Button>
+                    <Button
+                      variant={filterRundown ? "secondary" : "outline"}
+                      size="sm"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={() => handleRundownChange(!filterRundown)}
+                      data-testid="button-filter-rundown"
+                    >
+                      <CheckCircle2 className={`h-3 w-3 ${filterRundown ? "text-slate-700" : "text-muted-foreground"}`} />
+                      Rundown
+                    </Button>
+                  </div>
+                </div>
+
                 {hasActiveFilters && (
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground opacity-0 select-none">x</label>
@@ -889,7 +955,7 @@ export default function CcrWorkspacePage() {
               </div>
 
               {/* Active filter tags */}
-              {(filterStages.length > 0 || filterNwTypes.length > 0) && (
+              {hasActiveFilters && (filterStages.length > 0 || filterNwTypes.length > 0 || filterNewCic || filterContentUpdate || filterRundown) && (
                 <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border/60">
                   {filterStages.map(s => (
                     <Badge
@@ -913,6 +979,21 @@ export default function CcrWorkspacePage() {
                       {t} <X className="h-2.5 w-2.5" />
                     </Badge>
                   ))}
+                  {filterNewCic && (
+                    <Badge variant="secondary" className="text-[10px] gap-1 cursor-pointer" onClick={() => handleNewCicChange(false)} data-testid="filter-tag-new-cic">
+                      New CIC Required <X className="h-2.5 w-2.5" />
+                    </Badge>
+                  )}
+                  {filterContentUpdate && (
+                    <Badge variant="secondary" className="text-[10px] gap-1 cursor-pointer" onClick={() => handleContentUpdateChange(false)} data-testid="filter-tag-content-update">
+                      Content Update Required <X className="h-2.5 w-2.5" />
+                    </Badge>
+                  )}
+                  {filterRundown && (
+                    <Badge variant="secondary" className="text-[10px] gap-1 cursor-pointer" onClick={() => handleRundownChange(false)} data-testid="filter-tag-rundown">
+                      Rundown Required <X className="h-2.5 w-2.5" />
+                    </Badge>
+                  )}
                 </div>
               )}
             </CardContent>
