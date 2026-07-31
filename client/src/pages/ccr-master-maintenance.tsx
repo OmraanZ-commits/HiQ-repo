@@ -178,7 +178,7 @@ type ChainGroupedViewProps = {
   onToggleChain: (chain: string) => void;
   // Selection
   selectable?: boolean;
-  selectableFilter?: (entry: NetworkEntry) => boolean;
+  selectableFilter?: (entry: NetworkEntry, chainName: string) => boolean;
   selectedCbus?: Set<string>;
   onToggleCbu?: (cbuCode: string) => void;
   onToggleAll?: (cbuCodes: string[], checked: boolean) => void;
@@ -256,7 +256,7 @@ function ChainGroupedView({
         const noneMapped = group.mappedCount === 0;
 
         const selectableCbusInGroup = selectable
-          ? group.cbus.filter(e => selectableFilter ? selectableFilter(e) : true).map(e => e.cbuCode ?? "")
+          ? group.cbus.filter(e => selectableFilter ? selectableFilter(e, group.chainName) : true).map(e => e.cbuCode ?? "")
           : [];
         const allGroupSelected = selectable && selectableCbusInGroup.length > 0
           && selectableCbusInGroup.every(c => selectedCbus?.has(c));
@@ -354,7 +354,7 @@ function ChainGroupedView({
                           ? "Configure is only available for Active basepacks"
                           : "CCR mapping is only available after Stock Movement Initiated";
                         const mappedForChain = depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(group.chainName) ?? false;
-                        const isSelectable = selectable && (selectableFilter ? selectableFilter(entry) : true);
+                        const isSelectable = selectable && (selectableFilter ? selectableFilter(entry, group.chainName) : true);
                         const isSelected = isSelectable && selectedCbus?.has(entry.cbuCode ?? "");
 
                         return (
@@ -705,9 +705,9 @@ export default function CcrMasterMaintenancePage() {
     onNavigate: navigate,
   };
 
-  // Overview: selectable only if fully mapped
-  const overviewSelectableFilter = (e: NetworkEntry) =>
-    depotChangeSummary[e.cbuCode ?? ""]?.status === "complete";
+  // Overview: selectable if this CBU is mapped for the specific chain being shown
+  const overviewSelectableFilter = (e: NetworkEntry, chainName: string) =>
+    depotChangeSummary[e.cbuCode ?? ""]?.saved?.includes(chainName) ?? false;
 
   // Helper: build item list for confirm dialogs
   function dialogItems(selected: Set<string>, pool: NetworkEntry[]) {
