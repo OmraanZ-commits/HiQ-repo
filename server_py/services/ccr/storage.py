@@ -419,6 +419,43 @@ class CcrStorage:
         finally:
             db.close()
 
+    def get_mapping_initiated(self) -> list:
+        """Return completed CCR line items where a new CIC was assigned."""
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(CcrLineItemModel, NetworkEntryModel)
+                .join(
+                    NetworkEntryModel,
+                    NetworkEntryModel.cbu_code == CcrLineItemModel.successor_cbu_code,
+                    isouter=True,
+                )
+                .filter(
+                    CcrLineItemModel.ccr_status == "Completed",
+                    CcrLineItemModel.new_cic_required == True,
+                    CcrLineItemModel.cic.isnot(None),
+                )
+                .order_by(CcrLineItemModel.updated_at.desc())
+                .all()
+            )
+            result = []
+            for item, ne in rows:
+                result.append({
+                    "id": str(item.id),
+                    "predecessorCbuCode": item.predecessor_cbu_code,
+                    "successorCbuCode": item.successor_cbu_code,
+                    "customerChain": item.customer_chain,
+                    "customerCode": item.customer_code,
+                    "cic": item.cic,
+                    "completedAt": item.updated_at.isoformat() if item.updated_at else None,
+                    "basepack": ne.basepack if ne else None,
+                    "typeOfNetwork": ne.type_of_network if ne else None,
+                    "materialDescription": ne.material_description if ne else None,
+                })
+            return result
+        finally:
+            db.close()
+
     def get_line_item_by_id(self, item_id: str) -> Optional[dict]:
         db = SessionLocal()
         try:

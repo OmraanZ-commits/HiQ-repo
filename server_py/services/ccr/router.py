@@ -205,6 +205,12 @@ async def get_ruleset():
     return _svc().get_ruleset()
 
 
+@router.get("/mapping-initiated")
+async def get_mapping_initiated():
+    """Completed CCR line items with a new CIC assigned — feeds Master Maintenance tab."""
+    return _svc().get_mapping_initiated()
+
+
 @router.get("/line-items")
 async def get_line_items(
     cse_id: Optional[str] = Query(None),

@@ -1004,7 +1004,7 @@ export default function CcrWorkspacePage() {
               { label: "Total Items",       value: filteredItems.length,      accent: "from-[#1f36c7] to-[#0d8ecf]",        testId: "metric-total" },
               { label: "Immediate Actions", value: immediateActions.length,   accent: "from-violet-700 to-purple-500",       testId: "metric-immediate-actions" },
               { label: "Actions to Start",  value: actionsToStart.length,     accent: "from-sky-600 to-cyan-500",            testId: "metric-actions-to-start" },
-              { label: "Completed",         value: completed.length,          accent: "from-emerald-600 to-emerald-400",     testId: "metric-completed" },
+              { label: "Submitted",          value: completed.length,          accent: "from-emerald-600 to-emerald-400",     testId: "metric-completed" },
             ].map(m => (
               <div
                 key={m.label}
@@ -1076,14 +1076,14 @@ export default function CcrWorkspacePage() {
                   </span>
                 </TabsTrigger>
 
-                {/* Tab 4 — Completed */}
+                {/* Tab 4 — Submitted */}
                 <TabsTrigger
                   value="completed"
                   className="gap-1.5 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:rounded-b-none rounded-t-md px-3 h-9"
                   data-testid="tab-completed"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Completed
+                  Submitted
                   <span
                     className="ml-1 min-w-[18px] px-1 h-[18px] bg-muted text-muted-foreground text-[9px] font-bold rounded-full flex items-center justify-center"
                     data-testid="badge-completed-count"

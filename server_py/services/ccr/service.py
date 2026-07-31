@@ -50,6 +50,9 @@ class CcrService:
 
     # ── Line Items ──────────────────────────────────────────────
 
+    def get_mapping_initiated(self) -> list:
+        return self.storage.get_mapping_initiated()
+
     def get_line_items(
         self,
         cse_id: Optional[str] = None,

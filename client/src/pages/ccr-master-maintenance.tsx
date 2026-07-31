@@ -34,6 +34,19 @@ type Customer = {
   behaviourType: string;
 };
 
+type MappingInitiatedItem = {
+  id: string;
+  predecessorCbuCode: string | null;
+  successorCbuCode: string | null;
+  customerChain: string;
+  customerCode: string;
+  cic: string | null;
+  completedAt: string | null;
+  basepack: string | null;
+  typeOfNetwork: string | null;
+  materialDescription: string | null;
+};
+
 // ─── Eligibility ──────────────────────────────────────────────────────────────
 
 const RELAUNCH_TYPES = new Set([
@@ -579,6 +592,11 @@ export default function CcrMasterMaintenancePage() {
     queryKey: ["/api/ccr/cic-mappings/depot-change-summary"],
   });
 
+  const { data: mappingInitiatedItems = [] } = useQuery<MappingInitiatedItem[]>({
+    queryKey: ["/api/ccr/mapping-initiated"],
+    queryFn: () => fetch("/api/ccr/mapping-initiated").then(r => r.json()),
+  });
+
   // ── Derived: eligible entries ──────────────────────────────────────────────
 
   const eligibleEntries = useMemo(
@@ -833,6 +851,8 @@ export default function CcrMasterMaintenancePage() {
                 <TabTrigger
                   value="ccr-initiated"
                   label="CCR Mapping Initiated"
+                  count={mappingInitiatedItems.length}
+                  countClass="bg-emerald-100 text-emerald-700"
                 />
                 <TabTrigger
                   value="requested"
@@ -931,9 +951,69 @@ export default function CcrMasterMaintenancePage() {
 
             {/* ── CCR Mapping Initiated tab ─────────────────────────────────── */}
             <TabsContent value="ccr-initiated" className="mt-0">
-              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                No data available yet.
-              </div>
+              {mappingInitiatedItems.length === 0 ? (
+                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  No CCR mappings initiated yet. Completed CCR line items with a new CIC assigned will appear here.
+                </div>
+              ) : (
+                (() => {
+                  const grouped = mappingInitiatedItems.reduce<Record<string, MappingInitiatedItem[]>>((acc, item) => {
+                    const chain = item.customerChain || "Unknown";
+                    if (!acc[chain]) acc[chain] = [];
+                    acc[chain].push(item);
+                    return acc;
+                  }, {});
+                  return (
+                    <div>
+                      {Object.entries(grouped).map(([chain, items]) => (
+                        <div key={chain}>
+                          {/* Chain header row */}
+                          <div className="flex items-center gap-2 px-4 py-2 bg-muted/30 border-b border-border">
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-xs font-semibold">{chain}</span>
+                            <span className="text-[10px] text-muted-foreground ml-1">{items.length} CBU{items.length !== 1 ? "s" : ""}</span>
+                          </div>
+                          <Table className="w-full table-fixed">
+                            <TableHeader>
+                              <TableRow className="bg-muted/10 hover:bg-muted/10">
+                                <TableHead className="text-xs font-semibold w-[13%]">Successor CBU</TableHead>
+                                <TableHead className="text-xs font-semibold w-[13%]">Predecessor CBU</TableHead>
+                                <TableHead className="text-xs font-semibold w-[9%]">Basepack</TableHead>
+                                <TableHead className="text-xs font-semibold w-[10%]">Network Type</TableHead>
+                                <TableHead className="text-xs font-semibold w-[22%]">Description</TableHead>
+                                <TableHead className="text-xs font-semibold w-[18%]">New CIC Assigned</TableHead>
+                                <TableHead className="text-xs font-semibold w-[15%]">Completed At</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {items.map(item => (
+                                <TableRow key={item.id} className="text-xs">
+                                  <TableCell className="font-mono font-medium py-2">{item.successorCbuCode ?? "—"}</TableCell>
+                                  <TableCell className="font-mono text-muted-foreground py-2">{item.predecessorCbuCode ?? "—"}</TableCell>
+                                  <TableCell className="font-mono py-2">{item.basepack ?? "—"}</TableCell>
+                                  <TableCell className="py-2">{item.typeOfNetwork ?? "—"}</TableCell>
+                                  <TableCell className="truncate py-2 text-muted-foreground">{item.materialDescription ?? "—"}</TableCell>
+                                  <TableCell className="py-2">
+                                    <span className="inline-flex items-center gap-1 font-mono font-semibold text-emerald-700">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      {item.cic}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-2 text-muted-foreground">
+                                    {item.completedAt
+                                      ? new Date(item.completedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                                      : "—"}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()
+              )}
             </TabsContent>
 
             {/* ── Requested for SAP Update tab ──────────────────────────────── */}
