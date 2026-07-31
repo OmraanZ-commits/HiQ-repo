@@ -923,10 +923,10 @@ export default function CcrWorkspacePage() {
         {!isLoading && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="summary-strip">
             {[
-              { label: "Total Items",       value: filteredItems.length,      accent: "from-[#1f36c7] to-[#0d8ecf]",    testId: "metric-total" },
-              { label: "Immediate Actions", value: immediateActions.length,   accent: "from-red-600 to-red-400",         testId: "metric-immediate-actions" },
-              { label: "Actions to Start",  value: actionsToStart.length,     accent: "from-amber-500 to-amber-400",     testId: "metric-actions-to-start" },
-              { label: "Completed",         value: completed.length,          accent: "from-emerald-600 to-emerald-400", testId: "metric-completed" },
+              { label: "Total Items",       value: filteredItems.length,      accent: "from-[#1f36c7] to-[#0d8ecf]",        testId: "metric-total" },
+              { label: "Immediate Actions", value: immediateActions.length,   accent: "from-violet-700 to-purple-500",       testId: "metric-immediate-actions" },
+              { label: "Actions to Start",  value: actionsToStart.length,     accent: "from-sky-600 to-cyan-500",            testId: "metric-actions-to-start" },
+              { label: "Completed",         value: completed.length,          accent: "from-emerald-600 to-emerald-400",     testId: "metric-completed" },
             ].map(m => (
               <div
                 key={m.label}
@@ -956,7 +956,7 @@ export default function CcrWorkspacePage() {
                   Immediate Actions
                   {immediateActions.length > 0 && (
                     <span
-                      className="ml-1 min-w-[18px] px-1 h-[18px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
+                      className="ml-1 min-w-[18px] px-1 h-[18px] bg-violet-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
                       data-testid="badge-immediate-actions-count"
                     >
                       {immediateActions.length}
@@ -974,7 +974,7 @@ export default function CcrWorkspacePage() {
                   Actions to Start
                   {actionsToStart.length > 0 && (
                     <span
-                      className="ml-1 min-w-[18px] px-1 h-[18px] bg-amber-400 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
+                      className="ml-1 min-w-[18px] px-1 h-[18px] bg-sky-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
                       data-testid="badge-actions-to-start-count"
                     >
                       {actionsToStart.length}

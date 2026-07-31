@@ -755,6 +755,35 @@ class CcrStorage:
             for r in db.query(CcrCustomerCodeMappingModel).all():
                 code_to_depot[r.customer_code] = r.depot
 
+            # ── 3b. Load CCR Ruleset flags for flag derivation ────────────────
+            # Maps network_change_type → (new_cic, content_update, rundown)
+            # so evaluate_triggers always produces values consistent with the
+            # "Take Action" modal's Ruleset Evaluation step.
+            _ruleset_flags: dict[str, tuple[bool, bool, bool]] = {
+                r.network_change_type: (
+                    bool(r.new_cic_required),
+                    bool(r.content_update_required),
+                    bool(r.rundown_required),
+                )
+                for r in db.query(CcrRulesetModel).all()
+            }
+            # typeOfNetwork code (upper+underscore) → ruleset name
+            _TYPE_TO_RULESET: dict[str, str] = {
+                "RL_PKG":             "Packaging Change",
+                "RL_PKG_FORM":        "Packaging Change",
+                "RELAUNCH":           "Packaging Change",
+                "NEW_LAUNCH":         "Packaging Change",
+                "RL_ART":             "Artwork Change",
+                "RL_ART_FORM":        "Formulation + Artwork Change",
+                "RL_FORM":            "Formulation Change",
+                "RL_ART_PKG":         "Artwork + Packaging Change",
+                "RL_ART_PKG_FORM":    "Artwork + Packaging Change",
+                "GRAMMAGE_CHANGE":    "Grammage Change",
+                "RL_PRICE":           "Pricing Change >10%",
+                "PACK_CHANGE":        "Packaging Change",
+                "CASE_CONFIG_CHANGE": "Case Config Change",
+            }
+
             # ── 4. Evaluate each active line item ─────────────────────────────
             rows = (
                 db.query(CcrLineItemModel)
@@ -823,25 +852,20 @@ class CcrStorage:
                         # DOH overrides the lifecycle-status stage (highest severity)
                         new_stage, new_color = "Fourth", "Blinking Red"
 
-                # ── Auto-derive action flags from typeOfNetwork ───────────────
-                # Runs unconditionally for every matched entry — before the
-                # new_stage guard — so items already at their highest stage
-                # still get their flags populated when typeOfNetwork is known.
-                # A user submission via the detail-screen ruleset can still
-                # override these after the fact.
+                # ── Auto-derive action flags via CCR Ruleset lookup ───────────
+                # Runs unconditionally for every matched entry so items already
+                # at their highest stage still get their flags synced.
+                # Uses the configured CCR Ruleset table so the workspace columns
+                # always match what the "Take Action" modal shows.
                 flag_changed = False
                 type_of_nw = (
                     entry.get("typeOfNetwork") or entry.get("type_of_network") or ""
                 ).upper().replace(" ", "_")
-                _new_cic = type_of_nw in (
-                    "RL_PKG", "RL_ART_PKG", "RL_PKG_FORM",
-                    "RL_ART_PKG_FORM", "NEW_LAUNCH",
-                )
-                _content = type_of_nw in (
-                    "RL_ART", "RL_ART_PKG", "RL_ART_FORM",
-                    "RL_ART_PKG_FORM", "RL_FORM",
-                )
-                _rundown = type_of_nw in ("RL_PRICE",)
+                ruleset_name = _TYPE_TO_RULESET.get(type_of_nw)
+                if ruleset_name and ruleset_name in _ruleset_flags:
+                    _new_cic, _content, _rundown = _ruleset_flags[ruleset_name]
+                else:
+                    _new_cic, _content, _rundown = False, False, False
                 if row.new_cic_required != _new_cic:
                     row.new_cic_required = _new_cic
                     flag_changed = True
