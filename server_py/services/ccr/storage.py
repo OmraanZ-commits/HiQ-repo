@@ -708,15 +708,17 @@ class CcrStorage:
             if cbu:
                 entry_map[cbu] = e
 
-        # BRD §11.1 trigger order:
-        #   First  ← Production Started        (Amber)
-        #   Second ← Post FTR Clearance / FTR Approved  (Amber)
-        #   Third  ← Stock Movement Initiated  (Red)
-        #   Fourth ← Inventory Threshold (DOH) (Blinking Red)
+        # Trigger order:
+        #   Pricing ← Pricing Updated / Price Activated   (Amber) ← earliest visibility
+        #   First   ← Production Started                  (Amber)
+        #   Second  ← Post FTR Clearance / FTR Approved   (Amber)
+        #   Third   ← Stock Movement Initiated             (Red)
+        #   Fourth  ← Inventory Threshold (DOH)            (Blinking Red)
         STATUS_TO_STAGE = {
-            "Production Started":       ("First",  "Amber"),
-            "FTR Approved":             ("Second", "Amber"),
-            "Stock Movement Initiated": ("Third",  "Red"),
+            "Pricing Updated":          ("Pricing", "Amber"),
+            "Production Started":       ("First",   "Amber"),
+            "FTR Approved":             ("Second",  "Amber"),
+            "Stock Movement Initiated": ("Third",   "Red"),
         }
 
         db = SessionLocal()
@@ -821,11 +823,8 @@ class CcrStorage:
                 if new_stage is None:
                     continue
 
-                # BRD §11.1: trigger stages are a one-way progression.
-                # Never allow the engine to move an item backward
-                # (e.g. from Third back to Second because the network status
-                # snapshot still shows "FTR Approved").
-                STAGE_ORDER = {"None": 0, "First": 1, "Second": 2, "Third": 3, "Fourth": 4}
+                # Trigger stages are a one-way progression — never move backward.
+                STAGE_ORDER = {"None": 0, "Pricing": 1, "First": 2, "Second": 3, "Third": 4, "Fourth": 5}
                 if STAGE_ORDER.get(new_stage, 0) <= STAGE_ORDER.get(current_stage, 0):
                     # Stage is the same or would regress — only sync color if it drifted
                     if current_stage == new_stage and row.urgency_color != new_color:
@@ -844,12 +843,11 @@ class CcrStorage:
                 changed = True
 
                 # ── Sync ccr_status with trigger activation ───────────────────
-                # BRD rule: Action Required only activates at Third stage and above
-                # (Stock Movement Initiated), because prior to that the CBU has not
-                # flowed into Paid Bible and the basepack is not yet active.
-                # First / Second stage items remain "Upcoming".
+                # CCR is actionable from the earliest trigger (Price Activated / Pricing
+                # Updated) onwards. Any fired stage moves the item to "Action Required"
+                # so it surfaces in Actions to Start or Immediate Actions.
                 # Completed items are never demoted.
-                if new_stage in ("Third", "Fourth") and row.ccr_status not in ("Completed",):
+                if new_stage != "None" and row.ccr_status not in ("Completed",):
                     if row.ccr_status != "Action Required":
                         row.ccr_status = "Action Required"
                         changed = True

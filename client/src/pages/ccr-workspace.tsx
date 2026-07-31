@@ -35,6 +35,9 @@ type CcrLineItem = {
   urgencyColor: string;
   ccrStatus: string;
   executionType: string;
+  newCicRequired: boolean | null;
+  contentUpdateRequired: boolean | null;
+  rundownRequired: boolean | null;
   rulesetOutcome: Record<string, unknown> | null;
   overrides: Record<string, unknown> | null;
   escalationDueAt: string | null;
@@ -64,8 +67,6 @@ const RELAUNCH_TYPES = new Set([
   "RL_ART", "RL_FORM", "RL_PKG", "RL_PRICE",
 ]);
 
-// Network status index for gating: only FTR Approved (idx 4) and above are shown
-// in Action Required / Completed; all pre-FTR entries are routed to Upcoming.
 const STATUS_IDX: Record<string, number> = {
   "Draft": 0,
   "Active": 1,
@@ -75,24 +76,26 @@ const STATUS_IDX: Record<string, number> = {
   "Stock Movement Initiated": 5,
   "Network transition complete": 6,
 };
-const FTR_APPROVED_IDX = 4;
 
-const TRIGGER_STAGE_ORDER = ["First", "Second", "Third", "Fourth", "None"];
+// CCR is actionable from Price Activated (Pricing Updated) onwards.
+const TRIGGER_STAGE_ORDER = ["Pricing", "First", "Second", "Third", "Fourth", "None"];
 
 const TRIGGER_STAGE_LABEL: Record<string, string> = {
-  First:  "Production Started",
-  Second: "Post FTR Clearance",
-  Third:  "Stock Movement Initiated",
-  Fourth: "Inventory Threshold Breached",
-  None:   "—",
+  Pricing: "Price Activated",
+  First:   "Production Started",
+  Second:  "Post FTR Clearance",
+  Third:   "Stock Movement Initiated",
+  Fourth:  "Inventory Threshold Breached",
+  None:    "—",
 };
 
 const TRIGGER_STAGE_COLOR: Record<string, string> = {
-  First:  "bg-amber-100 text-amber-700 border-amber-200",
-  Second: "bg-amber-100 text-amber-700 border-amber-200",
-  Third:  "bg-red-100 text-red-700 border-red-200",
-  Fourth: "bg-rose-100 text-rose-800 border-rose-400",
-  None:   "bg-muted text-muted-foreground border-border",
+  Pricing: "bg-violet-100 text-violet-700 border-violet-200",
+  First:   "bg-amber-100 text-amber-700 border-amber-200",
+  Second:  "bg-amber-100 text-amber-700 border-amber-200",
+  Third:   "bg-red-100 text-red-700 border-red-200",
+  Fourth:  "bg-rose-100 text-rose-800 border-rose-400",
+  None:    "bg-muted text-muted-foreground border-border",
 };
 
 // ─── URL filter helpers ───────────────────────────────────────────────────────
@@ -198,6 +201,39 @@ function CcrStatusChip({ status }: { status: string }) {
     <Badge variant="outline" className={`text-[10px] ${cls}`} data-testid={`chip-ccr-status-${status}`}>
       {status}
     </Badge>
+  );
+}
+
+// Replaces the generic "Action Required" chip with the specific CCR actions
+// derived from the ruleset outcome stored on each line item.
+function CcrActionsChip({ item }: { item: CcrLineItem }) {
+  const actions: { label: string; cls: string }[] = [];
+
+  if (item.newCicRequired)
+    actions.push({ label: "New CIC Required",       cls: "bg-red-100 text-red-700 border-red-200" });
+  if (item.contentUpdateRequired)
+    actions.push({ label: "Content Update Required", cls: "bg-amber-100 text-amber-700 border-amber-200" });
+  if (item.rundownRequired)
+    actions.push({ label: "Rundown Required",        cls: "bg-violet-100 text-violet-700 border-violet-200" });
+
+  if (actions.length === 0) {
+    // Fallback to generic status when ruleset hasn't been applied yet
+    return <CcrStatusChip status={item.ccrStatus} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {actions.map(({ label, cls }) => (
+        <Badge
+          key={label}
+          variant="outline"
+          className={`text-[10px] whitespace-nowrap ${cls}`}
+          data-testid={`chip-ccr-action-${label.replace(/\s+/g, "-").toLowerCase()}`}
+        >
+          {label}
+        </Badge>
+      ))}
+    </div>
   );
 }
 
@@ -340,7 +376,7 @@ function LineItemRow({
       </TableCell>
 
       <TableCell className="py-2.5">
-        <CcrStatusChip status={item.ccrStatus} />
+        <CcrActionsChip item={item} />
       </TableCell>
 
       <TableCell className="py-2.5 pr-4">
@@ -399,7 +435,7 @@ function TabPanel({
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Basepack</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Change Type</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">SLA</TableHead>
-            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">CCR Status</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Actions Required</TableHead>
             <TableHead className="py-2.5 pr-4 text-xs font-semibold text-muted-foreground">Escalation</TableHead>
           </TableRow>
         </TableHeader>
@@ -606,7 +642,8 @@ export default function CcrWorkspacePage() {
   );
   const actionsToStart = filteredItems.filter(i =>
     i.ccrStatus === "Action Required" &&
-    (i.triggerStage === "First" || i.triggerStage === "Second" || i.triggerStage === "Third"),
+    (i.triggerStage === "Pricing" || i.triggerStage === "First" ||
+     i.triggerStage === "Second"  || i.triggerStage === "Third"),
   );
   const upcoming  = filteredItems.filter(i => i.ccrStatus === "Upcoming");
   const completed = filteredItems.filter(i => i.ccrStatus === "Completed");
