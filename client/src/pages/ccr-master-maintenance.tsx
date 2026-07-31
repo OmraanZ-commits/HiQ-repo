@@ -273,16 +273,6 @@ function ChainGroupedView({
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className="font-semibold text-sm text-foreground truncate">{group.chainName}</span>
-                {group.customer.coverageType && (
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 whitespace-nowrap flex-shrink-0">
-                    {group.customer.coverageType}
-                  </span>
-                )}
-                {group.customer.behaviourType && (
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 whitespace-nowrap flex-shrink-0">
-                    {group.customer.behaviourType}
-                  </span>
-                )}
               </div>
 
               {/* Stats */}
@@ -597,7 +587,7 @@ export default function CcrMasterMaintenancePage() {
     <div className="min-h-screen bg-background">
       <UnileverHeader module="ccr" />
 
-      <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-5">
+      <div className="w-full px-6 py-6 space-y-5">
 
         {/* Page title */}
         <div>
