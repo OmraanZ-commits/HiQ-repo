@@ -366,13 +366,13 @@ function CbuTable({
             <TableHead className={`text-xs font-semibold whitespace-nowrap w-[7%] ${selectable ? "" : "pl-4"}`}>Basepack ID</TableHead>
             <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Basepack Status</TableHead>
             <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">CBU Code</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[15%]">Material Description</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Brand</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[13%]">Material Description</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[6%]">Brand</TableHead>
             <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Type of Network</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Network Start Date</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[14%]">Network Status</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Network Start Date</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[13%]">Network Status</TableHead>
             <TableHead className="text-xs font-semibold whitespace-nowrap text-center w-[9%]">Chain Mapping</TableHead>
-            <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Posting Status</TableHead>
+            <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Posting Status</TableHead>
             <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[5%]">Action</TableHead>
           </TableRow>
         </TableHeader>
