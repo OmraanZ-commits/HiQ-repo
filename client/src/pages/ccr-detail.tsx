@@ -67,6 +67,9 @@ interface CcrLineItem {
   createdAt: string | null;
   updatedAt: string | null;
   auditLog: AuditLogEntry[];
+  newCicRequired: boolean;
+  contentUpdateRequired: boolean;
+  rundownRequired: boolean;
 }
 
 interface NetworkEntry {
@@ -1142,6 +1145,32 @@ export default function CcrDetailPage() {
                       {networkEntry.successorDoh != null ? `${networkEntry.successorDoh} days` : "—"}
                     </dd>
                   </dl>
+
+                  <Separator className="my-3" />
+
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Actions Required</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {[
+                        { label: "New CIC",        active: item.newCicRequired },
+                        { label: "Content Update", active: item.contentUpdateRequired },
+                        { label: "Rundown",        active: item.rundownRequired },
+                      ].map(({ label, active }) => (
+                        <span
+                          key={label}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                            active
+                              ? "bg-slate-100 border-slate-300 text-slate-700"
+                              : "bg-muted/40 border-border text-muted-foreground line-through"
+                          }`}
+                          data-testid={`flag-${label.toLowerCase().replace(" ", "-")}`}
+                        >
+                          <CheckCircle2 className={`h-3 w-3 ${active ? "text-slate-500" : "text-muted-foreground/40"}`} />
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
