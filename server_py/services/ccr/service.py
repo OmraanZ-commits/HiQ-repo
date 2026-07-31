@@ -37,6 +37,9 @@ class CcrService:
     def post_cbus(self, cbu_codes: list, posted_by: str = "system") -> dict:
         return self.storage.post_cbus(cbu_codes=cbu_codes, posted_by=posted_by)
 
+    def update_sap_status(self, cbu_codes: list, status: str, updated_by: str = "system") -> dict:
+        return self.storage.update_sap_status(cbu_codes=cbu_codes, status=status, updated_by=updated_by)
+
     def get_mt_listing(self, successor_cbu_code: str) -> dict:
         return self.storage.get_mt_listing(successor_cbu_code)
 

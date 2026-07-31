@@ -171,12 +171,33 @@ class PostCbusRequest(BaseModel):
 @router.post("/post-cbus")
 async def post_cbus(req: PostCbusRequest):
     """
-    Explicitly mark a list of CBUs as Posted (notification sent).
-    Idempotent: re-posting an already-posted CBU is a no-op.
+    Submit a list of CBUs into the SAP update workflow (sap_status = "Requested").
+    Idempotent: already-submitted CBUs are reset to "Requested".
     """
     if not req.cbu_codes:
         raise HTTPException(status_code=400, detail="cbu_codes must not be empty")
     return _svc().post_cbus(cbu_codes=req.cbu_codes, posted_by=req.posted_by)
+
+
+class UpdateSapStatusRequest(BaseModel):
+    cbu_codes: List[str]
+    status: str  # "Requested" | "Validated" | "Error"
+    updated_by: str = "system"
+
+
+@router.post("/update-sap-status")
+async def update_sap_status(req: UpdateSapStatusRequest):
+    """
+    Update the SAP status of CBUs already in the SAP workflow.
+    Valid statuses: Requested | Validated | Error
+    """
+    if not req.cbu_codes:
+        raise HTTPException(status_code=400, detail="cbu_codes must not be empty")
+    if req.status not in {"Requested", "Validated", "Error"}:
+        raise HTTPException(status_code=400, detail=f"Invalid status '{req.status}'")
+    return _svc().update_sap_status(
+        cbu_codes=req.cbu_codes, status=req.status, updated_by=req.updated_by
+    )
 
 
 @router.get("/ruleset")

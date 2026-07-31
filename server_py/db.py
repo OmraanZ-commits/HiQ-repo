@@ -427,12 +427,13 @@ class CcrCicMappingModel(Base):
 
 
 class CcrPostedCbuModel(Base):
-    """Records CBUs that have been explicitly posted (notification sent to stakeholders)."""
+    """Records CBUs that have been submitted into the SAP update workflow."""
     __tablename__ = "ccr_posted_cbus"
 
     cbu_code = Column(String, primary_key=True)
     posted_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     posted_by = Column(String, nullable=True)
+    sap_status = Column(String, nullable=False, default="Requested")  # Requested | Validated | Error
 
 
 class CcrRulesetModel(Base):
@@ -964,6 +965,7 @@ def run_migrations():
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS customer_mapping JSONB",
             "ALTER TABLE ftr_images ALTER COLUMN image_url DROP NOT NULL",
             "ALTER TABLE ccr_cic_mapping ADD COLUMN IF NOT EXISTS cic_description VARCHAR",
+            "ALTER TABLE ccr_posted_cbus ADD COLUMN IF NOT EXISTS sap_status VARCHAR NOT NULL DEFAULT 'Requested'",
         ]:
             try:
                 conn.execute(text(col_sql))

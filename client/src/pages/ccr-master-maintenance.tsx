@@ -18,7 +18,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  CheckCircle2, Send, Mail, ChevronRight, ChevronDown, Tag, Building2,
+  CheckCircle2, Send, ChevronRight, ChevronDown, Tag, Building2,
+  AlertCircle, RotateCcw, Upload,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -114,12 +115,21 @@ function NetworkStatusBadge({ status }: { status: string | null | undefined }) {
   );
 }
 
-function PostingStatusBadge({ status }: { status: string }) {
-  if (status === "Posted") return (
-    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Posted</Badge>
+function SapStatusBadge({ status }: { status: string }) {
+  if (status === "Validated") return (
+    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs gap-1">
+      <CheckCircle2 className="h-3 w-3" /> Validated
+    </Badge>
   );
-  if (status === "Saved") return (
-    <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">Saved</Badge>
+  if (status === "Requested") return (
+    <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 text-xs gap-1">
+      <Upload className="h-3 w-3" /> Requested
+    </Badge>
+  );
+  if (status === "Error") return (
+    <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-xs gap-1">
+      <AlertCircle className="h-3 w-3" /> Error
+    </Badge>
   );
   return (
     <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50 text-xs">Pending</Badge>
@@ -145,9 +155,9 @@ type ChainGroup = {
   customer: Customer;
   chainName: string;
   cbus: NetworkEntry[];
-  mappedCount: number;    // CBUs where this chain appears in saved[]
+  mappedCount: number;
   totalCount: number;
-  postedCount: number;
+  sapRequestedCount: number;
 };
 
 // ─── Chain-Grouped View ───────────────────────────────────────────────────────
@@ -160,19 +170,20 @@ type ChainGroupedViewProps = {
   bpStatusMap: Record<string, string>;
   isLoading: boolean;
   emptyMessage: string;
-  // Filters (already applied to entries by parent, but chain/text filters applied here)
   filterChain: string;
   filterBasepack: string;
   filterCbu: string;
   filterNetworkType: string;
-  // Expand state
   expandedChains: Set<string>;
   onToggleChain: (chain: string) => void;
-  // Selection (Completed tab)
+  // Selection
   selectable?: boolean;
+  selectableFilter?: (entry: NetworkEntry) => boolean;
   selectedCbus?: Set<string>;
   onToggleCbu?: (cbuCode: string) => void;
   onToggleAll?: (cbuCodes: string[], checked: boolean) => void;
+  // Row actions
+  actionColumn?: (entry: NetworkEntry, chainName: string) => React.ReactNode;
   // Navigation
   onNavigate: (path: string) => void;
 };
@@ -182,13 +193,12 @@ function ChainGroupedView({
   isLoading, emptyMessage,
   filterChain, filterBasepack, filterCbu, filterNetworkType,
   expandedChains, onToggleChain,
-  selectable, selectedCbus, onToggleCbu, onToggleAll,
+  selectable, selectableFilter, selectedCbus, onToggleCbu, onToggleAll,
+  actionColumn,
   onNavigate,
 }: ChainGroupedViewProps) {
 
-  // Build chain groups from the tab-filtered entries
   const chainGroups: ChainGroup[] = useMemo(() => {
-    // Map chain → CBUs (from depotChangeSummary.applicable)
     const chainMap: Record<string, NetworkEntry[]> = {};
     entries.forEach(entry => {
       const summary = depotChangeSummary[entry.cbuCode ?? ""];
@@ -204,11 +214,9 @@ function ChainGroupedView({
         const chain = customer.customerChain;
         let cbus = chainMap[chain] ?? [];
 
-        // Apply text/type filters
         if (filterBasepack) cbus = cbus.filter(e => (e.basepack ?? "").toLowerCase().includes(filterBasepack.toLowerCase()));
         if (filterCbu) cbus = cbus.filter(e => (e.cbuCode ?? "").toLowerCase().includes(filterCbu.toLowerCase()));
         if (filterNetworkType !== "all") cbus = cbus.filter(e => e.typeOfNetwork === filterNetworkType);
-        // Apply chain filter
         if (filterChain !== "all" && chain !== filterChain) return null;
 
         if (cbus.length === 0) return null;
@@ -216,9 +224,11 @@ function ChainGroupedView({
         const mappedCount = cbus.filter(e =>
           depotChangeSummary[e.cbuCode ?? ""]?.saved?.includes(chain)
         ).length;
-        const postedCount = cbus.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Posted").length;
+        const sapRequestedCount = cbus.filter(e =>
+          ["Requested", "Validated", "Error"].includes(postingStatusMap[e.cbuCode ?? ""] ?? "")
+        ).length;
 
-        return { customer, chainName: chain, cbus, mappedCount, totalCount: cbus.length, postedCount };
+        return { customer, chainName: chain, cbus, mappedCount, totalCount: cbus.length, sapRequestedCount };
       })
       .filter(Boolean) as ChainGroup[];
   }, [entries, customers, depotChangeSummary, postingStatusMap, filterChain, filterBasepack, filterCbu, filterNetworkType]);
@@ -245,9 +255,8 @@ function ChainGroupedView({
         const allMapped = group.mappedCount === group.totalCount;
         const noneMapped = group.mappedCount === 0;
 
-        // For selectable tabs: all selectable CBUs in this chain
         const selectableCbusInGroup = selectable
-          ? group.cbus.filter(e => postingStatusMap[e.cbuCode ?? ""] !== "Posted").map(e => e.cbuCode ?? "")
+          ? group.cbus.filter(e => selectableFilter ? selectableFilter(e) : true).map(e => e.cbuCode ?? "")
           : [];
         const allGroupSelected = selectable && selectableCbusInGroup.length > 0
           && selectableCbusInGroup.every(c => selectedCbus?.has(c));
@@ -262,28 +271,23 @@ function ChainGroupedView({
               className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors select-none"
               onClick={() => onToggleChain(group.chainName)}
             >
-              {/* Expand toggle */}
               <span className="text-muted-foreground flex-shrink-0">
                 {isExpanded
                   ? <ChevronDown className="h-4 w-4" />
                   : <ChevronRight className="h-4 w-4" />}
               </span>
 
-              {/* Chain name + tags */}
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className="font-semibold text-sm text-foreground truncate">{group.chainName}</span>
               </div>
 
-              {/* Stats */}
               <div className="flex items-center gap-5 flex-shrink-0">
-                {/* CBU count */}
                 <div className="text-center hidden sm:block">
                   <div className="text-xs font-semibold text-foreground">{group.totalCount}</div>
                   <div className="text-[10px] text-muted-foreground">CBUs</div>
                 </div>
 
-                {/* Mapping progress */}
                 <div className="flex flex-col items-end gap-0.5 w-28">
                   <div className="flex items-center justify-between w-full">
                     <span className="text-[10px] text-muted-foreground">Mapped</span>
@@ -299,15 +303,6 @@ function ChainGroupedView({
                   </div>
                 </div>
 
-                {/* Posted count */}
-                {group.postedCount > 0 && (
-                  <div className="text-center hidden md:block">
-                    <div className="text-xs font-semibold text-emerald-600">{group.postedCount}</div>
-                    <div className="text-[10px] text-muted-foreground">Posted</div>
-                  </div>
-                )}
-
-                {/* Status chip */}
                 <div className="w-24 text-right">
                   {allMapped ? (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Complete</span>
@@ -327,7 +322,6 @@ function ChainGroupedView({
                   <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow className="bg-muted/20 hover:bg-muted/20">
-                        {/* indent spacer */}
                         <TableHead className="w-[2%]" />
                         {selectable && (
                           <TableHead className="w-[3%]">
@@ -345,10 +339,9 @@ function ChainGroupedView({
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Brand</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[9%]">Network Type</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[10%]">Network Change Date</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Network Status</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[10%]">Network Status</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Chain Status</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Posting</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[6%]">Action</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[9%]">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -361,22 +354,26 @@ function ChainGroupedView({
                           ? "Configure is only available for Active basepacks"
                           : "CCR mapping is only available after Stock Movement Initiated";
                         const mappedForChain = depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(group.chainName) ?? false;
-                        const isSelected = selectable && selectedCbus?.has(entry.cbuCode ?? "");
+                        const isSelectable = selectable && (selectableFilter ? selectableFilter(entry) : true);
+                        const isSelected = isSelectable && selectedCbus?.has(entry.cbuCode ?? "");
 
                         return (
                           <TableRow
                             key={`${group.chainName}-${entry.id}`}
                             className={`${isSelected ? "bg-blue-50" : rowIdx % 2 === 1 ? "bg-muted/10" : ""} hover:bg-muted/20`}
                           >
-                            {/* indent spacer */}
                             <TableCell className="pl-8" />
                             {selectable && (
                               <TableCell onClick={e => e.stopPropagation()}>
-                                <Checkbox
-                                  checked={isSelected ?? false}
-                                  onCheckedChange={() => onToggleCbu?.(entry.cbuCode ?? "")}
-                                  aria-label={`Select ${entry.cbuCode}`}
-                                />
+                                {isSelectable ? (
+                                  <Checkbox
+                                    checked={isSelected ?? false}
+                                    onCheckedChange={() => onToggleCbu?.(entry.cbuCode ?? "")}
+                                    aria-label={`Select ${entry.cbuCode}`}
+                                  />
+                                ) : (
+                                  <div className="w-4 h-4" />
+                                )}
                               </TableCell>
                             )}
                             <TableCell className="py-2 text-xs font-mono">{entry.basepack ?? "—"}</TableCell>
@@ -400,21 +397,22 @@ function ChainGroupedView({
                             <TableCell className="py-2">
                               <ChainMappingBadge mapped={mappedForChain} />
                             </TableCell>
-                            <TableCell className="py-2">
-                              <PostingStatusBadge status={postingStatusMap[entry.cbuCode ?? ""] ?? "Pending"} />
-                            </TableCell>
                             <TableCell className="pr-4 py-2 text-right">
-                              <div title={canConfigure ? undefined : disabledTitle} className="inline-block">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs px-2.5"
-                                  disabled={!canConfigure}
-                                  onClick={() => onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`)}
-                                >
-                                  Configure
-                                </Button>
-                              </div>
+                              {actionColumn ? (
+                                actionColumn(entry, group.chainName)
+                              ) : (
+                                <div title={canConfigure ? undefined : disabledTitle} className="inline-block">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs px-2.5"
+                                    disabled={!canConfigure}
+                                    onClick={() => onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`)}
+                                  >
+                                    Configure
+                                  </Button>
+                                </div>
+                              )}
                             </TableCell>
                           </TableRow>
                         );
@@ -428,6 +426,80 @@ function ChainGroupedView({
         );
       })}
     </div>
+  );
+}
+
+// ─── Confirm Dialog ───────────────────────────────────────────────────────────
+
+type ConfirmDialogProps = {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: React.ReactNode;
+  description: React.ReactNode;
+  confirmLabel: React.ReactNode;
+  confirmClass?: string;
+  isPending: boolean;
+  onConfirm: () => void;
+  items: { cbu: string; label: string }[];
+};
+
+function ConfirmDialog({
+  open, onOpenChange, title, description, confirmLabel, confirmClass,
+  isPending, onConfirm, items,
+}: ConfirmDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          {items.map(({ cbu, label }) => (
+            <div key={cbu} className="flex items-start gap-2 px-3 py-2 rounded-md bg-muted/40 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+              <div>
+                <span className="font-mono text-xs text-muted-foreground">{cbu}</span>
+                {label && <p className="text-xs text-foreground leading-tight mt-0.5">{label}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className={confirmClass ?? "bg-[#1f36c7] hover:bg-[#1730b0]"}
+            disabled={isPending}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Tab trigger helper ───────────────────────────────────────────────────────
+
+function TabTrigger({
+  value, label, count, countClass,
+}: { value: string; label: string; count?: number; countClass?: string }) {
+  return (
+    <TabsTrigger
+      value={value}
+      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium whitespace-nowrap"
+    >
+      {label}
+      {count != null && count > 0 && (
+        <span className={`ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-semibold ${countClass ?? "bg-muted text-muted-foreground"}`}>
+          {count}
+        </span>
+      )}
+    </TabsTrigger>
   );
 }
 
@@ -456,22 +528,27 @@ export default function CcrMasterMaintenancePage() {
   }
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<string>("new-launch");
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
-  // ── Bulk-select (Completed tab) ────────────────────────────────────────────
-  const [completedSelected, setCompletedSelected] = useState<Set<string>>(new Set());
-  const [postDialogOpen, setPostDialogOpen] = useState(false);
+  // ── Selection state ────────────────────────────────────────────────────────
+  // Overview tab: select complete CBUs → "Request SAP Update"
+  const [overviewSelected, setOverviewSelected] = useState<Set<string>>(new Set());
+  const [requestSapDialog, setRequestSapDialog] = useState(false);
 
-  function handleToggleCbu(cbuCode: string) {
-    setCompletedSelected(prev => {
+  // Requested tab: select CBUs → "Mark Validated" or "Mark Error"
+  const [requestedSelected, setRequestedSelected] = useState<Set<string>>(new Set());
+  const [validateDialog, setValidateDialog] = useState(false);
+  const [errorDialog, setErrorDialog] = useState(false);
+
+  function makeToggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
+    return (cbuCode: string) => setter(prev => {
       const next = new Set(prev);
       if (next.has(cbuCode)) next.delete(cbuCode); else next.add(cbuCode);
       return next;
     });
   }
-
-  function handleToggleAll(cbuCodes: string[], checked: boolean) {
-    setCompletedSelected(prev => {
+  function makeToggleAll(setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
+    return (cbuCodes: string[], checked: boolean) => setter(prev => {
       const next = new Set(prev);
       if (checked) cbuCodes.forEach(c => next.add(c));
       else cbuCodes.forEach(c => next.delete(c));
@@ -509,28 +586,30 @@ export default function CcrMasterMaintenancePage() {
     [networkEntries],
   );
 
-  // "CBU Overview" — not fully mapped or not yet saved for all chains
-  const newLaunchEntries = useMemo(
+  // Not yet in SAP flow
+  const overviewEntries = useMemo(
     () => eligibleEntries.filter(e => {
-      const s = depotChangeSummary[e.cbuCode ?? ""];
-      if (postingStatusMap[e.cbuCode ?? ""] === "Posted") return false;
-      return !s || s.status === "none" || s.status === "partial";
+      const sap = postingStatusMap[e.cbuCode ?? ""];
+      return !sap || sap === "Saved";
     }),
-    [eligibleEntries, depotChangeSummary, postingStatusMap],
+    [eligibleEntries, postingStatusMap],
   );
 
-  // "Completed" — all chains mapped, not yet posted
-  const completedEntries = useMemo(
-    () => eligibleEntries.filter(e => {
-      const s = depotChangeSummary[e.cbuCode ?? ""];
-      return s?.status === "complete" && postingStatusMap[e.cbuCode ?? ""] !== "Posted";
-    }),
-    [eligibleEntries, depotChangeSummary, postingStatusMap],
+  // Requested for SAP Update
+  const requestedEntries = useMemo(
+    () => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Requested"),
+    [eligibleEntries, postingStatusMap],
   );
 
-  // "Posted"
-  const postedEntries = useMemo(
-    () => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Posted"),
+  // Validated/Posted in SAP
+  const validatedEntries = useMemo(
+    () => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Validated"),
+    [eligibleEntries, postingStatusMap],
+  );
+
+  // Error Returned by SAP
+  const errorEntries = useMemo(
+    () => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Error"),
     [eligibleEntries, postingStatusMap],
   );
 
@@ -542,23 +621,68 @@ export default function CcrMasterMaintenancePage() {
     return Array.from(s).sort();
   }, [eligibleEntries]);
 
-  // ── Post & Notify mutation ─────────────────────────────────────────────────
+  // ── Mutations ──────────────────────────────────────────────────────────────
 
-  const postMutation = useMutation({
+  const invalidateSummaries = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
+  };
+
+  // Request SAP Update (from Overview)
+  const requestSapMutation = useMutation({
     mutationFn: async (cbuCodes: string[]) =>
       apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" }),
     onSuccess: (_data, cbuCodes) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
-      setCompletedSelected(new Set());
-      setPostDialogOpen(false);
+      invalidateSummaries();
+      setOverviewSelected(new Set());
+      setRequestSapDialog(false);
       toast({
-        title: "Notifications sent",
-        description: `${cbuCodes.length} CBU${cbuCodes.length > 1 ? "s" : ""} posted — stakeholder emails queued.`,
+        title: "SAP update requested",
+        description: `${cbuCodes.length} CBU${cbuCodes.length > 1 ? "s" : ""} submitted for SAP update.`,
+      });
+      setActiveTab("requested");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Request failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Update SAP status (Validated or Error)
+  const updateSapStatusMutation = useMutation({
+    mutationFn: async ({ cbuCodes, status }: { cbuCodes: string[]; status: string }) =>
+      apiRequest("POST", "/api/ccr/update-sap-status", {
+        cbu_codes: cbuCodes, status, updated_by: "demo-user",
+      }),
+    onSuccess: (_data, { cbuCodes, status }) => {
+      invalidateSummaries();
+      setRequestedSelected(new Set());
+      setValidateDialog(false);
+      setErrorDialog(false);
+      const label = status === "Validated" ? "validated in SAP" : "marked as error";
+      toast({
+        title: status === "Validated" ? "Validated in SAP" : "Error recorded",
+        description: `${cbuCodes.length} CBU${cbuCodes.length > 1 ? "s" : ""} ${label}.`,
       });
     },
     onError: (err: Error) => {
-      toast({ title: "Post failed", description: err.message, variant: "destructive" });
+      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Re-request (from Error tab)
+  const reRequestMutation = useMutation({
+    mutationFn: async (cbuCodes: string[]) =>
+      apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" }),
+    onSuccess: (_data, cbuCodes) => {
+      invalidateSummaries();
+      toast({
+        title: "Re-requested",
+        description: `${cbuCodes.length} CBU${cbuCodes.length > 1 ? "s" : ""} re-submitted for SAP update.`,
+      });
+      setActiveTab("requested");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Re-request failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -581,6 +705,23 @@ export default function CcrMasterMaintenancePage() {
     onNavigate: navigate,
   };
 
+  // Overview: selectable only if fully mapped
+  const overviewSelectableFilter = (e: NetworkEntry) =>
+    depotChangeSummary[e.cbuCode ?? ""]?.status === "complete";
+
+  // Helper: build item list for confirm dialogs
+  function dialogItems(selected: Set<string>, pool: NetworkEntry[]) {
+    return [...selected].map(cbu => {
+      const entry = pool.find(e => e.cbuCode === cbu);
+      return {
+        cbu,
+        label: entry
+          ? `${entry.materialDescription || entry.basepackDescription || "—"}${entry.brand ? ` · ${entry.brand}` : ""}`
+          : "",
+      };
+    });
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -593,7 +734,7 @@ export default function CcrMasterMaintenancePage() {
         <div>
           <h2 className="text-xl font-bold text-foreground">CCR Master Maintenance</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Customer chain–level view of CCR mappings for new launch CBUs
+            Customer chain–level view of CCR mappings and SAP update workflow
           </p>
         </div>
 
@@ -605,7 +746,6 @@ export default function CcrMasterMaintenancePage() {
               Filters
             </div>
 
-            {/* Customer Chain */}
             <div className="flex-1 min-w-[160px] max-w-[200px]">
               <Select value={filterChain} onValueChange={setFilterChain}>
                 <SelectTrigger className="h-8 text-xs">
@@ -622,7 +762,6 @@ export default function CcrMasterMaintenancePage() {
               </Select>
             </div>
 
-            {/* Base Pack */}
             <div className="flex-1 min-w-[130px] max-w-[160px]">
               <Input
                 placeholder="Base Pack…"
@@ -632,7 +771,6 @@ export default function CcrMasterMaintenancePage() {
               />
             </div>
 
-            {/* CBU */}
             <div className="flex-1 min-w-[130px] max-w-[160px]">
               <Input
                 placeholder="CBU code…"
@@ -642,7 +780,6 @@ export default function CcrMasterMaintenancePage() {
               />
             </div>
 
-            {/* Network Type */}
             <div className="flex-1 min-w-[140px] max-w-[180px]">
               <Select value={filterNetworkType} onValueChange={setFilterNetworkType}>
                 <SelectTrigger className="h-8 text-xs">
@@ -659,7 +796,6 @@ export default function CcrMasterMaintenancePage() {
               </Select>
             </div>
 
-            {/* Clear */}
             {(filterChain !== "all" || filterBasepack || filterCbu || filterNetworkType !== "all") && (
               <Button
                 variant="ghost"
@@ -683,96 +819,197 @@ export default function CcrMasterMaintenancePage() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
 
             {/* Tab header */}
-            <div className="border-b px-4 pt-3 flex items-center justify-between">
-              <TabsList className="h-9 bg-transparent border-0 p-0 gap-0 justify-start rounded-none">
-                <TabsTrigger
-                  value="new-launch"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
-                >
-                  CBU Overview
-                  {newLaunchEntries.length > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">
-                      {newLaunchEntries.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="completed"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
-                >
-                  Completed
-                  {completedEntries.length > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
-                      {completedEntries.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="posted"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium"
-                >
-                  Posted
-                  {postedEntries.length > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
-                      {postedEntries.length}
-                    </span>
-                  )}
-                </TabsTrigger>
+            <div className="border-b px-4 pt-3 flex items-center justify-between gap-2">
+              <TabsList className="h-9 bg-transparent border-0 p-0 gap-0 justify-start rounded-none overflow-x-auto flex-shrink-0">
+                <TabTrigger
+                  value="overview"
+                  label="CBU Overview"
+                  count={overviewEntries.length}
+                />
+                <TabTrigger
+                  value="requested"
+                  label="Requested for SAP Update"
+                  count={requestedEntries.length}
+                  countClass="bg-blue-100 text-blue-700"
+                />
+                <TabTrigger
+                  value="validated"
+                  label="Validated / Posted in SAP"
+                  count={validatedEntries.length}
+                  countClass="bg-emerald-100 text-emerald-700"
+                />
+                <TabTrigger
+                  value="error"
+                  label="Error Returned by SAP"
+                  count={errorEntries.length}
+                  countClass="bg-red-100 text-red-700"
+                />
               </TabsList>
             </div>
 
-            {/* ── CBU Overview tab ──────────────────────────────────────── */}
-            <TabsContent value="new-launch" className="mt-0">
-              <ChainGroupedView
-                {...sharedViewProps}
-                entries={newLaunchEntries}
-                emptyMessage="No unmapped new launch CBUs."
-              />
-            </TabsContent>
-
-            {/* ── Completed tab ─────────────────────────────────────────── */}
-            <TabsContent value="completed" className="mt-0">
-              {completedSelected.size > 0 && (
+            {/* ── CBU Overview tab ──────────────────────────────────────────── */}
+            <TabsContent value="overview" className="mt-0">
+              {/* Toolbar: shown when fully-mapped CBUs are selected */}
+              {overviewSelected.size > 0 && (
                 <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
                   <span className="text-sm text-blue-800 font-medium">
-                    {completedSelected.size} CBU{completedSelected.size > 1 ? "s" : ""} selected
+                    {overviewSelected.size} CBU{overviewSelected.size > 1 ? "s" : ""} selected
                   </span>
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm" variant="ghost"
                       className="h-7 text-xs text-blue-700"
-                      onClick={() => setCompletedSelected(new Set())}
+                      onClick={() => setOverviewSelected(new Set())}
                     >
                       Clear selection
                     </Button>
                     <Button
                       size="sm"
                       className="h-7 text-xs gap-1.5 bg-[#1f36c7] hover:bg-[#1730b0]"
-                      onClick={() => setPostDialogOpen(true)}
+                      onClick={() => setRequestSapDialog(true)}
                     >
                       <Send className="h-3.5 w-3.5" />
-                      Post &amp; Notify
+                      Request SAP Update
                     </Button>
                   </div>
                 </div>
               )}
+              {overviewSelected.size === 0 && (
+                <div className="px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
+                  Select fully-mapped CBUs (marked <span className="font-semibold text-emerald-600">Complete</span>) to request a SAP update
+                </div>
+              )}
               <ChainGroupedView
                 {...sharedViewProps}
-                entries={completedEntries}
-                emptyMessage="No CBUs ready to post yet — configure all customer chains first."
+                entries={overviewEntries}
+                emptyMessage="No CBUs awaiting mapping — all are in the SAP workflow."
                 selectable
-                selectedCbus={completedSelected}
-                onToggleCbu={handleToggleCbu}
-                onToggleAll={handleToggleAll}
+                selectableFilter={overviewSelectableFilter}
+                selectedCbus={overviewSelected}
+                onToggleCbu={makeToggle(setOverviewSelected)}
+                onToggleAll={makeToggleAll(setOverviewSelected)}
+                actionColumn={(entry, _chain) => {
+                  const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
+                  const isActiveBp = bpStatus === "Active";
+                  const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+                  const canConfigure = isActiveBp && networkOk;
+                  const disabledTitle = !isActiveBp
+                    ? "Configure is only available for Active basepacks"
+                    : "CCR mapping is only available after Stock Movement Initiated";
+                  const isComplete = depotChangeSummary[entry.cbuCode ?? ""]?.status === "complete";
+                  if (isComplete) {
+                    return (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">
+                        Ready
+                      </span>
+                    );
+                  }
+                  return (
+                    <div title={canConfigure ? undefined : disabledTitle} className="inline-block">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs px-2.5"
+                        disabled={!canConfigure}
+                        onClick={() => navigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`)}
+                      >
+                        Configure
+                      </Button>
+                    </div>
+                  );
+                }}
               />
             </TabsContent>
 
-            {/* ── Posted tab ────────────────────────────────────────────── */}
-            <TabsContent value="posted" className="mt-0">
+            {/* ── Requested for SAP Update tab ──────────────────────────────── */}
+            <TabsContent value="requested" className="mt-0">
+              {requestedSelected.size > 0 ? (
+                <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
+                  <span className="text-sm text-blue-800 font-medium">
+                    {requestedSelected.size} CBU{requestedSelected.size > 1 ? "s" : ""} selected
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm" variant="ghost"
+                      className="h-7 text-xs text-blue-700"
+                      onClick={() => setRequestedSelected(new Set())}
+                    >
+                      Clear selection
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
+                      onClick={() => setErrorDialog(true)}
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Mark as Error
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => setValidateDialog(true)}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Mark as Validated
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
+                  Select CBUs to mark as <span className="font-semibold text-emerald-600">Validated in SAP</span> or <span className="font-semibold text-red-600">Error Returned by SAP</span>
+                </div>
+              )}
               <ChainGroupedView
                 {...sharedViewProps}
-                entries={postedEntries}
-                emptyMessage="No posted CBUs yet."
+                entries={requestedEntries}
+                emptyMessage="No CBUs are currently awaiting SAP update."
+                selectable
+                selectedCbus={requestedSelected}
+                onToggleCbu={makeToggle(setRequestedSelected)}
+                onToggleAll={makeToggleAll(setRequestedSelected)}
+                actionColumn={() => (
+                  <SapStatusBadge status="Requested" />
+                )}
+              />
+            </TabsContent>
+
+            {/* ── Validated / Posted in SAP tab ─────────────────────────────── */}
+            <TabsContent value="validated" className="mt-0">
+              <div className="px-4 py-2 bg-emerald-50 border-b text-xs text-emerald-700 font-medium">
+                These CBUs have been validated and posted in SAP
+              </div>
+              <ChainGroupedView
+                {...sharedViewProps}
+                entries={validatedEntries}
+                emptyMessage="No CBUs have been validated in SAP yet."
+                actionColumn={() => (
+                  <SapStatusBadge status="Validated" />
+                )}
+              />
+            </TabsContent>
+
+            {/* ── Error Returned by SAP tab ──────────────────────────────────── */}
+            <TabsContent value="error" className="mt-0">
+              <div className="px-4 py-2 bg-red-50 border-b text-xs text-red-700 font-medium">
+                SAP returned errors for these CBUs — review and re-request as needed
+              </div>
+              <ChainGroupedView
+                {...sharedViewProps}
+                entries={errorEntries}
+                emptyMessage="No CBUs have SAP errors."
+                actionColumn={(entry) => (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-orange-300 text-orange-700 hover:bg-orange-50 px-2"
+                    disabled={reRequestMutation.isPending}
+                    onClick={() => reRequestMutation.mutate([entry.cbuCode ?? ""])}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Re-request
+                  </Button>
+                )}
               />
             </TabsContent>
 
@@ -781,61 +1018,89 @@ export default function CcrMasterMaintenancePage() {
 
       </div>
 
-      {/* ── Post & Notify dialog ──────────────────────────────────────────────── */}
-      <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-[#1f36c7]" />
-              Post &amp; Notify Stakeholders
-            </DialogTitle>
-            <DialogDescription>
-              A DC mapping template will be sent to the relevant stakeholders for the
-              {completedSelected.size === 1 ? " following CBU" : ` following ${completedSelected.size} CBUs`}.
-              Once posted, the CBUs will move to the <strong>Posted</strong> tab.
-            </DialogDescription>
-          </DialogHeader>
+      {/* ── Request SAP Update dialog ─────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={requestSapDialog}
+        onOpenChange={setRequestSapDialog}
+        title={
+          <span className="flex items-center gap-2">
+            <Send className="h-5 w-5 text-[#1f36c7]" />
+            Request SAP Update
+          </span>
+        }
+        description={
+          <>
+            The mapping export for the following CBU{overviewSelected.size > 1 ? "s" : ""} will be submitted
+            to SAP. Once requested, {overviewSelected.size > 1 ? "they" : "it"} will move to the{" "}
+            <strong>Requested for SAP Update</strong> tab.
+          </>
+        }
+        confirmLabel={
+          <>
+            <Send className="h-3.5 w-3.5 mr-1.5" />
+            {requestSapMutation.isPending ? "Submitting…" : "Confirm & Request"}
+          </>
+        }
+        isPending={requestSapMutation.isPending}
+        onConfirm={() => requestSapMutation.mutate([...overviewSelected])}
+        items={dialogItems(overviewSelected, overviewEntries)}
+      />
 
-          <div className="space-y-1.5 max-h-48 overflow-y-auto">
-            {[...completedSelected].map(cbu => {
-              const entry = completedEntries.find(e => e.cbuCode === cbu);
-              return (
-                <div key={cbu} className="flex items-start gap-2 px-3 py-2 rounded-md bg-muted/40 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                  <div>
-                    <span className="font-mono text-xs text-muted-foreground">{cbu}</span>
-                    {entry && (
-                      <p className="text-xs text-foreground leading-tight mt-0.5">
-                        {entry.materialDescription || entry.basepackDescription || "—"}
-                        {entry.brand && <span className="text-muted-foreground"> · {entry.brand}</span>}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* ── Mark Validated dialog ─────────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={validateDialog}
+        onOpenChange={setValidateDialog}
+        title={
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            Mark as Validated in SAP
+          </span>
+        }
+        description={
+          <>
+            Confirm that the following CBU{requestedSelected.size > 1 ? "s have" : " has"} been
+            successfully validated and posted in SAP.
+          </>
+        }
+        confirmLabel={
+          <>
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+            {updateSapStatusMutation.isPending ? "Updating…" : "Confirm Validated"}
+          </>
+        }
+        confirmClass="bg-emerald-600 hover:bg-emerald-700 text-white"
+        isPending={updateSapStatusMutation.isPending}
+        onConfirm={() => updateSapStatusMutation.mutate({ cbuCodes: [...requestedSelected], status: "Validated" })}
+        items={dialogItems(requestedSelected, requestedEntries)}
+      />
 
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline" size="sm"
-              onClick={() => setPostDialogOpen(false)}
-              disabled={postMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="gap-1.5 bg-[#1f36c7] hover:bg-[#1730b0]"
-              disabled={postMutation.isPending}
-              onClick={() => postMutation.mutate([...completedSelected])}
-            >
-              <Send className="h-3.5 w-3.5" />
-              {postMutation.isPending ? "Posting…" : "Confirm & Post"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ── Mark Error dialog ─────────────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={errorDialog}
+        onOpenChange={setErrorDialog}
+        title={
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            Mark as Error Returned by SAP
+          </span>
+        }
+        description={
+          <>
+            Confirm that SAP returned an error for the following CBU{requestedSelected.size > 1 ? "s" : ""}.
+            {" "}You can re-request them from the <strong>Error Returned by SAP</strong> tab after investigation.
+          </>
+        }
+        confirmLabel={
+          <>
+            <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
+            {updateSapStatusMutation.isPending ? "Updating…" : "Confirm Error"}
+          </>
+        }
+        confirmClass="bg-red-600 hover:bg-red-700 text-white"
+        isPending={updateSapStatusMutation.isPending}
+        onConfirm={() => updateSapStatusMutation.mutate({ cbuCodes: [...requestedSelected], status: "Error" })}
+        items={dialogItems(requestedSelected, requestedEntries)}
+      />
 
     </div>
   );

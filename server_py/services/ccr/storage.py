@@ -198,58 +198,86 @@ class CcrStorage:
 
     def get_cic_mapping_status_summary(self) -> dict:
         """
-        Returns per-CBU posting status for all CBUs that have CIC mapping rows.
-        Pending: no rows exist (caller defaults; absent keys = Pending)
-        Saved:   rows exist but not yet explicitly posted
-        Posted:  CBU has been explicitly posted via post_cbus() (in ccr_posted_cbus)
+        Returns per-CBU SAP status for all CBUs that have CIC mapping rows.
+        Absent key / "Pending": no CIC rows exist yet
+        "Saved":      CIC rows exist but not yet submitted to SAP flow
+        "Requested":  CBU submitted via request_sap_update()
+        "Validated":  CBU marked as validated/posted in SAP
+        "Error":      CBU marked as error returned by SAP
         """
         db = SessionLocal()
         try:
-            # Which CBUs have any CIC rows at all?
             cbus_with_rows = {
                 r.cbu_code
                 for r in db.query(CcrCicMappingModel.cbu_code).distinct().all()
             }
-            # Which CBUs have been explicitly posted?
-            posted_cbus = {
-                r.cbu_code
-                for r in db.query(CcrPostedCbuModel.cbu_code).all()
+            sap_rows = {
+                r.cbu_code: r.sap_status
+                for r in db.query(CcrPostedCbuModel).all()
             }
         finally:
             db.close()
 
         result = {}
         for cbu in cbus_with_rows:
-            result[cbu] = "Posted" if cbu in posted_cbus else "Saved"
-        # Also surface Posted CBUs that may no longer have CIC rows (edge case)
-        for cbu in posted_cbus:
+            result[cbu] = sap_rows[cbu] if cbu in sap_rows else "Saved"
+        # Surface SAP-flow CBUs even if CIC rows were removed
+        for cbu, status in sap_rows.items():
             if cbu not in result:
-                result[cbu] = "Posted"
+                result[cbu] = status
         return result
 
     def post_cbus(self, cbu_codes: list, posted_by: str = "system") -> dict:
         """
-        Explicitly mark a list of CBUs as Posted.
-        Idempotent: re-posting an already-posted CBU is a no-op.
-        Returns {"posted": [cbu_codes that were newly inserted]}.
+        Submit a list of CBUs into the SAP update workflow (sap_status = "Requested").
+        Idempotent: if the CBU is already in the table its status is reset to "Requested".
+        Returns {"requested": [cbu_codes newly inserted or reset]}.
         """
         db = SessionLocal()
         try:
             now = datetime.now(timezone.utc)
-            newly_posted = []
+            newly_requested = []
             for cbu_code in cbu_codes:
                 existing = db.query(CcrPostedCbuModel).filter(
                     CcrPostedCbuModel.cbu_code == cbu_code
                 ).first()
-                if not existing:
+                if existing:
+                    existing.sap_status = "Requested"
+                    newly_requested.append(cbu_code)
+                else:
                     db.add(CcrPostedCbuModel(
                         cbu_code=cbu_code,
                         posted_at=now,
                         posted_by=posted_by,
+                        sap_status="Requested",
                     ))
-                    newly_posted.append(cbu_code)
+                    newly_requested.append(cbu_code)
             db.commit()
-            return {"posted": newly_posted, "already_posted": [c for c in cbu_codes if c not in newly_posted]}
+            return {"requested": newly_requested}
+        finally:
+            db.close()
+
+    def update_sap_status(self, cbu_codes: list, status: str, updated_by: str = "system") -> dict:
+        """
+        Update the sap_status of already-submitted CBUs.
+        Valid statuses: "Requested" | "Validated" | "Error"
+        Only updates rows that already exist in ccr_posted_cbus.
+        """
+        valid = {"Requested", "Validated", "Error"}
+        if status not in valid:
+            raise ValueError(f"Invalid sap_status '{status}'. Must be one of {valid}.")
+        db = SessionLocal()
+        try:
+            updated = []
+            for cbu_code in cbu_codes:
+                row = db.query(CcrPostedCbuModel).filter(
+                    CcrPostedCbuModel.cbu_code == cbu_code
+                ).first()
+                if row:
+                    row.sap_status = status
+                    updated.append(cbu_code)
+            db.commit()
+            return {"updated": updated, "not_found": [c for c in cbu_codes if c not in updated]}
         finally:
             db.close()
 
