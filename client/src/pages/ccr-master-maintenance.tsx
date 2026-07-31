@@ -831,6 +831,10 @@ export default function CcrMasterMaintenancePage() {
                   count={overviewEntries.length}
                 />
                 <TabTrigger
+                  value="ccr-initiated"
+                  label="CCR Mapping Initiated"
+                />
+                <TabTrigger
                   value="requested"
                   label="Requested for SAP Update"
                   count={requestedEntries.length}
@@ -923,6 +927,13 @@ export default function CcrMasterMaintenancePage() {
                   );
                 }}
               />
+            </TabsContent>
+
+            {/* ── CCR Mapping Initiated tab ─────────────────────────────────── */}
+            <TabsContent value="ccr-initiated" className="mt-0">
+              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                No data available yet.
+              </div>
             </TabsContent>
 
             {/* ── Requested for SAP Update tab ──────────────────────────────── */}
