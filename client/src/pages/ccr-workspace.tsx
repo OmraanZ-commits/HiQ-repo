@@ -375,20 +375,20 @@ function LineItemRow({
         <SlaChip escalationDueAt={item.escalationDueAt} triggerStage={item.triggerStage} />
       </TableCell>
 
-      <TableCell className="py-2.5">
+      <TableCell className="py-2.5 text-center">
         {item.newCicRequired
-          ? <Badge variant="outline" className="text-[10px] bg-red-100 text-red-700 border-red-200">Required</Badge>
-          : <span className="text-muted-foreground text-xs">—</span>}
+          ? <CheckCircle2 className="h-4 w-4 text-red-500 inline-block" />
+          : <span className="text-muted-foreground/40 text-sm">—</span>}
       </TableCell>
-      <TableCell className="py-2.5">
+      <TableCell className="py-2.5 text-center">
         {item.contentUpdateRequired
-          ? <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">Required</Badge>
-          : <span className="text-muted-foreground text-xs">—</span>}
+          ? <CheckCircle2 className="h-4 w-4 text-amber-500 inline-block" />
+          : <span className="text-muted-foreground/40 text-sm">—</span>}
       </TableCell>
-      <TableCell className="py-2.5">
+      <TableCell className="py-2.5 text-center">
         {item.rundownRequired
-          ? <Badge variant="outline" className="text-[10px] bg-violet-100 text-violet-700 border-violet-200">Required</Badge>
-          : <span className="text-muted-foreground text-xs">—</span>}
+          ? <CheckCircle2 className="h-4 w-4 text-violet-500 inline-block" />
+          : <span className="text-muted-foreground/40 text-sm">—</span>}
       </TableCell>
 
       <TableCell className="py-2.5 pr-4">
@@ -447,9 +447,9 @@ function TabPanel({
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Basepack</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Change Type</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">SLA</TableHead>
-            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">New CIC Required</TableHead>
-            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Content Update Required</TableHead>
-            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Rundown Required</TableHead>
+            <TableHead className="py-2.5 w-24 text-center text-xs font-semibold text-muted-foreground">New CIC</TableHead>
+            <TableHead className="py-2.5 w-28 text-center text-xs font-semibold text-muted-foreground">Content Update</TableHead>
+            <TableHead className="py-2.5 w-24 text-center text-xs font-semibold text-muted-foreground">Rundown</TableHead>
             <TableHead className="py-2.5 pr-4 text-xs font-semibold text-muted-foreground">Escalation</TableHead>
           </TableRow>
         </TableHeader>

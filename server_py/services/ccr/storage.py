@@ -124,6 +124,9 @@ def _line_item_to_dict(row: CcrLineItemModel) -> dict:
         "urgencyColor": row.urgency_color,
         "ccrStatus": row.ccr_status,
         "executionType": row.execution_type,
+        "newCicRequired": row.new_cic_required,
+        "contentUpdateRequired": row.content_update_required,
+        "rundownRequired": row.rundown_required,
         "rulesetOutcome": row.ruleset_outcome,
         "overrides": row.overrides,
         "escalationDueAt": row.escalation_due_at.isoformat() if row.escalation_due_at else None,
@@ -819,6 +822,38 @@ class CcrStorage:
                     if doh_eligible:
                         # DOH overrides the lifecycle-status stage (highest severity)
                         new_stage, new_color = "Fourth", "Blinking Red"
+
+                # ── Auto-derive action flags from typeOfNetwork ───────────────
+                # Runs unconditionally for every matched entry — before the
+                # new_stage guard — so items already at their highest stage
+                # still get their flags populated when typeOfNetwork is known.
+                # A user submission via the detail-screen ruleset can still
+                # override these after the fact.
+                flag_changed = False
+                type_of_nw = (
+                    entry.get("typeOfNetwork") or entry.get("type_of_network") or ""
+                ).upper().replace(" ", "_")
+                _new_cic = type_of_nw in (
+                    "RL_PKG", "RL_ART_PKG", "RL_PKG_FORM",
+                    "RL_ART_PKG_FORM", "NEW_LAUNCH",
+                )
+                _content = type_of_nw in (
+                    "RL_ART", "RL_ART_PKG", "RL_ART_FORM",
+                    "RL_ART_PKG_FORM", "RL_FORM",
+                )
+                _rundown = type_of_nw in ("RL_PRICE",)
+                if row.new_cic_required != _new_cic:
+                    row.new_cic_required = _new_cic
+                    flag_changed = True
+                if row.content_update_required != _content:
+                    row.content_update_required = _content
+                    flag_changed = True
+                if row.rundown_required != _rundown:
+                    row.rundown_required = _rundown
+                    flag_changed = True
+                if flag_changed:
+                    row.updated_at = now
+                    updated += 1
 
                 if new_stage is None:
                     continue

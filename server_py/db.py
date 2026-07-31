@@ -461,6 +461,9 @@ class CcrLineItemModel(Base):
     urgency_color = Column(String, nullable=False, default="None")   # None | Amber | Red | Blinking Red
     ccr_status = Column(String, nullable=False, default="Upcoming")  # Upcoming | Action Required | Completed
     execution_type = Column(String, nullable=False, default="Manual")  # Auto | Semi-Auto | Manual | None
+    new_cic_required = Column(Boolean, nullable=False, default=False)
+    content_update_required = Column(Boolean, nullable=False, default=False)
+    rundown_required = Column(Boolean, nullable=False, default=False)
     ruleset_outcome = Column(JSONB, nullable=True)
     overrides = Column(JSONB, nullable=True)
     escalation_due_at = Column(DateTime, nullable=True)
@@ -1065,6 +1068,15 @@ def run_migrations():
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """))
+        conn.execute(text(
+            "ALTER TABLE ccr_line_items ADD COLUMN IF NOT EXISTS new_cic_required BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
+        conn.execute(text(
+            "ALTER TABLE ccr_line_items ADD COLUMN IF NOT EXISTS content_update_required BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
+        conn.execute(text(
+            "ALTER TABLE ccr_line_items ADD COLUMN IF NOT EXISTS rundown_required BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_ccr_li_pred ON ccr_line_items (predecessor_cbu_code)"
         ))
