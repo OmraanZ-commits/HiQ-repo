@@ -391,17 +391,8 @@ function ChainGroupedView({
                             <TableCell className="py-2 text-xs whitespace-nowrap">
                               {getNetworkChangeTypeName(entry.typeOfNetwork)}
                             </TableCell>
-                            <TableCell className="py-2 text-xs whitespace-nowrap">
-                              {(() => {
-                                const raw = (entry as any).startDate;
-                                const formatted = formatCbuDate(raw);
-                                const isPast = raw && new Date(raw + "T00:00:00") < new Date();
-                                return (
-                                  <span className={isPast ? "text-amber-600 font-medium" : "text-muted-foreground"} title={isPast ? "Date is in the past" : undefined}>
-                                    {formatted}{isPast && " ⚠"}
-                                  </span>
-                                );
-                              })()}
+                            <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
+                              {formatCbuDate((entry as any).startDate)}
                             </TableCell>
                             <TableCell className="py-2">
                               <NetworkStatusBadge status={entry.networkStatus} />
