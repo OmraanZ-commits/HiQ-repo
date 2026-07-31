@@ -174,7 +174,7 @@ export default function CcrMtListingPage() {
     enabled: !!selectedCbu,
   });
 
-  // Extension / relaunch CBUs that have a predecessor — eligible for MT Listing view
+  // Relaunch CBUs that have a predecessor — eligible for MT Listing view
   const eligibleEntries = useMemo(
     () => networkEntries.filter(e =>
       (RELAUNCH_TYPES.has(e.typeOfNetwork ?? "") ||
@@ -305,7 +305,7 @@ export default function CcrMtListingPage() {
         <div>
           <h2 className="text-xl font-bold text-foreground">MT Listing</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            View how the MT listing is updated for relaunch / extension CBUs when an existing CIC is reused
+            View how the MT listing is updated for relaunch CBUs when an existing CIC is reused
           </p>
         </div>
 
@@ -326,7 +326,7 @@ export default function CcrMtListingPage() {
               ) : (
                 <Select value={selectedCbu} onValueChange={v => { setSelectedCbu(v); setSelectedChain("all"); }}>
                   <SelectTrigger className="h-8 text-xs w-72" data-testid="select-mt-listing-cbu">
-                    <SelectValue placeholder="Choose a relaunch / extension CBU…" />
+                    <SelectValue placeholder="Choose a relaunch CBU…" />
                   </SelectTrigger>
                   <SelectContent>
                     {eligibleEntries.length === 0 && (
@@ -388,7 +388,7 @@ export default function CcrMtListingPage() {
             {/* ── Empty / loading / error states (outside tabs) ──────── */}
             {!selectedCbu && (
               <div className="py-12 text-center text-sm text-muted-foreground">
-                Select a relaunch or extension CBU above to view its MT listing impact.
+                Select a relaunch CBU above to view its MT listing impact.
               </div>
             )}
             {selectedCbu && mtListingLoading && (

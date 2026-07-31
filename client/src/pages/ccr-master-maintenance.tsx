@@ -344,7 +344,7 @@ function ChainGroupedView({
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[16%]">Material Description</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Brand</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[9%]">Network Type</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[10%]">Network Start Date</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[10%]">Network Change Date</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Network Status</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Chain Status</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[7%]">Posting</TableHead>
@@ -391,8 +391,17 @@ function ChainGroupedView({
                             <TableCell className="py-2 text-xs whitespace-nowrap">
                               {getNetworkChangeTypeName(entry.typeOfNetwork)}
                             </TableCell>
-                            <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
-                              {formatCbuDate((entry as any).startDate)}
+                            <TableCell className="py-2 text-xs whitespace-nowrap">
+                              {(() => {
+                                const raw = (entry as any).startDate;
+                                const formatted = formatCbuDate(raw);
+                                const isPast = raw && new Date(raw + "T00:00:00") < new Date();
+                                return (
+                                  <span className={isPast ? "text-amber-600 font-medium" : "text-muted-foreground"} title={isPast ? "Date is in the past" : undefined}>
+                                    {formatted}{isPast && " ⚠"}
+                                  </span>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell className="py-2">
                               <NetworkStatusBadge status={entry.networkStatus} />

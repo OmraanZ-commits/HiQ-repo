@@ -10,6 +10,7 @@ export const NETWORK_CHANGE_TYPE_NAMES: Record<string, string> = {
   "RL_PKG": "Relaunch – Packaging Change",
   "RL_PRICE": "Relaunch – Pricing Change",
   "NEW_LAUNCH": "New Launch",
+  "EXTENSION": "Relaunch",
   "RTD": "RTD",
   "SAMPLING": "Sampling",
   "TRANSIT": "Transit",
