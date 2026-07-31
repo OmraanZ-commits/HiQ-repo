@@ -376,7 +376,19 @@ function LineItemRow({
       </TableCell>
 
       <TableCell className="py-2.5">
-        <CcrActionsChip item={item} />
+        {item.newCicRequired
+          ? <Badge variant="outline" className="text-[10px] bg-red-100 text-red-700 border-red-200">Required</Badge>
+          : <span className="text-muted-foreground text-xs">—</span>}
+      </TableCell>
+      <TableCell className="py-2.5">
+        {item.contentUpdateRequired
+          ? <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">Required</Badge>
+          : <span className="text-muted-foreground text-xs">—</span>}
+      </TableCell>
+      <TableCell className="py-2.5">
+        {item.rundownRequired
+          ? <Badge variant="outline" className="text-[10px] bg-violet-100 text-violet-700 border-violet-200">Required</Badge>
+          : <span className="text-muted-foreground text-xs">—</span>}
       </TableCell>
 
       <TableCell className="py-2.5 pr-4">
@@ -435,7 +447,9 @@ function TabPanel({
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Basepack</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Change Type</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">SLA</TableHead>
-            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Actions Required</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">New CIC Required</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Content Update Required</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Rundown Required</TableHead>
             <TableHead className="py-2.5 pr-4 text-xs font-semibold text-muted-foreground">Escalation</TableHead>
           </TableRow>
         </TableHeader>
