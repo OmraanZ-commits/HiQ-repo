@@ -1298,6 +1298,7 @@ function NetworkChangeDateEditor({
           <input
             type="date"
             value={requestedDate}
+            min={new Date().toISOString().split("T")[0]}
             onChange={e => setRequestedDate(e.target.value)}
             className="h-9 w-full rounded-md border px-3 text-sm font-mono"
             data-testid="input-requested-network-change-date"
@@ -2895,7 +2896,8 @@ export function RaiseAmendmentDialog({
       });
     }
     if (amendmentType === "network-change-date-amendment") {
-      return !!requestedDate && requestedDate !== currentNetworkChangeDate;
+      const today = new Date().toISOString().split("T")[0];
+      return !!requestedDate && requestedDate !== currentNetworkChangeDate && requestedDate > today;
     }
     if (amendmentType === "price-lot-change") {
       const needsGeos = plcScopeType === "new-geo" || plcScopeType === "new-region-channel";

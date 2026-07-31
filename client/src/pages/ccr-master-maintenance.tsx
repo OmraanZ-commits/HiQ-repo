@@ -244,17 +244,35 @@ function AssignedPersonCell({ name }: { name: string | null | undefined }) {
   );
 }
 
+// Abbreviated labels for network statuses used inside the compact table badge
+const LIFECYCLE_SHORT: Record<string, string> = {
+  "FTR Approved":                  "FTR Approved",
+  "Stock Movement Initiated":      "Stock Moving",
+  "Network transition complete":   "NTC ✓",
+};
+
 function LifecycleStatusCell({ status }: { status: string | null | undefined }) {
   const idx = STATUS_IDX[status ?? ""] ?? -1;
   if (idx >= 4) {
+    const short = LIFECYCLE_SHORT[status ?? ""] ?? status;
+    // "Network transition complete" is the settled end-state — use a muted chip
+    const isNtc = status === "Network transition complete";
     return (
-      <Badge className="bg-primary text-primary-foreground hover:bg-primary text-xs whitespace-nowrap" data-testid="badge-lifecycle-active">
-        {status}
-      </Badge>
+      <span
+        title={status ?? undefined}
+        className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
+          isNtc
+            ? "bg-[#1f36c7]/10 text-[#1f36c7]"
+            : "bg-primary text-primary-foreground"
+        }`}
+        data-testid="badge-lifecycle-active"
+      >
+        {short}
+      </span>
     );
   }
   return (
-    <span className={`text-sm font-semibold ${idx >= 0 ? "text-foreground" : "text-muted-foreground"}`}>
+    <span className={`text-xs font-semibold ${idx >= 0 ? "text-foreground" : "text-muted-foreground"}`}>
       {status || "—"}
     </span>
   );
@@ -359,14 +377,14 @@ function CbuTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {entries.map(entry => (
+          {entries.map((entry, rowIdx) => (
             <TableRow
               key={entry.id}
               onClick={() => onCbuChange(entry.cbuCode ?? "")}
               className={
                 selectedCbu === entry.cbuCode
                   ? "bg-blue-50 border-l-2 border-l-[#1f36c7] cursor-pointer"
-                  : "cursor-pointer hover:bg-muted/40"
+                  : `cursor-pointer hover:bg-muted/40 ${rowIdx % 2 === 1 ? "bg-muted/15" : ""}`
               }
               data-testid={`row-cbu-${entry.cbuCode}`}
             >
@@ -411,7 +429,7 @@ function CbuTable({
               <TableCell className="py-2 text-xs font-semibold truncate">
                 {entry.brand || "—"}
               </TableCell>
-              <TableCell className="py-2 text-xs font-mono truncate">
+              <TableCell className="py-2 text-xs font-mono whitespace-nowrap">
                 {getNetworkChangeTypeName(entry.typeOfNetwork)}
               </TableCell>
               <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
@@ -453,12 +471,15 @@ function CbuTable({
               </TableCell>
               <TableCell className="pr-4 text-right">
                 {(() => {
-                  const canConfigure = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+                  const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
+                  const isActiveBp = bpStatus === "Active";
+                  const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+                  const canConfigure = isActiveBp && networkOk;
+                  const disabledTitle = !isActiveBp
+                    ? "Configure is only available for Active basepacks"
+                    : "CCR mapping is only available after Stock Movement Initiated";
                   return (
-                    <div
-                      title={canConfigure ? undefined : "CCR mapping is only available after Stock Movement Initiated — awaiting basepack activation"}
-                      className="inline-block"
-                    >
+                    <div title={canConfigure ? undefined : disabledTitle} className="inline-block">
                       <Button
                         size="sm"
                         variant="outline"
