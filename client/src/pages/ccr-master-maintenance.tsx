@@ -587,7 +587,7 @@ export default function CcrMasterMaintenancePage() {
     <div className="min-h-screen bg-background">
       <UnileverHeader module="ccr" />
 
-      <div className="w-full px-6 py-6 space-y-5">
+      <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-5">
 
         {/* Page title */}
         <div>
