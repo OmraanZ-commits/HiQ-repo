@@ -706,8 +706,12 @@ export default function CcrMasterMaintenancePage() {
   };
 
   // Overview: selectable if this CBU is mapped for the specific chain being shown
-  const overviewSelectableFilter = (e: NetworkEntry, chainName: string) =>
-    depotChangeSummary[e.cbuCode ?? ""]?.saved?.includes(chainName) ?? false;
+  // Draft basepacks can never be selected — they cannot be submitted to SAP
+  const overviewSelectableFilter = (e: NetworkEntry, chainName: string) => {
+    const bpStatus = e.basepack ? (bpStatusMap[e.basepack] ?? null) : null;
+    if (bpStatus === "Draft") return false;
+    return depotChangeSummary[e.cbuCode ?? ""]?.saved?.includes(chainName) ?? false;
+  };
 
   // Helper: build item list for confirm dialogs
   function dialogItems(selected: Set<string>, pool: NetworkEntry[]) {
