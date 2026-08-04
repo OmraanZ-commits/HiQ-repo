@@ -511,6 +511,15 @@ function UpcomingTabPanel({
 }) {
   const [, navigate] = useLocation();
 
+  // Sort: most advanced network status first (FTR Approved → Production Started → Pricing Updated → Active → Draft)
+  const TRIGGER_ORDER: Record<string, number> = { Second: 0, First: 1, Third: 2, None: 3 };
+  const sorted = [...items].sort((a, b) => {
+    const aStatus = STATUS_IDX[entryMap.get(a.successorCbuCode ?? "")?.networkStatus ?? ""] ?? 0;
+    const bStatus = STATUS_IDX[entryMap.get(b.successorCbuCode ?? "")?.networkStatus ?? ""] ?? 0;
+    if (bStatus !== aStatus) return bStatus - aStatus; // descending by network status
+    return (TRIGGER_ORDER[a.triggerStage] ?? 9) - (TRIGGER_ORDER[b.triggerStage] ?? 9);
+  });
+
   if (loading) {
     return (
       <div className="space-y-2 px-4 py-3">
@@ -539,12 +548,14 @@ function UpcomingTabPanel({
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Basepack</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Change Type</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Status</TableHead>
-            <TableHead className="py-2.5 w-24 text-center text-xs font-semibold text-muted-foreground">New CIC</TableHead>
+            <TableHead className="py-2.5 w-20 text-center text-xs font-semibold text-muted-foreground">New CIC</TableHead>
+            <TableHead className="py-2.5 w-28 text-center text-xs font-semibold text-muted-foreground">Content Update</TableHead>
+            <TableHead className="py-2.5 w-20 text-center text-xs font-semibold text-muted-foreground">Rundown</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground pr-4">CIC Mapping</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map(item => {
+          {sorted.map(item => {
             const entry = entryMap.get(item.successorCbuCode ?? "");
             return (
               <TableRow
@@ -584,6 +595,16 @@ function UpcomingTabPanel({
                 </TableCell>
                 <TableCell className="py-2.5 text-center">
                   {item.newCicRequired
+                    ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
+                    : <span className="text-muted-foreground/40 text-sm">—</span>}
+                </TableCell>
+                <TableCell className="py-2.5 text-center">
+                  {item.contentUpdateRequired
+                    ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
+                    : <span className="text-muted-foreground/40 text-sm">—</span>}
+                </TableCell>
+                <TableCell className="py-2.5 text-center">
+                  {item.rundownRequired
                     ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
                     : <span className="text-muted-foreground/40 text-sm">—</span>}
                 </TableCell>
