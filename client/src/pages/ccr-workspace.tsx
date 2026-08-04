@@ -547,11 +547,9 @@ function UpcomingTabPanel({
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">CBU Code</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Basepack</TableHead>
             <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Change Type</TableHead>
-            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Status</TableHead>
             <TableHead className="py-2.5 w-20 text-center text-xs font-semibold text-muted-foreground">New CIC</TableHead>
             <TableHead className="py-2.5 w-28 text-center text-xs font-semibold text-muted-foreground">Content Update</TableHead>
-            <TableHead className="py-2.5 w-20 text-center text-xs font-semibold text-muted-foreground">Rundown</TableHead>
-            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground pr-4">CIC Mapping</TableHead>
+            <TableHead className="py-2.5 w-20 text-center text-xs font-semibold text-muted-foreground pr-4">Rundown</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -590,9 +588,6 @@ function UpcomingTabPanel({
                 <TableCell className="py-2.5">
                   <span className="text-xs truncate max-w-[120px] block">{entry?.typeOfNetwork ?? "—"}</span>
                 </TableCell>
-                <TableCell className="py-2.5">
-                  <NetworkStatusBadge status={entry?.networkStatus} />
-                </TableCell>
                 <TableCell className="py-2.5 text-center">
                   {item.newCicRequired
                     ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
@@ -603,20 +598,10 @@ function UpcomingTabPanel({
                     ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
                     : <span className="text-muted-foreground/40 text-sm">—</span>}
                 </TableCell>
-                <TableCell className="py-2.5 text-center">
+                <TableCell className="py-2.5 text-center pr-4">
                   {item.rundownRequired
                     ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
                     : <span className="text-muted-foreground/40 text-sm">—</span>}
-                </TableCell>
-                <TableCell className="py-2.5 pr-4" onClick={e => e.stopPropagation()}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 px-2.5"
-                    onClick={() => navigate(`/ccr/configure/${encodeURIComponent(item.successorCbuCode ?? "")}`)}
-                  >
-                    <Settings className="h-3 w-3" /> Configure CIC
-                  </Button>
                 </TableCell>
               </TableRow>
             );
