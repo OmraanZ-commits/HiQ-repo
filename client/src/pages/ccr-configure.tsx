@@ -415,7 +415,7 @@ export default function CcrConfigurePage() {
   function handleExport() {
     if (!rows.length) return;
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const data = rows.map(r => ({
+    const toRow = (r: typeof rows[0]) => ({
       "CBU Code": decodedCbu, "Basepack": entry?.basepack ?? "",
       "Customer Chain": selectedChain, "Customer Code": r.customerCode,
       "CIC": r.cic, "Sales Org": r.salesOrg, "Channel": r.channel,
@@ -423,10 +423,26 @@ export default function CcrConfigurePage() {
       "Status": r.pbOverridden ? r.pbStatus ?? "Non-Mapped" : r.status,
       "Pricing Status": r.pricingStatus, "Sourcing Depot": r.sourcingDepot,
       "Sourcing Type": r.sourcingType,
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
+      "Process": /^\d+$/.test((r.cic ?? "").trim()) ? "CRM Upload" : "Customer Governance (CG)",
+    });
+
+    // Split rows: numeric CIC (digits only) vs alphanumeric CIC
+    const isNumericCic = (cic: string | null | undefined) => /^\d+$/.test((cic ?? "").trim());
+    const numericRows    = rows.filter(r => isNumericCic(r.cic)).map(toRow);
+    const alphaRows      = rows.filter(r => !isNumericCic(r.cic)).map(toRow);
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "CCR Mapping");
+    // Always add both sheets so recipients know both categories exist
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet(numericRows.length ? numericRows : [{ Note: "No numeric-CIC rows for this export" }]),
+      "Numeric CIC – CRM Upload",
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet(alphaRows.length ? alphaRows : [{ Note: "No alphanumeric-CIC rows for this export" }]),
+      "Alphanumeric CIC – CG Team",
+    );
     XLSX.writeFile(wb, `CCR_Mapping_${decodedCbu}_${selectedChain}_${today}.xlsx`);
   }
 
