@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -129,8 +130,9 @@ type ConfirmDialogProps = {
   title: React.ReactNode; description: React.ReactNode; confirmLabel: React.ReactNode;
   confirmClass?: string; isPending: boolean; onConfirm: () => void;
   items: { cbu: string; label: string }[];
+  extra?: React.ReactNode; confirmDisabled?: boolean;
 };
-function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel, confirmClass, isPending, onConfirm, items }: ConfirmDialogProps) {
+function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel, confirmClass, isPending, onConfirm, items, extra, confirmDisabled }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -149,9 +151,10 @@ function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel, c
             </div>
           ))}
         </div>
+        {extra && <div className="pt-1">{extra}</div>}
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
-          <Button size="sm" className={confirmClass ?? "bg-[#1f36c7] hover:bg-[#1730b0]"} disabled={isPending} onClick={onConfirm}>
+          <Button size="sm" className={confirmClass ?? "bg-[#1f36c7] hover:bg-[#1730b0]"} disabled={isPending || confirmDisabled} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </DialogFooter>
@@ -414,6 +417,7 @@ export default function CcrMtListingPage() {
   const [requestSapDialog, setRequestSapDialog] = useState(false);
   const [validateDialog,   setValidateDialog]   = useState(false);
   const [errorDialog,      setErrorDialog]      = useState(false);
+  const [errorComment,     setErrorComment]     = useState("");
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -738,14 +742,30 @@ export default function CcrMtListingPage() {
 
       {/* ── Mark Error dialog ─────────────────────────────────────────────── */}
       <ConfirmDialog
-        open={errorDialog} onOpenChange={setErrorDialog}
+        open={errorDialog}
         title={<span className="flex items-center gap-2"><AlertCircle className="h-5 w-5 text-red-600" /> Mark as Error Returned by SAP</span>}
         description={<>Confirm that SAP returned an error for the following CBU{requestedSelected.size > 1 ? "s" : ""}. You can re-request them from the <strong>Error Returned by SAP</strong> tab.</>}
         confirmLabel={<><AlertCircle className="h-3.5 w-3.5 mr-1.5" />{updateSapMutation.isPending ? "Updating…" : "Confirm Error"}</>}
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         isPending={updateSapMutation.isPending}
-        onConfirm={() => updateSapMutation.mutate({ codes: [...requestedSelected].map(cbuFromKey), status: "Error" })}
+        onConfirm={() => { updateSapMutation.mutate({ codes: [...requestedSelected].map(cbuFromKey), status: "Error" }); setErrorComment(""); }}
+        onOpenChange={v => { setErrorDialog(v); if (!v) setErrorComment(""); }}
         items={dialogItems(requestedSelected, requestedEntries)}
+        confirmDisabled={!errorComment.trim()}
+        extra={
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Justification <span className="text-red-500">*</span>
+            </label>
+            <Textarea
+              rows={3}
+              placeholder="Describe the SAP error and steps taken for investigation…"
+              value={errorComment}
+              onChange={e => setErrorComment(e.target.value)}
+              className="text-sm resize-none"
+            />
+          </div>
+        }
       />
     </div>
   );

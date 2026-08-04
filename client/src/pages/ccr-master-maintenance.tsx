@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -454,11 +455,13 @@ type ConfirmDialogProps = {
   isPending: boolean;
   onConfirm: () => void;
   items: { cbu: string; label: string }[];
+  extra?: React.ReactNode;
+  confirmDisabled?: boolean;
 };
 
 function ConfirmDialog({
   open, onOpenChange, title, description, confirmLabel, confirmClass,
-  isPending, onConfirm, items,
+  isPending, onConfirm, items, extra, confirmDisabled,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -478,6 +481,7 @@ function ConfirmDialog({
             </div>
           ))}
         </div>
+        {extra && <div className="pt-1">{extra}</div>}
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel
@@ -485,7 +489,7 @@ function ConfirmDialog({
           <Button
             size="sm"
             className={confirmClass ?? "bg-[#1f36c7] hover:bg-[#1730b0]"}
-            disabled={isPending}
+            disabled={isPending || confirmDisabled}
             onClick={onConfirm}
           >
             {confirmLabel}
@@ -552,6 +556,7 @@ export default function CcrMasterMaintenancePage() {
   const [requestedSelected, setRequestedSelected] = useState<Set<string>>(new Set());
   const [validateDialog, setValidateDialog] = useState(false);
   const [errorDialog, setErrorDialog] = useState(false);
+  const [errorComment, setErrorComment] = useState("");
 
   function makeToggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
     return (cbuCode: string) => setter(prev => {
@@ -1172,7 +1177,6 @@ export default function CcrMasterMaintenancePage() {
       {/* ── Mark Error dialog ─────────────────────────────────────────────────── */}
       <ConfirmDialog
         open={errorDialog}
-        onOpenChange={setErrorDialog}
         title={
           <span className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-red-600" />
@@ -1193,8 +1197,24 @@ export default function CcrMasterMaintenancePage() {
         }
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         isPending={updateSapStatusMutation.isPending}
-        onConfirm={() => updateSapStatusMutation.mutate({ cbuCodes: [...requestedSelected], status: "Error" })}
+        onConfirm={() => { updateSapStatusMutation.mutate({ cbuCodes: [...requestedSelected], status: "Error" }); setErrorComment(""); }}
+        onOpenChange={v => { setErrorDialog(v); if (!v) setErrorComment(""); }}
         items={dialogItems(requestedSelected, requestedEntries)}
+        confirmDisabled={!errorComment.trim()}
+        extra={
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Justification <span className="text-red-500">*</span>
+            </label>
+            <Textarea
+              rows={3}
+              placeholder="Describe the SAP error and steps taken for investigation…"
+              value={errorComment}
+              onChange={e => setErrorComment(e.target.value)}
+              className="text-sm resize-none"
+            />
+          </div>
+        }
       />
 
     </div>
