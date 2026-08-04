@@ -323,14 +323,12 @@ export default function CcrMtListingDetailPage() {
                       >
                         <List className="h-3 w-3" /> MT Listing
                       </TabsTrigger>
-                      {isListingChain && (
-                        <TabsTrigger
-                          value="atp"
-                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium gap-1.5"
-                        >
-                          <Zap className="h-3 w-3" /> ATP Criteria
-                        </TabsTrigger>
-                      )}
+                      <TabsTrigger
+                        value="atp"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-xs font-medium gap-1.5"
+                      >
+                        <Zap className="h-3 w-3" /> ATP Criteria
+                      </TabsTrigger>
                     </TabsList>
                   </div>
 
