@@ -709,7 +709,7 @@ function SubmittedTabPanel({
                     {stockMet && needsDoh && !dohMet && (
                       <span className="inline-flex items-center gap-1 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 w-fit">
                         <Info className="h-2.5 w-2.5 shrink-0" />
-                        DOH not met — Succ: {succDoh}d / Pred: {predDoh}d
+                        DOH threshold not met
                       </span>
                     )}
                     {canRelease && (
