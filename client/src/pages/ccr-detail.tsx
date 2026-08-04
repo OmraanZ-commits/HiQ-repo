@@ -1105,11 +1105,15 @@ export default function CcrDetailPage() {
     NATIONAL_CHAINS_DETAIL.has(item.customerChain) &&
     item.newCicRequired === false &&
     networkEntry?.networkStatus === "Stock Movement Initiated";
-  // BRD §11.1: Take Action is only available once Stock Movement Initiated (Third stage+).
-  // Prior to that the CBU has not flowed into Paid Bible and the basepack is not active.
+  // Take Action is shown for:
+  //   • Action Required items at Third/Fourth trigger (original rule)
+  //   • Upcoming items at any active trigger stage (First/Second/Third/Fourth)
+  //     so that users navigating from the Upcoming tab can still execute a CCR.
   const isActionRequired =
-    item.ccrStatus === "Action Required" &&
-    (item.triggerStage === "Third" || item.triggerStage === "Fourth");
+    !isCompleted && !isDohQueued && (
+      (item.ccrStatus === "Action Required" && (item.triggerStage === "Third" || item.triggerStage === "Fourth")) ||
+      (item.ccrStatus === "Upcoming" && item.triggerStage !== "None")
+    );
 
   return (
     <div className="min-h-screen bg-background">
