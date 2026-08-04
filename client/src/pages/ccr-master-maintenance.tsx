@@ -420,7 +420,7 @@ function ChainGroupedView({
                                     variant="outline"
                                     className="h-7 text-xs px-2.5"
                                     disabled={!canConfigure}
-                                    onClick={() => onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`)}
+                                    onClick={() => onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}?chain=${encodeURIComponent(group.chainName)}`)}
                                   >
                                     Configure
                                   </Button>
@@ -916,7 +916,7 @@ export default function CcrMasterMaintenancePage() {
                 selectedCbus={overviewSelected}
                 onToggleCbu={makeToggle(setOverviewSelected)}
                 onToggleAll={makeToggleAll(setOverviewSelected)}
-                actionColumn={(entry, _chain) => {
+                actionColumn={(entry, chain) => {
                   const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
                   const isActiveBp = bpStatus === "Active";
                   const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
@@ -939,7 +939,7 @@ export default function CcrMasterMaintenancePage() {
                         variant="outline"
                         className="h-7 text-xs px-2.5"
                         disabled={!canConfigure}
-                        onClick={() => navigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}`)}
+                        onClick={() => navigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}?chain=${encodeURIComponent(chain)}`)}
                       >
                         Configure
                       </Button>

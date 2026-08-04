@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
@@ -158,9 +158,16 @@ export default function CcrConfigurePage() {
   const queryClient = useQueryClient();
 
   const decodedCbu = decodeURIComponent(cbuCode ?? "");
+  const searchString = useSearch();
+  const chainFromUrl = useMemo(() => new URLSearchParams(searchString).get("chain") ?? "", [searchString]);
 
   // ── Local state ─────────────────────────────────────────────────────────────
-  const [selectedChain, setSelectedChain] = useState<string>("");
+  const [selectedChain, setSelectedChain] = useState<string>(chainFromUrl);
+
+  // Keep selectedChain in sync if the URL param changes (e.g. browser back/forward)
+  useEffect(() => {
+    if (chainFromUrl) setSelectedChain(chainFromUrl);
+  }, [chainFromUrl]);
   const [cicInput, setCicInput] = useState<string>("");
   const [cicDescriptionInput, setCicDescriptionInput] = useState<string>("");
   const [sourcingDepotMap, setSourcingDepotMap] = useState<Record<string, string>>({});
@@ -496,10 +503,14 @@ export default function CcrConfigurePage() {
             <Card>
               <CardContent className="py-3 px-4">
                 <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-1.5">Chain Mapping Completed</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold text-foreground">{chainCompletionStats.completed}</span>
-                  <span className="text-sm text-muted-foreground">/ {chainCompletionStats.applicable}</span>
-                </div>
+                {(() => {
+                  const done = chainCompletionStats.applicable > 0 && chainCompletionStats.completed >= chainCompletionStats.applicable;
+                  return (
+                    <span className={`text-xl font-bold ${done ? "text-emerald-600" : "text-red-500"}`}>
+                      {done ? "Yes" : "No"}
+                    </span>
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -544,32 +555,20 @@ export default function CcrConfigurePage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
-              {/* Customer Chain */}
+              {/* Customer Chain — static label (chain is fixed when navigating from Master Maintenance) */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer Chain <span className="text-red-500">*</span></Label>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer Chain</Label>
                 {customersLoading || entriesLoading ? (
                   <Skeleton className="h-9 w-full" />
-                ) : applicableChains.size === 0 ? (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2" data-testid="text-no-applicable-chains">
-                    <p className="text-xs text-amber-700 leading-snug">
-                      No applicable chains — fill in the <span className="font-semibold">Customer Mapping</span> tab in Network Planning first.
-                    </p>
-                  </div>
                 ) : (
-                  <Select value={selectedChain} onValueChange={handleChainChange}>
-                    <SelectTrigger data-testid="select-customer-chain" className="h-9">
-                      <SelectValue placeholder="Select chain…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers
-                        .filter(c => applicableChains.has(c.customerChain))
-                        .map(c => (
-                          <SelectItem key={c.id} value={c.customerChain} data-testid={`option-chain-${c.customerChain}`}>
-                            {c.customerChain}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <div
+                    className="h-9 flex items-center px-3 rounded-md border border-border bg-muted/40"
+                    data-testid="text-customer-chain"
+                  >
+                    <span className="text-sm font-medium text-foreground">
+                      {selectedChain || <span className="text-muted-foreground italic">—</span>}
+                    </span>
+                  </div>
                 )}
               </div>
 
