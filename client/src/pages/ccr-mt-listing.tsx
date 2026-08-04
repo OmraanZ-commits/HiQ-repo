@@ -272,17 +272,27 @@ function ChainAccordion({ chainName, expanded, onToggle, count, scenario, childr
 
 // ─── Chain scenario — configured at customer-chain level ─────────────────────
 
-type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National Listing";
+type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National";
 
-// Listing-based chains (Ecom / Qcom) support pred + succ coexistence.
-// Non-listing chains (MT / MT Retail) deactivate pred when succ goes live.
-// National Listing is an edge case on listing chains where no new CIC is needed.
+// National          → CCR Action = National; CSE selects No/No/No (CIC / Content / Rundown)
+// Regional Listing  → CCR Action = Regional + SBM/Listing = Listing Based
+// Regional Non-Listing → CCR Action = Regional + SBM/Listing = Non-Listing
 const CHAIN_SCENARIO_MAP: Record<string, ChainScenario> = {
-  "BigBasket":        "Regional Listing",
-  "Blinkit":          "Regional Listing",
-  "Swiggy Instamart": "National Listing",   // edge case: CIC reuse, no new CIC required
+  // National accounts (CCR Action = National)
+  "Amazon":           "National",
+  "Big Bazaar":       "National",
+  "BigBasket":        "National",
+  "Cloud Tail":       "National",
+  "Flipkart":         "National",
+  "JioMart":          "National",
+  "Metro C&C":        "National",
+  "Swiggy Instamart": "National",
+  // Regional Non-Listing (CCR Action = Regional, SBM = Non-Listing)
+  "Blinkit":          "Regional Non-Listing",
   "DMart":            "Regional Non-Listing",
   "Reliance Smart":   "Regional Non-Listing",
+  // Regional Listing Based (CCR Action = Regional, SBM = Listing Based)
+  "Lulu Hypermarket": "Regional Listing",
 };
 
 function chainScenarioFromName(chain: string): ChainScenario {
@@ -300,7 +310,7 @@ const SCENARIO_META: Record<ChainScenario, { badge: string; pill: string; desc: 
     pill:  "bg-amber-100 text-amber-700 border border-amber-200",
     desc:  "Predecessor is deactivated as Successor activates — may vary by region",
   },
-  "National Listing": {
+  "National": {
     badge: "bg-blue-50 border-blue-200",
     pill:  "bg-blue-100 text-blue-700 border border-blue-200",
     desc:  "No new CIC required — Successor inherits Predecessor's CIC nationally",
