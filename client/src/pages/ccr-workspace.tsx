@@ -565,12 +565,27 @@ function UpcomingTabPanel({
                   <UrgencyDot color={item.urgencyColor} />
                 </TableCell>
                 <TableCell className="py-2.5">
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] border ${TRIGGER_STAGE_COLOR[item.triggerStage] ?? TRIGGER_STAGE_COLOR["None"]}`}
-                  >
-                    {TRIGGER_STAGE_LABEL[item.triggerStage] ?? "—"}
-                  </Badge>
+                  {item.triggerStage === "None" ? (
+                    (() => {
+                      const ns = entry?.networkStatus ?? "";
+                      const nsColor =
+                        ns === "Active"          ? "bg-violet-50 text-violet-700 border-violet-200" :
+                        ns === "Pricing Updated" ? "bg-blue-50 text-blue-700 border-blue-200"       :
+                                                   "bg-slate-50 text-slate-400 border-slate-200";
+                      return (
+                        <Badge variant="outline" className={`text-[10px] border ${nsColor}`}>
+                          {ns || "—"}
+                        </Badge>
+                      );
+                    })()
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] border ${TRIGGER_STAGE_COLOR[item.triggerStage] ?? TRIGGER_STAGE_COLOR["None"]}`}
+                    >
+                      {TRIGGER_STAGE_LABEL[item.triggerStage]}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="py-2.5">
                   <span className="text-sm font-medium">{item.customerChain}</span>
