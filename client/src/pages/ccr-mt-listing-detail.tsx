@@ -106,11 +106,35 @@ function fmtDate(d: Date): string {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
 }
 
-function generateAtpBatches(rows: MtListingRow[]): AtpBatch[] {
-  const predRows = rows.filter(r => r.rowType === "predecessor");
+// Synthetic depot codes used when no real MT-listing rows are available (e.g. National chains).
+const SYNTHETIC_DEPOTS = ["VABH", "DLGH", "ABDH", "SRDH", "HBDH"];
+const SYNTHETIC_CHAIN_CODES: Record<string, string[]> = {
+  "BigBasket":        ["BBK-MH-001", "BBK-KA-001", "BBK-DL-001"],
+  "Swiggy Instamart": ["SWG-MH-001", "SWG-KA-001"],
+  "Blinkit":          ["BLK-MH-001", "BLK-DL-001"],
+  "DMart":            ["DMT-MH-001", "DMT-GJ-001"],
+  "Reliance Smart":   ["RLS-MH-001"],
+};
+
+function generateAtpBatches(rows: MtListingRow[], fallbackChain?: string, fallbackCbu?: string): AtpBatch[] {
+  let sourceRows = rows.filter(r => r.rowType === "predecessor");
+
+  // For chains without predecessor MT-listing rows, synthesise entries so the ATP tab is never empty.
+  if (sourceRows.length === 0 && fallbackChain && fallbackCbu) {
+    const codes = SYNTHETIC_CHAIN_CODES[fallbackChain] ?? ["CUST-001"];
+    sourceRows = codes.map(code => ({
+      rowType: "predecessor" as const,
+      customerCode: code,
+      customerChain: fallbackChain,
+      cbuCode: fallbackCbu,
+      depot: SYNTHETIC_DEPOTS[simpleHash(code) % SYNTHETIC_DEPOTS.length],
+      listingBased: false,
+    } as MtListingRow));
+  }
+
   const today = new Date();
   const batches: AtpBatch[] = [];
-  for (const row of predRows) {
+  for (const row of sourceRows) {
     const validDays = VALID_DAYS_BY_CHAIN[row.customerChain] ?? 100;
     const baseKey = row.customerCode + (row.depot ?? "") + row.cbuCode;
     const pricingValid = (simpleHash(row.customerCode + "price") % 8) > 0;
@@ -173,7 +197,7 @@ export default function CcrMtListingDetailPage() {
   );
 
   const isListingChain = useMemo(() => chainRows.some(r => r.listingBased), [chainRows]);
-  const atpBatches = useMemo(() => generateAtpBatches(chainRows), [chainRows]);
+  const atpBatches = useMemo(() => generateAtpBatches(chainRows, chain, cbuCode), [chainRows, chain, cbuCode]);
   const atpByCode = useMemo(() => {
     const map: Record<string, AtpBatch[]> = {};
     for (const b of atpBatches) {
@@ -384,8 +408,7 @@ export default function CcrMtListingDetailPage() {
                   </TabsContent>
 
                   {/* ATP Criteria tab */}
-                  {isListingChain && (
-                    <TabsContent value="atp" className="mt-0 px-4 pb-4 space-y-2 pt-3">
+                  <TabsContent value="atp" className="mt-0 px-4 pb-4 space-y-2 pt-3">
                       <div className="flex flex-wrap items-start gap-3 text-xs bg-blue-50 border border-blue-100 rounded-md px-4 py-3">
                         <div className="flex items-start gap-1.5 text-blue-700">
                           <Zap className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -472,7 +495,6 @@ export default function CcrMtListingDetailPage() {
                         </Table>
                       </div>
                     </TabsContent>
-                  )}
                 </Tabs>
               </CardContent>
             </Card>
