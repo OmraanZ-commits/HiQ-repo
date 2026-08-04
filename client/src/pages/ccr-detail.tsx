@@ -23,6 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -852,6 +860,157 @@ function DelistingDialog({
   );
 }
 
+// ─── DOH depot analysis ───────────────────────────────────────────────────────
+
+const NATIONAL_CHAINS_DETAIL = new Set([
+  "BigBasket", "Swiggy Instamart", "Amazon", "Flipkart",
+  "JioMart", "Big Bazaar", "Metro C&C", "Cloud Tail",
+]);
+
+// Simulated depot-level DOH data (demo — top depots sorted by CLOT%)
+const DEMO_DEPOT_ROWS = [
+  { dc: "VABH", predDoh: 2.0,  succDoh: 10.0, clot: 30, inTop70: true,  status: "PASS" as const },
+  { dc: "DLGH", predDoh: 2.9,  succDoh: 15.0, clot: 28, inTop70: true,  status: "FAIL" as const },
+  { dc: "ABDH", predDoh: 2.0,  succDoh:  6.0, clot: 26, inTop70: true,  status: "PASS" as const },
+  { dc: "SRDH", predDoh: 5.0,  succDoh:  6.0, clot: 10, inTop70: false, status: null },
+  { dc: "HBDH", predDoh: 6.0,  succDoh:  7.0, clot:  4, inTop70: false, status: null },
+];
+const DEMO_PRED_OVERALL = 3;
+const DEMO_SUCC_OVERALL = 5;
+
+function DohDepotAnalysisCard({
+  basepack,
+}: {
+  basepack: string | null | undefined;
+}) {
+  const overallFail = DEMO_SUCC_OVERALL <= 5; // succ must be > 5 strictly
+  const top70Rows = DEMO_DEPOT_ROWS.filter(r => r.inTop70);
+  const allTop70Pass = top70Rows.every(r => r.status === "PASS");
+
+  return (
+    <Card className="shadow-none border-orange-200 bg-orange-50/30">
+      <CardHeader className="py-3 px-4 border-b border-orange-200">
+        <CardTitle className="text-sm flex items-center gap-2 text-orange-800">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          DOH Analysis — {basepack ?? "—"}
+          <Badge
+            variant="outline"
+            className="ml-auto text-[10px] bg-red-50 border-red-300 text-red-700"
+          >
+            Threshold Not Met
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-3 pb-4 px-4 space-y-3">
+
+        {/* BP-level summary */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: "Predecessor CBU", days: DEMO_PRED_OVERALL, threshold: "< 3 days", met: DEMO_PRED_OVERALL < 3 },
+            { label: "Successor CBU",   days: DEMO_SUCC_OVERALL, threshold: "> 5 days", met: DEMO_SUCC_OVERALL > 5 },
+          ].map(({ label, days, threshold, met }) => (
+            <div
+              key={label}
+              className={`rounded border px-3 py-2.5 text-center ${
+                met
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-red-200 bg-red-50"
+              }`}
+            >
+              <p className="text-[10px] text-muted-foreground font-medium mb-0.5">{label}</p>
+              <p className={`text-xl font-bold ${met ? "text-emerald-700" : "text-red-700"}`}>
+                {days} <span className="text-sm font-normal">days</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Threshold: {threshold}
+              </p>
+              <p className={`text-[10px] font-semibold mt-1 ${met ? "text-emerald-600" : "text-red-600"}`}>
+                {met ? "✓ Met" : "✗ Not met"}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-[10px] text-muted-foreground italic">
+          Derived from BP demand estimate · Sorted by CLOT% (contribution)
+        </p>
+
+        {/* Depot-level table */}
+        <div className="rounded border border-border overflow-hidden text-xs">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/60 hover:bg-muted/60">
+                <TableHead className="py-2 text-[11px] font-semibold text-center text-muted-foreground" colSpan={3}>
+                  Predecessor CBU
+                </TableHead>
+                <TableHead className="py-2 text-[11px] font-semibold text-center text-muted-foreground border-l" colSpan={3}>
+                  Successor CBU
+                </TableHead>
+                <TableHead className="py-2 text-[11px] font-semibold text-center text-muted-foreground border-l" colSpan={2}>
+                  Evaluation
+                </TableHead>
+              </TableRow>
+              <TableRow className="bg-muted/40 hover:bg-muted/40 border-t">
+                <TableHead className="py-1.5 text-[10px] font-semibold text-muted-foreground w-14">DC</TableHead>
+                <TableHead className="py-1.5 text-[10px] font-semibold text-muted-foreground w-14 text-right">DOH</TableHead>
+                <TableHead className="py-1.5 text-[10px] font-semibold text-muted-foreground w-14 text-right">CLOT%</TableHead>
+                <TableHead className="py-1.5 text-[10px] font-semibold text-muted-foreground w-14 border-l">DC</TableHead>
+                <TableHead className="py-1.5 text-[10px] font-semibold text-muted-foreground w-14 text-right">DOH</TableHead>
+                <TableHead className="py-1.5 text-[10px] font-semibold text-muted-foreground w-14 text-right">CLOT%</TableHead>
+                <TableHead className="py-1.5 text-[10px] font-semibold text-muted-foreground w-16 border-l text-center">Status</TableHead>
+                <TableHead className="py-1.5 text-[10px] font-semibold text-muted-foreground w-20 text-center">Overall</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {DEMO_DEPOT_ROWS.map((row, idx) => (
+                <TableRow
+                  key={row.dc}
+                  className={`${!row.inTop70 ? "opacity-50" : ""} hover:bg-muted/20`}
+                >
+                  <TableCell className="py-1.5 font-mono text-[11px] font-semibold">{row.dc}</TableCell>
+                  <TableCell className={`py-1.5 text-right font-mono text-[11px] ${row.inTop70 && row.predDoh >= 3 ? "text-red-600 font-semibold" : "text-emerald-700"}`}>
+                    {row.predDoh}
+                  </TableCell>
+                  <TableCell className="py-1.5 text-right text-[11px] text-muted-foreground">{row.clot}</TableCell>
+                  <TableCell className="py-1.5 font-mono text-[11px] font-semibold border-l">{row.dc}</TableCell>
+                  <TableCell className={`py-1.5 text-right font-mono text-[11px] ${row.inTop70 && row.succDoh <= 5 ? "text-red-600 font-semibold" : "text-emerald-700"}`}>
+                    {row.succDoh}
+                  </TableCell>
+                  <TableCell className="py-1.5 text-right text-[11px] text-muted-foreground">{row.clot}</TableCell>
+                  <TableCell className="py-1.5 border-l text-center">
+                    {row.status === "PASS" && (
+                      <span className="inline-block text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">PASS</span>
+                    )}
+                    {row.status === "FAIL" && (
+                      <span className="inline-block text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">FAIL</span>
+                    )}
+                    {!row.status && <span className="text-muted-foreground/40">—</span>}
+                  </TableCell>
+                  <TableCell className="py-1.5 text-center">
+                    {idx === 0 && (
+                      <span className={`inline-block text-[10px] font-semibold rounded px-1.5 py-0.5 border ${
+                        overallFail || !allTop70Pass
+                          ? "text-red-700 bg-red-50 border-red-200"
+                          : "text-emerald-700 bg-emerald-50 border-emerald-200"
+                      }`}>
+                        {overallFail || !allTop70Pass ? "FAIL" : "PASS"}
+                      </span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground">
+          Top 70% contributing depots evaluated · Activation requires <span className="font-medium">Successor DOH &gt; 5</span> and <span className="font-medium">Predecessor DOH &lt; 3</span> across all qualifying depots.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CcrDetailPage() {
@@ -1175,6 +1334,13 @@ export default function CcrDetailPage() {
               </Card>
             )}
 
+
+            {/* DOH depot analysis — shown for National chains with existing CIC at Stock Movement Initiated */}
+            {NATIONAL_CHAINS_DETAIL.has(item.customerChain) &&
+              item.newCicRequired === false &&
+              networkEntry?.networkStatus === "Stock Movement Initiated" && (
+              <DohDepotAnalysisCard basepack={networkEntry?.basepack} />
+            )}
 
             {/* Ruleset outcome (if completed) */}
             {isCompleted && item.rulesetOutcome && (
