@@ -263,6 +263,42 @@ function ChainAccordion({ chainName, expanded, onToggle, count, children }: {
   );
 }
 
+// ─── Chain scenario derivation ────────────────────────────────────────────────
+
+type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National Listing";
+
+function deriveChainScenario(chainRows: MtListingRow[]): ChainScenario {
+  if (chainRows.length === 0) return "Regional Non-Listing";
+
+  const predCics = new Set(chainRows.filter(r => r.rowType === "predecessor" && r.cic).map(r => r.cic!));
+  const succCics = new Set(chainRows.filter(r => r.rowType === "successor" && r.cic).map(r => r.cic!));
+
+  // National Listing: Successor inherits Predecessor's CIC — no new CIC required
+  const hasSharedCic = [...predCics].some(c => succCics.has(c));
+  if (hasSharedCic) return "National Listing";
+
+  // Regional Listing: pred and succ coexist (listing-based channel)
+  if (chainRows.some(r => r.listingBased)) return "Regional Listing";
+
+  // Regional Non-Listing: pred deactivated as succ activates, possibly region by region
+  return "Regional Non-Listing";
+}
+
+const SCENARIO_META: Record<ChainScenario, { badge: string; desc: string }> = {
+  "Regional Listing": {
+    badge: "bg-violet-100 text-violet-700 border border-violet-200",
+    desc: "Successor and Predecessor are tagged to the same CIC and coexist in the listing",
+  },
+  "Regional Non-Listing": {
+    badge: "bg-amber-100 text-amber-700 border border-amber-200",
+    desc: "Predecessor is deactivated as Successor activates — may differ by region",
+  },
+  "National Listing": {
+    badge: "bg-blue-100 text-blue-700 border border-blue-200",
+    desc: "No new CIC required — Successor inherits Predecessor's CIC nationally",
+  },
+};
+
 // ─── Expandable CBU row for Tab 1 ─────────────────────────────────────────────
 
 function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
@@ -300,6 +336,8 @@ function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
     const cics = [...new Set(chainRows.filter(r => r.rowType === "predecessor" && r.cic).map(r => r.cic!))];
     return cics.length ? cics.join(", ") : "—";
   }, [chainRows]);
+
+  const chainScenario = useMemo(() => deriveChainScenario(chainRows), [chainRows]);
 
   function handleExport() {
     if (!mtData) return;
@@ -353,12 +391,19 @@ function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
         <TableCell className="py-3">
           <NetworkStatusBadge status={entry.networkStatus} />
         </TableCell>
+        <TableCell className="py-3">
+          {expanded && chainRows.length > 0 ? (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${SCENARIO_META[chainScenario].badge}`}>
+              {chainScenario}
+            </span>
+          ) : <span className="text-xs text-muted-foreground">—</span>}
+        </TableCell>
       </TableRow>
 
       {/* Expanded detail */}
       {expanded && (
         <TableRow className="bg-muted/5 hover:bg-muted/5">
-          <TableCell colSpan={8} className="p-0 pb-4 border-b">
+          <TableCell colSpan={9} className="p-0 pb-4 border-b">
             {isLoading ? (
               <div className="px-8 pt-4 space-y-2">
                 {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
@@ -369,6 +414,12 @@ function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
               <div className="px-8 py-6 text-sm text-muted-foreground">No MT listing rows for {chain} — configure the predecessor CBU first.</div>
             ) : (
               <div className="px-6 pt-3 space-y-3">
+                {/* Scenario banner */}
+                <div className={`flex items-start gap-3 rounded-md px-4 py-2.5 text-xs ${SCENARIO_META[chainScenario].badge}`}>
+                  <span className="font-semibold whitespace-nowrap">{chainScenario}</span>
+                  <span className="opacity-80">{SCENARIO_META[chainScenario].desc}</span>
+                </div>
+
                 {/* Predecessor → Successor summary strip */}
                 <div className="flex flex-wrap gap-6 text-xs bg-background rounded-md px-4 py-3 border">
                   <div>
@@ -418,31 +469,20 @@ function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
                   </div>
 
                   {/* MT Listing table — scoped to this chain */}
-                  <TabsContent value="listing" className="mt-2 space-y-2">
-                    <div className="flex items-center gap-5 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-2 h-2 rounded-full bg-violet-500" />
-                        Listing-Based — predecessor &amp; successor coexist
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
-                        Non-Listing — predecessor deactivated, successor takes over
-                      </span>
-                    </div>
+                  <TabsContent value="listing" className="mt-2">
                     <div className="overflow-x-auto border rounded-md">
                       <Table className="w-full">
                         <TableHeader>
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableHead className="text-xs font-semibold w-[5%]">Type</TableHead>
-                            <TableHead className="text-xs font-semibold w-[11%]">Ship-to Party</TableHead>
-                            <TableHead className="text-xs font-semibold w-[11%]">CBU</TableHead>
-                            <TableHead className="text-xs font-semibold w-[9%]">Basepack</TableHead>
-                            <TableHead className="text-xs font-semibold w-[12%]">CIC Code</TableHead>
-                            <TableHead className="text-xs font-semibold w-[8%]">Case Config</TableHead>
-                            <TableHead className="text-xs font-semibold w-[11%]">EAN</TableHead>
-                            <TableHead className="text-xs font-semibold text-center w-[9%]">Status</TableHead>
-                            <TableHead className="text-xs font-semibold w-[7%]">Plant</TableHead>
-                            <TableHead className="text-xs font-semibold w-[9%]">Scenario</TableHead>
+                            <TableHead className="text-xs font-semibold w-[12%]">Ship-to Party</TableHead>
+                            <TableHead className="text-xs font-semibold w-[12%]">CBU</TableHead>
+                            <TableHead className="text-xs font-semibold w-[10%]">Basepack</TableHead>
+                            <TableHead className="text-xs font-semibold w-[13%]">CIC Code</TableHead>
+                            <TableHead className="text-xs font-semibold w-[9%]">Case Config</TableHead>
+                            <TableHead className="text-xs font-semibold w-[12%]">EAN</TableHead>
+                            <TableHead className="text-xs font-semibold text-center w-[10%]">Status</TableHead>
+                            <TableHead className="text-xs font-semibold w-[8%]">Plant</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -471,11 +511,6 @@ function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
                                   </span>
                                 </TableCell>
                                 <TableCell className="text-xs font-mono py-2">{row.depot ?? "—"}</TableCell>
-                                <TableCell className="py-2">
-                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${row.listingBased ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>
-                                    {row.scenarioLabel}
-                                  </span>
-                                </TableCell>
                               </TableRow>
                             );
                           })}
@@ -713,6 +748,7 @@ export default function CcrMtListingPage() {
                             <TableHead className="text-xs font-semibold">Basepack</TableHead>
                             <TableHead className="text-xs font-semibold">CIC (Predecessor)</TableHead>
                             <TableHead className="text-xs font-semibold">Network Status</TableHead>
+                            <TableHead className="text-xs font-semibold">Scenario</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
