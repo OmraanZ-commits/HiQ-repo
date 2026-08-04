@@ -578,46 +578,12 @@ export default function CcrMtListingPage() {
             {/* ── Tab bar ───────────────────────────────────────────────────── */}
             <div className="border-b px-4 pt-3">
               <TabsList className="h-9 bg-transparent border-0 p-0 gap-0 justify-start rounded-none overflow-x-auto flex-shrink-0">
-                <TabTrigger value="queue"         label="Submitted / In-Queue"      count={queuedEntries.length}    countClass="bg-orange-100 text-orange-700" />
                 <TabTrigger value="mt-output"     label="MT Listing Output"          count={outputEntries.length}    countClass="bg-blue-100 text-blue-700" />
                 <TabTrigger value="sap-requested" label="Requested for SAP Update"   count={requestedEntries.length} countClass="bg-amber-100 text-amber-700" />
                 <TabTrigger value="sap-validated" label="Validated / Posted in SAP"  count={validatedEntries.length} countClass="bg-emerald-100 text-emerald-700" />
                 <TabTrigger value="sap-error"     label="Error Returned by SAP"      count={errorEntries.length}     countClass="bg-red-100 text-red-700" />
               </TabsList>
             </div>
-
-            {/* ══ Tab 0: Submitted / In-Queue ══════════════════════════════ */}
-            <TabsContent value="queue" className="mt-0">
-              <div className="px-4 py-2 bg-orange-50 border-b text-xs text-orange-800 font-medium flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 shrink-0" />
-                CIC mapping submitted — CBUs held in queue until basepack activates, Stock Movement is initiated
-                {Object.values(queuedByChain).some(entries =>
-                  entries.some(e => Object.keys(CHAIN_SCENARIO_MAP).some(ch =>
-                    chainScenarioFromName(ch) === "National"
-                  ))
-                ) && <span className="ml-1 text-orange-700">(National chains also require DOH threshold)</span>}
-              </div>
-
-              {entriesLoading ? (
-                <div className="p-6 space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-              ) : (
-                <ChainGroupedView
-                  entriesByChain={queuedByChain}
-                  postingStatusMap={postingStatusMap}
-                  emptyMessage="No CBUs are currently in the MT Listing queue. Save a CIC mapping on the Configure page to enqueue a CBU."
-                  actionSlot={(entry, chain) => (
-                    <QueueStatusCell
-                      entry={entry}
-                      chain={chain}
-                      onRelease={code => releaseFromQueueMutation.mutate([code])}
-                      isPending={releaseFromQueueMutation.isPending}
-                    />
-                  )}
-                  onNavigate={navigate}
-                  showExport={false}
-                />
-              )}
-            </TabsContent>
 
             {/* ══ Tab 1: MT Listing Output ══════════════════════════════════ */}
             <TabsContent value="mt-output" className="mt-0">
