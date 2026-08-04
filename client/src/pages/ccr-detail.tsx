@@ -1098,6 +1098,13 @@ export default function CcrDetailPage() {
   }
 
   const isCompleted = item.ccrStatus === "Completed";
+
+  // Items held in DOH queue (National + Existing CIC + Stock Movement Initiated) are not
+  // yet released — suppress all mapping-export UI until the gate is cleared.
+  const isDohQueued =
+    NATIONAL_CHAINS_DETAIL.has(item.customerChain) &&
+    item.newCicRequired === false &&
+    networkEntry?.networkStatus === "Stock Movement Initiated";
   // BRD §11.1: Take Action is only available once Stock Movement Initiated (Third stage+).
   // Prior to that the CBU has not flowed into Paid Bible and the basepack is not active.
   const isActionRequired =
@@ -1137,7 +1144,7 @@ export default function CcrDetailPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {isCompleted && (
+              {isCompleted && !isDohQueued && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1391,8 +1398,8 @@ export default function CcrDetailPage() {
               </div>
             )}
 
-            {/* Export prompt when completed */}
-            {isCompleted && (
+            {/* Export prompt when completed — hidden while still held in DOH queue */}
+            {isCompleted && !isDohQueued && (
               <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-4 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-emerald-800">CCR Completed</p>
