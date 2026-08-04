@@ -245,7 +245,9 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
 
   const [expanded, setExpanded] = useState(true);
 
-  const selectableCodes = entries.map(e => e.cbuCode ?? "");
+  // Key by "cbuCode||chain" so ticking a CBU in one chain doesn't affect the same CBU in another.
+  const selectionKey = (cbuCode: string) => `${cbuCode}||${chain}`;
+  const selectableCodes = entries.map(e => selectionKey(e.cbuCode ?? ""));
   const allSelected = selectable && selectableCodes.length > 0 && selectableCodes.every(c => selectedCbus?.has(c));
   const someSelected = selectable && selectableCodes.some(c => selectedCbus?.has(c)) && !allSelected;
 
@@ -312,7 +314,8 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
             <TableBody>
               {entries.map(entry => {
                 const cbuCode = entry.cbuCode ?? "";
-                const isSelected = selectable && (selectedCbus?.has(cbuCode) ?? false);
+                const key = selectionKey(cbuCode);
+                const isSelected = selectable && (selectedCbus?.has(key) ?? false);
                 return (
                   <TableRow
                     key={cbuCode}
@@ -323,7 +326,7 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
                       <TableCell className="pl-6 w-10" onClick={e => e.stopPropagation()}>
                         <Checkbox
                           checked={isSelected}
-                          onCheckedChange={() => onToggleCbu?.(cbuCode)}
+                          onCheckedChange={() => onToggleCbu?.(key)}
                         />
                       </TableCell>
                     )}
@@ -551,8 +554,12 @@ export default function CcrMtListingPage() {
 
   // ── Dialog item helpers ────────────────────────────────────────────────────
 
+  // Selection keys are "cbuCode||chain" — extract just the cbuCode for display and API calls.
+  const cbuFromKey = (key: string) => key.split("||")[0];
+
   function dialogItems(selected: Set<string>, pool: NetworkEntry[]) {
-    return [...selected].map(cbu => {
+    return [...selected].map(key => {
+      const cbu = cbuFromKey(key);
       const e = pool.find(x => x.cbuCode === cbu);
       return { cbu, label: e ? `${e.materialDescription || e.basepackDescription || "—"}${e.brand ? ` · ${e.brand}` : ""}` : "" };
     });
@@ -713,7 +720,7 @@ export default function CcrMtListingPage() {
         description={<>The MT listing mapping for the following CBU{outputSelected.size > 1 ? "s" : ""} will be submitted to SAP. Once requested, {outputSelected.size > 1 ? "they" : "it"} will move to the <strong>Requested for SAP Update</strong> tab.</>}
         confirmLabel={<><Send className="h-3.5 w-3.5 mr-1.5" />{requestSapMutation.isPending ? "Submitting…" : "Confirm & Request"}</>}
         isPending={requestSapMutation.isPending}
-        onConfirm={() => requestSapMutation.mutate([...outputSelected])}
+        onConfirm={() => requestSapMutation.mutate([...outputSelected].map(cbuFromKey))}
         items={dialogItems(outputSelected, outputEntries)}
       />
 
@@ -725,7 +732,7 @@ export default function CcrMtListingPage() {
         confirmLabel={<><CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />{updateSapMutation.isPending ? "Updating…" : "Confirm Validated"}</>}
         confirmClass="bg-emerald-600 hover:bg-emerald-700 text-white"
         isPending={updateSapMutation.isPending}
-        onConfirm={() => updateSapMutation.mutate({ codes: [...requestedSelected], status: "Validated" })}
+        onConfirm={() => updateSapMutation.mutate({ codes: [...requestedSelected].map(cbuFromKey), status: "Validated" })}
         items={dialogItems(requestedSelected, requestedEntries)}
       />
 
@@ -737,7 +744,7 @@ export default function CcrMtListingPage() {
         confirmLabel={<><AlertCircle className="h-3.5 w-3.5 mr-1.5" />{updateSapMutation.isPending ? "Updating…" : "Confirm Error"}</>}
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         isPending={updateSapMutation.isPending}
-        onConfirm={() => updateSapMutation.mutate({ codes: [...requestedSelected], status: "Error" })}
+        onConfirm={() => updateSapMutation.mutate({ codes: [...requestedSelected].map(cbuFromKey), status: "Error" })}
         items={dialogItems(requestedSelected, requestedEntries)}
       />
     </div>
