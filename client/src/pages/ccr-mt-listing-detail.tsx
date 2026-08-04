@@ -100,6 +100,7 @@ type AtpBatch = {
   customerCode: string; customerChain: string; depot: string; batch: string;
   productionDate: string; stockAgeDays: number; validDays: number;
   rawAtp: number; pricingValid: boolean; isFresh: boolean; freshAtp: number;
+  cbuType: "OLD" | "NEW"; cbuCode: string;
 };
 
 function fmtDate(d: Date): string {
@@ -116,28 +117,16 @@ const SYNTHETIC_CHAIN_CODES: Record<string, string[]> = {
   "Reliance Smart":   ["RLS-MH-001"],
 };
 
-function generateAtpBatches(rows: MtListingRow[], fallbackChain?: string, fallbackCbu?: string): AtpBatch[] {
-  let sourceRows = rows.filter(r => r.rowType === "predecessor");
-
-  // For chains without predecessor MT-listing rows, synthesise entries so the ATP tab is never empty.
-  if (sourceRows.length === 0 && fallbackChain && fallbackCbu) {
-    const codes = SYNTHETIC_CHAIN_CODES[fallbackChain] ?? ["CUST-001"];
-    sourceRows = codes.map(code => ({
-      rowType: "predecessor" as const,
-      customerCode: code,
-      customerChain: fallbackChain,
-      cbuCode: fallbackCbu,
-      depot: SYNTHETIC_DEPOTS[simpleHash(code) % SYNTHETIC_DEPOTS.length],
-      listingBased: false,
-    } as MtListingRow));
-  }
-
+function makeBatches(
+  rows: MtListingRow[],
+  cbuType: "OLD" | "NEW",
+): AtpBatch[] {
   const today = new Date();
   const batches: AtpBatch[] = [];
-  for (const row of sourceRows) {
+  for (const row of rows) {
     const validDays = VALID_DAYS_BY_CHAIN[row.customerChain] ?? 100;
-    const baseKey = row.customerCode + (row.depot ?? "") + row.cbuCode;
-    const pricingValid = (simpleHash(row.customerCode + "price") % 8) > 0;
+    const baseKey = row.customerCode + (row.depot ?? "") + row.cbuCode + cbuType;
+    const pricingValid = (simpleHash(row.customerCode + cbuType + "price") % 8) > 0;
     for (let b = 1; b <= 2; b++) {
       const bk = baseKey + String(b);
       const stockAge = 20 + (simpleHash(bk + "age") % 130);
@@ -147,6 +136,7 @@ function generateAtpBatches(rows: MtListingRow[], fallbackChain?: string, fallba
       prodDate.setDate(prodDate.getDate() - stockAge);
       batches.push({
         customerCode: row.customerCode, customerChain: row.customerChain,
+        cbuCode: row.cbuCode, cbuType,
         depot: row.depot ?? "—", batch: `B${String(b).padStart(3, "0")}`,
         productionDate: fmtDate(prodDate), stockAgeDays: stockAge, validDays,
         rawAtp, pricingValid, isFresh, freshAtp: isFresh ? rawAtp : 0,
@@ -156,20 +146,55 @@ function generateAtpBatches(rows: MtListingRow[], fallbackChain?: string, fallba
   return batches;
 }
 
-type Recommendation = { label: string; variant: "retain" | "monitor" | "successor" | "inactive" };
-function getRecommendation(batches: AtpBatch[]): Recommendation {
-  if (!batches.length) return { label: "No Data", variant: "inactive" };
-  if (!batches[0].pricingValid) return { label: "Price Not Active", variant: "inactive" };
-  const freshAtp = batches.reduce((s, b) => s + b.freshAtp, 0);
-  if (freshAtp >= 400) return { label: "Retain Mapping", variant: "retain" };
-  if (freshAtp > 0) return { label: "Monitor", variant: "monitor" };
-  return { label: "Recommend Successor", variant: "successor" };
+function generateAtpBatches(rows: MtListingRow[], fallbackChain?: string, fallbackCbu?: string): AtpBatch[] {
+  let predRows = rows.filter(r => r.rowType === "predecessor");
+  let succRows = rows.filter(r => r.rowType === "successor");
+
+  // Synthesise entries when no real MT-listing rows exist (e.g. National chains).
+  if (predRows.length === 0 && fallbackChain && fallbackCbu) {
+    const codes = SYNTHETIC_CHAIN_CODES[fallbackChain] ?? ["CUST-001"];
+    const depot = SYNTHETIC_DEPOTS[simpleHash(fallbackCbu) % SYNTHETIC_DEPOTS.length];
+    predRows = codes.map(code => ({
+      rowType: "predecessor" as const, customerCode: code, customerChain: fallbackChain,
+      cbuCode: fallbackCbu, depot, listingBased: false,
+    } as MtListingRow));
+  }
+  if (succRows.length === 0 && fallbackChain && fallbackCbu) {
+    const codes = SYNTHETIC_CHAIN_CODES[fallbackChain] ?? ["CUST-001"];
+    const depot = SYNTHETIC_DEPOTS[simpleHash(fallbackCbu + "s") % SYNTHETIC_DEPOTS.length];
+    succRows = codes.map(code => ({
+      rowType: "successor" as const, customerCode: code, customerChain: fallbackChain,
+      cbuCode: fallbackCbu, depot, listingBased: false,
+    } as MtListingRow));
+  }
+
+  return [...makeBatches(predRows, "OLD"), ...makeBatches(succRows, "NEW")];
 }
-const REC_STYLES: Record<Recommendation["variant"], string> = {
-  retain: "bg-emerald-100 text-emerald-700",
-  monitor: "bg-amber-100 text-amber-700",
-  successor: "bg-blue-100 text-blue-700",
-  inactive: "bg-red-100 text-red-700",
+
+type AtpGroup = { customerChain: string; old: AtpBatch[]; new: AtpBatch[] };
+
+// Group batches by customerCode, split into OLD vs NEW.
+function groupAtpByCode(batches: AtpBatch[]): Record<string, AtpGroup> {
+  const map: Record<string, AtpGroup> = {};
+  for (const b of batches) {
+    if (!map[b.customerCode]) map[b.customerCode] = { customerChain: b.customerChain, old: [], new: [] };
+    if (b.cbuType === "OLD") map[b.customerCode].old.push(b);
+    else map[b.customerCode].new.push(b);
+  }
+  return map;
+}
+
+// Recommended CBU is whichever side has the higher total fresh ATP; ties go to NEW.
+type RecVariant = "old" | "new";
+function pickRecommended(oldBatches: AtpBatch[], newBatches: AtpBatch[]): RecVariant {
+  const oldFresh = oldBatches.reduce((s, b) => s + b.freshAtp, 0);
+  const newFresh = newBatches.reduce((s, b) => s + b.freshAtp, 0);
+  return newFresh >= oldFresh ? "new" : "old";
+}
+
+const REC_STYLES: Record<RecVariant, string> = {
+  old: "bg-slate-100 text-slate-700",
+  new: "bg-emerald-100 text-emerald-700",
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -198,14 +223,7 @@ export default function CcrMtListingDetailPage() {
 
   const isListingChain = useMemo(() => chainRows.some(r => r.listingBased), [chainRows]);
   const atpBatches = useMemo(() => generateAtpBatches(chainRows, chain, cbuCode), [chainRows, chain, cbuCode]);
-  const atpByCode = useMemo(() => {
-    const map: Record<string, AtpBatch[]> = {};
-    for (const b of atpBatches) {
-      if (!map[b.customerCode]) map[b.customerCode] = [];
-      map[b.customerCode].push(b);
-    }
-    return map;
-  }, [atpBatches]);
+  const atpByCode = useMemo(() => groupAtpByCode(atpBatches), [atpBatches]);
 
   const predCics = useMemo(() => {
     const cics = [...new Set(chainRows.filter(r => r.rowType === "predecessor" && r.cic).map(r => r.cic!))];
@@ -434,61 +452,91 @@ export default function CcrMtListingDetailPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {Object.entries(atpByCode).flatMap(([code, batches]) => {
-                              const rec = getRecommendation(batches);
-                              const totalFreshAtp = batches.reduce((s, b) => s + b.freshAtp, 0);
-                              const recCbu = rec.variant === "successor" ? mtData.successorCbu : mtData.predecessorCbu;
-                              const bChain = batches[0]?.customerChain ?? "";
+                            {Object.entries(atpByCode).flatMap(([code, grp]) => {
+                              const rec = pickRecommended(grp.old, grp.new);
+                              const recCbuCode = rec === "new"
+                                ? (mtData?.successorCbu?.cbuCode ?? grp.new[0]?.cbuCode ?? "—")
+                                : (mtData?.predecessorCbu?.cbuCode ?? grp.old[0]?.cbuCode ?? "—");
+                              const oldFresh = grp.old.reduce((s, b) => s + b.freshAtp, 0);
+                              const newFresh = grp.new.reduce((s, b) => s + b.freshAtp, 0);
+
+                              const batchRows = (batches: AtpBatch[], label: "OLD" | "NEW") => {
+                                if (!batches.length) return [];
+                                const totalFresh = batches.reduce((s, b) => s + b.freshAtp, 0);
+                                const isRec = (label === "OLD" && rec === "old") || (label === "NEW" && rec === "new");
+                                return [
+                                  // CBU sub-header
+                                  <TableRow key={`${code}-${label}-sub`} className={isRec ? "bg-emerald-50/60" : "bg-slate-50/80"}>
+                                    <TableCell colSpan={9} className="py-1.5 px-4 border-t border-dashed border-slate-200">
+                                      <div className="flex items-center gap-2">
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${label === "OLD" ? "bg-rose-100 text-rose-700" : "bg-blue-100 text-blue-700"}`}>{label}</span>
+                                        <span className="text-xs font-mono font-semibold">{batches[0]?.cbuCode ?? "—"}</span>
+                                        {isRec && (
+                                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 ml-1">
+                                            ★ Recommended Mapping
+                                          </span>
+                                        )}
+                                        <div className="ml-auto flex items-center gap-1.5">
+                                          <span className="text-[10px] text-muted-foreground">Total Fresh ATP</span>
+                                          <span className={`text-xs font-semibold ${totalFresh >= 400 ? "text-emerald-700" : totalFresh > 0 ? "text-amber-600" : "text-muted-foreground"}`}>
+                                            {totalFresh > 0 ? totalFresh.toLocaleString() : "—"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>,
+                                  // Batch data rows
+                                  ...batches.map(b => (
+                                    <TableRow key={`${code}-${label}-${b.batch}`} className={b.isFresh ? "bg-emerald-50/30" : b.pricingValid ? "bg-orange-50/20" : "bg-red-50/20"}>
+                                      <TableCell className="text-xs font-mono py-2 pl-8 text-muted-foreground">{b.depot}</TableCell>
+                                      <TableCell className="text-xs font-mono py-2">{b.batch}</TableCell>
+                                      <TableCell className="text-xs py-2">{b.productionDate}</TableCell>
+                                      <TableCell className="text-xs text-right py-2">
+                                        <span className={b.stockAgeDays > b.validDays ? "text-red-600 font-medium" : ""}>{b.stockAgeDays}d</span>
+                                      </TableCell>
+                                      <TableCell className="text-xs text-right py-2 text-muted-foreground">{b.validDays}d</TableCell>
+                                      <TableCell className="text-center py-2">
+                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${b.isFresh ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700"}`}>
+                                          {b.isFresh ? "Fresh" : "Non-Fresh"}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-xs text-right font-mono py-2">{b.rawAtp.toLocaleString()}</TableCell>
+                                      <TableCell className="text-center py-2">
+                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${b.pricingValid ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                          {b.pricingValid ? "Valid" : "Invalid"}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-xs text-right font-mono py-2">
+                                        <span className={b.freshAtp > 0 ? "text-emerald-700 font-semibold" : "text-muted-foreground"}>
+                                          {b.freshAtp > 0 ? b.freshAtp.toLocaleString() : "—"}
+                                        </span>
+                                      </TableCell>
+                                    </TableRow>
+                                  )),
+                                ];
+                              };
+
                               return [
-                                <TableRow key={`${code}-hdr`} className="bg-slate-50 border-t-2 border-t-slate-200">
+                                // Customer code header
+                                <TableRow key={`${code}-hdr`} className="bg-slate-100 border-t-2 border-t-slate-300">
                                   <TableCell colSpan={9} className="py-2 px-3">
                                     <div className="flex items-center gap-3 flex-wrap">
                                       <span className="text-xs font-semibold font-mono">{code}</span>
-                                      <span className="text-[10px] text-muted-foreground">{bChain}</span>
-                                      <span className="text-muted-foreground/40">|</span>
-                                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${REC_STYLES[rec.variant]}`}>{rec.label}</span>
+                                      <span className="text-[10px] text-muted-foreground">{grp.customerChain}</span>
                                       <span className="text-muted-foreground/40">|</span>
                                       <span className="text-[10px] text-muted-foreground">Recommended CBU</span>
-                                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${rec.variant === "successor" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                                        {rec.variant === "successor" ? "NEW" : "OLD"}
-                                      </span>
-                                      <span className="text-xs font-mono font-semibold">{recCbu?.cbuCode ?? "—"}</span>
-                                      <div className="ml-auto flex items-center gap-1.5">
-                                        <span className="text-[10px] text-muted-foreground">Total Fresh ATP</span>
-                                        <span className={`text-xs font-semibold ${totalFreshAtp >= 400 ? "text-emerald-700" : totalFreshAtp > 0 ? "text-amber-600" : "text-muted-foreground"}`}>
-                                          {totalFreshAtp > 0 ? totalFreshAtp.toLocaleString() : "—"}
-                                        </span>
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${REC_STYLES[rec]}`}>{rec.toUpperCase()}</span>
+                                      <span className="text-xs font-mono font-semibold">{recCbuCode}</span>
+                                      <div className="ml-auto flex items-center gap-3 text-[10px] text-muted-foreground">
+                                        <span>OLD Fresh ATP: <span className={`font-semibold ${oldFresh >= 400 ? "text-emerald-700" : oldFresh > 0 ? "text-amber-600" : "text-foreground"}`}>{oldFresh > 0 ? oldFresh.toLocaleString() : "—"}</span></span>
+                                        <span>vs</span>
+                                        <span>NEW Fresh ATP: <span className={`font-semibold ${newFresh >= 400 ? "text-emerald-700" : newFresh > 0 ? "text-amber-600" : "text-foreground"}`}>{newFresh > 0 ? newFresh.toLocaleString() : "—"}</span></span>
                                       </div>
                                     </div>
                                   </TableCell>
                                 </TableRow>,
-                                ...batches.map(b => (
-                                  <TableRow key={`${code}-${b.batch}`} className={b.isFresh ? "bg-emerald-50/40" : b.pricingValid ? "bg-orange-50/30" : "bg-red-50/30"}>
-                                    <TableCell className="text-xs font-mono py-2 pl-6 text-muted-foreground">{b.depot}</TableCell>
-                                    <TableCell className="text-xs font-mono py-2">{b.batch}</TableCell>
-                                    <TableCell className="text-xs py-2">{b.productionDate}</TableCell>
-                                    <TableCell className="text-xs text-right py-2">
-                                      <span className={b.stockAgeDays > b.validDays ? "text-red-600 font-medium" : ""}>{b.stockAgeDays}d</span>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-right py-2 text-muted-foreground">{b.validDays}d</TableCell>
-                                    <TableCell className="text-center py-2">
-                                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${b.isFresh ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700"}`}>
-                                        {b.isFresh ? "Fresh" : "Non-Fresh"}
-                                      </span>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-right font-mono py-2">{b.rawAtp.toLocaleString()}</TableCell>
-                                    <TableCell className="text-center py-2">
-                                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${b.pricingValid ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                                        {b.pricingValid ? "Valid" : "Invalid"}
-                                      </span>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-right font-mono py-2">
-                                      <span className={b.freshAtp > 0 ? "text-emerald-700 font-semibold" : "text-muted-foreground"}>
-                                        {b.freshAtp > 0 ? b.freshAtp.toLocaleString() : "—"}
-                                      </span>
-                                    </TableCell>
-                                  </TableRow>
-                                )),
+                                ...batchRows(grp.old, "OLD"),
+                                ...batchRows(grp.new, "NEW"),
                               ];
                             })}
                           </TableBody>
