@@ -19,8 +19,11 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from "@/components/ui/sheet";
+import {
   CheckCircle2, Send, ChevronRight, ChevronDown, Tag, Building2,
-  AlertCircle, RotateCcw, Upload,
+  AlertCircle, RotateCcw, Upload, MapPin,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -46,6 +49,12 @@ type MappingInitiatedItem = {
   basepack: string | null;
   typeOfNetwork: string | null;
   materialDescription: string | null;
+};
+
+type CicMappingRow = {
+  id: string; cbuCode: string; customerChain: string; customerCode: string;
+  cic: string | null; depot: string | null; status: string;
+  salesOrg: string; sourcingDepot: string | null; sourcingType: string; pricingStatus: string;
 };
 
 // ─── Eligibility ──────────────────────────────────────────────────────────────
@@ -557,6 +566,7 @@ export default function CcrMasterMaintenancePage() {
   const [validateDialog, setValidateDialog] = useState(false);
   const [errorDialog, setErrorDialog] = useState(false);
   const [errorComment, setErrorComment] = useState("");
+  const [depotDrawerItem, setDepotDrawerItem] = useState<MappingInitiatedItem | null>(null);
 
   function makeToggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
     return (cbuCode: string) => setter(prev => {
@@ -992,7 +1002,11 @@ export default function CcrMasterMaintenancePage() {
                             </TableHeader>
                             <TableBody>
                               {items.map(item => (
-                                <TableRow key={item.id} className="text-xs">
+                                <TableRow
+                                  key={item.id}
+                                  className="text-xs cursor-pointer hover:bg-muted/30 transition-colors"
+                                  onClick={() => setDepotDrawerItem(item)}
+                                >
                                   <TableCell className="font-mono font-medium py-2">{item.successorCbuCode ?? "—"}</TableCell>
                                   <TableCell className="font-mono text-muted-foreground py-2">{item.predecessorCbuCode ?? "—"}</TableCell>
                                   <TableCell className="font-mono py-2">{item.basepack ?? "—"}</TableCell>
@@ -1217,6 +1231,115 @@ export default function CcrMasterMaintenancePage() {
         }
       />
 
+      {/* ── Depot mapping drawer (CCR Mapping Initiated row click) ─────────── */}
+      <DepotMappingDrawer
+        item={depotDrawerItem}
+        onClose={() => setDepotDrawerItem(null)}
+      />
+
     </div>
+  );
+}
+
+// ─── Depot Mapping Drawer ─────────────────────────────────────────────────────
+
+function DepotMappingDrawer({
+  item, onClose,
+}: { item: MappingInitiatedItem | null; onClose: () => void }) {
+  const { data: rows = [], isLoading } = useQuery<CicMappingRow[]>({
+    queryKey: ["/api/ccr/cic-mappings", item?.successorCbuCode, item?.customerChain],
+    queryFn: () =>
+      fetch(
+        `/api/ccr/cic-mappings?cbu_code=${encodeURIComponent(item!.successorCbuCode!)}&customer_chain=${encodeURIComponent(item!.customerChain)}`
+      ).then(r => r.json()),
+    enabled: !!item?.successorCbuCode && !!item?.customerChain,
+  });
+
+  const mappedRows = rows.filter(r => r.status === "Mapped" || r.status === "mapped");
+  const nonMappedRows = rows.filter(r => r.status !== "Mapped" && r.status !== "mapped");
+
+  return (
+    <Sheet open={!!item} onOpenChange={v => { if (!v) onClose(); }}>
+      <SheetContent side="right" className="w-full max-w-2xl sm:max-w-2xl p-0 flex flex-col overflow-hidden">
+        <SheetHeader className="px-5 pt-5 pb-3 border-b">
+          <SheetTitle className="flex items-center gap-2 text-base">
+            <MapPin className="h-4 w-4 text-primary" />
+            Mapped Depots
+          </SheetTitle>
+          <SheetDescription className="text-xs">
+            <span className="font-mono font-semibold text-foreground">{item?.successorCbuCode}</span>
+            {" · "}{item?.customerChain}
+            {item?.cic && (
+              <span className="ml-2 inline-flex items-center gap-1 text-emerald-700 font-medium">
+                <CheckCircle2 className="h-3 w-3" /> CIC: {item.cic}
+              </span>
+            )}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {isLoading ? (
+            <div className="space-y-2">{[...Array(4)].map((_, i) => (
+              <div key={i} className="h-9 rounded bg-muted animate-pulse" />
+            ))}</div>
+          ) : rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No depot mappings found for this CBU and chain.</p>
+          ) : (
+            <>
+              {/* Summary pills */}
+              <div className="flex items-center gap-3 text-xs mb-1">
+                <span className="font-medium text-muted-foreground">{rows.length} rows total</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+                  <CheckCircle2 className="h-3 w-3" /> {mappedRows.length} Mapped
+                </span>
+                {nonMappedRows.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                    {nonMappedRows.length} Non-Geo
+                  </span>
+                )}
+              </div>
+
+              <div className="border rounded-md overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="text-xs font-semibold">Customer Code</TableHead>
+                      <TableHead className="text-xs font-semibold">CIC</TableHead>
+                      <TableHead className="text-xs font-semibold">Depot</TableHead>
+                      <TableHead className="text-xs font-semibold">Sourcing DC</TableHead>
+                      <TableHead className="text-xs font-semibold">Pricing</TableHead>
+                      <TableHead className="text-xs font-semibold">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map(r => {
+                      const isMapped = r.status === "Mapped" || r.status === "mapped";
+                      return (
+                        <TableRow key={r.id} className={isMapped ? "bg-emerald-50/40" : ""}>
+                          <TableCell className="text-xs font-mono py-2">{r.customerCode}</TableCell>
+                          <TableCell className="text-xs font-mono py-2 text-muted-foreground">{r.cic ?? "—"}</TableCell>
+                          <TableCell className="text-xs font-mono py-2 font-semibold">{r.depot ?? "—"}</TableCell>
+                          <TableCell className="text-xs font-mono py-2 text-muted-foreground">{r.sourcingDepot ?? "—"}</TableCell>
+                          <TableCell className="text-xs py-2">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${r.pricingStatus === "Yes" ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+                              {r.pricingStatus}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs py-2">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${isMapped ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+                              {isMapped ? <><CheckCircle2 className="h-2.5 w-2.5" /> Mapped</> : "Non-Geo"}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
