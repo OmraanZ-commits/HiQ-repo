@@ -243,9 +243,11 @@ function TabTrigger({ value, label, count, countClass }: { value: string; label:
   );
 }
 
-function ChainAccordion({ chainName, expanded, onToggle, count, children }: {
-  chainName: string; expanded: boolean; onToggle: () => void; count: number; children: React.ReactNode;
+function ChainAccordion({ chainName, expanded, onToggle, count, scenario, children }: {
+  chainName: string; expanded: boolean; onToggle: () => void; count: number;
+  scenario?: ChainScenario; children: React.ReactNode;
 }) {
+  const meta = scenario ? SCENARIO_META[scenario] : null;
   return (
     <div className="border-b border-border last:border-0">
       <button
@@ -256,6 +258,11 @@ function ChainAccordion({ chainName, expanded, onToggle, count, children }: {
           ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
           : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
         <span className="font-semibold text-sm text-foreground">{chainName}</span>
+        {meta && (
+          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${meta.pill}`}>
+            {scenario}
+          </span>
+        )}
         <span className="ml-auto text-xs text-muted-foreground">{count} CBU{count !== 1 ? "s" : ""}</span>
       </button>
       {expanded && <div className="pb-2">{children}</div>}
@@ -263,39 +270,40 @@ function ChainAccordion({ chainName, expanded, onToggle, count, children }: {
   );
 }
 
-// ─── Chain scenario derivation ────────────────────────────────────────────────
+// ─── Chain scenario — configured at customer-chain level ─────────────────────
 
 type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National Listing";
 
-function deriveChainScenario(chainRows: MtListingRow[]): ChainScenario {
-  if (chainRows.length === 0) return "Regional Non-Listing";
+// Listing-based chains (Ecom / Qcom) support pred + succ coexistence.
+// Non-listing chains (MT / MT Retail) deactivate pred when succ goes live.
+// National Listing is an edge case on listing chains where no new CIC is needed.
+const CHAIN_SCENARIO_MAP: Record<string, ChainScenario> = {
+  "BigBasket":        "Regional Listing",
+  "Blinkit":          "Regional Listing",
+  "Swiggy Instamart": "National Listing",   // edge case: CIC reuse, no new CIC required
+  "DMart":            "Regional Non-Listing",
+  "Reliance Smart":   "Regional Non-Listing",
+};
 
-  const predCics = new Set(chainRows.filter(r => r.rowType === "predecessor" && r.cic).map(r => r.cic!));
-  const succCics = new Set(chainRows.filter(r => r.rowType === "successor" && r.cic).map(r => r.cic!));
-
-  // National Listing: Successor inherits Predecessor's CIC — no new CIC required
-  const hasSharedCic = [...predCics].some(c => succCics.has(c));
-  if (hasSharedCic) return "National Listing";
-
-  // Regional Listing: pred and succ coexist (listing-based channel)
-  if (chainRows.some(r => r.listingBased)) return "Regional Listing";
-
-  // Regional Non-Listing: pred deactivated as succ activates, possibly region by region
-  return "Regional Non-Listing";
+function chainScenarioFromName(chain: string): ChainScenario {
+  return CHAIN_SCENARIO_MAP[chain] ?? "Regional Non-Listing";
 }
 
-const SCENARIO_META: Record<ChainScenario, { badge: string; desc: string }> = {
+const SCENARIO_META: Record<ChainScenario, { badge: string; pill: string; desc: string }> = {
   "Regional Listing": {
-    badge: "bg-violet-100 text-violet-700 border border-violet-200",
-    desc: "Successor and Predecessor are tagged to the same CIC and coexist in the listing",
+    badge: "bg-violet-50 border-violet-200",
+    pill:  "bg-violet-100 text-violet-700 border border-violet-200",
+    desc:  "Both Successor and Predecessor are tagged to the same CIC and coexist in the listing",
   },
   "Regional Non-Listing": {
-    badge: "bg-amber-100 text-amber-700 border border-amber-200",
-    desc: "Predecessor is deactivated as Successor activates — may differ by region",
+    badge: "bg-amber-50 border-amber-200",
+    pill:  "bg-amber-100 text-amber-700 border border-amber-200",
+    desc:  "Predecessor is deactivated as Successor activates — may vary by region",
   },
   "National Listing": {
-    badge: "bg-blue-100 text-blue-700 border border-blue-200",
-    desc: "No new CIC required — Successor inherits Predecessor's CIC nationally",
+    badge: "bg-blue-50 border-blue-200",
+    pill:  "bg-blue-100 text-blue-700 border border-blue-200",
+    desc:  "No new CIC required — Successor inherits Predecessor's CIC nationally",
   },
 };
 
@@ -336,8 +344,6 @@ function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
     const cics = [...new Set(chainRows.filter(r => r.rowType === "predecessor" && r.cic).map(r => r.cic!))];
     return cics.length ? cics.join(", ") : "—";
   }, [chainRows]);
-
-  const chainScenario = useMemo(() => deriveChainScenario(chainRows), [chainRows]);
 
   function handleExport() {
     if (!mtData) return;
@@ -391,19 +397,12 @@ function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
         <TableCell className="py-3">
           <NetworkStatusBadge status={entry.networkStatus} />
         </TableCell>
-        <TableCell className="py-3">
-          {expanded && chainRows.length > 0 ? (
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${SCENARIO_META[chainScenario].badge}`}>
-              {chainScenario}
-            </span>
-          ) : <span className="text-xs text-muted-foreground">—</span>}
-        </TableCell>
       </TableRow>
 
       {/* Expanded detail */}
       {expanded && (
         <TableRow className="bg-muted/5 hover:bg-muted/5">
-          <TableCell colSpan={9} className="p-0 pb-4 border-b">
+          <TableCell colSpan={8} className="p-0 pb-4 border-b">
             {isLoading ? (
               <div className="px-8 pt-4 space-y-2">
                 {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
@@ -414,12 +413,6 @@ function CbuMtRow({ entry, chain }: { entry: NetworkEntry; chain: string }) {
               <div className="px-8 py-6 text-sm text-muted-foreground">No MT listing rows for {chain} — configure the predecessor CBU first.</div>
             ) : (
               <div className="px-6 pt-3 space-y-3">
-                {/* Scenario banner */}
-                <div className={`flex items-start gap-3 rounded-md px-4 py-2.5 text-xs ${SCENARIO_META[chainScenario].badge}`}>
-                  <span className="font-semibold whitespace-nowrap">{chainScenario}</span>
-                  <span className="opacity-80">{SCENARIO_META[chainScenario].desc}</span>
-                </div>
-
                 {/* Predecessor → Successor summary strip */}
                 <div className="flex flex-wrap gap-6 text-xs bg-background rounded-md px-4 py-3 border">
                   <div>
@@ -736,6 +729,7 @@ export default function CcrMtListingPage() {
                       expanded={expandedTab1.has(chain)}
                       onToggle={() => toggleAccordion(expandedTab1, setExpandedTab1, chain)}
                       count={entries.length}
+                      scenario={chainScenarioFromName(chain)}
                     >
                       <Table>
                         <TableHeader>
@@ -748,7 +742,6 @@ export default function CcrMtListingPage() {
                             <TableHead className="text-xs font-semibold">Basepack</TableHead>
                             <TableHead className="text-xs font-semibold">CIC (Predecessor)</TableHead>
                             <TableHead className="text-xs font-semibold">Network Status</TableHead>
-                            <TableHead className="text-xs font-semibold">Scenario</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
