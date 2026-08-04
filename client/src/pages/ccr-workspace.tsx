@@ -17,6 +17,7 @@ import {
 import {
   GitCompareArrows, Download, RefreshCw, Filter, X, AlertTriangle,
   Clock, CheckCircle2, Zap, ChevronDown, User, Siren, Play,
+  Settings, Unlock, Info, ArrowRight,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -76,6 +77,23 @@ const STATUS_IDX: Record<string, number> = {
   "Stock Movement Initiated": 5,
   "Network transition complete": 6,
 };
+
+// National chains — require DOH threshold gate before MT Listing action is enabled.
+const NATIONAL_CHAINS = new Set([
+  "Amazon", "Big Bazaar", "BigBasket", "Cloud Tail",
+  "Flipkart", "JioMart", "Metro C&C", "Swiggy Instamart",
+]);
+
+// ── DOH mock helpers ─────────────────────────────────────────────────────────
+// Deterministic mock Days-on-Hand for demo.
+// Gate: successor DOH > 5 AND predecessor (current) DOH < 3.
+function _wHash(s: string, seed: number): number {
+  let h = seed;
+  for (let i = 0; i < s.length; i++) h = ((h * 31) ^ s.charCodeAt(i)) & 0xffff;
+  return Math.abs(h);
+}
+function mockSuccessorDoh(cbuCode: string): number { return (_wHash(cbuCode, 17) % 12) + 2; }
+function mockPredecessorDoh(predCode: string): number { return (_wHash(predCode, 7) % 7); }
 
 // CCR is actionable from Price Activated (Pricing Updated) onwards.
 const TRIGGER_STAGE_ORDER = ["Pricing", "First", "Second", "Third", "Fourth", "None"];
@@ -311,6 +329,18 @@ function MultiSelectFilter({
   );
 }
 
+// ─── Network status badge ─────────────────────────────────────────────────────
+
+function NetworkStatusBadge({ status }: { status: string | null | undefined }) {
+  const s = status ?? "Draft";
+  const high = ["FTR Approved", "Stock Movement Initiated", "Network transition complete"];
+  const mid  = ["Pricing Updated", "Production Started"];
+  if (high.includes(s)) return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[10px]">{s}</Badge>;
+  if (mid.includes(s))  return <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 text-[10px]">{s}</Badge>;
+  if (s === "Active")   return <Badge className="bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100 text-[10px]">{s}</Badge>;
+  return <Badge variant="outline" className="text-slate-500 text-[10px]">{s}</Badge>;
+}
+
 // ─── Table row ───────────────────────────────────────────────────────────────
 
 function LineItemRow({
@@ -461,6 +491,250 @@ function TabPanel({
               networkEntry={entryMap.get(item.successorCbuCode ?? "")}
             />
           ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// ─── Upcoming tab panel ───────────────────────────────────────────────────────
+// Shows relaunch CBUs from Active stage onwards with a direct Configure CIC link.
+
+function UpcomingTabPanel({
+  items,
+  entryMap,
+  loading,
+}: {
+  items: CcrLineItem[];
+  entryMap: Map<string, NetworkEntry>;
+  loading: boolean;
+}) {
+  const [, navigate] = useLocation();
+
+  if (loading) {
+    return (
+      <div className="space-y-2 px-4 py-3">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+      </div>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+        <CheckCircle2 className="h-8 w-8 opacity-30" />
+        <p className="text-sm">No upcoming items</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-y border-border/60 bg-muted/40 hover:bg-muted/40">
+            <TableHead className="w-8 pl-4 py-2.5 text-xs font-semibold text-muted-foreground"></TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Trigger Stage</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Customer Chain</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">CBU Code</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Basepack</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Change Type</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Status</TableHead>
+            <TableHead className="py-2.5 w-24 text-center text-xs font-semibold text-muted-foreground">New CIC</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground pr-4">CIC Mapping</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map(item => {
+            const entry = entryMap.get(item.successorCbuCode ?? "");
+            return (
+              <TableRow
+                key={item.id}
+                className="hover:bg-muted/40 transition-colors cursor-pointer"
+                onClick={() => navigate(`/ccr/line-items/${item.id}`)}
+              >
+                <TableCell className="py-2.5 pl-4">
+                  <UrgencyDot color={item.urgencyColor} />
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] border ${TRIGGER_STAGE_COLOR[item.triggerStage] ?? TRIGGER_STAGE_COLOR["None"]}`}
+                  >
+                    {TRIGGER_STAGE_LABEL[item.triggerStage] ?? "—"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <span className="text-sm font-medium">{item.customerChain}</span>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{item.customerCode}</p>
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <span className="text-xs font-mono">{item.successorCbuCode ?? "—"}</span>
+                  {item.predecessorCbuCode && (
+                    <p className="text-[10px] text-muted-foreground leading-tight">← {item.predecessorCbuCode}</p>
+                  )}
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <span className="text-xs">{entry?.basepack ?? "—"}</span>
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <span className="text-xs truncate max-w-[120px] block">{entry?.typeOfNetwork ?? "—"}</span>
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <NetworkStatusBadge status={entry?.networkStatus} />
+                </TableCell>
+                <TableCell className="py-2.5 text-center">
+                  {item.newCicRequired
+                    ? <CheckCircle2 className="h-4 w-4 text-slate-500 inline-block" />
+                    : <span className="text-muted-foreground/40 text-sm">—</span>}
+                </TableCell>
+                <TableCell className="py-2.5 pr-4" onClick={e => e.stopPropagation()}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 px-2.5"
+                    onClick={() => navigate(`/ccr/configure/${encodeURIComponent(item.successorCbuCode ?? "")}`)}
+                  >
+                    <Settings className="h-3 w-3" /> Configure CIC
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// ─── Submitted / In-Queue tab panel ──────────────────────────────────────────
+// Shows submitted items with per-row queue gate status and release actions.
+// Gate: Stock Movement Initiated must be reached.
+// National chains + existing CIC (newCicRequired=false): also DOH threshold
+//   (successor DOH > 5 days AND predecessor DOH < 3 days).
+
+function SubmittedTabPanel({
+  items,
+  entryMap,
+  loading,
+}: {
+  items: CcrLineItem[];
+  entryMap: Map<string, NetworkEntry>;
+  loading: boolean;
+}) {
+  const [, navigate] = useLocation();
+
+  if (loading) {
+    return (
+      <div className="space-y-2 px-4 py-3">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+      </div>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+        <CheckCircle2 className="h-8 w-8 opacity-30" />
+        <p className="text-sm">No items currently in queue</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-y border-border/60 bg-muted/40 hover:bg-muted/40">
+            <TableHead className="w-8 pl-4 py-2.5 text-xs font-semibold text-muted-foreground"></TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Customer Chain</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">CBU Code</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Basepack</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Network Status</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">CIC Type</TableHead>
+            <TableHead className="py-2.5 text-xs font-semibold text-muted-foreground">Queue Gate</TableHead>
+            <TableHead className="py-2.5 pr-4 text-xs font-semibold text-muted-foreground">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map(item => {
+            const entry   = entryMap.get(item.successorCbuCode ?? "");
+            const netStat = entry?.networkStatus ?? "";
+            const statusIdx = STATUS_IDX[netStat] ?? 0;
+            const stockMet  = statusIdx >= STATUS_IDX["Stock Movement Initiated"];
+            const isNational = NATIONAL_CHAINS.has(item.customerChain);
+            const needsDoh   = isNational && item.newCicRequired === false;
+            const succDoh    = mockSuccessorDoh(item.successorCbuCode ?? "");
+            const predDoh    = mockPredecessorDoh(item.predecessorCbuCode ?? "");
+            const dohMet     = needsDoh ? (succDoh > 5 && predDoh < 3) : true;
+            const canRelease = stockMet && dohMet;
+            const destLabel  = item.newCicRequired ? "Master Maintenance" : "MT Listing";
+            const destPath   = item.newCicRequired ? "/ccr/master-maintenance" : "/ccr/mt-listing";
+
+            return (
+              <TableRow
+                key={item.id}
+                className="hover:bg-muted/40 transition-colors cursor-pointer"
+                onClick={() => navigate(`/ccr/line-items/${item.id}`)}
+              >
+                <TableCell className="py-2.5 pl-4">
+                  <UrgencyDot color={item.urgencyColor} />
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <span className="text-sm font-medium">{item.customerChain}</span>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{item.customerCode}</p>
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <span className="text-xs font-mono">{item.successorCbuCode ?? "—"}</span>
+                  {item.predecessorCbuCode && (
+                    <p className="text-[10px] text-muted-foreground leading-tight">← {item.predecessorCbuCode}</p>
+                  )}
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <span className="text-xs">{entry?.basepack ?? "—"}</span>
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <NetworkStatusBadge status={netStat || "Draft"} />
+                </TableCell>
+                <TableCell className="py-2.5">
+                  {item.newCicRequired
+                    ? <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">New CIC</Badge>
+                    : <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">Existing CIC</Badge>}
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <div className="flex flex-col gap-1">
+                    {!stockMet && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-fit">
+                        <Clock className="h-2.5 w-2.5 shrink-0" /> Awaiting Stock Movement Initiated
+                      </span>
+                    )}
+                    {stockMet && needsDoh && !dohMet && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 w-fit">
+                        <Info className="h-2.5 w-2.5 shrink-0" />
+                        DOH not met — Succ: {succDoh}d / Pred: {predDoh}d
+                      </span>
+                    )}
+                    {canRelease && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 w-fit">
+                        <CheckCircle2 className="h-2.5 w-2.5 shrink-0" /> Ready to release
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="py-2.5 pr-4" onClick={e => e.stopPropagation()}>
+                  {canRelease ? (
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5"
+                      onClick={() => navigate(destPath)}
+                    >
+                      <ArrowRight className="h-3 w-3" /> {destLabel}
+                    </Button>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground/50 italic">In queue…</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
@@ -1104,11 +1378,19 @@ export default function CcrWorkspacePage() {
             </TabsContent>
 
             <TabsContent value="upcoming" className="mt-0">
-              <TabPanel items={upcoming} entryMap={entryMap} loading={isLoading} />
+              <div className="px-4 py-2 bg-blue-50 border-b text-xs text-blue-800 font-medium flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                CBUs from Active stage onwards — configure CIC mapping before the trigger fires
+              </div>
+              <UpcomingTabPanel items={upcoming} entryMap={entryMap} loading={isLoading} />
             </TabsContent>
 
             <TabsContent value="completed" className="mt-0">
-              <TabPanel items={completed} entryMap={entryMap} loading={isLoading} />
+              <div className="px-4 py-2 bg-orange-50 border-b text-xs text-orange-800 font-medium flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                CIC mapping submitted — held in queue until Stock Movement Initiated (National chains also require DOH threshold)
+              </div>
+              <SubmittedTabPanel items={completed} entryMap={entryMap} loading={isLoading} />
             </TabsContent>
           </Tabs>
         </Card>
