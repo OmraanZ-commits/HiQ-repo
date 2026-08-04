@@ -372,7 +372,9 @@ export default function CcrConfigurePage() {
     return errs;
   }, [selectedChain, entry, cicInput, existingCicMappings, pbBlocked, basepackStatus, sourcingMode, rows]);
 
-  // ── Save Mutation ─────────────────────────────────────────────────────────────
+  // ── Save + Enqueue Mutation ───────────────────────────────────────────────────
+  // Saving CIC mapping also submits the CBU to the MT Listing in-queue.
+  // The queue is idempotent: already-queued or SAP-workflow CBUs are unaffected.
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = rows.map(r => ({
@@ -390,14 +392,19 @@ export default function CcrConfigurePage() {
         sourcingType: r.sourcingType,
         pricingStatus: r.pricingStatus,
       }));
-      return apiRequest("PUT", "/api/ccr/cic-mappings", { mappings: payload });
+      await apiRequest("PUT", "/api/ccr/cic-mappings", { mappings: payload });
+      // Auto-enqueue: place CBU into MT Listing queue (no-op if already queued or in SAP flow)
+      await apiRequest("POST", "/api/ccr/queue-cbus", { cbu_codes: [decodedCbu], queued_by: "demo-user" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", decodedCbu, selectedChain] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", decodedCbu] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
-      toast({ title: "Mapping saved", description: `${rows.length} row(s) saved — ${mappedCount} Mapped, ${nonMappedCount} Non-Geo.` });
+      toast({
+        title: "Mapping saved & submitted to MT Listing queue",
+        description: `${rows.length} row(s) saved. CBU will appear in MT Listing once Stock Movement is initiated.`,
+      });
     },
     onError: (err: Error) => {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });

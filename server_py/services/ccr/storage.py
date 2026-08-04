@@ -284,6 +284,64 @@ class CcrStorage:
         finally:
             db.close()
 
+    def queue_cbus(self, cbu_codes: list, queued_by: str = "system") -> dict:
+        """
+        Place CBUs into the MT Listing in-queue holding state (sap_status = "Queued").
+        Idempotent: already-queued CBUs are left unchanged.
+        CBUs already in the SAP workflow (Requested/Validated/Error) are skipped.
+        Returns {"queued": [...], "skipped": [...]}.
+        """
+        db = SessionLocal()
+        try:
+            now = datetime.now(timezone.utc)
+            queued, skipped = [], []
+            for cbu_code in cbu_codes:
+                existing = db.query(CcrPostedCbuModel).filter(
+                    CcrPostedCbuModel.cbu_code == cbu_code
+                ).first()
+                if existing:
+                    if existing.sap_status == "Queued":
+                        queued.append(cbu_code)  # already queued, idempotent
+                    else:
+                        skipped.append(cbu_code)  # in SAP workflow, don't touch
+                else:
+                    db.add(CcrPostedCbuModel(
+                        cbu_code=cbu_code,
+                        posted_at=now,
+                        posted_by=queued_by,
+                        sap_status="Queued",
+                    ))
+                    queued.append(cbu_code)
+            db.commit()
+            return {"queued": queued, "skipped": skipped}
+        finally:
+            db.close()
+
+    def release_from_queue(self, cbu_codes: list) -> dict:
+        """
+        Release CBUs from the MT Listing queue by removing their ccr_posted_cbus row.
+        Only acts on rows with sap_status = "Queued"; SAP-workflow rows are untouched.
+        After release the CBU will appear in the MT Listing Output tab.
+        Returns {"released": [...], "not_found": [...]}.
+        """
+        db = SessionLocal()
+        try:
+            released, not_found = [], []
+            for cbu_code in cbu_codes:
+                row = db.query(CcrPostedCbuModel).filter(
+                    CcrPostedCbuModel.cbu_code == cbu_code,
+                    CcrPostedCbuModel.sap_status == "Queued",
+                ).first()
+                if row:
+                    db.delete(row)
+                    released.append(cbu_code)
+                else:
+                    not_found.append(cbu_code)
+            db.commit()
+            return {"released": released, "not_found": not_found}
+        finally:
+            db.close()
+
     def get_chain_completion_summary(self) -> dict:
         """
         Returns per-CBU chain-completion status for new-launch CBUs whose

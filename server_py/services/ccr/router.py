@@ -200,6 +200,38 @@ async def update_sap_status(req: UpdateSapStatusRequest):
     )
 
 
+class QueueCbusRequest(BaseModel):
+    cbu_codes: List[str]
+    queued_by: str = "system"
+
+
+@router.post("/queue-cbus")
+async def queue_cbus(req: QueueCbusRequest):
+    """
+    Place CBUs into the MT Listing in-queue holding state (sap_status = "Queued").
+    Idempotent — already-queued or SAP-workflow CBUs are handled gracefully.
+    """
+    if not req.cbu_codes:
+        raise HTTPException(status_code=400, detail="cbu_codes must not be empty")
+    return _svc().queue_cbus(cbu_codes=req.cbu_codes, queued_by=req.queued_by)
+
+
+class ReleaseCbusRequest(BaseModel):
+    cbu_codes: List[str]
+
+
+@router.post("/release-from-queue")
+async def release_from_queue(req: ReleaseCbusRequest):
+    """
+    Release CBUs from the MT Listing queue by removing their Queued row.
+    After release the CBU appears in MT Listing Output.
+    Only acts on rows with sap_status = "Queued".
+    """
+    if not req.cbu_codes:
+        raise HTTPException(status_code=400, detail="cbu_codes must not be empty")
+    return _svc().release_from_queue(cbu_codes=req.cbu_codes)
+
+
 @router.get("/ruleset")
 async def get_ruleset():
     return _svc().get_ruleset()

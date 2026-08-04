@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Send, CheckCircle2, AlertCircle, RotateCcw, Upload, ChevronRight, Download,
+  Clock, Unlock, Info,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { NetworkEntry } from "@shared/schema";
@@ -57,6 +58,22 @@ const SCENARIO_META: Record<ChainScenario, { badge: string; pill: string }> = {
   "Regional Non-Listing": { badge: "bg-amber-50 border-amber-200",   pill: "bg-amber-100 text-amber-700 border border-amber-200" },
   "National":             { badge: "bg-blue-50 border-blue-200",     pill: "bg-blue-100 text-blue-700 border border-blue-200" },
 };
+
+// ─── DOH mock helpers ─────────────────────────────────────────────────────────
+// Deterministic mock DOH (Days on Hand) values for demo.
+// Successor DOH > 5 AND predecessor DOH < 3 → DOH condition met for National.
+
+function _hashCode(s: string, seed: number): number {
+  let h = seed;
+  for (let i = 0; i < s.length; i++) h = ((h * 31) ^ s.charCodeAt(i)) & 0xffff;
+  return Math.abs(h);
+}
+function mockSuccessorDoh(cbuCode: string): number {
+  return (_hashCode(cbuCode, 17) % 12) + 2; // 2–13 days
+}
+function mockPredecessorDoh(predCode: string): number {
+  return (_hashCode(predCode, 7) % 7) + 0;  // 0–6 days
+}
 
 // ─── Small sub-components ─────────────────────────────────────────────────────
 
@@ -143,24 +160,86 @@ function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel, c
   );
 }
 
+// ─── Queue status for a single entry × chain ─────────────────────────────────
+
+type QueueGate = {
+  stockMet: boolean;
+  dohApplies: boolean;
+  dohMet: boolean;
+  successorDoh: number;
+  predecessorDoh: number;
+  canRelease: boolean;
+};
+
+function queueGateFor(entry: NetworkEntry, chain: string): QueueGate {
+  const stockMet = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+  const scenario = chainScenarioFromName(chain);
+  const dohApplies = scenario === "National";
+  const succDoh = mockSuccessorDoh(entry.cbuCode ?? "");
+  const predDoh = mockPredecessorDoh((entry as any).predecessorCode ?? "");
+  const dohMet = dohApplies ? (succDoh > 5 && predDoh < 3) : true;
+  return {
+    stockMet,
+    dohApplies,
+    dohMet,
+    successorDoh: succDoh,
+    predecessorDoh: predDoh,
+    canRelease: stockMet && dohMet,
+  };
+}
+
+function QueueStatusCell({ entry, chain, onRelease, isPending }: {
+  entry: NetworkEntry; chain: string;
+  onRelease: (cbuCode: string) => void; isPending: boolean;
+}) {
+  const gate = queueGateFor(entry, chain);
+
+  if (gate.canRelease) {
+    return (
+      <Button
+        size="sm" variant="outline"
+        className="h-7 text-xs gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 px-2.5"
+        disabled={isPending}
+        onClick={e => { e.stopPropagation(); onRelease(entry.cbuCode ?? ""); }}
+      >
+        <Unlock className="h-3 w-3" /> Release to MT Listing
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      {!gate.stockMet && (
+        <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+          <Clock className="h-2.5 w-2.5" /> Awaiting Stock Movement Initiated
+        </span>
+      )}
+      {gate.stockMet && gate.dohApplies && !gate.dohMet && (
+        <span className="inline-flex items-center gap-1 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5">
+          <Info className="h-2.5 w-2.5" />
+          DOH not met — Succ: {gate.successorDoh}d / Pred: {gate.predecessorDoh}d
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Chain accordion with CBU rows ───────────────────────────────────────────
 
 type ChainTableProps = {
   chain: string;
   entries: NetworkEntry[];
   postingStatusMap: Record<string, string>;
-  // Selection (optional — not used on validated/error readonly tabs)
   selectable?: boolean;
   selectedCbus?: Set<string>;
   onToggleCbu?: (cbuCode: string) => void;
   onToggleAll?: (cbuCodes: string[], checked: boolean) => void;
-  // Row action slot (status badge or Re-request button)
   actionSlot?: (entry: NetworkEntry) => React.ReactNode;
-  // Navigation
   onNavigate: (path: string) => void;
+  showExport?: boolean;
 };
 
-function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onToggleAll, actionSlot, onNavigate }: ChainTableProps) {
+function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onToggleAll, actionSlot, onNavigate, showExport = true }: ChainTableProps) {
   const scenario = chainScenarioFromName(chain);
   const meta = SCENARIO_META[scenario];
 
@@ -185,6 +264,8 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
     XLSX.writeFile(wb, `MT_Listing_${chain.replace(/\s+/g, "-")}_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
+  const hasActionSlot = !!actionSlot;
+
   return (
     <div className={`border-b last:border-b-0 ${expanded && meta ? meta.badge + " border" : ""}`}>
       {/* Chain header */}
@@ -195,7 +276,7 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
         <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${meta.pill}`}>{scenario}</span>
         <span className="ml-auto flex items-center gap-3">
           <span className="text-xs text-muted-foreground font-medium">{entries.length} CBU{entries.length !== 1 ? "s" : ""}</span>
-          {expanded && (
+          {expanded && showExport && (
             <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs text-muted-foreground hover:text-foreground px-2"
               onClick={e => { e.stopPropagation(); handleExportChain(); }}>
               <Download className="h-3 w-3" /> Export
@@ -225,6 +306,7 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
                 <TableHead className="text-xs font-semibold">Predecessor CBU</TableHead>
                 <TableHead className="text-xs font-semibold">Basepack</TableHead>
                 <TableHead className="text-xs font-semibold">Network Status</TableHead>
+                {hasActionSlot && <TableHead className="text-xs font-semibold text-right pr-5">Status / Action</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -257,6 +339,11 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
                     <TableCell className="py-3 font-mono text-xs text-muted-foreground">{(entry as any).predecessorCode ?? "—"}</TableCell>
                     <TableCell className="py-3 text-xs font-mono text-muted-foreground">{entry.basepack || "—"}</TableCell>
                     <TableCell className="py-3"><NetworkStatusBadge status={entry.networkStatus} /></TableCell>
+                    {hasActionSlot && (
+                      <TableCell className="py-3 text-right pr-5" onClick={e => e.stopPropagation()}>
+                        {actionSlot(entry)}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -280,9 +367,10 @@ type ChainGroupedViewProps = {
   onToggleAll?: (codes: string[], checked: boolean) => void;
   actionSlot?: (entry: NetworkEntry, chain: string) => React.ReactNode;
   onNavigate: (path: string) => void;
+  showExport?: boolean;
 };
 
-function ChainGroupedView({ entriesByChain, postingStatusMap, emptyMessage, selectable, selectedCbus, onToggleCbu, onToggleAll, actionSlot, onNavigate }: ChainGroupedViewProps) {
+function ChainGroupedView({ entriesByChain, postingStatusMap, emptyMessage, selectable, selectedCbus, onToggleCbu, onToggleAll, actionSlot, onNavigate, showExport }: ChainGroupedViewProps) {
   if (Object.keys(entriesByChain).length === 0) {
     return <div className="py-16 text-center text-sm text-muted-foreground">{emptyMessage}</div>;
   }
@@ -300,6 +388,7 @@ function ChainGroupedView({ entriesByChain, postingStatusMap, emptyMessage, sele
           onToggleAll={onToggleAll}
           actionSlot={actionSlot ? (entry) => actionSlot(entry, chain) : undefined}
           onNavigate={onNavigate}
+          showExport={showExport}
         />
       ))}
     </div>
@@ -312,7 +401,7 @@ export default function CcrMtListingPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("mt-output");
+  const [activeTab, setActiveTab] = useState("queue");
 
   // Selection state
   const [outputSelected, setOutputSelected]   = useState<Set<string>>(new Set());
@@ -342,20 +431,28 @@ export default function CcrMtListingPage() {
     [cicMappings],
   );
 
-  // All eligible entries: relaunch/extension, predecessor exists, CIC configured, FTR Approved+
+  // All eligible entries: relaunch/extension with predecessor and CIC configured.
+  // Stage gate: Active+ (idx ≥ 1) — upcoming CBUs can be queued from Active onwards.
   const eligibleEntries = useMemo(
     () => networkEntries.filter(e => {
       if (!(RELAUNCH_TYPES.has(e.typeOfNetwork ?? "") || e.typeOfNetwork === "EXTENSION" || e.typeOfNetwork === "Extension")) return false;
       const pred = (e as any).predecessorCode;
       if (!pred) return false;
-      if ((STATUS_IDX[e.networkStatus ?? ""] ?? 0) < STATUS_IDX["FTR Approved"]) return false;
+      if ((STATUS_IDX[e.networkStatus ?? ""] ?? 0) < STATUS_IDX["Active"]) return false;
       return cicConfiguredPreds.has(pred);
     }),
     [networkEntries, cicConfiguredPreds],
   );
 
-  // Split by SAP posting stage
-  const outputEntries    = useMemo(() => eligibleEntries.filter(e => { const s = postingStatusMap[e.cbuCode ?? ""]; return !s || s === "Saved"; }), [eligibleEntries, postingStatusMap]);
+  // Split by SAP/queue stage
+  // Queued: sap_status = "Queued" — submitted from Configure, waiting for conditions
+  const queuedEntries  = useMemo(() => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Queued"), [eligibleEntries, postingStatusMap]);
+  // MT Listing Output: not in queue/SAP workflow AND Stock Movement Initiated+
+  const outputEntries  = useMemo(() => eligibleEntries.filter(e => {
+    const s = postingStatusMap[e.cbuCode ?? ""];
+    if (s && s !== "Saved") return false; // Queued, Requested, Validated, Error → not here
+    return (STATUS_IDX[e.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+  }), [eligibleEntries, postingStatusMap]);
   const requestedEntries = useMemo(() => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Requested"),  [eligibleEntries, postingStatusMap]);
   const validatedEntries = useMemo(() => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Validated"), [eligibleEntries, postingStatusMap]);
   const errorEntries     = useMemo(() => eligibleEntries.filter(e => postingStatusMap[e.cbuCode ?? ""] === "Error"),      [eligibleEntries, postingStatusMap]);
@@ -386,6 +483,7 @@ export default function CcrMtListingPage() {
     return map;
   }
 
+  const queuedByChain    = useMemo(() => groupByChain(queuedEntries),    [queuedEntries,    chainSet]);
   const outputByChain    = useMemo(() => groupByChain(outputEntries),    [outputEntries,    chainSet]);
   const requestedByChain = useMemo(() => groupByChain(requestedEntries), [requestedEntries, chainSet]);
   const validatedByChain = useMemo(() => groupByChain(validatedEntries), [validatedEntries, chainSet]);
@@ -407,6 +505,16 @@ export default function CcrMtListingPage() {
   // ── Mutations ──────────────────────────────────────────────────────────────
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
+
+  const releaseFromQueueMutation = useMutation({
+    mutationFn: (codes: string[]) => apiRequest("POST", "/api/ccr/release-from-queue", { cbu_codes: codes }),
+    onSuccess: (_d, codes) => {
+      invalidate();
+      toast({ title: "Released to MT Listing Output", description: `${codes.length} CBU${codes.length > 1 ? "s" : ""} moved to MT Listing Output.` });
+      setActiveTab("mt-output");
+    },
+    onError: (err: Error) => toast({ title: "Release failed", description: err.message, variant: "destructive" }),
+  });
 
   const requestSapMutation = useMutation({
     mutationFn: (codes: string[]) => apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: codes, posted_by: "demo-user" }),
@@ -470,12 +578,46 @@ export default function CcrMtListingPage() {
             {/* ── Tab bar ───────────────────────────────────────────────────── */}
             <div className="border-b px-4 pt-3">
               <TabsList className="h-9 bg-transparent border-0 p-0 gap-0 justify-start rounded-none overflow-x-auto flex-shrink-0">
-                <TabTrigger value="mt-output"      label="MT Listing Output"        count={outputEntries.length}    countClass="bg-blue-100 text-blue-700" />
-                <TabTrigger value="sap-requested"  label="Requested for SAP Update" count={requestedEntries.length} countClass="bg-amber-100 text-amber-700" />
-                <TabTrigger value="sap-validated"  label="Validated / Posted in SAP" count={validatedEntries.length} countClass="bg-emerald-100 text-emerald-700" />
-                <TabTrigger value="sap-error"      label="Error Returned by SAP"    count={errorEntries.length}     countClass="bg-red-100 text-red-700" />
+                <TabTrigger value="queue"         label="Submitted / In-Queue"      count={queuedEntries.length}    countClass="bg-orange-100 text-orange-700" />
+                <TabTrigger value="mt-output"     label="MT Listing Output"          count={outputEntries.length}    countClass="bg-blue-100 text-blue-700" />
+                <TabTrigger value="sap-requested" label="Requested for SAP Update"   count={requestedEntries.length} countClass="bg-amber-100 text-amber-700" />
+                <TabTrigger value="sap-validated" label="Validated / Posted in SAP"  count={validatedEntries.length} countClass="bg-emerald-100 text-emerald-700" />
+                <TabTrigger value="sap-error"     label="Error Returned by SAP"      count={errorEntries.length}     countClass="bg-red-100 text-red-700" />
               </TabsList>
             </div>
+
+            {/* ══ Tab 0: Submitted / In-Queue ══════════════════════════════ */}
+            <TabsContent value="queue" className="mt-0">
+              <div className="px-4 py-2 bg-orange-50 border-b text-xs text-orange-800 font-medium flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                CIC mapping submitted — CBUs held in queue until basepack activates, Stock Movement is initiated
+                {Object.values(queuedByChain).some(entries =>
+                  entries.some(e => Object.keys(CHAIN_SCENARIO_MAP).some(ch =>
+                    chainScenarioFromName(ch) === "National"
+                  ))
+                ) && <span className="ml-1 text-orange-700">(National chains also require DOH threshold)</span>}
+              </div>
+
+              {entriesLoading ? (
+                <div className="p-6 space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+              ) : (
+                <ChainGroupedView
+                  entriesByChain={queuedByChain}
+                  postingStatusMap={postingStatusMap}
+                  emptyMessage="No CBUs are currently in the MT Listing queue. Save a CIC mapping on the Configure page to enqueue a CBU."
+                  actionSlot={(entry, chain) => (
+                    <QueueStatusCell
+                      entry={entry}
+                      chain={chain}
+                      onRelease={code => releaseFromQueueMutation.mutate([code])}
+                      isPending={releaseFromQueueMutation.isPending}
+                    />
+                  )}
+                  onNavigate={navigate}
+                  showExport={false}
+                />
+              )}
+            </TabsContent>
 
             {/* ══ Tab 1: MT Listing Output ══════════════════════════════════ */}
             <TabsContent value="mt-output" className="mt-0">
@@ -508,7 +650,7 @@ export default function CcrMtListingPage() {
                 <ChainGroupedView
                   entriesByChain={outputByChain}
                   postingStatusMap={postingStatusMap}
-                  emptyMessage="No eligible MT listing CBUs — all are in the SAP workflow."
+                  emptyMessage="No eligible MT listing CBUs — all are in-queue or in the SAP workflow."
                   selectable
                   selectedCbus={outputSelected}
                   onToggleCbu={toggle(setOutputSelected)}
