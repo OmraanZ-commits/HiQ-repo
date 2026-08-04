@@ -996,7 +996,7 @@ export default function CcrMasterMaintenancePage() {
                                 <TableHead className="text-xs font-semibold w-[9%]">Basepack</TableHead>
                                 <TableHead className="text-xs font-semibold w-[10%]">Network Type</TableHead>
                                 <TableHead className="text-xs font-semibold w-[22%]">Description</TableHead>
-                                <TableHead className="text-xs font-semibold w-[18%]">New CIC Assigned</TableHead>
+                                <TableHead className="text-xs font-semibold w-[18%]">CIC Assigned</TableHead>
                                 <TableHead className="text-xs font-semibold w-[15%]">Completed At</TableHead>
                               </TableRow>
                             </TableHeader>
