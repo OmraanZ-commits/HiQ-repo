@@ -59,7 +59,7 @@ type CicMapping = {
   pricingStatus: string;
 };
 
-type PricingStatus = "Available" | "Not Available" | "Partial";
+type PricingStatus = "Yes" | "No";
 type DepotStatus = "Mapped" | "Non-Mapped" | string;
 
 type DepotRow = {
@@ -105,11 +105,10 @@ function getSourcingMode(entry: NetworkEntry): "decentralized" | "centralized" {
 
 function computeRowPricingStatus(entry: NetworkEntry): PricingStatus {
   const idx = STATUS_IDX[entry.networkStatus ?? ""] ?? 0;
-  if (entry.priceActive === false) return "Not Available";
-  if (entry.priceActive === true) return entry.pcAtChannelState ? "Partial" : "Available";
-  if (idx >= 2) return entry.pcAtChannelState ? "Partial" : "Available";
-  if (idx >= 1) return "Partial";
-  return "Not Available";
+  if (entry.priceActive === false) return "No";
+  if (entry.priceActive === true) return "Yes";
+  if (idx >= 2) return "Yes";
+  return "No";
 }
 
 // ─── Badge helpers ────────────────────────────────────────────────────────────
@@ -143,9 +142,8 @@ function StatusBadge({ status, pbStatus }: { status: DepotStatus; pbStatus?: str
 }
 
 function PricingBadge({ status }: { status: PricingStatus }) {
-  if (status === "Available") return <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 text-xs">Available</Badge>;
-  if (status === "Not Available") return <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 text-xs">Not Available</Badge>;
-  return <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">Partial</Badge>;
+  if (status === "Yes") return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Yes</Badge>;
+  return <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 text-xs">No</Badge>;
 }
 
 
