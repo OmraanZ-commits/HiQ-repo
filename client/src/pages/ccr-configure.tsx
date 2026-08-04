@@ -525,7 +525,10 @@ export default function CcrConfigurePage() {
               <CardContent className="py-3 px-4">
                 <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-1.5">Chain Mapping Completed</p>
                 {(() => {
-                  const done = chainCompletionStats.applicable > 0 && chainCompletionStats.completed >= chainCompletionStats.applicable;
+                  // "Yes" when all applicable chains are configured, OR when the
+                  // currently selected chain already has at least one saved CIC mapping.
+                  const done = (chainCompletionStats.applicable > 0 && chainCompletionStats.completed >= chainCompletionStats.applicable)
+                    || allCicMappings.some(m => m.customerChain === selectedChain);
                   return (
                     <span className={`text-xl font-bold ${done ? "text-emerald-600" : "text-red-500"}`}>
                       {done ? "Yes" : "No"}
