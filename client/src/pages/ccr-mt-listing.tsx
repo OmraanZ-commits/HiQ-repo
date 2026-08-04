@@ -225,7 +225,6 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
                 <TableHead className="text-xs font-semibold">Predecessor CBU</TableHead>
                 <TableHead className="text-xs font-semibold">Basepack</TableHead>
                 <TableHead className="text-xs font-semibold">Network Status</TableHead>
-                <TableHead className="text-xs font-semibold text-right pr-5">SAP Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -258,9 +257,6 @@ function ChainTable({ chain, entries, selectable, selectedCbus, onToggleCbu, onT
                     <TableCell className="py-3 font-mono text-xs text-muted-foreground">{(entry as any).predecessorCode ?? "—"}</TableCell>
                     <TableCell className="py-3 text-xs font-mono text-muted-foreground">{entry.basepack || "—"}</TableCell>
                     <TableCell className="py-3"><NetworkStatusBadge status={entry.networkStatus} /></TableCell>
-                    <TableCell className="py-3 text-right pr-5" onClick={e => e.stopPropagation()}>
-                      {actionSlot ? actionSlot(entry) : null}
-                    </TableCell>
                   </TableRow>
                 );
               })}
