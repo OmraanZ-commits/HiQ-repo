@@ -44,7 +44,7 @@ type MtListingResponse = {
   error?: string;
 };
 
-type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National";
+type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National Non-Listing";
 
 const CHAIN_SCENARIO_MAP: Record<string, ChainScenario> = {
   "Amazon":           "National",
@@ -59,6 +59,7 @@ const CHAIN_SCENARIO_MAP: Record<string, ChainScenario> = {
   "DMart":            "Regional Non-Listing",
   "Reliance Smart":   "Regional Non-Listing",
   "Lulu Hypermarket": "Regional Listing",
+  "Metro Cash & Carry": "Regional Listing",
 };
 
 function chainScenarioFromName(chain: string): ChainScenario {

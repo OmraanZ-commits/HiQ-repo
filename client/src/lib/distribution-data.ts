@@ -184,4 +184,5 @@ export const NV_CODE_TO_CCR_CHAIN: Record<string, string> = {
   SWIN: "Swiggy Instamart",
   RELI: "Reliance Smart",
   DMAR: "DMart",
+  METRO: "Metro Cash & Carry",
 };

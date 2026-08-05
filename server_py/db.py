@@ -854,6 +854,15 @@ def run_migrations():
             ("CBU-50018901","BP-1901","Blinkit",       "BLK-MH-001","CIC-BP1901-MH-BLK","Qcom","MMDH"),
             ("CBU-50018901","BP-1901","Blinkit",       "BLK-TN-001","CIC-BP1901-TN-BLK","Qcom","CHKH"),
             ("CBU-50018901","BP-1901","Blinkit",       "BLK-KA-001","CIC-BP1901-KA-BLK","Qcom","BNDH"),
+            # ── Metro Cash & Carry predecessor CIC rows ──────────────────────
+            # Three predecessor CBUs for the three demo Metro successor CBUs below.
+            # MCC depot codes: DLGH (Delhi), MMDH (Mumbai), BNDH (Bangalore).
+            ("CBU-50018921","BP-MCC1","Metro Cash & Carry","MCC-DL-001","CIC-MCC1-DL-MCC","MT","DLGH"),
+            ("CBU-50018921","BP-MCC1","Metro Cash & Carry","MCC-MH-001","CIC-MCC1-MH-MCC","MT","MMDH"),
+            ("CBU-50018922","BP-MCC2","Metro Cash & Carry","MCC-DL-001","CIC-MCC2-DL-MCC","MT","DLGH"),
+            ("CBU-50018922","BP-MCC2","Metro Cash & Carry","MCC-KA-001","CIC-MCC2-KA-MCC","MT","BNDH"),
+            ("CBU-50018923","BP-MCC3","Metro Cash & Carry","MCC-MH-001","CIC-MCC3-MH-MCC","MT","MMDH"),
+            ("CBU-50018923","BP-MCC3","Metro Cash & Carry","MCC-KA-001","CIC-MCC3-KA-MCC","MT","BNDH"),
         ]
         for (cbu, bp, chain, ccode, cic, ch, depot) in _pred_cic_rows:
             conn.execute(text("""
@@ -868,6 +877,61 @@ def run_migrations():
                 )
             """), {"cbu": cbu, "bp": bp, "chain": chain, "ccode": ccode,
                    "cic": cic, "ch": ch, "depot": depot})
+        # ─────────────────────────────────────────────────────────────────────
+
+        # ── Metro Cash & Carry demo network entries ───────────────────────────
+        # Three successor CBUs for Metro (Regional Listing, SBM).
+        # customer_mapping uses {"ALL": ["METRO"]} so the MT Listing page groups
+        # them under "Metro Cash & Carry" via NV_CODE_TO_CCR_CHAIN.
+        # CBU-50019021 & CBU-50019022: Stock Movement Initiated → MT Listing Output.
+        # CBU-50019023: Active → appears in Queue tab (stock gate not yet met).
+        _metro_entries = [
+            # (cbu_code, basepack, predecessor_code, type_of_network, network_status,
+            #  material_description, brand)
+            ("CBU-50019021","BP-MCC1","CBU-50018921","RL_PKG","Stock Movement Initiated",
+             "Closeup Triple Fresh Toothpaste 150ml (Relaunch)","Closeup"),
+            ("CBU-50019022","BP-MCC2","CBU-50018922","RL_ART_PKG","Stock Movement Initiated",
+             "Lipton Honey Lemon Green Tea Bags 25s (Relaunch)","Lipton"),
+            ("CBU-50019023","BP-MCC3","CBU-50018923","EXTENSION","Active",
+             "Vaseline Intensive Care Cocoa Glow Lotion 400ml","Vaseline"),
+        ]
+        for (cbu, bp, pred, net_type, net_status, mat_desc, brand_name) in _metro_entries:
+            conn.execute(text("""
+                INSERT INTO network_entries
+                    (id, cbu_code, basepack, predecessor_code, type_of_network, network_status,
+                     material_description, brand, customer_mapping, created_at)
+                SELECT gen_random_uuid(), :cbu, :bp, :pred, :net_type, :net_status,
+                       :mat_desc, :brand, cast(:cm as jsonb), NOW()
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM network_entries WHERE cbu_code = :cbu
+                )
+            """), {
+                "cbu": cbu, "bp": bp, "pred": pred,
+                "net_type": net_type, "net_status": net_status,
+                "mat_desc": mat_desc, "brand": brand_name,
+                "cm": '{"ALL": ["METRO"]}',
+            })
+        # Also ensure the predecessor entries themselves exist so the detail page
+        # can resolve predecessor info. Only insert if not already present.
+        _metro_preds = [
+            ("CBU-50018921","BP-MCC1","Closeup Triple Fresh Toothpaste 150ml","Closeup"),
+            ("CBU-50018922","BP-MCC2","Lipton Honey Lemon Green Tea Bags 25s","Lipton"),
+            ("CBU-50018923","BP-MCC3","Vaseline Intensive Care Cocoa Glow Lotion 400ml","Vaseline"),
+        ]
+        for (cbu, bp, mat_desc, brand_name) in _metro_preds:
+            conn.execute(text("""
+                INSERT INTO network_entries
+                    (id, cbu_code, basepack, type_of_network, network_status,
+                     material_description, brand, customer_mapping, created_at)
+                SELECT gen_random_uuid(), :cbu, :bp, 'NEW_LAUNCH', 'Network transition complete',
+                       :mat_desc, :brand, cast(:cm as jsonb), NOW()
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM network_entries WHERE cbu_code = :cbu
+                )
+            """), {
+                "cbu": cbu, "bp": bp, "mat_desc": mat_desc,
+                "brand": brand_name, "cm": '{"ALL": ["METRO"]}',
+            })
         # ─────────────────────────────────────────────────────────────────────
 
         # ── Paid Bible: BP-1901 lifecycle dates ──────────────────────────────

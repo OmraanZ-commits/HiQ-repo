@@ -50,6 +50,7 @@ const CHAIN_SCENARIO_MAP: Record<string, ChainScenario> = {
   "Metro C&C": "National Non-Listing", "Swiggy Instamart": "National Non-Listing",
   "Blinkit": "Regional Non-Listing", "DMart": "Regional Non-Listing", "Reliance Smart": "Regional Non-Listing",
   "Lulu Hypermarket": "Regional Listing",
+  "Metro Cash & Carry": "Regional Listing",
 };
 function chainScenarioFromName(chain: string): ChainScenario {
   return CHAIN_SCENARIO_MAP[chain] ?? "Regional Non-Listing";
@@ -177,7 +178,7 @@ type QueueGate = {
 function queueGateFor(entry: NetworkEntry, chain: string): QueueGate {
   const stockMet = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
   const scenario = chainScenarioFromName(chain);
-  const dohApplies = scenario === "National";
+  const dohApplies = scenario === "National Non-Listing";
   const succDoh = mockSuccessorDoh(entry.cbuCode ?? "");
   const predDoh = mockPredecessorDoh((entry as any).predecessorCode ?? "");
   const dohMet = dohApplies ? (succDoh > 5 && predDoh < 3) : true;
