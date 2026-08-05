@@ -1234,15 +1234,15 @@ function CcrInitiatedChainView({
                   <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow className="bg-muted/20 hover:bg-muted/20">
-                        <TableHead className="w-[2%]" />
+                        <TableHead className="w-[3%]" />
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Basepack</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Successor CBU</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Predecessor CBU</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[18%]">Description</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[9%]">Network Type</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[20%]">Description</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Network Type</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[14%]">CIC Assigned</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Completed At</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[8%]">Action</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[7%]">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1255,7 +1255,11 @@ function CcrInitiatedChainView({
                           <TableCell className="py-2 text-xs font-mono">{item.basepack ?? "—"}</TableCell>
                           <TableCell className="py-2 font-mono text-xs font-medium">{item.successorCbuCode ?? "—"}</TableCell>
                           <TableCell className="py-2 font-mono text-xs text-muted-foreground">{item.predecessorCbuCode ?? "—"}</TableCell>
-                          <TableCell className="py-2 text-xs truncate text-muted-foreground">{item.materialDescription ?? "—"}</TableCell>
+                          <TableCell className="py-2 max-w-0 overflow-hidden">
+                            <span className="block truncate text-xs text-muted-foreground" title={item.materialDescription ?? undefined}>
+                              {item.materialDescription ?? "—"}
+                            </span>
+                          </TableCell>
                           <TableCell className="py-2 text-xs whitespace-nowrap">{getNetworkChangeTypeName(item.typeOfNetwork)}</TableCell>
                           <TableCell className="py-2">
                             {item.cic ? (
