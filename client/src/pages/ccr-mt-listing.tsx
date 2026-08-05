@@ -42,12 +42,12 @@ const RELAUNCH_TYPES = new Set([
 
 // ─── Scenario configuration ───────────────────────────────────────────────────
 
-type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National";
+type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National Non-Listing";
 
 const CHAIN_SCENARIO_MAP: Record<string, ChainScenario> = {
-  "Amazon": "National", "Big Bazaar": "National", "BigBasket": "National",
-  "Cloud Tail": "National", "Flipkart": "National", "JioMart": "National",
-  "Metro C&C": "National", "Swiggy Instamart": "National",
+  "Amazon": "National Non-Listing", "Big Bazaar": "National Non-Listing", "BigBasket": "National Non-Listing",
+  "Cloud Tail": "National Non-Listing", "Flipkart": "National Non-Listing", "JioMart": "National Non-Listing",
+  "Metro C&C": "National Non-Listing", "Swiggy Instamart": "National Non-Listing",
   "Blinkit": "Regional Non-Listing", "DMart": "Regional Non-Listing", "Reliance Smart": "Regional Non-Listing",
   "Lulu Hypermarket": "Regional Listing",
 };
@@ -55,14 +55,14 @@ function chainScenarioFromName(chain: string): ChainScenario {
   return CHAIN_SCENARIO_MAP[chain] ?? "Regional Non-Listing";
 }
 const SCENARIO_META: Record<ChainScenario, { badge: string; pill: string }> = {
-  "Regional Listing":     { badge: "bg-violet-50 border-violet-200", pill: "bg-violet-100 text-violet-700 border border-violet-200" },
-  "Regional Non-Listing": { badge: "bg-amber-50 border-amber-200",   pill: "bg-amber-100 text-amber-700 border border-amber-200" },
-  "National":             { badge: "bg-blue-50 border-blue-200",     pill: "bg-blue-100 text-blue-700 border border-blue-200" },
+  "Regional Listing":         { badge: "bg-violet-50 border-violet-200", pill: "bg-violet-100 text-violet-700 border border-violet-200" },
+  "Regional Non-Listing":     { badge: "bg-amber-50 border-amber-200",   pill: "bg-amber-100 text-amber-700 border border-amber-200" },
+  "National Non-Listing":     { badge: "bg-blue-50 border-blue-200",     pill: "bg-blue-100 text-blue-700 border border-blue-200" },
 };
 
 // ─── DOH mock helpers ─────────────────────────────────────────────────────────
 // Deterministic mock DOH (Days on Hand) values for demo.
-// Successor DOH > 5 AND predecessor DOH < 3 → DOH condition met for National.
+// Successor DOH > 5 AND predecessor DOH < 3 → DOH condition met for National Non-Listing.
 
 function _hashCode(s: string, seed: number): number {
   let h = seed;
