@@ -843,7 +843,7 @@ export default function CcrMasterMaintenancePage() {
         </Card>
 
         {/* ── Main chain-grouped table ─────────────────────────────────────── */}
-        <Card className="overflow-hidden">
+        <Card className="overflow-clip">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
 
             {/* Tab header */}

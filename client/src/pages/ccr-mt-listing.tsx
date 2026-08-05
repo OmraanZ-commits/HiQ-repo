@@ -584,7 +584,7 @@ export default function CcrMtListingPage() {
           </p>
         </div>
 
-        <Card className="overflow-hidden">
+        <Card className="overflow-clip">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
 
             {/* ── Tab bar ───────────────────────────────────────────────────── */}
