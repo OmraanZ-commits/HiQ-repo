@@ -1268,6 +1268,20 @@ def migrate_ccr_trigger_stage_actionability():
     from sqlalchemy import text
     db_conn = engine.connect()
     try:
+        # 0. Regional Non-Listing chains (e.g. Blinkit, DMart) never use the
+        #    "reuse existing CIC" scenario — they always require a new CIC.
+        #    Correct any rows that were seeded with new_cic_required=False.
+        db_conn.execute(text("""
+            UPDATE ccr_line_items li
+            SET new_cic_required = TRUE
+            WHERE li.new_cic_required = FALSE
+              AND EXISTS (
+                SELECT 1 FROM ccr_customer_master c
+                WHERE c.customer_chain = li.customer_chain
+                  AND c.coverage_type  = 'Regional'
+              )
+        """))
+
         # 1. Demote First/Second/None "Action Required" items → "Upcoming"
         db_conn.execute(text("""
             UPDATE ccr_line_items
