@@ -19,11 +19,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from "@/components/ui/sheet";
-import {
   CheckCircle2, Send, ChevronRight, ChevronDown, Tag, Building2,
-  AlertCircle, RotateCcw, Upload, MapPin,
+  AlertCircle, RotateCcw, Upload,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -51,11 +48,6 @@ type MappingInitiatedItem = {
   materialDescription: string | null;
 };
 
-type CicMappingRow = {
-  id: string; cbuCode: string; customerChain: string; customerCode: string;
-  cic: string | null; depot: string | null; status: string;
-  salesOrg: string; sourcingDepot: string | null; sourcingType: string; pricingStatus: string;
-};
 
 // ─── Eligibility ──────────────────────────────────────────────────────────────
 
@@ -566,7 +558,6 @@ export default function CcrMasterMaintenancePage() {
   const [validateDialog, setValidateDialog] = useState(false);
   const [errorDialog, setErrorDialog] = useState(false);
   const [errorComment, setErrorComment] = useState("");
-  const [depotDrawerItem, setDepotDrawerItem] = useState<MappingInitiatedItem | null>(null);
 
   function makeToggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
     return (cbuCode: string) => setter(prev => {
@@ -966,73 +957,15 @@ export default function CcrMasterMaintenancePage() {
 
             {/* ── CCR Mapping Initiated tab ─────────────────────────────────── */}
             <TabsContent value="ccr-initiated" className="mt-0">
-              {mappingInitiatedItems.length === 0 ? (
-                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  No CCR mappings initiated yet. Completed CCR line items with a new CIC assigned will appear here.
-                </div>
-              ) : (
-                (() => {
-                  const grouped = mappingInitiatedItems.reduce<Record<string, MappingInitiatedItem[]>>((acc, item) => {
-                    const chain = item.customerChain || "Unknown";
-                    if (!acc[chain]) acc[chain] = [];
-                    acc[chain].push(item);
-                    return acc;
-                  }, {});
-                  return (
-                    <div>
-                      {Object.entries(grouped).map(([chain, items]) => (
-                        <div key={chain}>
-                          {/* Chain header row */}
-                          <div className="flex items-center gap-2 px-4 py-2 bg-muted/30 border-b border-border">
-                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs font-semibold">{chain}</span>
-                            <span className="text-[10px] text-muted-foreground ml-1">{items.length} CBU{items.length !== 1 ? "s" : ""}</span>
-                          </div>
-                          <Table className="w-full table-fixed">
-                            <TableHeader>
-                              <TableRow className="bg-muted/10 hover:bg-muted/10">
-                                <TableHead className="text-xs font-semibold w-[13%]">Successor CBU</TableHead>
-                                <TableHead className="text-xs font-semibold w-[13%]">Predecessor CBU</TableHead>
-                                <TableHead className="text-xs font-semibold w-[9%]">Basepack</TableHead>
-                                <TableHead className="text-xs font-semibold w-[10%]">Network Type</TableHead>
-                                <TableHead className="text-xs font-semibold w-[22%]">Description</TableHead>
-                                <TableHead className="text-xs font-semibold w-[18%]">CIC Assigned</TableHead>
-                                <TableHead className="text-xs font-semibold w-[15%]">Completed At</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {items.map(item => (
-                                <TableRow
-                                  key={item.id}
-                                  className="text-xs cursor-pointer hover:bg-muted/30 transition-colors"
-                                  onClick={() => setDepotDrawerItem(item)}
-                                >
-                                  <TableCell className="font-mono font-medium py-2">{item.successorCbuCode ?? "—"}</TableCell>
-                                  <TableCell className="font-mono text-muted-foreground py-2">{item.predecessorCbuCode ?? "—"}</TableCell>
-                                  <TableCell className="font-mono py-2">{item.basepack ?? "—"}</TableCell>
-                                  <TableCell className="py-2">{item.typeOfNetwork ?? "—"}</TableCell>
-                                  <TableCell className="truncate py-2 text-muted-foreground">{item.materialDescription ?? "—"}</TableCell>
-                                  <TableCell className="py-2">
-                                    <span className="inline-flex items-center gap-1 font-mono font-semibold text-emerald-700">
-                                      <CheckCircle2 className="h-3 w-3" />
-                                      {item.cic}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="py-2 text-muted-foreground">
-                                    {item.completedAt
-                                      ? new Date(item.completedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                                      : "—"}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()
-              )}
+              <div className="px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
+                CCR-completed CBUs with a CIC assigned. Click <span className="font-semibold">View</span> to inspect the mapped depots.
+              </div>
+              <CcrInitiatedChainView
+                items={mappingInitiatedItems}
+                expandedChains={expandedChains}
+                onToggleChain={toggleChain}
+                onNavigate={navigate}
+              />
             </TabsContent>
 
             {/* ── Requested for SAP Update tab ──────────────────────────────── */}
@@ -1231,115 +1164,134 @@ export default function CcrMasterMaintenancePage() {
         }
       />
 
-      {/* ── Depot mapping drawer (CCR Mapping Initiated row click) ─────────── */}
-      <DepotMappingDrawer
-        item={depotDrawerItem}
-        onClose={() => setDepotDrawerItem(null)}
-      />
-
     </div>
   );
 }
 
-// ─── Depot Mapping Drawer ─────────────────────────────────────────────────────
+// ─── CCR Mapping Initiated – chain-grouped view ───────────────────────────────
 
-function DepotMappingDrawer({
-  item, onClose,
-}: { item: MappingInitiatedItem | null; onClose: () => void }) {
-  const { data: rows = [], isLoading } = useQuery<CicMappingRow[]>({
-    queryKey: ["/api/ccr/cic-mappings", item?.successorCbuCode, item?.customerChain],
-    queryFn: () =>
-      fetch(
-        `/api/ccr/cic-mappings?cbu_code=${encodeURIComponent(item!.successorCbuCode!)}&customer_chain=${encodeURIComponent(item!.customerChain)}`
-      ).then(r => r.json()),
-    enabled: !!item?.successorCbuCode && !!item?.customerChain,
-  });
+function CcrInitiatedChainView({
+  items, expandedChains, onToggleChain, onNavigate,
+}: {
+  items: MappingInitiatedItem[];
+  expandedChains: Set<string>;
+  onToggleChain: (chain: string) => void;
+  onNavigate: (path: string) => void;
+}) {
+  const grouped = useMemo(() => {
+    const m: Record<string, MappingInitiatedItem[]> = {};
+    for (const item of items) {
+      const chain = item.customerChain || "Unknown";
+      if (!m[chain]) m[chain] = [];
+      m[chain].push(item);
+    }
+    return Object.entries(m);
+  }, [items]);
 
-  const mappedRows = rows.filter(r => r.status === "Mapped" || r.status === "mapped");
-  const nonMappedRows = rows.filter(r => r.status !== "Mapped" && r.status !== "mapped");
+  if (grouped.length === 0) {
+    return (
+      <div className="py-10 text-center text-sm text-muted-foreground">
+        No CCR mappings initiated yet. Completed CCR line items with a CIC assigned will appear here.
+      </div>
+    );
+  }
 
   return (
-    <Sheet open={!!item} onOpenChange={v => { if (!v) onClose(); }}>
-      <SheetContent side="right" className="w-full max-w-2xl sm:max-w-2xl p-0 flex flex-col overflow-hidden">
-        <SheetHeader className="px-5 pt-5 pb-3 border-b">
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <MapPin className="h-4 w-4 text-primary" />
-            Mapped Depots
-          </SheetTitle>
-          <SheetDescription className="text-xs">
-            <span className="font-mono font-semibold text-foreground">{item?.successorCbuCode}</span>
-            {" · "}{item?.customerChain}
-            {item?.cic && (
-              <span className="ml-2 inline-flex items-center gap-1 text-emerald-700 font-medium">
-                <CheckCircle2 className="h-3 w-3" /> CIC: {item.cic}
+    <div className="divide-y">
+      {grouped.map(([chain, chainItems]) => {
+        const isExpanded = expandedChains.has(chain);
+        return (
+          <div key={chain} className="bg-background">
+            {/* Chain header */}
+            <div
+              className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors select-none"
+              onClick={() => onToggleChain(chain)}
+            >
+              <span className="text-muted-foreground flex-shrink-0">
+                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               </span>
-            )}
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {isLoading ? (
-            <div className="space-y-2">{[...Array(4)].map((_, i) => (
-              <div key={i} className="h-9 rounded bg-muted animate-pulse" />
-            ))}</div>
-          ) : rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No depot mappings found for this CBU and chain.</p>
-          ) : (
-            <>
-              {/* Summary pills */}
-              <div className="flex items-center gap-3 text-xs mb-1">
-                <span className="font-medium text-muted-foreground">{rows.length} rows total</span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
-                  <CheckCircle2 className="h-3 w-3" /> {mappedRows.length} Mapped
-                </span>
-                {nonMappedRows.length > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                    {nonMappedRows.length} Non-Geo
-                  </span>
-                )}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="font-semibold text-sm text-foreground truncate">{chain}</span>
               </div>
+              <div className="flex items-center gap-5 flex-shrink-0">
+                <div className="text-center hidden sm:block">
+                  <div className="text-xs font-semibold text-foreground">{chainItems.length}</div>
+                  <div className="text-[10px] text-muted-foreground">CBU{chainItems.length !== 1 ? "s" : ""}</div>
+                </div>
+                <div className="w-24 text-right">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                    CIC Assigned
+                  </span>
+                </div>
+              </div>
+            </div>
 
-              <div className="border rounded-md overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      <TableHead className="text-xs font-semibold">Customer Code</TableHead>
-                      <TableHead className="text-xs font-semibold">CIC</TableHead>
-                      <TableHead className="text-xs font-semibold">Depot</TableHead>
-                      <TableHead className="text-xs font-semibold">Sourcing DC</TableHead>
-                      <TableHead className="text-xs font-semibold">Pricing</TableHead>
-                      <TableHead className="text-xs font-semibold">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map(r => {
-                      const isMapped = r.status === "Mapped" || r.status === "mapped";
-                      return (
-                        <TableRow key={r.id} className={isMapped ? "bg-emerald-50/40" : ""}>
-                          <TableCell className="text-xs font-mono py-2">{r.customerCode}</TableCell>
-                          <TableCell className="text-xs font-mono py-2 text-muted-foreground">{r.cic ?? "—"}</TableCell>
-                          <TableCell className="text-xs font-mono py-2 font-semibold">{r.depot ?? "—"}</TableCell>
-                          <TableCell className="text-xs font-mono py-2 text-muted-foreground">{r.sourcingDepot ?? "—"}</TableCell>
-                          <TableCell className="text-xs py-2">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${r.pricingStatus === "Yes" ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
-                              {r.pricingStatus}
-                            </span>
+            {/* Expanded CBU table */}
+            {isExpanded && (
+              <div className="border-t bg-muted/5">
+                <div className="overflow-x-auto">
+                  <Table className="w-full table-fixed">
+                    <TableHeader>
+                      <TableRow className="bg-muted/20 hover:bg-muted/20">
+                        <TableHead className="w-[2%]" />
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Basepack</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Successor CBU</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Predecessor CBU</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[18%]">Description</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[9%]">Network Type</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[14%]">CIC Assigned</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Completed At</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[8%]">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {chainItems.map((item, rowIdx) => (
+                        <TableRow
+                          key={item.id}
+                          className={rowIdx % 2 === 1 ? "bg-muted/10 hover:bg-muted/20" : "hover:bg-muted/10"}
+                        >
+                          <TableCell className="pl-8" />
+                          <TableCell className="py-2 text-xs font-mono">{item.basepack ?? "—"}</TableCell>
+                          <TableCell className="py-2 font-mono text-xs font-medium">{item.successorCbuCode ?? "—"}</TableCell>
+                          <TableCell className="py-2 font-mono text-xs text-muted-foreground">{item.predecessorCbuCode ?? "—"}</TableCell>
+                          <TableCell className="py-2 text-xs truncate text-muted-foreground">{item.materialDescription ?? "—"}</TableCell>
+                          <TableCell className="py-2 text-xs whitespace-nowrap">{getNetworkChangeTypeName(item.typeOfNetwork)}</TableCell>
+                          <TableCell className="py-2">
+                            {item.cic ? (
+                              <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-emerald-700">
+                                <CheckCircle2 className="h-3 w-3" />{item.cic}
+                              </span>
+                            ) : <span className="text-muted-foreground">—</span>}
                           </TableCell>
-                          <TableCell className="text-xs py-2">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${isMapped ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
-                              {isMapped ? <><CheckCircle2 className="h-2.5 w-2.5" /> Mapped</> : "Non-Geo"}
-                            </span>
+                          <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
+                            {item.completedAt
+                              ? new Date(item.completedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="pr-4 py-2 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs px-2.5"
+                              disabled={!item.successorCbuCode}
+                              onClick={() => onNavigate(
+                                `/ccr/configure/${encodeURIComponent(item.successorCbuCode ?? "")}?chain=${encodeURIComponent(chain)}&readonly=true`
+                              )}
+                            >
+                              View
+                            </Button>
                           </TableCell>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-            </>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

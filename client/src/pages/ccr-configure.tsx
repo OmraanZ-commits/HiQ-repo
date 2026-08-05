@@ -158,6 +158,7 @@ export default function CcrConfigurePage() {
   const decodedCbu = decodeURIComponent(cbuCode ?? "");
   const searchString = useSearch();
   const chainFromUrl = useMemo(() => new URLSearchParams(searchString).get("chain") ?? "", [searchString]);
+  const isReadonly = useMemo(() => new URLSearchParams(searchString).get("readonly") === "true", [searchString]);
 
   // ── Local state ─────────────────────────────────────────────────────────────
   const [selectedChain, setSelectedChain] = useState<string>(chainFromUrl);
@@ -480,7 +481,14 @@ export default function CcrConfigurePage() {
             Master Maintenance
           </Button>
           <span className="text-muted-foreground text-sm">/</span>
-          <span className="text-sm font-medium">Configure — <span className="font-mono">{decodedCbu}</span></span>
+          <span className="text-sm font-medium">
+            {isReadonly ? "View" : "Configure"} — <span className="font-mono">{decodedCbu}</span>
+          </span>
+          {isReadonly && (
+            <span className="ml-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wide">
+              View Only
+            </span>
+          )}
         </div>
 
         {/* ── CBU Summary strip ─────────────────────────────────────────────── */}
@@ -599,20 +607,27 @@ export default function CcrConfigurePage() {
               {/* CIC Code */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide" htmlFor="cic-input">
-                  CIC Code <span className="text-red-500">*</span>
+                  CIC Code {!isReadonly && <span className="text-red-500">*</span>}
                 </Label>
-                <div className="relative">
-                  <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                  <Input
-                    id="cic-input"
-                    data-testid="input-cic"
-                    value={cicInput}
-                    onChange={e => setCicInput(e.target.value.toUpperCase())}
-                    placeholder={existingCicMappings[0]?.cic ?? "e.g. CIC001…"}
-                    className="h-9 pl-7 font-mono text-sm"
-                  />
-                </div>
-                {existingCicMappings.length > 0 && !cicInput && (
+                {isReadonly ? (
+                  <div className="h-9 flex items-center px-3 rounded-md border border-border bg-muted/40 gap-2" data-testid="input-cic">
+                    <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-mono text-sm">{existingCicMappings[0]?.cic ?? "—"}</span>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="cic-input"
+                      data-testid="input-cic"
+                      value={cicInput}
+                      onChange={e => setCicInput(e.target.value.toUpperCase())}
+                      placeholder={existingCicMappings[0]?.cic ?? "e.g. CIC001…"}
+                      className="h-9 pl-7 font-mono text-sm"
+                    />
+                  </div>
+                )}
+                {!isReadonly && existingCicMappings.length > 0 && !cicInput && (
                   <p className="text-[10px] text-muted-foreground">Existing CIC values shown per row</p>
                 )}
               </div>
@@ -622,16 +637,24 @@ export default function CcrConfigurePage() {
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide" htmlFor="cic-description-input">
                   CIC Description
                 </Label>
-                <Input
-                  id="cic-description-input"
-                  data-testid="input-cic-description"
-                  value={cicDescriptionInput}
-                  onChange={e => setCicDescriptionInput(e.target.value)}
-                  placeholder={existingCicMappings[0]?.cicDescription ?? "e.g. Trade Desc…"}
-                  className="h-9 text-sm"
-                />
-                {existingCicMappings.length > 0 && !cicDescriptionInput && (
-                  <p className="text-[10px] text-muted-foreground">Existing description shown per row</p>
+                {isReadonly ? (
+                  <div className="h-9 flex items-center px-3 rounded-md border border-border bg-muted/40" data-testid="input-cic-description">
+                    <span className="text-sm">{existingCicMappings[0]?.cicDescription ?? "—"}</span>
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      id="cic-description-input"
+                      data-testid="input-cic-description"
+                      value={cicDescriptionInput}
+                      onChange={e => setCicDescriptionInput(e.target.value)}
+                      placeholder={existingCicMappings[0]?.cicDescription ?? "e.g. Trade Desc…"}
+                      className="h-9 text-sm"
+                    />
+                    {existingCicMappings.length > 0 && !cicDescriptionInput && (
+                      <p className="text-[10px] text-muted-foreground">Existing description shown per row</p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -850,6 +873,8 @@ export default function CcrConfigurePage() {
                             <span className="text-sm font-medium">{row.sourcingDepot || "—"}</span>
                           ) : row.pbOverridden || effectiveStatus !== "Mapped" ? (
                             <span className="text-xs text-muted-foreground">—</span>
+                          ) : isReadonly ? (
+                            <span className="text-sm font-medium font-mono">{sourcingDepotMap[row.id] || row.sourcingDepot || "—"}</span>
                           ) : (
                             <Select
                               value={sourcingDepotMap[row.id] || ""}
@@ -903,10 +928,10 @@ export default function CcrConfigurePage() {
         {/* ── Action bar ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between pt-1 pb-6">
           <div className="text-xs text-muted-foreground">
-            {rows.length > 0 && !pbBlocked && (
+            {rows.length > 0 && !pbBlocked && !isReadonly && (
               <>{rows.length} total · {mappedCount} Mapped · {nonMappedCount} Non-Mapped (all rows persisted)</>
             )}
-            {rows.length > 0 && pbBlocked && (
+            {rows.length > 0 && pbBlocked && !isReadonly && (
               <span className="text-amber-600">All rows blocked — save disabled until Paid Bible status is resolved</span>
             )}
           </div>
@@ -919,14 +944,16 @@ export default function CcrConfigurePage() {
             >
               <Download className="h-4 w-4 mr-1.5" />Export Excel
             </Button>
-            <Button
-              size="sm"
-              onClick={() => saveMutation.mutate()}
-              disabled={!canSave}
-              data-testid="button-save-mapping"
-            >
-              {saveMutation.isPending ? <>Saving…</> : <><Save className="h-4 w-4 mr-1.5" />Save Mapping</>}
-            </Button>
+            {!isReadonly && (
+              <Button
+                size="sm"
+                onClick={() => saveMutation.mutate()}
+                disabled={!canSave}
+                data-testid="button-save-mapping"
+              >
+                {saveMutation.isPending ? <>Saving…</> : <><Save className="h-4 w-4 mr-1.5" />Save Mapping</>}
+              </Button>
+            )}
           </div>
         </div>
 
