@@ -1260,13 +1260,17 @@ function CcrInitiatedChainView({
                               {item.materialDescription ?? "—"}
                             </span>
                           </TableCell>
-                          <TableCell className="py-2 text-xs whitespace-nowrap">{getNetworkChangeTypeName(item.typeOfNetwork)}</TableCell>
-                          <TableCell className="py-2">
+                          <TableCell className="py-2 max-w-0 overflow-hidden">
+                            <span className="block truncate text-xs" title={getNetworkChangeTypeName(item.typeOfNetwork) ?? undefined}>
+                              {getNetworkChangeTypeName(item.typeOfNetwork)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-2 whitespace-nowrap">
                             {item.cic ? (
                               <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-emerald-700">
-                                <CheckCircle2 className="h-3 w-3" />{item.cic}
+                                <CheckCircle2 className="h-3 w-3 shrink-0" />{item.cic}
                               </span>
-                            ) : <span className="text-muted-foreground">—</span>}
+                            ) : <span className="text-muted-foreground text-xs">—</span>}
                           </TableCell>
                           <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
                             {item.completedAt
