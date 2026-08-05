@@ -270,8 +270,11 @@ function ChainGroupedView({
         const allMapped = group.mappedCount === group.totalCount;
         const noneMapped = group.mappedCount === 0;
 
+        // Keys are namespaced as "cbuCode||chainName" so the same CBU in
+        // different chains gets an independent selection state.
+        const selKey = (cbuCode: string) => `${cbuCode}||${group.chainName}`;
         const selectableCbusInGroup = selectable
-          ? group.cbus.filter(e => selectableFilter ? selectableFilter(e, group.chainName) : true).map(e => e.cbuCode ?? "")
+          ? group.cbus.filter(e => selectableFilter ? selectableFilter(e, group.chainName) : true).map(e => selKey(e.cbuCode ?? ""))
           : [];
         const allGroupSelected = selectable && selectableCbusInGroup.length > 0
           && selectableCbusInGroup.every(c => selectedCbus?.has(c));
@@ -370,7 +373,8 @@ function ChainGroupedView({
                           : "CCR mapping is only available after Stock Movement Initiated";
                         const mappedForChain = depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(group.chainName) ?? false;
                         const isSelectable = selectable && (selectableFilter ? selectableFilter(entry, group.chainName) : true);
-                        const isSelected = isSelectable && selectedCbus?.has(entry.cbuCode ?? "");
+                        const entryKey = `${entry.cbuCode ?? ""}||${group.chainName}`;
+                        const isSelected = isSelectable && selectedCbus?.has(entryKey);
 
                         return (
                           <TableRow
@@ -383,7 +387,7 @@ function ChainGroupedView({
                                 {isSelectable ? (
                                   <Checkbox
                                     checked={isSelected ?? false}
-                                    onCheckedChange={() => onToggleCbu?.(entry.cbuCode ?? "")}
+                                    onCheckedChange={() => onToggleCbu?.(entryKey)}
                                     aria-label={`Select ${entry.cbuCode}`}
                                   />
                                 ) : (
@@ -559,18 +563,21 @@ export default function CcrMasterMaintenancePage() {
   const [errorDialog, setErrorDialog] = useState(false);
   const [errorComment, setErrorComment] = useState("");
 
+  // Selection keys are "cbuCode||chainName" — extract just the CBU code for API calls.
+  const cbuFromKey = (key: string) => key.split("||")[0];
+
   function makeToggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
-    return (cbuCode: string) => setter(prev => {
+    return (key: string) => setter(prev => {
       const next = new Set(prev);
-      if (next.has(cbuCode)) next.delete(cbuCode); else next.add(cbuCode);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
   function makeToggleAll(setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
-    return (cbuCodes: string[], checked: boolean) => setter(prev => {
+    return (keys: string[], checked: boolean) => setter(prev => {
       const next = new Set(prev);
-      if (checked) cbuCodes.forEach(c => next.add(c));
-      else cbuCodes.forEach(c => next.delete(c));
+      if (checked) keys.forEach(k => next.add(k));
+      else keys.forEach(k => next.delete(k));
       return next;
     });
   }
@@ -739,7 +746,8 @@ export default function CcrMasterMaintenancePage() {
 
   // Helper: build item list for confirm dialogs
   function dialogItems(selected: Set<string>, pool: NetworkEntry[]) {
-    return [...selected].map(cbu => {
+    return [...selected].map(key => {
+      const cbu = cbuFromKey(key);
       const entry = pool.find(e => e.cbuCode === cbu);
       return {
         cbu,
@@ -1089,7 +1097,7 @@ export default function CcrMasterMaintenancePage() {
           </>
         }
         isPending={requestSapMutation.isPending}
-        onConfirm={() => requestSapMutation.mutate([...overviewSelected])}
+        onConfirm={() => requestSapMutation.mutate([...overviewSelected].map(cbuFromKey))}
         items={dialogItems(overviewSelected, overviewEntries)}
       />
 
@@ -1117,7 +1125,7 @@ export default function CcrMasterMaintenancePage() {
         }
         confirmClass="bg-emerald-600 hover:bg-emerald-700 text-white"
         isPending={updateSapStatusMutation.isPending}
-        onConfirm={() => updateSapStatusMutation.mutate({ cbuCodes: [...requestedSelected], status: "Validated" })}
+        onConfirm={() => updateSapStatusMutation.mutate({ cbuCodes: [...requestedSelected].map(cbuFromKey), status: "Validated" })}
         items={dialogItems(requestedSelected, requestedEntries)}
       />
 
@@ -1144,7 +1152,7 @@ export default function CcrMasterMaintenancePage() {
         }
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         isPending={updateSapStatusMutation.isPending}
-        onConfirm={() => { updateSapStatusMutation.mutate({ cbuCodes: [...requestedSelected], status: "Error" }); setErrorComment(""); }}
+        onConfirm={() => { updateSapStatusMutation.mutate({ cbuCodes: [...requestedSelected].map(cbuFromKey), status: "Error" }); setErrorComment(""); }}
         onOpenChange={v => { setErrorDialog(v); if (!v) setErrorComment(""); }}
         items={dialogItems(requestedSelected, requestedEntries)}
         confirmDisabled={!errorComment.trim()}
