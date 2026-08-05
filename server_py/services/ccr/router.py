@@ -308,6 +308,7 @@ class ExecuteLineItemRequest(BaseModel):
     rulesetValues: dict = {}
     overrides: List[Any] = []   # structured: [{field, originalValue, overrideValue, timestamp}]
     cicCode: Optional[str] = None
+    cicDescription: Optional[str] = None
     executionType: str = "Manual"
     justification: Optional[str] = None
     # NOTE: 'actor' is intentionally not accepted from the client.

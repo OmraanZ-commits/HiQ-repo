@@ -1073,6 +1073,7 @@ class CcrStorage:
 
             new_cic_required = payload.get("rulesetValues", {}).get("newCicRequired", False)
             cic_code         = payload.get("cicCode") or item.cic
+            cic_description  = payload.get("cicDescription")
             overrides_list   = payload.get("overrides", [])  # structured [{field,orig,new,ts}]
             ruleset_values   = payload.get("rulesetValues", {})
             actor            = payload.get("_serverActor", "system")  # always server-derived
@@ -1278,6 +1279,8 @@ class CcrStorage:
             item.execution_type  = execution_type
             item.ruleset_outcome = outcome
             item.cic             = cic_code
+            if cic_description is not None:
+                item.cic_description = cic_description
             # Persist structured overrides; keep existing if no new ones provided
             if overrides_list:
                 item.overrides = overrides_list

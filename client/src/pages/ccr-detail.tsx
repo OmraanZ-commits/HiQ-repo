@@ -65,6 +65,7 @@ interface CcrLineItem {
   customerChain: string;
   customerCode: string;
   cic: string | null;
+  cicDescription: string | null;
   triggerStage: string;
   urgencyColor: string;
   ccrStatus: string;
@@ -391,6 +392,7 @@ function TakeActionDialog({
   const cicModeLocked = newCicRequired;
   const [cicMode, setCicMode] = useState<"reuse" | "new">(newCicRequired ? "new" : "reuse");
   const [newCicCode, setNewCicCode] = useState("");
+  const [newCicDescription, setNewCicDescription] = useState("");
 
   // Keep cicMode in sync when newCicRequired is toggled in Step 1
   // If user enables "New CIC Required", immediately force cicMode to "new"
@@ -433,6 +435,7 @@ function TakeActionDialog({
 
   function handleExecute() {
     const cicCode = cicMode === "reuse" ? (item.cic ?? "") : newCicCode;
+    const cicDescription = cicMode === "reuse" ? (item.cicDescription ?? undefined) : (newCicDescription.trim() || undefined);
     executeMutation.mutate({
       rulesetValues: {
         newCicRequired,
@@ -441,6 +444,7 @@ function TakeActionDialog({
       },
       overrides,
       cicCode,
+      cicDescription,
       justification: justification || undefined,
       // Actor is NOT sent to the server — it is always derived server-side.
     });
@@ -456,6 +460,7 @@ function TakeActionDialog({
       setRundownRequired(matchedRule?.rundownRequired ?? false);
       setCicMode(newCicRequired ? "new" : "reuse");
       setNewCicCode("");
+      setNewCicDescription("");
       setJustification("");
       onClose();
     }
@@ -628,6 +633,9 @@ function TakeActionDialog({
                   >
                     <p className="font-medium text-sm">Reuse Existing CIC</p>
                     <p className="text-xs text-muted-foreground font-mono">{item.cic ?? "None assigned"}</p>
+                    {item.cicDescription && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.cicDescription}</p>
+                    )}
                   </Label>
                 </div>
                 <div className={`flex items-start gap-3 rounded border px-3 py-2.5 cursor-pointer transition-colors ${cicMode === "new" ? "border-primary bg-primary/5" : "border-border"}`}>
@@ -639,16 +647,29 @@ function TakeActionDialog({
                 </div>
               </RadioGroup>
               {cicMode === "new" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="new-cic-input" className="text-xs">New CIC Code</Label>
-                  <Input
-                    id="new-cic-input"
-                    placeholder="e.g. CIC-NEWX-DL-DMT"
-                    value={newCicCode}
-                    onChange={e => setNewCicCode(e.target.value)}
-                    className="font-mono text-xs"
-                    data-testid="input-new-cic"
-                  />
+                <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-cic-input" className="text-xs">New CIC Code</Label>
+                    <Input
+                      id="new-cic-input"
+                      placeholder="e.g. CIC-NEWX-DL-DMT"
+                      value={newCicCode}
+                      onChange={e => setNewCicCode(e.target.value)}
+                      className="font-mono text-xs"
+                      data-testid="input-new-cic"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-cic-desc-input" className="text-xs">CIC Description</Label>
+                    <Input
+                      id="new-cic-desc-input"
+                      placeholder="e.g. Dove Beauty Bar Original 100g – Domex"
+                      value={newCicDescription}
+                      onChange={e => setNewCicDescription(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-new-cic-desc"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -673,6 +694,8 @@ function TakeActionDialog({
                   ["Content Update", contentUpdateRequired ? "Yes" : "No"],
                   ["Predecessor Rundown", rundownRequired ? "Yes" : "No"],
                   ["CIC Code", cicCode],
+                  cicMode === "reuse" && item.cicDescription ? ["CIC Description", item.cicDescription] : null,
+                  cicMode === "new" && newCicDescription.trim() ? ["CIC Description", newCicDescription.trim()] : null,
                   ["Overrides", overrides.length > 0 ? overrides.map(o => o.field).join(", ") : "None"],
                 ]
                   .filter(Boolean)
