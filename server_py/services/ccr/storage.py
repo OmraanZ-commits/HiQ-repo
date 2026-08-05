@@ -478,7 +478,13 @@ class CcrStorage:
             db.close()
 
     def get_mapping_initiated(self) -> list:
-        """Return completed CCR line items where a new CIC was assigned."""
+        """Return completed CCR line items with a CIC recorded.
+
+        Two scenarios are included:
+          1. new_cic_required=True  — a brand-new CIC was assigned.
+          2. new_cic_required=False — an existing predecessor CIC was reused
+             (applies to National Non-Listing chains).
+        """
         db = SessionLocal()
         try:
             rows = (
@@ -490,7 +496,6 @@ class CcrStorage:
                 )
                 .filter(
                     CcrLineItemModel.ccr_status == "Completed",
-                    CcrLineItemModel.new_cic_required == True,
                     CcrLineItemModel.cic.isnot(None),
                 )
                 .order_by(CcrLineItemModel.updated_at.desc())
@@ -505,6 +510,7 @@ class CcrStorage:
                     "customerChain": item.customer_chain,
                     "customerCode": item.customer_code,
                     "cic": item.cic,
+                    "newCicRequired": bool(item.new_cic_required),
                     "completedAt": item.updated_at.isoformat() if item.updated_at else None,
                     "basepack": ne.basepack if ne else None,
                     "typeOfNetwork": ne.type_of_network if ne else None,

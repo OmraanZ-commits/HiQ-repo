@@ -42,6 +42,7 @@ type MappingInitiatedItem = {
   customerChain: string;
   customerCode: string;
   cic: string | null;
+  newCicRequired: boolean;
   completedAt: string | null;
   basepack: string | null;
   typeOfNetwork: string | null;
@@ -1199,7 +1200,7 @@ function CcrInitiatedChainView({
   if (grouped.length === 0) {
     return (
       <div className="py-10 text-center text-sm text-muted-foreground">
-        No CCR mappings initiated yet. Completed CCR line items with a CIC assigned will appear here.
+        No CCR mappings initiated yet. Completed CCR line items with a CIC assigned or reused will appear here.
       </div>
     );
   }
@@ -1208,6 +1209,8 @@ function CcrInitiatedChainView({
     <div className="divide-y">
       {grouped.map(([chain, chainItems]) => {
         const isExpanded = expandedChains.has(chain);
+        const newCicCount   = chainItems.filter(i => i.newCicRequired).length;
+        const reuseCicCount = chainItems.filter(i => !i.newCicRequired).length;
         return (
           <div key={chain} className="bg-background">
             {/* Chain header */}
@@ -1222,15 +1225,22 @@ function CcrInitiatedChainView({
                 <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className="font-semibold text-sm text-foreground truncate">{chain}</span>
               </div>
-              <div className="flex items-center gap-5 flex-shrink-0">
+              <div className="flex items-center gap-3 flex-shrink-0">
                 <div className="text-center hidden sm:block">
                   <div className="text-xs font-semibold text-foreground">{chainItems.length}</div>
                   <div className="text-[10px] text-muted-foreground">CBU{chainItems.length !== 1 ? "s" : ""}</div>
                 </div>
-                <div className="w-24 text-right">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                    CIC Assigned
-                  </span>
+                <div className="flex items-center gap-1.5">
+                  {newCicCount > 0 && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                      {newCicCount} New CIC
+                    </span>
+                  )}
+                  {reuseCicCount > 0 && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                      {reuseCicCount} CIC Reused
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1246,10 +1256,11 @@ function CcrInitiatedChainView({
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Basepack</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Successor CBU</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Predecessor CBU</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[20%]">Description</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Network Type</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[14%]">CIC Assigned</TableHead>
-                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Completed At</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[17%]">Description</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[10%]">Network Type</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[10%]">Scenario</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[13%]">CIC</TableHead>
+                        <TableHead className="text-xs font-semibold whitespace-nowrap w-[10%]">Completed At</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap pr-4 text-right w-[7%]">Action</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1274,8 +1285,19 @@ function CcrInitiatedChainView({
                             </span>
                           </TableCell>
                           <TableCell className="py-2 whitespace-nowrap">
+                            {item.newCicRequired ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                <CheckCircle2 className="h-3 w-3 shrink-0" />New CIC
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                <RotateCcw className="h-3 w-3 shrink-0" />CIC Reused
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2 whitespace-nowrap">
                             {item.cic ? (
-                              <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-emerald-700">
+                              <span className={`inline-flex items-center gap-1 font-mono text-xs font-semibold ${item.newCicRequired ? "text-emerald-700" : "text-blue-700"}`}>
                                 <CheckCircle2 className="h-3 w-3 shrink-0" />{item.cic}
                               </span>
                             ) : <span className="text-muted-foreground text-xs">—</span>}
