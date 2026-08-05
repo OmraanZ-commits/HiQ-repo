@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
 
+from sqlalchemy import or_
 from server_py.db import (
     SessionLocal,
     NetworkEntryModel,
@@ -488,21 +489,32 @@ class CcrStorage:
         db = SessionLocal()
         try:
             rows = (
-                db.query(CcrLineItemModel, NetworkEntryModel)
+                db.query(CcrLineItemModel, NetworkEntryModel, CcrCustomerMasterModel)
                 .join(
                     NetworkEntryModel,
                     NetworkEntryModel.cbu_code == CcrLineItemModel.successor_cbu_code,
                     isouter=True,
                 )
+                .join(
+                    CcrCustomerMasterModel,
+                    CcrCustomerMasterModel.customer_chain == CcrLineItemModel.customer_chain,
+                    isouter=True,
+                )
                 .filter(
                     CcrLineItemModel.ccr_status == "Completed",
                     CcrLineItemModel.cic.isnot(None),
+                    or_(
+                        # New CIC: any chain type qualifies
+                        CcrLineItemModel.new_cic_required == True,
+                        # Reused CIC: only National chains (National Non-Listing reuse scenario)
+                        CcrCustomerMasterModel.coverage_type == "National",
+                    ),
                 )
                 .order_by(CcrLineItemModel.updated_at.desc())
                 .all()
             )
             result = []
-            for item, ne in rows:
+            for item, ne, cust in rows:
                 result.append({
                     "id": str(item.id),
                     "predecessorCbuCode": item.predecessor_cbu_code,
