@@ -601,7 +601,7 @@ export default function CcrMtListingPage() {
             <TabsContent value="mt-output" className="mt-0">
               {/* Selection toolbar */}
               {outputSelected.size > 0 ? (
-                <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
+                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
                   <span className="text-sm text-blue-800 font-medium">
                     {outputSelected.size} CBU{outputSelected.size > 1 ? "s" : ""} selected
                   </span>
@@ -617,7 +617,7 @@ export default function CcrMtListingPage() {
                   </div>
                 </div>
               ) : (
-                <div className="px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
+                <div className="sticky top-0 z-10 px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
                   Select CBUs to submit a SAP MT listing update request
                 </div>
               )}
@@ -641,7 +641,7 @@ export default function CcrMtListingPage() {
             {/* ══ Tab 2: Requested for SAP Update ══════════════════════════ */}
             <TabsContent value="sap-requested" className="mt-0">
               {requestedSelected.size > 0 ? (
-                <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
+                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
                   <span className="text-sm text-blue-800 font-medium">
                     {requestedSelected.size} CBU{requestedSelected.size > 1 ? "s" : ""} selected
                   </span>
@@ -662,7 +662,7 @@ export default function CcrMtListingPage() {
                   </div>
                 </div>
               ) : (
-                <div className="px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
+                <div className="sticky top-0 z-10 px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
                   Select CBUs to mark as <span className="font-semibold text-emerald-600">Validated in SAP</span> or <span className="font-semibold text-red-600">Error Returned by SAP</span>
                 </div>
               )}
@@ -681,7 +681,7 @@ export default function CcrMtListingPage() {
 
             {/* ══ Tab 3: Validated / Posted in SAP ═════════════════════════ */}
             <TabsContent value="sap-validated" className="mt-0">
-              <div className="px-4 py-2 bg-emerald-50 border-b text-xs text-emerald-700 font-medium">
+              <div className="sticky top-0 z-10 px-4 py-2 bg-emerald-50 border-b text-xs text-emerald-700 font-medium">
                 These CBUs have been validated and posted in SAP
               </div>
               <ChainGroupedView
@@ -695,7 +695,7 @@ export default function CcrMtListingPage() {
 
             {/* ══ Tab 4: Error Returned by SAP ══════════════════════════════ */}
             <TabsContent value="sap-error" className="mt-0">
-              <div className="px-4 py-2 bg-red-50 border-b text-xs text-red-700 font-medium">
+              <div className="sticky top-0 z-10 px-4 py-2 bg-red-50 border-b text-xs text-red-700 font-medium">
                 SAP returned errors for these CBUs — review and re-request as needed
               </div>
               <ChainGroupedView
