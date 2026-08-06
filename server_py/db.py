@@ -946,7 +946,7 @@ def run_migrations():
                  material_description, brand, customer_mapping,
                  predecessor_doh, successor_doh, created_at)
             SELECT gen_random_uuid(),
-                   'CBU-50019104', 'BP-FTR1', 'NEW_LAUNCH', 'Stock Movement Initiated',
+                   'CBU-50019104', 'BP-FTR1', 'RL_ART_PKG', 'Stock Movement Initiated',
                    'Lifebuoy Total 10 Antibacterial Soap (DOH Demo)', 'Lifebuoy',
                    cast('{"ALL": ["BBK"]}' as jsonb), 4, 3, NOW()
             WHERE NOT EXISTS (
