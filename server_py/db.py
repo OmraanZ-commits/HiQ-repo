@@ -932,6 +932,25 @@ def run_migrations():
                 "cbu": cbu, "bp": bp, "mat_desc": mat_desc,
                 "brand": brand_name, "cm": '{"ALL": ["METRO"]}',
             })
+        # ── Metro CBU EAN / Case Config / Net Weight ─────────────────────────
+        # Seed realistic packaging data for Metro Cash & Carry CBUs so the
+        # MT Listing detail page shows values instead of "—".
+        _metro_packaging = [
+            # (cbu_code, ean, case_config, net_weight)
+            ("CBU-50018921", "8901010812341", "12x1", 150.0),
+            ("CBU-50019021", "8901010812358", "12x1", 150.0),
+            ("CBU-50018922", "8901010622251", "24x1",  50.0),
+            ("CBU-50019022", "8901010622268", "24x1",  50.0),
+            ("CBU-50018923", "8901030293817",  "6x1", 400.0),
+            ("CBU-50019023", "8901030293824",  "6x1", 400.0),
+        ]
+        for (cbu, ean, cc, nw) in _metro_packaging:
+            conn.execute(text("""
+                UPDATE network_entries
+                SET ean = :ean, case_config = :cc, net_weight = :nw
+                WHERE cbu_code = :cbu
+                  AND (ean IS NULL OR case_config IS NULL)
+            """), {"cbu": cbu, "ean": ean, "cc": cc, "nw": nw})
         # ─────────────────────────────────────────────────────────────────────
 
         # ── CCR Workspace Submitted tab: DOH-gated demo record ──────────────
