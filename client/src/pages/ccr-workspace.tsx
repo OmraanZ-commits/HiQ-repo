@@ -1131,20 +1131,6 @@ export default function CcrWorkspacePage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => evaluateMutation.mutate()}
-              disabled={evaluateMutation.isPending || isLoading}
-              data-testid="button-run-trigger-engine"
-            >
-              {evaluateMutation.isPending
-                ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                : <Zap className="h-4 w-4 mr-1.5 text-amber-500" />
-              }
-              Run Trigger Engine
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
               onClick={handleDownload}
               disabled={filteredItems.length === 0}
               data-testid="button-download-all"
