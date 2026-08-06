@@ -952,11 +952,24 @@ export default function CcrMasterMaintenancePage() {
                     ? "Configure is only available for Active basepacks"
                     : "CCR mapping is only available after Stock Movement Initiated";
                   const isComplete = depotChangeSummary[entry.cbuCode ?? ""]?.status === "complete";
+                  const mappedForThisChain = depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(chain) ?? false;
                   if (isComplete) {
                     return (
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">
                         Ready
                       </span>
+                    );
+                  }
+                  if (mappedForThisChain) {
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs px-2.5"
+                        onClick={() => navigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}?chain=${encodeURIComponent(chain)}&readonly=true`)}
+                      >
+                        View
+                      </Button>
                     );
                   }
                   return (
