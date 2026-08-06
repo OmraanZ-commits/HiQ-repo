@@ -934,6 +934,45 @@ def run_migrations():
             })
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── CCR Workspace Submitted tab: DOH-gated demo record ──────────────
+        # BigBasket (National chain in NATIONAL_CHAINS) + new_cic_required=False
+        # => needsDoh=True in the Submitted tab queue-gate logic.
+        # mockSuccessorDoh('CBU-50019104') = 2 (≤5) => DOH gate FAILS.
+        # network_status = 'Stock Movement Initiated' => stock gate MET.
+        # Result: row shows "DOH threshold not met" badge in the Queue Gate column.
+        conn.execute(text("""
+            INSERT INTO network_entries
+                (id, cbu_code, basepack, type_of_network, network_status,
+                 material_description, brand, customer_mapping,
+                 predecessor_doh, successor_doh, created_at)
+            SELECT gen_random_uuid(),
+                   'CBU-50019104', 'BP-FTR1', 'NEW_LAUNCH', 'Stock Movement Initiated',
+                   'Lifebuoy Total 10 Antibacterial Soap (DOH Demo)', 'Lifebuoy',
+                   cast('{"ALL": ["BBK"]}' as jsonb), 4, 3, NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM network_entries WHERE cbu_code = 'CBU-50019104'
+            )
+        """))
+        conn.execute(text("""
+            INSERT INTO ccr_line_items
+                (id, predecessor_cbu_code, successor_cbu_code,
+                 customer_chain, customer_code, cic,
+                 trigger_stage, urgency_color, ccr_status, execution_type,
+                 new_cic_required, content_update_required, rundown_required,
+                 created_at, updated_at)
+            SELECT gen_random_uuid(),
+                   'CBU-50018900', 'CBU-50019104',
+                   'BigBasket', 'BBK-MH-001', 'CIC-FTR1-MH-BBK-DOH',
+                   'Third', 'Red', 'Completed', 'Manual',
+                   FALSE, FALSE, FALSE, NOW(), NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM ccr_line_items
+                WHERE successor_cbu_code = 'CBU-50019104'
+                  AND customer_chain = 'BigBasket'
+            )
+        """))
+        # ─────────────────────────────────────────────────────────────────────
+
         # ── Paid Bible: BP-1901 lifecycle dates ──────────────────────────────
         # BP-1901 (Sunsilk predecessor) was activated in June 2024 when it
         # launched as CBU-50018901. Its inactive_date is set to July 2026 because
