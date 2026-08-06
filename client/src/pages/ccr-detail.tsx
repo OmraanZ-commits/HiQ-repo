@@ -890,6 +890,20 @@ const NATIONAL_CHAINS_DETAIL = new Set([
   "JioMart", "Big Bazaar", "Metro C&C", "Cloud Tail",
 ]);
 
+// ── Queue-gate helpers (mirrors ccr-workspace.tsx) ────────────────────────────
+const DETAIL_STATUS_IDX: Record<string, number> = {
+  "Draft": 0, "Active": 1, "Pricing Updated": 2,
+  "Production Started": 3, "FTR Approved": 4,
+  "Stock Movement Initiated": 5, "Network transition complete": 6,
+};
+function _detailWHash(s: string, seed: number): number {
+  let h = seed;
+  for (let i = 0; i < s.length; i++) h = ((h * 31) ^ s.charCodeAt(i)) & 0xffff;
+  return Math.abs(h);
+}
+function detailSuccDoh(cbu: string)  { return (_detailWHash(cbu, 17) % 12) + 2; }
+function detailPredDoh(pred: string) { return _detailWHash(pred, 7) % 7; }
+
 // Simulated depot-level DOH data (demo — top depots sorted by CLOT%)
 const DEMO_DEPOT_ROWS = [
   { dc: "VABH", predDoh: 2.0,  succDoh: 10.0, clot: 30, inTop70: true,  status: "PASS" as const },
@@ -1122,18 +1136,28 @@ export default function CcrDetailPage() {
 
   const isCompleted = item.ccrStatus === "Completed";
 
-  // Items held in DOH queue (National + Existing CIC + Stock Movement Initiated) are not
-  // yet released — suppress all mapping-export UI until the gate is cleared.
-  const isDohQueued =
-    NATIONAL_CHAINS_DETAIL.has(item.customerChain) &&
-    item.newCicRequired === false &&
-    networkEntry?.networkStatus === "Stock Movement Initiated";
+  // ── Queue-gate: completed items that are still held pending conditions ────────
+  const _netStatus   = networkEntry?.networkStatus ?? "";
+  const _statusIdx   = DETAIL_STATUS_IDX[_netStatus] ?? 0;
+  const _stockMet    = _statusIdx >= DETAIL_STATUS_IDX["Stock Movement Initiated"];
+  const _needsDoh    = NATIONAL_CHAINS_DETAIL.has(item.customerChain) && item.newCicRequired === false;
+  const _succDoh     = detailSuccDoh(item.successorCbuCode ?? "");
+  const _predDoh     = detailPredDoh(item.predecessorCbuCode ?? "");
+  const _dohMet      = _needsDoh ? (_succDoh > 5 && _predDoh < 3) : true;
+  // isInQueue: mapping is done but cannot be released yet
+  const isInQueue    = isCompleted && !(_stockMet && _dohMet);
+  const queueReason  = isInQueue
+    ? (!_stockMet
+        ? "Awaiting Stock Movement Initiated"
+        : "National chain DOH threshold not met")
+    : null;
+
   // Take Action is shown for:
   //   • Action Required items at Third/Fourth trigger (original rule)
   //   • Upcoming items at any active trigger stage (First/Second/Third/Fourth)
   //     so that users navigating from the Upcoming tab can still execute a CCR.
   const isActionRequired =
-    !isCompleted && !isDohQueued && (
+    !isCompleted && !isInQueue && (
       (item.ccrStatus === "Action Required" && (item.triggerStage === "Third" || item.triggerStage === "Fourth")) ||
       (item.ccrStatus === "Upcoming" && item.triggerStage !== "None")
     );
@@ -1171,7 +1195,7 @@ export default function CcrDetailPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {isCompleted && !isDohQueued && (
+              {isCompleted && !isInQueue && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1219,10 +1243,10 @@ export default function CcrDetailPage() {
           </Badge>
           <Badge
             variant="outline"
-            className={`text-xs ${CCR_STATUS_COLOR[item.ccrStatus] ?? ""}`}
+            className={`text-xs ${isInQueue ? "bg-amber-50 text-amber-700 border-amber-300" : (CCR_STATUS_COLOR[item.ccrStatus] ?? "")}`}
             data-testid="badge-ccr-status-detail"
           >
-            {item.ccrStatus}
+            {isInQueue ? "In Queue" : item.ccrStatus}
           </Badge>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <UrgencyDot color={item.urgencyColor} />
@@ -1239,6 +1263,17 @@ export default function CcrDetailPage() {
             </Badge>
           )}
         </div>
+
+        {/* In-queue reason banner */}
+        {isInQueue && queueReason && (
+          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+            <span>
+              <span className="font-semibold">CIC mapping submitted — held in queue.</span>{" "}
+              {queueReason}.
+            </span>
+          </div>
+        )}
 
         {/* 3-column metadata cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1425,8 +1460,8 @@ export default function CcrDetailPage() {
               </div>
             )}
 
-            {/* Export prompt when completed — hidden while still held in DOH queue */}
-            {isCompleted && !isDohQueued && (
+            {/* Export prompt when completed — hidden while still held in queue */}
+            {isCompleted && !isInQueue && (
               <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-4 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-emerald-800">CCR Completed</p>
