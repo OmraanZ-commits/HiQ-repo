@@ -364,7 +364,10 @@ function ChainGroupedView({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {group.cbus.map((entry, rowIdx) => {
+                      {group.cbus.filter(entry => {
+                        const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
+                        return bpStatus !== "Draft";
+                      }).map((entry, rowIdx) => {
                         const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
                         const isActiveBp = bpStatus === "Active";
                         const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
@@ -420,6 +423,15 @@ function ChainGroupedView({
                             <TableCell className="pr-4 py-2 text-right">
                               {actionColumn ? (
                                 actionColumn(entry, group.chainName)
+                              ) : mappedForChain ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs px-2.5"
+                                  onClick={() => onNavigate(`/ccr/configure/${encodeURIComponent(entry.cbuCode ?? "")}?chain=${encodeURIComponent(group.chainName)}&readonly=true`)}
+                                >
+                                  View
+                                </Button>
                               ) : (
                                 <div title={canConfigure ? undefined : disabledTitle} className="inline-block">
                                   <Button
