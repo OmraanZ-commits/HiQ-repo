@@ -857,12 +857,12 @@ def run_migrations():
             # ── Metro Cash & Carry predecessor CIC rows ──────────────────────
             # Three predecessor CBUs for the three demo Metro successor CBUs below.
             # MCC depot codes: DLGH (Delhi), MMDH (Mumbai), BNDH (Bangalore).
-            ("CBU-50018921","BP-MCC1","Metro Cash & Carry","MCC-DL-001","CIC-MCC1-DL-MCC","MT","DLGH"),
-            ("CBU-50018921","BP-MCC1","Metro Cash & Carry","MCC-MH-001","CIC-MCC1-MH-MCC","MT","MMDH"),
-            ("CBU-50018922","BP-MCC2","Metro Cash & Carry","MCC-DL-001","CIC-MCC2-DL-MCC","MT","DLGH"),
-            ("CBU-50018922","BP-MCC2","Metro Cash & Carry","MCC-KA-001","CIC-MCC2-KA-MCC","MT","BNDH"),
-            ("CBU-50018923","BP-MCC3","Metro Cash & Carry","MCC-MH-001","CIC-MCC3-MH-MCC","MT","MMDH"),
-            ("CBU-50018923","BP-MCC3","Metro Cash & Carry","MCC-KA-001","CIC-MCC3-KA-MCC","MT","BNDH"),
+            ("CBU-50018921","BP-MCC1","Metro Cash & Carry","MCC-DL-001","CIC-MCC1-MCC","MT","DLGH"),
+            ("CBU-50018921","BP-MCC1","Metro Cash & Carry","MCC-MH-001","CIC-MCC1-MCC","MT","MMDH"),
+            ("CBU-50018922","BP-MCC2","Metro Cash & Carry","MCC-DL-001","CIC-MCC2-MCC","MT","DLGH"),
+            ("CBU-50018922","BP-MCC2","Metro Cash & Carry","MCC-KA-001","CIC-MCC2-MCC","MT","BNDH"),
+            ("CBU-50018923","BP-MCC3","Metro Cash & Carry","MCC-MH-001","CIC-MCC3-MCC","MT","MMDH"),
+            ("CBU-50018923","BP-MCC3","Metro Cash & Carry","MCC-KA-001","CIC-MCC3-MCC","MT","BNDH"),
         ]
         for (cbu, bp, chain, ccode, cic, ch, depot) in _pred_cic_rows:
             conn.execute(text("""
