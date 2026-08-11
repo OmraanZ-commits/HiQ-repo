@@ -376,7 +376,9 @@ function ChainGroupedView({
                         const disabledTitle = !isActiveBp
                           ? "Configure is only available for Active basepacks"
                           : "CCR mapping is only available after Stock Movement Initiated";
-                        const mappedForChain = depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(group.chainName) ?? false;
+                        const sapStatus = postingStatusMap[entry.cbuCode ?? ""];
+                        const isInSapFlow = ["Requested", "Validated", "Error"].includes(sapStatus);
+                        const mappedForChain = isInSapFlow || (depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(group.chainName) ?? false);
                         const isSelectable = selectable && (selectableFilter ? selectableFilter(entry, group.chainName) : true);
                         const entryKey = `${entry.cbuCode ?? ""}||${group.chainName}`;
                         const isSelected = isSelectable && selectedCbus?.has(entryKey);
