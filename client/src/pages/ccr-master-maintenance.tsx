@@ -702,9 +702,21 @@ export default function CcrMasterMaintenancePage() {
           body: JSON.stringify({ cbu_chain_pairs: pairs }),
         }).then(r => r.json());
         if (rows.length > 0) {
-          const ws = XLSX.utils.json_to_sheet(rows);
+          // Split rows by CIC type: purely numeric vs alphanumeric
+          const isNumericCic = (r: object) => {
+            const cic = (r as Record<string, unknown>)["CIC"];
+            return cic != null && /^\d+$/.test(String(cic));
+          };
+          const numericRows = rows.filter(r => isNumericCic(r));
+          const alphaRows   = rows.filter(r => !isNumericCic(r));
+
           const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, "CIC Mapping Output");
+          if (numericRows.length > 0) {
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(numericRows), "Numeric CIC");
+          }
+          if (alphaRows.length > 0) {
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(alphaRows), "Alphanumeric CIC");
+          }
           XLSX.writeFile(wb, `CCR_Mapping_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
         }
       } catch {
