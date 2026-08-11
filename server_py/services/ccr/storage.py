@@ -911,11 +911,41 @@ class CcrStorage:
             escalated = 0
 
             for row in rows:
-                if not row.cic:
-                    continue
-
                 entry = entry_map.get(row.successor_cbu_code or "")
                 if not entry:
+                    continue
+
+                # ── Auto-derive action flags via CCR Ruleset lookup ───────────
+                # Runs for EVERY row that has a matching network entry, including
+                # Active-stage rows that have no CIC yet.  This ensures the
+                # New CIC / Content Update / Rundown columns are always populated
+                # from the ruleset regardless of where the CBU is in its lifecycle.
+                # Uses the configured CCR Ruleset table so the workspace columns
+                # always match what the "Take Action" modal shows.
+                flag_changed = False
+                type_of_nw = (
+                    entry.get("typeOfNetwork") or entry.get("type_of_network") or ""
+                ).upper().replace(" ", "_")
+                ruleset_name = _TYPE_TO_RULESET.get(type_of_nw)
+                if ruleset_name and ruleset_name in _ruleset_flags:
+                    _new_cic, _content, _rundown = _ruleset_flags[ruleset_name]
+                else:
+                    _new_cic, _content, _rundown = False, False, False
+                if row.new_cic_required != _new_cic:
+                    row.new_cic_required = _new_cic
+                    flag_changed = True
+                if row.content_update_required != _content:
+                    row.content_update_required = _content
+                    flag_changed = True
+                if row.rundown_required != _rundown:
+                    row.rundown_required = _rundown
+                    flag_changed = True
+                if flag_changed:
+                    row.updated_at = now
+                    updated += 1
+
+                # Stage evaluation requires a CIC — skip for pre-mapping entries.
+                if not row.cic:
                     continue
 
                 net_status  = entry.get("networkStatus")  or entry.get("network_status")  or ""
@@ -964,33 +994,6 @@ class CcrStorage:
                     if doh_eligible:
                         # DOH overrides the lifecycle-status stage (highest severity)
                         new_stage, new_color = "Fourth", "Blinking Red"
-
-                # ── Auto-derive action flags via CCR Ruleset lookup ───────────
-                # Runs unconditionally for every matched entry so items already
-                # at their highest stage still get their flags synced.
-                # Uses the configured CCR Ruleset table so the workspace columns
-                # always match what the "Take Action" modal shows.
-                flag_changed = False
-                type_of_nw = (
-                    entry.get("typeOfNetwork") or entry.get("type_of_network") or ""
-                ).upper().replace(" ", "_")
-                ruleset_name = _TYPE_TO_RULESET.get(type_of_nw)
-                if ruleset_name and ruleset_name in _ruleset_flags:
-                    _new_cic, _content, _rundown = _ruleset_flags[ruleset_name]
-                else:
-                    _new_cic, _content, _rundown = False, False, False
-                if row.new_cic_required != _new_cic:
-                    row.new_cic_required = _new_cic
-                    flag_changed = True
-                if row.content_update_required != _content:
-                    row.content_update_required = _content
-                    flag_changed = True
-                if row.rundown_required != _rundown:
-                    row.rundown_required = _rundown
-                    flag_changed = True
-                if flag_changed:
-                    row.updated_at = now
-                    updated += 1
 
                 if new_stage is None:
                     continue
