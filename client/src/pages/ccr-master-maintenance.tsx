@@ -1236,21 +1236,6 @@ export default function CcrMasterMaintenancePage() {
                   </div>
                 )}
               />
-              {requestedInitiatedItems.length > 0 && (
-                <>
-                  {requestedEntries.length > 0 && (
-                    <div className="px-4 py-1.5 bg-muted/30 border-y text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                      CCR Mapping Initiated — Awaiting SAP
-                    </div>
-                  )}
-                  <CcrInitiatedChainView
-                    items={requestedInitiatedItems}
-                    expandedChains={expandedChains}
-                    onToggleChain={toggleChain}
-                    onNavigate={navigate}
-                  />
-                </>
-              )}
             </TabsContent>
 
             {/* ── Validated / Posted in SAP tab ─────────────────────────────── */}
