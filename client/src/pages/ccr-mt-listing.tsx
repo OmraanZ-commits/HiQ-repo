@@ -408,7 +408,7 @@ export default function CcrMtListingPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("queue");
+  const [activeTab, setActiveTab] = useState("mt-output");
 
   // Selection state
   const [outputSelected, setOutputSelected]   = useState<Set<string>>(new Set());
