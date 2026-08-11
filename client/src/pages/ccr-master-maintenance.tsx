@@ -1483,6 +1483,7 @@ function CcrInitiatedChainView({
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className="font-semibold text-sm text-foreground truncate">{chain}</span>
+                <ChainScenarioPill chain={chain} />
               </div>
               <div className="flex items-center gap-3 flex-shrink-0">
                 <div className="text-center hidden sm:block">
