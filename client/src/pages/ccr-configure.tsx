@@ -158,7 +158,6 @@ export default function CcrConfigurePage() {
   const decodedCbu = decodeURIComponent(cbuCode ?? "");
   const searchString = useSearch();
   const chainFromUrl = useMemo(() => new URLSearchParams(searchString).get("chain") ?? "", [searchString]);
-  const isReadonly = useMemo(() => new URLSearchParams(searchString).get("readonly") === "true", [searchString]);
 
   // ── Local state ─────────────────────────────────────────────────────────────
   const [selectedChain, setSelectedChain] = useState<string>(chainFromUrl);
@@ -213,6 +212,16 @@ export default function CcrConfigurePage() {
     queryFn: () => fetch(`/api/ccr/ncsm-depot-decisions/${encodeURIComponent(decodedCbu)}`).then(r => r.ok ? r.json() : {}),
     enabled: !!decodedCbu,
   });
+
+  // SAP posting status — locks the form once the CBU is in SAP validation flow.
+  // CSEs can keep re-saving until they click "Request SAP Validation" (status → "Requested").
+  const { data: postingStatusMap = {} } = useQuery<Record<string, string>>({
+    queryKey: ["/api/ccr/cic-mappings/summary"],
+    queryFn: () => fetch("/api/ccr/cic-mappings/summary").then(r => r.ok ? r.json() : {}),
+    enabled: !!decodedCbu,
+  });
+  const sapStatus = (postingStatusMap as Record<string, string>)[decodedCbu] ?? "";
+  const isSapLocked = ["Requested", "Validated", "Error"].includes(sapStatus);
 
   // ── Derived: entry + MSTN ────────────────────────────────────────────────────
   const entry = useMemo(() => networkEntries.find(e => e.cbuCode === decodedCbu) ?? null, [networkEntries, decodedCbu]);
@@ -482,11 +491,11 @@ export default function CcrConfigurePage() {
           </Button>
           <span className="text-muted-foreground text-sm">/</span>
           <span className="text-sm font-medium">
-            {isReadonly ? "View" : "Configure"} — <span className="font-mono">{decodedCbu}</span>
+            {isSapLocked ? "View" : "Configure"} — <span className="font-mono">{decodedCbu}</span>
           </span>
-          {isReadonly && (
+          {isSapLocked && (
             <span className="ml-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wide">
-              View Only
+              SAP Validation In Progress
             </span>
           )}
         </div>
@@ -607,9 +616,9 @@ export default function CcrConfigurePage() {
               {/* CIC Code */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide" htmlFor="cic-input">
-                  CIC Code {!isReadonly && <span className="text-red-500">*</span>}
+                  CIC Code {!isSapLocked && <span className="text-red-500">*</span>}
                 </Label>
-                {isReadonly ? (
+                {isSapLocked ? (
                   <div className="h-9 flex items-center px-3 rounded-md border border-border bg-muted/40 gap-2" data-testid="input-cic">
                     <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="font-mono text-sm">{existingCicMappings[0]?.cic ?? "—"}</span>
@@ -627,7 +636,7 @@ export default function CcrConfigurePage() {
                     />
                   </div>
                 )}
-                {!isReadonly && existingCicMappings.length > 0 && !cicInput && (
+                {!isSapLocked && existingCicMappings.length > 0 && !cicInput && (
                   <p className="text-[10px] text-muted-foreground">Existing CIC values shown per row</p>
                 )}
               </div>
@@ -637,7 +646,7 @@ export default function CcrConfigurePage() {
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide" htmlFor="cic-description-input">
                   CIC Description
                 </Label>
-                {isReadonly ? (
+                {isSapLocked ? (
                   <div className="h-9 flex items-center px-3 rounded-md border border-border bg-muted/40" data-testid="input-cic-description">
                     <span className="text-sm">{existingCicMappings[0]?.cicDescription ?? "—"}</span>
                   </div>
@@ -873,7 +882,7 @@ export default function CcrConfigurePage() {
                             <span className="text-sm font-medium">{row.sourcingDepot || "—"}</span>
                           ) : row.pbOverridden || effectiveStatus !== "Mapped" ? (
                             <span className="text-xs text-muted-foreground">—</span>
-                          ) : isReadonly ? (
+                          ) : isSapLocked ? (
                             <span className="text-sm font-medium font-mono">{sourcingDepotMap[row.id] || row.sourcingDepot || "—"}</span>
                           ) : (
                             <Select
@@ -928,15 +937,15 @@ export default function CcrConfigurePage() {
         {/* ── Action bar ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between pt-1 pb-6">
           <div className="text-xs text-muted-foreground">
-            {rows.length > 0 && !pbBlocked && !isReadonly && (
+            {rows.length > 0 && !pbBlocked && !isSapLocked && (
               <>{rows.length} total · {mappedCount} Mapped · {nonMappedCount} Non-Mapped (all rows persisted)</>
             )}
-            {rows.length > 0 && pbBlocked && !isReadonly && (
+            {rows.length > 0 && pbBlocked && !isSapLocked && (
               <span className="text-amber-600">All rows blocked — save disabled until Paid Bible status is resolved</span>
             )}
           </div>
           <div className="flex items-center gap-3">
-            {!isReadonly && (
+            {!isSapLocked && (
               <Button
                 size="sm"
                 onClick={() => saveMutation.mutate()}
