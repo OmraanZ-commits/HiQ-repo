@@ -894,7 +894,7 @@ function detailPredDoh(pred: string) { return _detailWHash(pred, 7) % 7; }
 // Simulated depot-level DOH data (demo — top depots sorted by CLOT%)
 const DEMO_DEPOT_ROWS = [
   { dc: "VABH", predDoh: 2.0,  succDoh: 10.0, clot: 30, inTop70: true,  status: "PASS" as const },
-  { dc: "DLGH", predDoh: 2.9,  succDoh: 15.0, clot: 28, inTop70: true,  status: "FAIL" as const },
+  { dc: "DLGH", predDoh: 2.9,  succDoh: 15.0, clot: 28, inTop70: true,  status: "PASS" as const },
   { dc: "ABDH", predDoh: 2.0,  succDoh:  6.0, clot: 26, inTop70: true,  status: "PASS" as const },
   { dc: "SRDH", predDoh: 5.0,  succDoh:  6.0, clot: 10, inTop70: false, status: null },
   { dc: "HBDH", predDoh: 6.0,  succDoh:  7.0, clot:  4, inTop70: false, status: null },
