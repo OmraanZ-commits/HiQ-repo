@@ -1415,12 +1415,17 @@ class CcrStorage:
         Return BRD-specified mapping columns for multiple CBU+chain pairs in one call.
         Used by the 'Request SAP Update' confirmation flow to produce a consolidated
         export file covering all selected CBUs across all customer chains.
+
+        For CBUs that completed via the automatic CIC-reuse path (no Configure/Save
+        Mapping step), ccr_cic_mapping may have no rows.  We fall back to
+        ccr_line_items for those pairs so the export is never empty.
         """
         from sqlalchemy import or_, and_
         if not cbu_chain_pairs:
             return []
         db = SessionLocal()
         try:
+            # ── 1. Try ccr_cic_mapping first ─────────────────────────────────
             conditions = [
                 and_(
                     CcrCicMappingModel.cbu_code       == p["cbu_code"],
@@ -1428,13 +1433,20 @@ class CcrStorage:
                 )
                 for p in cbu_chain_pairs
             ]
-            rows = (
+            mapping_rows = (
                 db.query(CcrCicMappingModel)
                 .filter(or_(*conditions))
                 .order_by(CcrCicMappingModel.customer_chain, CcrCicMappingModel.cbu_code)
                 .all()
             )
-            return [
+
+            # Track which pairs were covered by ccr_cic_mapping
+            covered = {
+                (r.cbu_code, r.customer_chain)
+                for r in mapping_rows
+            }
+
+            result = [
                 {
                     "CustomerCode":  r.customer_code,
                     "CustomerChain": r.customer_chain,
@@ -1445,8 +1457,41 @@ class CcrStorage:
                     "SourcingDepot": r.sourcing_depot,
                     "PricingStatus": r.pricing_status,
                 }
-                for r in rows
+                for r in mapping_rows
             ]
+
+            # ── 2. Fall back to ccr_line_items for uncovered pairs ────────────
+            uncovered = [
+                p for p in cbu_chain_pairs
+                if (p["cbu_code"], p["customer_chain"]) not in covered
+            ]
+            if uncovered:
+                li_conditions = [
+                    and_(
+                        CcrLineItemModel.successor_cbu_code == p["cbu_code"],
+                        CcrLineItemModel.customer_chain     == p["customer_chain"],
+                    )
+                    for p in uncovered
+                ]
+                line_items = (
+                    db.query(CcrLineItemModel)
+                    .filter(or_(*li_conditions))
+                    .order_by(CcrLineItemModel.customer_chain, CcrLineItemModel.successor_cbu_code)
+                    .all()
+                )
+                for li in line_items:
+                    result.append({
+                        "CustomerCode":  li.customer_code,
+                        "CustomerChain": li.customer_chain,
+                        "CIC":           li.cic,
+                        "MaterialCode":  li.successor_cbu_code,
+                        "Depot":         None,
+                        "MappingStatus": "Mapped",
+                        "SourcingDepot": None,
+                        "PricingStatus": None,
+                    })
+
+            return result
         finally:
             db.close()
 
