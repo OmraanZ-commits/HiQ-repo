@@ -1026,15 +1026,15 @@ export default function CcrConfigurePage() {
         {/* ── Action bar ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between pt-1 pb-6">
           <div className="text-xs text-muted-foreground">
-            {rows.length > 0 && !pbBlocked && !isSapLocked && (
+            {rows.length > 0 && !pbBlocked && !isSapLocked && !completedLineItemChains.has(selectedChain) && (
               <>{rows.length} total · {mappedCount} Mapped · {nonMappedCount} Non-Mapped (all rows persisted)</>
             )}
-            {rows.length > 0 && pbBlocked && !isSapLocked && (
+            {rows.length > 0 && pbBlocked && !isSapLocked && !completedLineItemChains.has(selectedChain) && (
               <span className="text-amber-600">All rows blocked — save disabled until Paid Bible status is resolved</span>
             )}
           </div>
           <div className="flex items-center gap-3">
-            {!isSapLocked && (
+            {!isSapLocked && !completedLineItemChains.has(selectedChain) && (
               <Button
                 size="sm"
                 onClick={() => saveMutation.mutate()}
