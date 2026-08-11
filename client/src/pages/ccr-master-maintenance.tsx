@@ -1457,11 +1457,6 @@ function CcrInitiatedChainView({
                       {newCicCount} New CIC
                     </span>
                   )}
-                  {reuseCicCount > 0 && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                      {reuseCicCount} CIC Reused
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
