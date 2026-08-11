@@ -680,48 +680,15 @@ export default function CcrMasterMaintenancePage() {
       const cbuCodes = selectedKeys.map(cbuFromKey);
       return apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" });
     },
-    onSuccess: async (_data, selectedKeys) => {
+    onSuccess: (_data, selectedKeys) => {
       invalidateSummaries();
       setOverviewSelected(new Set());
       setRequestSapDialog(false);
       toast({
         title: "SAP update requested",
-        description: `${selectedKeys.length} CBU${selectedKeys.length > 1 ? "s" : ""} submitted for SAP update. Downloading mapping export…`,
+        description: `${selectedKeys.length} CBU${selectedKeys.length > 1 ? "s" : ""} submitted for SAP update.`,
       });
       setActiveTab("requested");
-
-      // Auto-download consolidated export for all selected CBU+chain pairs
-      try {
-        const pairs = selectedKeys.map(key => {
-          const [cbu_code, customer_chain] = key.split("||");
-          return { cbu_code, customer_chain };
-        });
-        const rows: object[] = await fetch("/api/ccr/bulk-export", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cbu_chain_pairs: pairs }),
-        }).then(r => r.json());
-        if (rows.length > 0) {
-          // Split rows by CIC type: purely numeric vs alphanumeric
-          const isNumericCic = (r: object) => {
-            const cic = (r as Record<string, unknown>)["CIC"];
-            return cic != null && /^\d+$/.test(String(cic));
-          };
-          const numericRows = rows.filter(r => isNumericCic(r));
-          const alphaRows   = rows.filter(r => !isNumericCic(r));
-
-          const wb = XLSX.utils.book_new();
-          if (numericRows.length > 0) {
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(numericRows), "Numeric CIC");
-          }
-          if (alphaRows.length > 0) {
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(alphaRows), "Alphanumeric CIC");
-          }
-          XLSX.writeFile(wb, `CCR_Mapping_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-        }
-      } catch {
-        toast({ title: "Export download failed — please retry from SAP Update tab", variant: "destructive" });
-      }
     },
     onError: (err: Error) => {
       toast({ title: "Request failed", description: err.message, variant: "destructive" });
@@ -806,6 +773,53 @@ export default function CcrMasterMaintenancePage() {
           : "",
       };
     });
+  }
+
+  // ── Shared export helper ────────────────────────────────────────────────────
+  // Builds cbu+chain pairs from entries' saved depot-change chains, fetches
+  // /api/ccr/bulk-export, and downloads a two-sheet XLSX (Numeric / Alphanumeric CIC).
+  async function handleExportEntries(entries: NetworkEntry[]) {
+    const pairs: { cbu_code: string; customer_chain: string }[] = [];
+    for (const e of entries) {
+      const chains = depotChangeSummary[e.cbuCode ?? ""]?.saved ?? [];
+      for (const chain of chains) {
+        pairs.push({ cbu_code: e.cbuCode ?? "", customer_chain: chain });
+      }
+    }
+    if (pairs.length === 0) {
+      toast({ title: "No mapped depots to export", variant: "destructive" });
+      return;
+    }
+    try {
+      const rows: object[] = await fetch("/api/ccr/bulk-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cbu_chain_pairs: pairs }),
+      }).then(r => r.json());
+
+      if (rows.length === 0) {
+        toast({ title: "No mapping rows found to export", variant: "destructive" });
+        return;
+      }
+
+      const isNumericCic = (r: object) => {
+        const cic = (r as Record<string, unknown>)["CIC"];
+        return cic != null && /^\d+$/.test(String(cic));
+      };
+      const numericRows = rows.filter(r => isNumericCic(r));
+      const alphaRows   = rows.filter(r => !isNumericCic(r));
+
+      const wb = XLSX.utils.book_new();
+      if (numericRows.length > 0)
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(numericRows), "Numeric CIC");
+      if (alphaRows.length > 0)
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(alphaRows), "Alphanumeric CIC");
+
+      XLSX.writeFile(wb, `CCR_Mapping_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast({ title: "Export downloaded" });
+    } catch {
+      toast({ title: "Export failed", variant: "destructive" });
+    }
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -1041,43 +1055,54 @@ export default function CcrMasterMaintenancePage() {
 
             {/* ── Requested for SAP Update tab ──────────────────────────────── */}
             <TabsContent value="requested" className="mt-0">
-              {requestedSelected.size > 0 ? (
-                <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
-                  <span className="text-sm text-blue-800 font-medium">
-                    {requestedSelected.size} CBU{requestedSelected.size > 1 ? "s" : ""} selected
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm" variant="ghost"
-                      className="h-7 text-xs text-blue-700"
-                      onClick={() => setRequestedSelected(new Set())}
-                    >
-                      Clear selection
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
-                      onClick={() => setErrorDialog(true)}
-                    >
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      Mark as Error
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                      onClick={() => setValidateDialog(true)}
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Mark as Validated
-                    </Button>
-                  </div>
+              <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
+                <div className="flex items-center gap-2">
+                  {requestedSelected.size > 0 ? (
+                    <>
+                      <span className="text-sm text-blue-800 font-medium">
+                        {requestedSelected.size} CBU{requestedSelected.size > 1 ? "s" : ""} selected
+                      </span>
+                      <Button
+                        size="sm" variant="ghost"
+                        className="h-7 text-xs text-blue-700"
+                        onClick={() => setRequestedSelected(new Set())}
+                      >
+                        Clear selection
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
+                        onClick={() => setErrorDialog(true)}
+                      >
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        Mark as Error
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => setValidateDialog(true)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Mark as Validated
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Select CBUs to mark as <span className="font-semibold text-emerald-600">Validated in SAP</span> or <span className="font-semibold text-red-600">Error Returned by SAP</span>
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <div className="sticky top-14 z-40 px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
-                  Select CBUs to mark as <span className="font-semibold text-emerald-600">Validated in SAP</span> or <span className="font-semibold text-red-600">Error Returned by SAP</span>
-                </div>
-              )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => handleExportEntries(requestedEntries)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export Excel
+                </Button>
+              </div>
               <ChainGroupedView
                 {...sharedViewProps}
                 entries={requestedEntries}
@@ -1094,8 +1119,17 @@ export default function CcrMasterMaintenancePage() {
 
             {/* ── Validated / Posted in SAP tab ─────────────────────────────── */}
             <TabsContent value="validated" className="mt-0">
-              <div className="sticky top-14 z-40 px-4 py-2 bg-emerald-50 border-b text-xs text-emerald-700 font-medium">
-                These CBUs have been validated and posted in SAP
+              <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2 bg-emerald-50 border-b">
+                <span className="text-xs text-emerald-700 font-medium">These CBUs have been validated and posted in SAP</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => handleExportEntries(validatedEntries)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export Excel
+                </Button>
               </div>
               <ChainGroupedView
                 {...sharedViewProps}
@@ -1109,8 +1143,17 @@ export default function CcrMasterMaintenancePage() {
 
             {/* ── Error Returned by SAP tab ──────────────────────────────────── */}
             <TabsContent value="error" className="mt-0">
-              <div className="sticky top-14 z-40 px-4 py-2 bg-red-50 border-b text-xs text-red-700 font-medium">
-                SAP returned errors for these CBUs — review and re-request as needed
+              <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2 bg-red-50 border-b">
+                <span className="text-xs text-red-700 font-medium">SAP returned errors for these CBUs — review and re-request as needed</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => handleExportEntries(errorEntries)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export Excel
+                </Button>
               </div>
               <ChainGroupedView
                 {...sharedViewProps}
