@@ -562,6 +562,38 @@ export default function CcrMtListingPage() {
   // Selection keys are "cbuCode||chain" — extract just the cbuCode for display and API calls.
   const cbuFromKey = (key: string) => key.split("||")[0];
 
+  // ── Request SAP + export ────────────────────────────────────────────────────
+  // Generates an MT listing XLSX for all selected CBU × chain pairs, downloads it,
+  // then calls post-cbus to move their status to "Requested".
+  async function handleRequestSapWithExport() {
+    const pairs = [...outputSelected].map(key => {
+      const [cbuCode, chain] = key.split("||");
+      return { cbuCode, chain };
+    });
+
+    // Build rows from live entry data
+    const rows = pairs.map(({ cbuCode, chain }) => {
+      const e = outputEntries.find(x => x.cbuCode === cbuCode);
+      return {
+        "Successor CBU":  cbuCode,
+        "Description":    (e as any)?.materialDescription || (e as any)?.basepackDescription || "",
+        "Brand":          (e as any)?.brand || "",
+        "Predecessor CBU": (e as any)?.predecessorCode || "",
+        "Basepack":       (e as any)?.basepack || "",
+        "Network Status": (e as any)?.networkStatus || "",
+        "Chain":          chain,
+      };
+    });
+
+    if (rows.length > 0) {
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "MT Listing");
+      XLSX.writeFile(wb, `MT_Listing_SAP_Request_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }
+
+    requestSapMutation.mutate(pairs.map(p => p.cbuCode));
+  }
+
   function dialogItems(selected: Set<string>, pool: NetworkEntry[]) {
     return [...selected].map(key => {
       const cbu = cbuFromKey(key);
@@ -722,10 +754,10 @@ export default function CcrMtListingPage() {
       <ConfirmDialog
         open={requestSapDialog} onOpenChange={setRequestSapDialog}
         title={<span className="flex items-center gap-2"><Send className="h-5 w-5 text-[#1f36c7]" /> Request SAP Update</span>}
-        description={<>The MT listing mapping for the following CBU{outputSelected.size > 1 ? "s" : ""} will be submitted to SAP. Once requested, {outputSelected.size > 1 ? "they" : "it"} will move to the <strong>Requested for SAP Update</strong> tab.</>}
-        confirmLabel={<><Send className="h-3.5 w-3.5 mr-1.5" />{requestSapMutation.isPending ? "Submitting…" : "Confirm & Request"}</>}
+        description={<>The MT listing mapping for the following CBU{outputSelected.size > 1 ? "s" : ""} will be exported to Excel and submitted to SAP. Once requested, {outputSelected.size > 1 ? "they" : "it"} will move to the <strong>Requested for SAP Update</strong> tab.</>}
+        confirmLabel={<><Download className="h-3.5 w-3.5 mr-1.5" />{requestSapMutation.isPending ? "Exporting…" : "Confirm & Request"}</>}
         isPending={requestSapMutation.isPending}
-        onConfirm={() => requestSapMutation.mutate([...outputSelected].map(cbuFromKey))}
+        onConfirm={handleRequestSapWithExport}
         items={dialogItems(outputSelected, outputEntries)}
       />
 

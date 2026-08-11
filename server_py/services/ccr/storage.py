@@ -241,13 +241,14 @@ class CcrStorage:
         try:
             now = datetime.now(timezone.utc)
             newly_requested = []
-            for cbu_code in cbu_codes:
+            for cbu_code in dict.fromkeys(cbu_codes):  # deduplicate, preserve order
                 existing = db.query(CcrPostedCbuModel).filter(
                     CcrPostedCbuModel.cbu_code == cbu_code
                 ).first()
                 if existing:
                     existing.sap_status = "Requested"
-                    newly_requested.append(cbu_code)
+                    existing.posted_at = now
+                    existing.posted_by = posted_by
                 else:
                     db.add(CcrPostedCbuModel(
                         cbu_code=cbu_code,
@@ -255,7 +256,7 @@ class CcrStorage:
                         posted_by=posted_by,
                         sap_status="Requested",
                     ))
-                    newly_requested.append(cbu_code)
+                newly_requested.append(cbu_code)
             db.commit()
             return {"requested": newly_requested}
         finally:
