@@ -573,6 +573,10 @@ export default function CcrMasterMaintenancePage() {
   const [overviewSelected, setOverviewSelected] = useState<Set<string>>(new Set());
   const [requestSapDialog, setRequestSapDialog] = useState(false);
 
+  // CCR Mapping Initiated tab: select items → "Request SAP Update"
+  const [initiatedSelected, setInitiatedSelected] = useState<Set<string>>(new Set());
+  const [initiatedSapDialog, setInitiatedSapDialog] = useState(false);
+
   // Requested tab: select CBUs → "Mark Validated" or "Mark Error"
   const [requestedSelected, setRequestedSelected] = useState<Set<string>>(new Set());
   const [validateDialog, setValidateDialog] = useState(false);
@@ -691,6 +695,35 @@ export default function CcrMasterMaintenancePage() {
         description: `${selectedKeys.length} CBU${selectedKeys.length > 1 ? "s" : ""} submitted for SAP update.`,
       });
       setActiveTab("requested");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Request failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Request SAP Update (from CCR Mapping Initiated tab)
+  // Keys are "successorCbuCode||customerChain" — same shape as overview keys.
+  const requestInitiatedSapMutation = useMutation({
+    mutationFn: async (selectedKeys: string[]) => {
+      const cbuCodes = selectedKeys.map(cbuFromKey);
+      return apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" });
+    },
+    onSuccess: async (_data, selectedKeys) => {
+      invalidateSummaries();
+      queryClient.invalidateQueries({ queryKey: ["/api/ccr/mapping-initiated"] });
+      setInitiatedSelected(new Set());
+      setInitiatedSapDialog(false);
+      toast({
+        title: "SAP update requested",
+        description: `${selectedKeys.length} CBU${selectedKeys.length > 1 ? "s" : ""} submitted for SAP update.`,
+      });
+      setActiveTab("requested");
+      // Auto-download consolidated export for all selected CBU+chain pairs
+      const pairs = selectedKeys.map(key => {
+        const [cbu_code, customer_chain] = key.split("||");
+        return { cbu_code, customer_chain };
+      });
+      await handleExportPairs(pairs);
     },
     onError: (err: Error) => {
       toast({ title: "Request failed", description: err.message, variant: "destructive" });
@@ -1044,14 +1077,43 @@ export default function CcrMasterMaintenancePage() {
 
             {/* ── CCR Mapping Initiated tab ─────────────────────────────────── */}
             <TabsContent value="ccr-initiated" className="mt-0">
-              <div className="px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
-                CCR-completed CBUs with a CIC assigned. Click <span className="font-semibold">View</span> to inspect the mapped depots.
-              </div>
+              {initiatedSelected.size > 0 ? (
+                <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
+                  <span className="text-sm text-blue-800 font-medium">
+                    {initiatedSelected.size} CBU{initiatedSelected.size > 1 ? "s" : ""} selected
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm" variant="ghost"
+                      className="h-7 text-xs text-blue-700"
+                      onClick={() => setInitiatedSelected(new Set())}
+                    >
+                      Clear selection
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 bg-[#1f36c7] hover:bg-[#1730b0]"
+                      onClick={() => setInitiatedSapDialog(true)}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      Request SAP Update
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="sticky top-14 z-40 px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
+                  Select CCR-mapped CBUs to request a SAP update. Export will be generated automatically on confirmation.
+                </div>
+              )}
               <CcrInitiatedChainView
                 items={mappingInitiatedItems}
                 expandedChains={expandedChains}
                 onToggleChain={toggleChain}
                 onNavigate={navigate}
+                selectable
+                selectedItems={initiatedSelected}
+                onToggleItem={makeToggle(setInitiatedSelected)}
+                onToggleAll={makeToggleAll(setInitiatedSelected)}
               />
             </TabsContent>
 
@@ -1213,6 +1275,39 @@ export default function CcrMasterMaintenancePage() {
         items={dialogItems(overviewSelected, overviewEntries)}
       />
 
+      {/* ── Request SAP Update dialog (CCR Mapping Initiated tab) ────────────── */}
+      <ConfirmDialog
+        open={initiatedSapDialog}
+        onOpenChange={setInitiatedSapDialog}
+        title={
+          <span className="flex items-center gap-2">
+            <Send className="h-5 w-5 text-[#1f36c7]" />
+            Request SAP Update
+          </span>
+        }
+        description={
+          <>
+            The mapping export for the following CBU{initiatedSelected.size > 1 ? "s" : ""} will be submitted
+            to SAP and a consolidated Excel file will download automatically. Once requested,{" "}
+            {initiatedSelected.size > 1 ? "they" : "it"} will move to the{" "}
+            <strong>Requested for SAP Update</strong> tab.
+          </>
+        }
+        confirmLabel={
+          <>
+            <Send className="h-3.5 w-3.5 mr-1.5" />
+            {requestInitiatedSapMutation.isPending ? "Submitting…" : "Confirm & Request"}
+          </>
+        }
+        isPending={requestInitiatedSapMutation.isPending}
+        onConfirm={() => requestInitiatedSapMutation.mutate([...initiatedSelected])}
+        items={[...initiatedSelected].map(key => {
+          const [cbu] = key.split("||");
+          const item = mappingInitiatedItems.find(i => i.successorCbuCode === cbu);
+          return { cbu, label: item?.materialDescription ?? "" };
+        })}
+      />
+
       {/* ── Mark Validated dialog ─────────────────────────────────────────────── */}
       <ConfirmDialog
         open={validateDialog}
@@ -1292,11 +1387,16 @@ export default function CcrMasterMaintenancePage() {
 
 function CcrInitiatedChainView({
   items, expandedChains, onToggleChain, onNavigate,
+  selectable, selectedItems, onToggleItem, onToggleAll,
 }: {
   items: MappingInitiatedItem[];
   expandedChains: Set<string>;
   onToggleChain: (chain: string) => void;
   onNavigate: (path: string) => void;
+  selectable?: boolean;
+  selectedItems?: Set<string>;
+  onToggleItem?: (key: string) => void;
+  onToggleAll?: (keys: string[], checked: boolean) => void;
 }) {
   const grouped = useMemo(() => {
     const m: Record<string, MappingInitiatedItem[]> = {};
@@ -1364,6 +1464,22 @@ function CcrInitiatedChainView({
                     <TableHeader>
                       <TableRow className="bg-muted/20 hover:bg-muted/20">
                         <TableHead className="w-[3%]" />
+                        {selectable && (() => {
+                          const allKeys = chainItems
+                            .filter(i => i.successorCbuCode)
+                            .map(i => `${i.successorCbuCode}||${chain}`);
+                          const allSel = allKeys.length > 0 && allKeys.every(k => selectedItems?.has(k));
+                          const someSel = allKeys.some(k => selectedItems?.has(k)) && !allSel;
+                          return (
+                            <TableHead className="w-[3%]">
+                              <Checkbox
+                                checked={allSel ? true : someSel ? "indeterminate" : false}
+                                onCheckedChange={v => onToggleAll?.(allKeys, !!v)}
+                                aria-label={`Select all in ${chain}`}
+                              />
+                            </TableHead>
+                          );
+                        })()}
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[8%]">Basepack</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Successor CBU</TableHead>
                         <TableHead className="text-xs font-semibold whitespace-nowrap w-[11%]">Predecessor CBU</TableHead>
@@ -1376,12 +1492,26 @@ function CcrInitiatedChainView({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {chainItems.map((item, rowIdx) => (
+                      {chainItems.map((item, rowIdx) => {
+                        const itemKey = `${item.successorCbuCode}||${chain}`;
+                        const isSelected = selectable && !!item.successorCbuCode && !!selectedItems?.has(itemKey);
+                        return (
                         <TableRow
                           key={item.id}
-                          className={rowIdx % 2 === 1 ? "bg-muted/10 hover:bg-muted/20" : "hover:bg-muted/10"}
+                          className={`${isSelected ? "bg-blue-50" : rowIdx % 2 === 1 ? "bg-muted/10" : ""} hover:bg-muted/20`}
                         >
                           <TableCell className="pl-8" />
+                          {selectable && (
+                            <TableCell onClick={e => e.stopPropagation()}>
+                              {item.successorCbuCode ? (
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => onToggleItem?.(itemKey)}
+                                  aria-label={`Select ${item.successorCbuCode}`}
+                                />
+                              ) : <div className="w-4 h-4" />}
+                            </TableCell>
+                          )}
                           <TableCell className="py-2 text-xs font-mono">{item.basepack ?? "—"}</TableCell>
                           <TableCell className="py-2 font-mono text-xs font-medium">{item.successorCbuCode ?? "—"}</TableCell>
                           <TableCell className="py-2 font-mono text-xs text-muted-foreground">{item.predecessorCbuCode ?? "—"}</TableCell>
@@ -1432,7 +1562,8 @@ function CcrInitiatedChainView({
                             </Button>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
