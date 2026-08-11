@@ -223,6 +223,18 @@ export default function CcrConfigurePage() {
   const sapStatus = (postingStatusMap as Record<string, string>)[decodedCbu] ?? "";
   const isSapLocked = ["Requested", "Validated", "Error"].includes(sapStatus);
 
+  // Completed ccr_line_items for this CBU — CIC-Reused CBUs complete automatically
+  // without writing to ccr_cic_mapping, so we check line items for those chains.
+  const { data: mappingInitiatedItems = [] } = useQuery<{ successorCbuCode: string; customerChain: string }[]>({
+    queryKey: ["/api/ccr/mapping-initiated"],
+    queryFn: () => fetch("/api/ccr/mapping-initiated").then(r => r.ok ? r.json() : []),
+    enabled: !!decodedCbu,
+  });
+  const completedLineItemChains = useMemo(
+    () => new Set(mappingInitiatedItems.filter(i => i.successorCbuCode === decodedCbu).map(i => i.customerChain)),
+    [mappingInitiatedItems, decodedCbu],
+  );
+
   // ── Derived: entry + MSTN ────────────────────────────────────────────────────
   const entry = useMemo(() => networkEntries.find(e => e.cbuCode === decodedCbu) ?? null, [networkEntries, decodedCbu]);
 
@@ -542,10 +554,15 @@ export default function CcrConfigurePage() {
               <CardContent className="py-3 px-4">
                 <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-1.5">Chain Mapping Completed</p>
                 {(() => {
-                  // "Yes" when all applicable chains are configured, OR when the
-                  // currently selected chain already has at least one saved CIC mapping.
-                  const done = (chainCompletionStats.applicable > 0 && chainCompletionStats.completed >= chainCompletionStats.applicable)
-                    || allCicMappings.some(m => m.customerChain === selectedChain);
+                  // "Yes" when:
+                  //  1. All applicable chains have saved CIC mapping rows, OR
+                  //  2. The selected chain has ≥1 saved CIC mapping row, OR
+                  //  3. The selected chain has a completed line item (CIC-Reused path), OR
+                  //  4. The CBU is in SAP validation flow (already submitted).
+                  const done = isSapLocked
+                    || (chainCompletionStats.applicable > 0 && chainCompletionStats.completed >= chainCompletionStats.applicable)
+                    || allCicMappings.some(m => m.customerChain === selectedChain)
+                    || completedLineItemChains.has(selectedChain);
                   return (
                     <span className={`text-xl font-bold ${done ? "text-emerald-600" : "text-red-500"}`}>
                       {done ? "Yes" : "No"}
