@@ -203,6 +203,8 @@ type ChainGroupedViewProps = {
   actionColumn?: (entry: NetworkEntry, chainName: string) => React.ReactNode;
   // Navigation
   onNavigate: (path: string) => void;
+  // Whether to show the Mapped X/Y progress bar + status tag on chain rows
+  showProgress?: boolean;
 };
 
 function ChainGroupedView({
@@ -213,6 +215,7 @@ function ChainGroupedView({
   selectable, selectableFilter, selectedCbus, onToggleCbu, onToggleAll,
   actionColumn,
   onNavigate,
+  showProgress = true,
 }: ChainGroupedViewProps) {
 
   const chainGroups: ChainGroup[] = useMemo(() => {
@@ -308,30 +311,34 @@ function ChainGroupedView({
                   <div className="text-[10px] text-muted-foreground">CBUs</div>
                 </div>
 
-                <div className="flex flex-col items-end gap-0.5 w-28">
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[10px] text-muted-foreground">Mapped</span>
-                    <span className={`text-[10px] font-semibold ${allMapped ? "text-emerald-600" : noneMapped ? "text-slate-400" : "text-amber-600"}`}>
-                      {group.mappedCount}/{group.totalCount}
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${allMapped ? "bg-emerald-500" : noneMapped ? "bg-slate-200" : "bg-amber-400"}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
+                {showProgress && (
+                  <>
+                    <div className="flex flex-col items-end gap-0.5 w-28">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-[10px] text-muted-foreground">Mapped</span>
+                        <span className={`text-[10px] font-semibold ${allMapped ? "text-emerald-600" : noneMapped ? "text-slate-400" : "text-amber-600"}`}>
+                          {group.mappedCount}/{group.totalCount}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${allMapped ? "bg-emerald-500" : noneMapped ? "bg-slate-200" : "bg-amber-400"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
 
-                <div className="w-24 text-right">
-                  {allMapped ? (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Complete</span>
-                  ) : noneMapped ? (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Not Started</span>
-                  ) : (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">In Progress</span>
-                  )}
-                </div>
+                    <div className="w-24 text-right">
+                      {allMapped ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Complete</span>
+                      ) : noneMapped ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Not Started</span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">In Progress</span>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1160,6 +1167,7 @@ export default function CcrMasterMaintenancePage() {
                 {...sharedViewProps}
                 entries={requestedEntries}
                 emptyMessage="No CBUs are currently awaiting SAP update."
+                showProgress={false}
                 selectable
                 selectedCbus={requestedSelected}
                 onToggleCbu={makeToggle(setRequestedSelected)}
@@ -1190,6 +1198,7 @@ export default function CcrMasterMaintenancePage() {
                 {...sharedViewProps}
                 entries={validatedEntries}
                 emptyMessage="No CBUs have been validated in SAP yet."
+                showProgress={false}
                 actionColumn={(_entry, chain) => (
                   <div className="flex items-center gap-2">
                     <SapStatusBadge status="Validated" />
@@ -1216,6 +1225,7 @@ export default function CcrMasterMaintenancePage() {
                 {...sharedViewProps}
                 entries={errorEntries}
                 emptyMessage="No CBUs have SAP errors."
+                showProgress={false}
                 actionColumn={(entry, chain) => (
                   <div className="flex items-center gap-2">
                     <Button
