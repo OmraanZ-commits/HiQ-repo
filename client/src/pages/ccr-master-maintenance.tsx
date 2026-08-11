@@ -378,11 +378,11 @@ function ChainGroupedView({
                       }).map((entry, rowIdx) => {
                         const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
                         const isActiveBp = bpStatus === "Active";
-                        const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+                        const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Production Started"];
                         const canConfigure = isActiveBp && networkOk;
                         const disabledTitle = !isActiveBp
                           ? "Configure is only available for Active basepacks"
-                          : "CCR mapping is only available after Stock Movement Initiated";
+                          : "CCR mapping is only available from Production Started onwards";
                         const sapStatus = postingStatusMap[entry.cbuCode ?? ""];
                         const isInSapFlow = ["Requested", "Validated", "Error"].includes(sapStatus);
                         const mappedForChain = isInSapFlow || (depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(group.chainName) ?? false);
@@ -626,6 +626,7 @@ export default function CcrMasterMaintenancePage() {
 
   const { data: postingStatusMap = {} } = useQuery<Record<string, string>>({
     queryKey: ["/api/ccr/cic-mappings/summary"],
+    queryFn: () => fetch("/api/ccr/cic-mappings/summary").then(r => r.ok ? r.json() : {}),
   });
 
   const { data: depotChangeSummary = {} } = useQuery<Record<string, ChainCompletionEntry>>({
@@ -1039,11 +1040,11 @@ export default function CcrMasterMaintenancePage() {
                 actionColumn={(entry, chain) => {
                   const bpStatus = entry.basepack ? (bpStatusMap[entry.basepack] ?? null) : null;
                   const isActiveBp = bpStatus === "Active";
-                  const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Stock Movement Initiated"];
+                  const networkOk = (STATUS_IDX[entry.networkStatus ?? ""] ?? 0) >= STATUS_IDX["Production Started"];
                   const canConfigure = isActiveBp && networkOk;
                   const disabledTitle = !isActiveBp
                     ? "Configure is only available for Active basepacks"
-                    : "CCR mapping is only available after Stock Movement Initiated";
+                    : "CCR mapping is only available from Production Started onwards";
                   const isComplete = depotChangeSummary[entry.cbuCode ?? ""]?.status === "complete";
                   const mappedForThisChain = depotChangeSummary[entry.cbuCode ?? ""]?.saved?.includes(chain) ?? false;
                   if (isComplete) {
