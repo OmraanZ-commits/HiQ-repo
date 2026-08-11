@@ -661,9 +661,15 @@ function TakeActionDialog({
                     )}
                   </Label>
                 </div>
-                <div className={`flex items-start gap-3 rounded border px-3 py-2.5 cursor-pointer transition-colors ${cicMode === "new" ? "border-primary bg-primary/5" : "border-border"}`}>
-                  <RadioGroupItem value="new" id="cic-new" className="mt-0.5" />
-                  <Label htmlFor="cic-new" className="cursor-pointer space-y-0.5">
+                <div
+                  className={`flex items-start gap-3 rounded border px-3 py-2.5 transition-colors ${
+                    !newCicRequired
+                      ? "border-border opacity-40 cursor-not-allowed"
+                      : `cursor-pointer ${cicMode === "new" ? "border-primary bg-primary/5" : "border-border"}`
+                  }`}
+                >
+                  <RadioGroupItem value="new" id="cic-new" className="mt-0.5" disabled={!newCicRequired} />
+                  <Label htmlFor="cic-new" className={`space-y-0.5 ${!newCicRequired ? "cursor-not-allowed" : "cursor-pointer"}`}>
                     <p className="font-medium text-sm">Assign New CIC</p>
                     <p className="text-xs text-muted-foreground">Old CBU will be marked Inactive</p>
                   </Label>
