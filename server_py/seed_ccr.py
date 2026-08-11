@@ -297,7 +297,5 @@ CCR_LINE_ITEM_SEEDS = [
     {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-MH-001", "cic": "CIC-FTR2-MH-MCC", "trigger_stage": "Second", "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Manual", "new_cic_required": False, "content_update_required": True, "rundown_required": True},
     # Upcoming — First / Production Started
     {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-DL-001", "cic": "CIC-FTR7-DL-MCC", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Manual", "new_cic_required": False, "content_update_required": True, "rundown_required": True},
-    # Upcoming — None / trigger not yet fired (no CIC assigned for this depot yet)
-    {"predecessor_cbu_code": "CBU-50018921", "successor_cbu_code": "CBU-50019021", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-KA-001", "cic": None, "trigger_stage": "None", "urgency_color": "None", "ccr_status": "Upcoming", "execution_type": "None"},
 
 ]
