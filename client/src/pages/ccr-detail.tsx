@@ -532,10 +532,9 @@ function TakeActionDialog({
                 )}
               </p>
               <div className="space-y-3">
+                {/* New CIC Required — managed in-system */}
                 {[
                   { key: "newCicRequired", label: "New CIC Required", value: newCicRequired, setter: setNewCicRequired },
-                  { key: "contentUpdateRequired", label: "Content Update Required", value: contentUpdateRequired, setter: setContentUpdateRequired },
-                  { key: "rundownRequired", label: "Predecessor Rundown Required", value: rundownRequired, setter: setRundownRequired },
                 ].map(({ key, label, value, setter }) => {
                   const isOverridden = overrides.some(o => o.field === key);
                   return (
@@ -563,6 +562,43 @@ function TakeActionDialog({
                     </div>
                   );
                 })}
+
+                {/* Content Update & Rundown — externally managed */}
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-3 pt-2.5 pb-2 space-y-2.5">
+                  {[
+                    { key: "contentUpdateRequired", label: "Content Update Required", value: contentUpdateRequired, setter: setContentUpdateRequired },
+                    { key: "rundownRequired", label: "Predecessor Rundown Required", value: rundownRequired, setter: setRundownRequired },
+                  ].map(({ key, label, value, setter }) => {
+                    const isOverridden = overrides.some(o => o.field === key);
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-3">
+                        <Label
+                          htmlFor={`toggle-${key}`}
+                          className={`text-sm cursor-pointer text-slate-500 ${isOverridden ? "text-amber-700 font-medium" : ""}`}
+                        >
+                          {label}
+                          {isOverridden && (
+                            <Badge variant="outline" className="ml-2 text-[9px] bg-amber-50 border-amber-300 text-amber-700">
+                              Override
+                            </Badge>
+                          )}
+                        </Label>
+                        <Switch
+                          id={`toggle-${key}`}
+                          checked={value}
+                          onCheckedChange={v => {
+                            setter(v);
+                            handleToggle(key, v);
+                          }}
+                          data-testid={`switch-${key}`}
+                        />
+                      </div>
+                    );
+                  })}
+                  <p className="text-[10px] text-slate-400 italic pt-0.5">
+                    * These actions are managed outside this system and are shown for reference only.
+                  </p>
+                </div>
               </div>
             </div>
           )}
