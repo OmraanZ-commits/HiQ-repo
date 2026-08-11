@@ -250,7 +250,6 @@ CCR_LINE_ITEM_SEEDS = [
     {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "DMart",          "customer_code": "DMT-MH-001", "cic": "CIC-FTR7-MH-DMT", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Manual"},
     {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "DMart",          "customer_code": "DMT-GJ-001", "cic": "CIC-FTR7-GJ-DMT", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming",        "execution_type": "Manual"},
     {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "cic": "CIC-FTR7-MH-RLI", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Action Required", "execution_type": "Semi-Auto"},
-    {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "Swiggy Instamart","customer_code": "SWG-MH-001", "cic": None,               "trigger_stage": "None",   "urgency_color": "None",  "ccr_status": "Upcoming",        "execution_type": "None"},
 
     # ── CBU-50017001 (Pepsodent RL_PKG) — Fourth / 2 days left ──────────────
     # Inventory threshold breached; successor stock available; 2-day SLA window.
@@ -280,7 +279,4 @@ CCR_LINE_ITEM_SEEDS = [
     {"predecessor_cbu_code": "CBU-50018911", "successor_cbu_code": "CBU-50012345", "customer_chain": "BigBasket",       "customer_code": "BBK-TN-001", "cic": "CIC-VS-BBK-TN-F1", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Semi-Auto"},
     {"predecessor_cbu_code": "CBU-50018911", "successor_cbu_code": "CBU-50012345", "customer_chain": "Swiggy Instamart","customer_code": "SWG-KA-001", "cic": "CIC-VS-SWG-KA-F1", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Auto"},
 
-    # ── CBU-50010123 (Rin RL_PKG) — None / Upcoming ──────────────────────────
-    {"predecessor_cbu_code": "CBU-50018912", "successor_cbu_code": "CBU-50010123", "customer_chain": "Swiggy Instamart","customer_code": "SWG-WB-001", "cic": None,               "trigger_stage": "None",   "urgency_color": "None",  "ccr_status": "Upcoming", "execution_type": "None"},
-    {"predecessor_cbu_code": "CBU-50018912", "successor_cbu_code": "CBU-50010123", "customer_chain": "BigBasket",       "customer_code": "BBK-WB-001", "cic": None,               "trigger_stage": "None",   "urgency_color": "None",  "ccr_status": "Upcoming", "execution_type": "None"},
 ]
