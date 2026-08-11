@@ -1460,7 +1460,7 @@ class CcrStorage:
                 for r in mapping_rows
             ]
 
-            # ── 2. Fall back to ccr_line_items for uncovered pairs ────────────
+            # ── 2. Exact-chain fallback: ccr_line_items ───────────────────────
             uncovered = [
                 p for p in cbu_chain_pairs
                 if (p["cbu_code"], p["customer_chain"]) not in covered
@@ -1479,7 +1479,9 @@ class CcrStorage:
                     .order_by(CcrLineItemModel.customer_chain, CcrLineItemModel.successor_cbu_code)
                     .all()
                 )
+                line_item_covered = set()
                 for li in line_items:
+                    line_item_covered.add((li.successor_cbu_code, li.customer_chain))
                     result.append({
                         "CustomerCode":  li.customer_code,
                         "CustomerChain": li.customer_chain,
@@ -1490,6 +1492,55 @@ class CcrStorage:
                         "SourcingDepot": None,
                         "PricingStatus": None,
                     })
+
+                # ── 3. CBU-only fallback: chain was not mapped, return all
+                #       chains for that CBU so Export is never empty.
+                still_uncovered_cbus = {
+                    p["cbu_code"] for p in uncovered
+                    if (p["cbu_code"], p["customer_chain"]) not in line_item_covered
+                }
+                if still_uncovered_cbus:
+                    # Try ccr_cic_mapping (all chains for this CBU)
+                    cbu_mapping_rows = (
+                        db.query(CcrCicMappingModel)
+                        .filter(CcrCicMappingModel.cbu_code.in_(still_uncovered_cbus))
+                        .order_by(CcrCicMappingModel.customer_chain, CcrCicMappingModel.cbu_code)
+                        .all()
+                    )
+                    cbu_map_covered = set()
+                    for r in cbu_mapping_rows:
+                        cbu_map_covered.add(r.cbu_code)
+                        result.append({
+                            "CustomerCode":  r.customer_code,
+                            "CustomerChain": r.customer_chain,
+                            "CIC":           r.cic,
+                            "MaterialCode":  r.cbu_code,
+                            "Depot":         r.depot,
+                            "MappingStatus": r.status,
+                            "SourcingDepot": r.sourcing_depot,
+                            "PricingStatus": r.pricing_status,
+                        })
+
+                    # Final fallback: ccr_line_items (all chains for this CBU)
+                    remaining_cbus = still_uncovered_cbus - cbu_map_covered
+                    if remaining_cbus:
+                        cbu_li_rows = (
+                            db.query(CcrLineItemModel)
+                            .filter(CcrLineItemModel.successor_cbu_code.in_(remaining_cbus))
+                            .order_by(CcrLineItemModel.customer_chain, CcrLineItemModel.successor_cbu_code)
+                            .all()
+                        )
+                        for li in cbu_li_rows:
+                            result.append({
+                                "CustomerCode":  li.customer_code,
+                                "CustomerChain": li.customer_chain,
+                                "CIC":           li.cic,
+                                "MaterialCode":  li.successor_cbu_code,
+                                "Depot":         None,
+                                "MappingStatus": "Mapped",
+                                "SourcingDepot": None,
+                                "PricingStatus": None,
+                            })
 
             return result
         finally:
