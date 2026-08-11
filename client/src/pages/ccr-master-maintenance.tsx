@@ -778,14 +778,9 @@ export default function CcrMasterMaintenancePage() {
   // ── Shared export helper ────────────────────────────────────────────────────
   // Builds cbu+chain pairs from entries' saved depot-change chains, fetches
   // /api/ccr/bulk-export, and downloads a two-sheet XLSX (Numeric / Alphanumeric CIC).
-  async function handleExportEntries(entries: NetworkEntry[]) {
-    const pairs: { cbu_code: string; customer_chain: string }[] = [];
-    for (const e of entries) {
-      const chains = depotChangeSummary[e.cbuCode ?? ""]?.saved ?? [];
-      for (const chain of chains) {
-        pairs.push({ cbu_code: e.cbuCode ?? "", customer_chain: chain });
-      }
-    }
+
+  // Core export: fetch bulk-export for given pairs, split by CIC type, download XLSX.
+  async function handleExportPairs(pairs: { cbu_code: string; customer_chain: string }[]) {
     if (pairs.length === 0) {
       toast({ title: "No mapped depots to export", variant: "destructive" });
       return;
@@ -820,6 +815,11 @@ export default function CcrMasterMaintenancePage() {
     } catch {
       toast({ title: "Export failed", variant: "destructive" });
     }
+  }
+
+  // Per-row export: single CBU + chain.
+  async function handleExportRow(cbuCode: string, chain: string) {
+    await handleExportPairs([{ cbu_code: cbuCode, customer_chain: chain }]);
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -1055,54 +1055,43 @@ export default function CcrMasterMaintenancePage() {
 
             {/* ── Requested for SAP Update tab ──────────────────────────────── */}
             <TabsContent value="requested" className="mt-0">
-              <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
-                <div className="flex items-center gap-2">
-                  {requestedSelected.size > 0 ? (
-                    <>
-                      <span className="text-sm text-blue-800 font-medium">
-                        {requestedSelected.size} CBU{requestedSelected.size > 1 ? "s" : ""} selected
-                      </span>
-                      <Button
-                        size="sm" variant="ghost"
-                        className="h-7 text-xs text-blue-700"
-                        onClick={() => setRequestedSelected(new Set())}
-                      >
-                        Clear selection
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
-                        onClick={() => setErrorDialog(true)}
-                      >
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Mark as Error
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                        onClick={() => setValidateDialog(true)}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Mark as Validated
-                      </Button>
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      Select CBUs to mark as <span className="font-semibold text-emerald-600">Validated in SAP</span> or <span className="font-semibold text-red-600">Error Returned by SAP</span>
+              {requestedSelected.size > 0 ? (
+                <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2.5 bg-blue-50 border-b border-blue-100">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-blue-800 font-medium">
+                      {requestedSelected.size} CBU{requestedSelected.size > 1 ? "s" : ""} selected
                     </span>
-                  )}
+                    <Button
+                      size="sm" variant="ghost"
+                      className="h-7 text-xs text-blue-700"
+                      onClick={() => setRequestedSelected(new Set())}
+                    >
+                      Clear selection
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
+                      onClick={() => setErrorDialog(true)}
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Mark as Error
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => setValidateDialog(true)}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Mark as Validated
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={() => handleExportEntries(requestedEntries)}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Export Excel
-                </Button>
-              </div>
+              ) : (
+                <div className="sticky top-14 z-40 px-4 py-2 bg-muted/20 border-b text-xs text-muted-foreground">
+                  Select CBUs to mark as <span className="font-semibold text-emerald-600">Validated in SAP</span> or <span className="font-semibold text-red-600">Error Returned by SAP</span>
+                </div>
+              )}
               <ChainGroupedView
                 {...sharedViewProps}
                 entries={requestedEntries}
@@ -1111,65 +1100,80 @@ export default function CcrMasterMaintenancePage() {
                 selectedCbus={requestedSelected}
                 onToggleCbu={makeToggle(setRequestedSelected)}
                 onToggleAll={makeToggleAll(setRequestedSelected)}
-                actionColumn={() => (
-                  <SapStatusBadge status="Requested" />
+                actionColumn={(_entry, chain) => (
+                  <div className="flex items-center gap-2">
+                    <SapStatusBadge status="Requested" />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 px-2"
+                      onClick={() => handleExportRow(_entry.cbuCode ?? "", chain)}
+                    >
+                      <Download className="h-3 w-3" />
+                      Export
+                    </Button>
+                  </div>
                 )}
               />
             </TabsContent>
 
             {/* ── Validated / Posted in SAP tab ─────────────────────────────── */}
             <TabsContent value="validated" className="mt-0">
-              <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2 bg-emerald-50 border-b">
-                <span className="text-xs text-emerald-700 font-medium">These CBUs have been validated and posted in SAP</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={() => handleExportEntries(validatedEntries)}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Export Excel
-                </Button>
+              <div className="sticky top-14 z-40 px-4 py-2 bg-emerald-50 border-b text-xs text-emerald-700 font-medium">
+                These CBUs have been validated and posted in SAP
               </div>
               <ChainGroupedView
                 {...sharedViewProps}
                 entries={validatedEntries}
                 emptyMessage="No CBUs have been validated in SAP yet."
-                actionColumn={() => (
-                  <SapStatusBadge status="Validated" />
+                actionColumn={(_entry, chain) => (
+                  <div className="flex items-center gap-2">
+                    <SapStatusBadge status="Validated" />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 px-2"
+                      onClick={() => handleExportRow(_entry.cbuCode ?? "", chain)}
+                    >
+                      <Download className="h-3 w-3" />
+                      Export
+                    </Button>
+                  </div>
                 )}
               />
             </TabsContent>
 
             {/* ── Error Returned by SAP tab ──────────────────────────────────── */}
             <TabsContent value="error" className="mt-0">
-              <div className="sticky top-14 z-40 flex items-center justify-between px-4 py-2 bg-red-50 border-b">
-                <span className="text-xs text-red-700 font-medium">SAP returned errors for these CBUs — review and re-request as needed</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={() => handleExportEntries(errorEntries)}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Export Excel
-                </Button>
+              <div className="sticky top-14 z-40 px-4 py-2 bg-red-50 border-b text-xs text-red-700 font-medium">
+                SAP returned errors for these CBUs — review and re-request as needed
               </div>
               <ChainGroupedView
                 {...sharedViewProps}
                 entries={errorEntries}
                 emptyMessage="No CBUs have SAP errors."
-                actionColumn={(entry) => (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs gap-1 border-orange-300 text-orange-700 hover:bg-orange-50 px-2"
-                    disabled={reRequestMutation.isPending}
-                    onClick={() => reRequestMutation.mutate([entry.cbuCode ?? ""])}
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    Re-request
-                  </Button>
+                actionColumn={(entry, chain) => (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 border-orange-300 text-orange-700 hover:bg-orange-50 px-2"
+                      disabled={reRequestMutation.isPending}
+                      onClick={() => reRequestMutation.mutate([entry.cbuCode ?? ""])}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Re-request
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 px-2"
+                      onClick={() => handleExportRow(entry.cbuCode ?? "", chain)}
+                    >
+                      <Download className="h-3 w-3" />
+                      Export
+                    </Button>
+                  </div>
                 )}
               />
             </TabsContent>
