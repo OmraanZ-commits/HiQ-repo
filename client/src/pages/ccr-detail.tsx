@@ -892,24 +892,28 @@ function detailSuccDoh(cbu: string)  { return (_detailWHash(cbu, 17) % 12) + 2; 
 function detailPredDoh(pred: string) { return _detailWHash(pred, 7) % 7; }
 
 // Simulated depot-level DOH data (demo — top depots sorted by CLOT%)
+// VABH: both thresholds met → PASS
+// DLGH: predecessor DOH 3.5 ≥ 3 (threshold: < 3) → FAIL
+// ABDH: successor DOH 4.0 ≤ 5 (threshold: > 5) → FAIL
 const DEMO_DEPOT_ROWS = [
   { dc: "VABH", predDoh: 2.0,  succDoh: 10.0, clot: 30, inTop70: true,  status: "PASS" as const },
-  { dc: "DLGH", predDoh: 2.9,  succDoh: 15.0, clot: 28, inTop70: true,  status: "PASS" as const },
-  { dc: "ABDH", predDoh: 2.0,  succDoh:  6.0, clot: 26, inTop70: true,  status: "PASS" as const },
+  { dc: "DLGH", predDoh: 3.5,  succDoh: 12.0, clot: 28, inTop70: true,  status: "FAIL" as const },
+  { dc: "ABDH", predDoh: 1.5,  succDoh:  4.0, clot: 26, inTop70: true,  status: "FAIL" as const },
   { dc: "SRDH", predDoh: 5.0,  succDoh:  6.0, clot: 10, inTop70: false, status: null },
   { dc: "HBDH", predDoh: 6.0,  succDoh:  7.0, clot:  4, inTop70: false, status: null },
 ];
-const DEMO_PRED_OVERALL = 3;
-const DEMO_SUCC_OVERALL = 5;
+// Aggregate BP-level DOH (from network entry: predecessor_doh=4, successor_doh=3)
+const DEMO_PRED_OVERALL = 4;
+const DEMO_SUCC_OVERALL = 3;
 
 function DohDepotAnalysisCard({
   basepack,
 }: {
   basepack: string | null | undefined;
 }) {
-  const overallFail = DEMO_SUCC_OVERALL <= 5; // succ must be > 5 strictly
   const top70Rows = DEMO_DEPOT_ROWS.filter(r => r.inTop70);
   const allTop70Pass = top70Rows.every(r => r.status === "PASS");
+  const overallFail = !allTop70Pass || DEMO_PRED_OVERALL >= 3 || DEMO_SUCC_OVERALL <= 5;
 
   return (
     <Card className="shadow-none border-orange-200 bg-orange-50/30">
