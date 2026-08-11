@@ -706,6 +706,23 @@ export default function CcrMasterMaintenancePage() {
     [eligibleEntries, postingStatusMap],
   );
 
+  // Mapping Initiated items that have been posted (relaunch CBUs are not in eligibleEntries,
+  // so they need a separate slice to appear in the Requested tab).
+  const requestedInitiatedItems = useMemo(
+    () => mappingInitiatedItems.filter(i => postingStatusMap[i.successorCbuCode ?? ""] === "Requested"),
+    [mappingInitiatedItems, postingStatusMap],
+  );
+
+  // Mapping Initiated items still shown in the tab.
+  // Only hide items whose CBU is actively in-flight ("Requested") — those move to the
+  // Requested tab. Validated/Error CBUs stay visible here as mapping examples.
+  const pendingInitiatedItems = useMemo(
+    () => mappingInitiatedItems.filter(i =>
+      postingStatusMap[i.successorCbuCode ?? ""] !== "Requested"
+    ),
+    [mappingInitiatedItems, postingStatusMap],
+  );
+
   // ── Derived: unique network types for filter dropdown ──────────────────────
 
   const networkTypes = useMemo(() => {
@@ -1009,13 +1026,13 @@ export default function CcrMasterMaintenancePage() {
                 <TabTrigger
                   value="ccr-initiated"
                   label="CCR Mapping Initiated"
-                  count={mappingInitiatedItems.length}
+                  count={pendingInitiatedItems.length}
                   countClass="bg-emerald-100 text-emerald-700"
                 />
                 <TabTrigger
                   value="requested"
                   label="Requested for SAP Update"
-                  count={requestedEntries.length}
+                  count={requestedEntries.length + requestedInitiatedItems.length}
                   countClass="bg-blue-100 text-blue-700"
                 />
                 <TabTrigger
@@ -1151,7 +1168,7 @@ export default function CcrMasterMaintenancePage() {
                 </div>
               )}
               <CcrInitiatedChainView
-                items={mappingInitiatedItems}
+                items={pendingInitiatedItems}
                 expandedChains={expandedChains}
                 onToggleChain={toggleChain}
                 onNavigate={navigate}
@@ -1204,7 +1221,7 @@ export default function CcrMasterMaintenancePage() {
               <ChainGroupedView
                 {...sharedViewProps}
                 entries={requestedEntries}
-                emptyMessage="No CBUs are currently awaiting SAP update."
+                emptyMessage={requestedInitiatedItems.length > 0 ? "" : "No CBUs are currently awaiting SAP update."}
                 showProgress={false}
                 selectable
                 selectedCbus={requestedSelected}
@@ -1225,6 +1242,21 @@ export default function CcrMasterMaintenancePage() {
                   </div>
                 )}
               />
+              {requestedInitiatedItems.length > 0 && (
+                <>
+                  {requestedEntries.length > 0 && (
+                    <div className="px-4 py-1.5 bg-muted/30 border-y text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                      CCR Mapping Initiated — Awaiting SAP
+                    </div>
+                  )}
+                  <CcrInitiatedChainView
+                    items={requestedInitiatedItems}
+                    expandedChains={expandedChains}
+                    onToggleChain={toggleChain}
+                    onNavigate={navigate}
+                  />
+                </>
+              )}
             </TabsContent>
 
             {/* ── Validated / Posted in SAP tab ─────────────────────────────── */}
