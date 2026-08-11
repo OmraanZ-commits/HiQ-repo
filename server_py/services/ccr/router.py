@@ -133,6 +133,67 @@ async def upsert_cic_mappings(req: UpsertCicMappingsRequest):
     return _svc().upsert_cic_mappings(req.mappings)
 
 
+@router.get("/predecessor-mappings")
+async def get_predecessor_mappings(cbu_code: str = Query(...), customer_chain: str = Query(...)):
+    """
+    For CIC-Reused CBUs, return the predecessor CBU's mapped depot rows
+    so the configure page can show them as Deleted.
+    """
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        # 1. Find predecessor CBU from line items (new_cic_required=False means CIC Reused)
+        row = db.execute(text("""
+            SELECT predecessor_cbu_code
+            FROM ccr_line_items
+            WHERE successor_cbu_code = :cbu AND customer_chain = :chain
+              AND new_cic_required = False
+            LIMIT 1
+        """), {"cbu": cbu_code, "chain": customer_chain}).fetchone()
+
+        if not row or not row[0]:
+            return {"predecessorCbuCode": None, "predecessorBasepack": None, "rows": []}
+
+        pred_cbu = row[0]
+
+        # Get predecessor's basepack
+        ne_row = db.execute(text(
+            "SELECT basepack FROM network_entries WHERE cbu_code = :pred LIMIT 1"
+        ), {"pred": pred_cbu}).fetchone()
+        pred_basepack = ne_row[0] if ne_row else None
+
+        # 2. Try ccr_cic_mapping first (Mapped rows only)
+        mapping_rows = db.execute(text("""
+            SELECT customer_code, cic, cic_description, depot
+            FROM ccr_cic_mapping
+            WHERE cbu_code = :pred AND customer_chain = :chain AND status = 'Mapped'
+            ORDER BY customer_code
+        """), {"pred": pred_cbu, "chain": customer_chain}).fetchall()
+
+        result_rows = []
+        if mapping_rows:
+            for r in mapping_rows:
+                result_rows.append({"customerCode": r[0], "cic": r[1], "cicDescription": r[2], "depot": r[3]})
+        else:
+            # 3. Fall back: predecessor's network_entries.depot × ccr_customer_code_mapping
+            ne2 = db.execute(text(
+                "SELECT depot FROM network_entries WHERE cbu_code = :pred"
+            ), {"pred": pred_cbu}).fetchone()
+            if ne2 and ne2[0]:
+                code_rows = db.execute(text("""
+                    SELECT customer_code, depot
+                    FROM ccr_customer_code_mapping
+                    WHERE customer_chain = :chain AND depot = ANY(:depots)
+                    ORDER BY customer_code
+                """), {"chain": customer_chain, "depots": ne2[0]}).fetchall()
+                for r in code_rows:
+                    result_rows.append({"customerCode": r[0], "cic": None, "cicDescription": None, "depot": r[1]})
+
+        return {"predecessorCbuCode": pred_cbu, "predecessorBasepack": pred_basepack, "rows": result_rows}
+    finally:
+        db.close()
+
+
 @router.get("/ncsm-depot-decisions/{cbu_code}")
 async def get_ncsm_depot_decisions(cbu_code: str):
     """

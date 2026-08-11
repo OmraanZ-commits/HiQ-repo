@@ -18,7 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft, CheckCircle2, XCircle, Minus,
   Save, Download, AlertTriangle, MapPin, Warehouse,
-  Hash, Tag, Link2, Package, TrendingUp,
+  Hash, Tag, Link2, Package, TrendingUp, Trash2,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -60,7 +60,19 @@ type CicMapping = {
 };
 
 type PricingStatus = "Yes" | "No";
-type DepotStatus = "Mapped" | "Non-Mapped" | string;
+type DepotStatus = "Mapped" | "Non-Mapped" | "Deleted" | string;
+
+type PredecessorMappingRow = {
+  customerCode: string;
+  cic: string | null;
+  cicDescription: string | null;
+  depot: string;
+};
+type PredecessorMappings = {
+  predecessorCbuCode: string | null;
+  predecessorBasepack: string | null;
+  rows: PredecessorMappingRow[];
+};
 
 type DepotRow = {
   id: string;
@@ -132,6 +144,11 @@ function StatusBadge({ status, pbStatus }: { status: DepotStatus; pbStatus?: str
   if (status === "Mapped") return (
     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs" data-testid="badge-status-mapped">
       <CheckCircle2 className="h-3 w-3 mr-1" />Mapped
+    </Badge>
+  );
+  if (status === "Deleted") return (
+    <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 text-xs" data-testid="badge-status-deleted">
+      <Trash2 className="h-3 w-3 mr-1" />Deleted
     </Badge>
   );
   return (
@@ -212,6 +229,18 @@ export default function CcrConfigurePage() {
     queryFn: () => fetch(`/api/ccr/ncsm-depot-decisions/${encodeURIComponent(decodedCbu)}`).then(r => r.ok ? r.json() : {}),
     enabled: !!decodedCbu,
   });
+
+  // Predecessor CBU mappings — only populated for CIC-Reused CBUs (new_cic_required=false)
+  const { data: predecessorData } = useQuery<PredecessorMappings>({
+    queryKey: ["/api/ccr/predecessor-mappings", decodedCbu, selectedChain],
+    queryFn: () =>
+      fetch(`/api/ccr/predecessor-mappings?cbu_code=${encodeURIComponent(decodedCbu)}&customer_chain=${encodeURIComponent(selectedChain)}`)
+        .then(r => r.ok ? r.json() : { predecessorCbuCode: null, predecessorBasepack: null, rows: [] }),
+    enabled: !!decodedCbu && !!selectedChain,
+  });
+  const predecessorRows: PredecessorMappingRow[] = predecessorData?.rows ?? [];
+  const predecessorCbuCode = predecessorData?.predecessorCbuCode ?? null;
+  const predecessorBasepack = predecessorData?.predecessorBasepack ?? null;
 
   // SAP posting status — locks the form once the CBU is in SAP validation flow.
   // CSEs can keep re-saving until they click "Request SAP Validation" (status → "Requested").
@@ -920,6 +949,49 @@ export default function CcrConfigurePage() {
                       </TableRow>
                     );
                     })}
+
+                    {/* ── Predecessor CBU "Deleted" rows ──────────────────── */}
+                    {predecessorRows.length > 0 && predecessorCbuCode && (
+                      <>
+                        <TableRow className="bg-red-50/60 hover:bg-red-50/60">
+                          <TableCell colSpan={11} className="py-1.5 px-4">
+                            <div className="flex items-center gap-2 text-xs text-red-700 font-semibold">
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Predecessor CBU: {predecessorCbuCode}
+                              {predecessorBasepack && (
+                                <span className="font-mono font-normal text-red-500">({predecessorBasepack})</span>
+                              )}
+                              <span className="font-normal text-red-500 ml-1">— depots being deleted from SAP</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {predecessorRows.map(pr => (
+                          <TableRow key={`pred-${pr.customerCode}`} className="bg-red-50/30 opacity-80">
+                            <TableCell className="font-mono text-xs text-muted-foreground">{predecessorCbuCode}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{predecessorBasepack ?? "—"}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{selectedChain}</TableCell>
+                            <TableCell className="font-mono text-xs font-medium text-muted-foreground">{pr.customerCode}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              {pr.cic || <span className="italic">—</span>}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">1000</TableCell>
+                            <TableCell className="text-sm font-semibold text-red-600">{pr.depot}</TableCell>
+                            <TableCell className="text-center">
+                              <span className="text-muted-foreground text-xs">—</span>
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge status="Deleted" />
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">—</span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">—</span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </>
+                    )}
                   </TableBody>
                 </Table>
               </div>
