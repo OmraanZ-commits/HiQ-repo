@@ -444,8 +444,6 @@ export default function CcrConfigurePage() {
         pricingStatus: r.pricingStatus,
       }));
       await apiRequest("PUT", "/api/ccr/cic-mappings", { mappings: payload });
-      // Auto-enqueue: place CBU into MT Listing queue (no-op if already queued or in SAP flow)
-      await apiRequest("POST", "/api/ccr/queue-cbus", { cbu_codes: [decodedCbu], queued_by: "demo-user" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings", decodedCbu, selectedChain] });
@@ -453,8 +451,8 @@ export default function CcrConfigurePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ccr/cic-mappings/depot-change-summary"] });
       toast({
-        title: "Mapping saved & submitted to MT Listing queue",
-        description: `${rows.length} row(s) saved. CBU will appear in MT Listing once Stock Movement is initiated.`,
+        title: "Mapping saved",
+        description: `${rows.length} row(s) saved.`,
       });
     },
     onError: (err: Error) => {
