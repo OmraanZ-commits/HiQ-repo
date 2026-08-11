@@ -713,15 +713,9 @@ export default function CcrMasterMaintenancePage() {
     [mappingInitiatedItems, postingStatusMap],
   );
 
-  // Mapping Initiated items still shown in the tab.
-  // Only hide items whose CBU is actively in-flight ("Requested") — those move to the
-  // Requested tab. Validated/Error CBUs stay visible here as mapping examples.
-  const pendingInitiatedItems = useMemo(
-    () => mappingInitiatedItems.filter(i =>
-      postingStatusMap[i.successorCbuCode ?? ""] !== "Requested"
-    ),
-    [mappingInitiatedItems, postingStatusMap],
-  );
+  // All mapping initiated items remain visible in the CCR Mapping Initiated tab
+  // regardless of SAP posting status — they also appear in the Requested tab when posted.
+  const pendingInitiatedItems = mappingInitiatedItems;
 
   // ── Derived: unique network types for filter dropdown ──────────────────────
 
@@ -1026,7 +1020,7 @@ export default function CcrMasterMaintenancePage() {
                 <TabTrigger
                   value="ccr-initiated"
                   label="CCR Mapping Initiated"
-                  count={pendingInitiatedItems.length}
+                  count={mappingInitiatedItems.length}
                   countClass="bg-emerald-100 text-emerald-700"
                 />
                 <TabTrigger
