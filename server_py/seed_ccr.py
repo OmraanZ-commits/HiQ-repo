@@ -290,6 +290,8 @@ CCR_LINE_ITEM_SEEDS = [
     {"predecessor_cbu_code": "CBU-50018921", "successor_cbu_code": "CBU-50019021", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-MH-001", "cic": "CIC-MCC1-MH-MCC", "trigger_stage": "Third", "urgency_color": "Red", "ccr_status": "Action Required", "execution_type": "Manual", "new_cic_required": True,  "content_update_required": True, "rundown_required": True},
     # RL_ART_PKG → Existing CIC reused (artwork-only relaunch for listing chain)
     {"predecessor_cbu_code": "CBU-50018922", "successor_cbu_code": "CBU-50019022", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-DL-001", "cic": "CIC-MCC2-DL-MCC", "trigger_stage": "Third", "urgency_color": "Red", "ccr_status": "Action Required", "execution_type": "Manual", "new_cic_required": False, "content_update_required": True, "rundown_required": True},
+    # Submitted — existing CIC, regional listing, Stock Movement Initiated → "Ready to release → MT Listing"
+    {"predecessor_cbu_code": "CBU-50018922", "successor_cbu_code": "CBU-50019022", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-KA-001", "cic": "CIC-MCC2-KA-MCC", "trigger_stage": "Third", "urgency_color": "Red", "ccr_status": "Completed", "execution_type": "Manual", "new_cic_required": False, "content_update_required": True, "rundown_required": True},
 
     # Upcoming — Second / FTR Approved
     {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-MH-001", "cic": "CIC-FTR2-MH-MCC", "trigger_stage": "Second", "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Manual", "new_cic_required": False, "content_update_required": True, "rundown_required": True},

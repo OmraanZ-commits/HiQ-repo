@@ -1326,17 +1326,20 @@ def migrate_ccr_trigger_stage_actionability():
     from sqlalchemy import text
     db_conn = engine.connect()
     try:
-        # 0. Regional Non-Listing chains (e.g. Blinkit, DMart) never use the
+        # 0. Regional Non-Listing chains (e.g. Blinkit) never use the
         #    "reuse existing CIC" scenario — they always require a new CIC.
-        #    Correct any rows that were seeded with new_cic_required=False.
+        #    Listing-based regional chains (e.g. Metro C&C) are excluded here:
+        #    their CIC requirement is driven by the change type, not chain type.
         db_conn.execute(text("""
             UPDATE ccr_line_items li
             SET new_cic_required = TRUE
             WHERE li.new_cic_required = FALSE
+              AND li.ccr_status != 'Completed'
               AND EXISTS (
                 SELECT 1 FROM ccr_customer_master c
-                WHERE c.customer_chain = li.customer_chain
-                  AND c.coverage_type  = 'Regional'
+                WHERE c.customer_chain  = li.customer_chain
+                  AND c.coverage_type   = 'Regional'
+                  AND c.behaviour_type != 'Listing Based'
               )
         """))
 
@@ -1371,6 +1374,7 @@ def migrate_ccr_trigger_stage_actionability():
             SET trigger_stage = 'Third', urgency_color = 'Red', ccr_status = 'Action Required'
             WHERE successor_cbu_code = 'CBU-50019003'
               AND cic IS NOT NULL
+              AND ccr_status != 'Completed'
               AND customer_chain != 'BigBasket'
         """))
         # Also advance network status so the trigger engine stays consistent going forward
