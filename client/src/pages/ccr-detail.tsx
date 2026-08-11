@@ -596,7 +596,7 @@ function TakeActionDialog({
                     );
                   })}
                   <p className="text-[10px] text-slate-400 italic pt-0.5">
-                    * These actions are managed outside this system and are shown for reference only.
+                    * These actions are managed outside this system.
                   </p>
                 </div>
               </div>
