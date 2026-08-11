@@ -1413,6 +1413,46 @@ class CcrStorage:
         finally:
             db.close()
 
+    def get_bulk_export_data(self, cbu_chain_pairs: List[dict]) -> List[dict]:
+        """
+        Return BRD-specified mapping columns for multiple CBU+chain pairs in one call.
+        Used by the 'Request SAP Update' confirmation flow to produce a consolidated
+        export file covering all selected CBUs across all customer chains.
+        """
+        from sqlalchemy import or_, and_
+        if not cbu_chain_pairs:
+            return []
+        db = SessionLocal()
+        try:
+            conditions = [
+                and_(
+                    CcrCicMappingModel.cbu_code       == p["cbu_code"],
+                    CcrCicMappingModel.customer_chain == p["customer_chain"],
+                )
+                for p in cbu_chain_pairs
+            ]
+            rows = (
+                db.query(CcrCicMappingModel)
+                .filter(or_(*conditions))
+                .order_by(CcrCicMappingModel.customer_chain, CcrCicMappingModel.cbu_code)
+                .all()
+            )
+            return [
+                {
+                    "CustomerCode":  r.customer_code,
+                    "CustomerChain": r.customer_chain,
+                    "CIC":           r.cic,
+                    "MaterialCode":  r.cbu_code,
+                    "Depot":         r.depot,
+                    "MappingStatus": r.status,
+                    "SourcingDepot": r.sourcing_depot,
+                    "PricingStatus": r.pricing_status,
+                }
+                for r in rows
+            ]
+        finally:
+            db.close()
+
     def get_export_data(self, item_id: str) -> Optional[List[dict]]:
         """
         Return BRD-specified mapping columns for a completed line item.

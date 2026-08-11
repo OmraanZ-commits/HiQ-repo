@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -10,7 +9,6 @@ import {
   ChevronRight,
   Zap,
   RefreshCw,
-  Download,
   GitCompareArrows,
   User,
   MapPin,
@@ -119,17 +117,6 @@ interface Recommendation {
   }[];
   scenario: "A" | "B" | "C";
   rationale: string;
-}
-
-interface ExportRow {
-  CustomerCode: string;
-  CustomerChain: string;
-  CIC: string | null;
-  MaterialCode: string;
-  Depot: string | null;
-  MappingStatus: string;
-  SourcingDepot: string | null;
-  PricingStatus: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -1083,27 +1070,6 @@ export default function CcrDetailPage() {
     [networkEntries, item]
   );
 
-  // ── Export handler ────────────────────────────────────────────────────────
-  async function handleExport() {
-    try {
-      const data: ExportRow[] = await fetch(
-        `/api/ccr/line-items/${itemId}/export`
-      ).then(r => r.json());
-
-      if (data.length === 0) {
-        toast({ title: "No mapping rows to export", variant: "destructive" });
-        return;
-      }
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "CIC Mapping Output");
-      XLSX.writeFile(wb, `CCR_Output_${item?.id ?? itemId}_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      toast({ title: "Mapping output downloaded" });
-    } catch {
-      toast({ title: "Export failed", variant: "destructive" });
-    }
-  }
-
   function refreshItem() {
     qc.invalidateQueries({ queryKey: [`/api/ccr/line-items/${itemId}`] });
   }
@@ -1194,18 +1160,6 @@ export default function CcrDetailPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {isCompleted && !isInQueue && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExport}
-                  className="gap-1.5 text-xs"
-                  data-testid="btn-export-mapping"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Generate Mapping Output
-                </Button>
-              )}
               {isActionRequired && (
                 <Button
                   size="sm"
@@ -1449,28 +1403,6 @@ export default function CcrDetailPage() {
               </div>
             )}
 
-            {/* Export prompt when completed — hidden while still held in queue */}
-            {isCompleted && !isInQueue && (
-              <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-4 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-emerald-800">CCR Completed</p>
-                  <p className="text-xs text-emerald-700 mt-0.5">
-                    CIC mappings have been updated. Download the mapping output for handover to the
-                    CD team.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExport}
-                  className="shrink-0 gap-1.5 border-emerald-400 text-emerald-800 hover:bg-emerald-100"
-                  data-testid="btn-export-completed"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Download
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </main>

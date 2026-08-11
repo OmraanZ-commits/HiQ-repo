@@ -101,6 +101,9 @@ class CcrService:
     def get_export_data(self, item_id: str) -> List[dict]:
         return self.storage.get_export_data(item_id)
 
+    def get_bulk_export_data(self, cbu_chain_pairs: List[dict]) -> List[dict]:
+        return self.storage.get_bulk_export_data(cbu_chain_pairs)
+
     def delisting_response(self, item_id: str, action: str, justification: Optional[str] = None) -> Optional[dict]:
         return self.storage.delisting_response(item_id, action, justification)
 

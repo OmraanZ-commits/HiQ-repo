@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   CheckCircle2, Send, ChevronRight, ChevronDown, Tag, Building2,
-  AlertCircle, RotateCcw, Upload,
+  AlertCircle, RotateCcw, Upload, Download,
 } from "lucide-react";
 import type { NetworkEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -673,18 +674,42 @@ export default function CcrMasterMaintenancePage() {
   };
 
   // Request SAP Update (from Overview)
+  // selectedKeys are "cbuCode||chainName" pairs — carries both CBU and chain for export
   const requestSapMutation = useMutation({
-    mutationFn: async (cbuCodes: string[]) =>
-      apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" }),
-    onSuccess: (_data, cbuCodes) => {
+    mutationFn: async (selectedKeys: string[]) => {
+      const cbuCodes = selectedKeys.map(cbuFromKey);
+      return apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" });
+    },
+    onSuccess: async (_data, selectedKeys) => {
       invalidateSummaries();
       setOverviewSelected(new Set());
       setRequestSapDialog(false);
       toast({
         title: "SAP update requested",
-        description: `${cbuCodes.length} CBU${cbuCodes.length > 1 ? "s" : ""} submitted for SAP update.`,
+        description: `${selectedKeys.length} CBU${selectedKeys.length > 1 ? "s" : ""} submitted for SAP update. Downloading mapping export…`,
       });
       setActiveTab("requested");
+
+      // Auto-download consolidated export for all selected CBU+chain pairs
+      try {
+        const pairs = selectedKeys.map(key => {
+          const [cbu_code, customer_chain] = key.split("||");
+          return { cbu_code, customer_chain };
+        });
+        const rows: object[] = await fetch("/api/ccr/bulk-export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cbu_chain_pairs: pairs }),
+        }).then(r => r.json());
+        if (rows.length > 0) {
+          const ws = XLSX.utils.json_to_sheet(rows);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "CIC Mapping Output");
+          XLSX.writeFile(wb, `CCR_Mapping_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        }
+      } catch {
+        toast({ title: "Export download failed — please retry from SAP Update tab", variant: "destructive" });
+      }
     },
     onError: (err: Error) => {
       toast({ title: "Request failed", description: err.message, variant: "destructive" });
@@ -1123,7 +1148,7 @@ export default function CcrMasterMaintenancePage() {
           </>
         }
         isPending={requestSapMutation.isPending}
-        onConfirm={() => requestSapMutation.mutate([...overviewSelected].map(cbuFromKey))}
+        onConfirm={() => requestSapMutation.mutate([...overviewSelected])}
         items={dialogItems(overviewSelected, overviewEntries)}
       />
 

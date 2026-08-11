@@ -387,6 +387,24 @@ async def get_export_data(
     return data
 
 
+class BulkExportRequest(BaseModel):
+    cbu_chain_pairs: List[dict]
+
+
+@router.post("/bulk-export")
+async def get_bulk_export(
+    req: BulkExportRequest,
+    session_user: dict = Depends(_get_session_user),
+):
+    """
+    Return consolidated CIC mapping rows for multiple CBU+chain pairs.
+    Called by the 'Request SAP Update' confirmation flow to auto-download
+    a single export file covering all selected CBUs.
+    """
+    data = _svc().get_bulk_export_data(req.cbu_chain_pairs)
+    return data
+
+
 @router.post("/line-items/{item_id}/delisting-response")
 async def delisting_response(
     item_id: str,
