@@ -37,6 +37,12 @@ class CcrService:
     def post_cbus(self, cbu_codes: list, posted_by: str = "system") -> dict:
         return self.storage.post_cbus(cbu_codes=cbu_codes, posted_by=posted_by)
 
+    def queue_cbus(self, cbu_codes: list, queued_by: str = "system") -> dict:
+        return self.storage.queue_cbus(cbu_codes=cbu_codes, queued_by=queued_by)
+
+    def release_from_queue(self, cbu_codes: list) -> dict:
+        return self.storage.release_from_queue(cbu_codes=cbu_codes)
+
     def update_sap_status(self, cbu_codes: list, status: str, updated_by: str = "system") -> dict:
         return self.storage.update_sap_status(cbu_codes=cbu_codes, status=status, updated_by=updated_by)
 
