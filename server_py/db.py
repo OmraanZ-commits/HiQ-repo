@@ -1404,6 +1404,18 @@ def migrate_ccr_trigger_stage_actionability():
             WHERE cbu_code = 'CBU-50019004'
         """))
 
+        # 5. CBU-50017001 & CBU-50017002 SLA demo: set escalation_due_at to exactly
+        #    2 days ago so the SLA chip shows "2d overdue". Escalation indicator is
+        #    suppressed because the threshold is ≥ 3 days overdue (see LineItemRow).
+        #    Clear escalated_at so no stale escalation badge appears.
+        db_conn.execute(text("""
+            UPDATE ccr_line_items
+            SET escalation_due_at = NOW() - INTERVAL '2 days',
+                escalated_at      = NULL
+            WHERE successor_cbu_code IN ('CBU-50017001', 'CBU-50017002')
+              AND ccr_status = 'Action Required'
+        """))
+
         db_conn.commit()
     finally:
         db_conn.close()

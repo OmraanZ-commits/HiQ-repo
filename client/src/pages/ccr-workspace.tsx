@@ -422,17 +422,21 @@ function LineItemRow({
       </TableCell>
 
       <TableCell className="py-2.5 pr-4">
-        {item.escalatedAt ? (
-          <span
-            className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-rose-600 text-white text-[11px] font-bold select-none"
-            title="Escalated"
-            data-testid={`badge-escalated-${item.id}`}
-          >
-            !
-          </span>
-        ) : (
-          <span className="text-[10px] text-muted-foreground/40">—</span>
-        )}
+        {(() => {
+          const d = slaDaysLeft(item.escalationDueAt);
+          const showEscalation = item.triggerStage === "Fourth" && d !== null && d <= -3;
+          return showEscalation ? (
+            <span
+              className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-rose-600 text-white text-[11px] font-bold select-none"
+              title="Escalated — SLA breached by 3+ days"
+              data-testid={`badge-escalated-${item.id}`}
+            >
+              !
+            </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground/40">—</span>
+          );
+        })()}
       </TableCell>
     </TableRow>
   );
