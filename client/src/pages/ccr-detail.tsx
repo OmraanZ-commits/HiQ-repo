@@ -1058,7 +1058,6 @@ export default function CcrDetailPage() {
   const itemId = params.id;
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [delistingOpen, setDelistingOpen] = useState(false);
 
   const {
     data: item,
@@ -1207,16 +1206,6 @@ export default function CcrDetailPage() {
                   Generate Mapping Output
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setDelistingOpen(true)}
-                className="gap-1.5 text-xs text-amber-700 border-amber-300 hover:bg-amber-50"
-                data-testid="btn-delisting-response"
-              >
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Delisting Response
-              </Button>
               {isActionRequired && (
                 <Button
                   size="sm"
@@ -1498,12 +1487,6 @@ export default function CcrDetailPage() {
         />
       )}
 
-      <DelistingDialog
-        open={delistingOpen}
-        itemId={itemId}
-        onClose={() => setDelistingOpen(false)}
-        onSuccess={refreshItem}
-      />
     </div>
   );
 }
