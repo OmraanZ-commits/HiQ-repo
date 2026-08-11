@@ -153,6 +153,39 @@ function SapStatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── Chain scenario metadata (National/Regional × Listing/Non-Listing) ────────
+
+type ChainScenario = "Regional Listing" | "Regional Non-Listing" | "National Non-Listing";
+
+const CHAIN_SCENARIO_MAP: Record<string, ChainScenario> = {
+  "BigBasket":        "National Non-Listing",
+  "Blinkit":          "Regional Non-Listing",
+  "DMart":            "Regional Non-Listing",
+  "Reliance Smart":   "National Non-Listing",
+  "Swiggy Instamart": "National Non-Listing",
+  "Metro Cash & Carry": "Regional Listing",
+  "Amazon":           "National Non-Listing",
+  "Flipkart":         "National Non-Listing",
+  "JioMart":          "National Non-Listing",
+};
+
+const SCENARIO_META: Record<ChainScenario, { pill: string }> = {
+  "Regional Listing":     { pill: "bg-violet-100 text-violet-700 border border-violet-200" },
+  "Regional Non-Listing": { pill: "bg-amber-100 text-amber-700 border border-amber-200" },
+  "National Non-Listing": { pill: "bg-blue-100 text-blue-700 border border-blue-200" },
+};
+
+function ChainScenarioPill({ chain, className }: { chain: string; className?: string }) {
+  const scenario = CHAIN_SCENARIO_MAP[chain];
+  if (!scenario) return null;
+  const { pill } = SCENARIO_META[scenario];
+  return (
+    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${pill} ${className ?? ""}`}>
+      {scenario}
+    </span>
+  );
+}
+
 function ChainMappingBadge({ mapped }: { mapped: boolean }) {
   if (mapped) return (
     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs gap-1">
@@ -303,6 +336,7 @@ function ChainGroupedView({
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className="font-semibold text-sm text-foreground truncate">{group.chainName}</span>
+                <ChainScenarioPill chain={group.chainName} />
               </div>
 
               <div className="flex items-center gap-5 flex-shrink-0">
@@ -898,7 +932,10 @@ export default function CcrMasterMaintenancePage() {
                   <SelectItem value="all" className="text-xs">All Chains</SelectItem>
                   {customers.map(c => (
                     <SelectItem key={c.id} value={c.customerChain} className="text-xs">
-                      {c.customerChain}
+                      <span className="flex items-center gap-2">
+                        {c.customerChain}
+                        <ChainScenarioPill chain={c.customerChain} />
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
