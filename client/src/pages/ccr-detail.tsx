@@ -946,9 +946,6 @@ function DohDepotAnalysisCard({
               }`}
             >
               <p className="text-[10px] text-muted-foreground font-medium mb-0.5">{label}</p>
-              <p className={`text-xl font-bold ${met ? "text-emerald-700" : "text-red-700"}`}>
-                {days} <span className="text-sm font-normal">days</span>
-              </p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 Threshold: {threshold}
               </p>
