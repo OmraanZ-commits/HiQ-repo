@@ -503,12 +503,6 @@ class CcrStorage:
                 .filter(
                     CcrLineItemModel.ccr_status == "Completed",
                     CcrLineItemModel.cic.isnot(None),
-                    or_(
-                        # New CIC: any chain type qualifies
-                        CcrLineItemModel.new_cic_required == True,
-                        # Reused CIC: only National chains (National Non-Listing reuse scenario)
-                        CcrCustomerMasterModel.coverage_type == "National",
-                    ),
                 )
                 .order_by(CcrLineItemModel.updated_at.desc())
                 .all()

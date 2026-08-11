@@ -227,6 +227,9 @@ CCR_LINE_ITEM_SEEDS = [
     {"predecessor_cbu_code": "CBU-50018902", "successor_cbu_code": "CBU-50019003", "customer_chain": "Reliance Smart", "customer_code": "RLI-MH-001", "cic": "CIC-FTR3-MH-RLI", "trigger_stage": "Third",  "urgency_color": "Red", "ccr_status": "Action Required", "execution_type": "Semi-Auto"},
     {"predecessor_cbu_code": "CBU-50018902", "successor_cbu_code": "CBU-50019003", "customer_chain": "Blinkit",        "customer_code": "BLK-MH-001", "cic": "CIC-FTR3-MH-BLK", "trigger_stage": "Third",  "urgency_color": "Red", "ccr_status": "Action Required", "execution_type": "Auto"},
     {"predecessor_cbu_code": "CBU-50018902", "successor_cbu_code": "CBU-50019003", "customer_chain": "BigBasket",      "customer_code": "BBK-MH-001", "cic": "CIC-FTR3-MH-BBK", "trigger_stage": "Third",  "urgency_color": "Red", "ccr_status": "Action Required", "execution_type": "Auto"},
+    # Regional chain (Blinkit / BLK-KA-001) — existing CIC reused, CCR Completed → appears in Submitted tab
+    # Regional chains skip DOH threshold; Stock Movement Initiated is sufficient for MT Listing release.
+    {"predecessor_cbu_code": "CBU-50018902", "successor_cbu_code": "CBU-50019003", "customer_chain": "Blinkit",        "customer_code": "BLK-KA-001", "cic": "CIC-FTR3-KA-BLK", "trigger_stage": "Third",  "urgency_color": "Red", "ccr_status": "Completed",       "execution_type": "Auto", "new_cic_required": False, "content_update_required": True, "rundown_required": True},
 
     # ── CBU-50019004 (Surf Excel Liquid 1L) — Fourth / Inventory Threshold Breached ──
     # Predecessor DOH < 3 days, successor DOH > 5 → imminent risk, final CCR approval.
@@ -278,5 +281,21 @@ CCR_LINE_ITEM_SEEDS = [
     {"predecessor_cbu_code": "CBU-50018911", "successor_cbu_code": "CBU-50012345", "customer_chain": "BigBasket",       "customer_code": "BBK-KA-001", "cic": "CIC-VS-BBK-KA-F1", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Semi-Auto"},
     {"predecessor_cbu_code": "CBU-50018911", "successor_cbu_code": "CBU-50012345", "customer_chain": "BigBasket",       "customer_code": "BBK-TN-001", "cic": "CIC-VS-BBK-TN-F1", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Semi-Auto"},
     {"predecessor_cbu_code": "CBU-50018911", "successor_cbu_code": "CBU-50012345", "customer_chain": "Swiggy Instamart","customer_code": "SWG-KA-001", "cic": "CIC-VS-SWG-KA-F1", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Auto"},
+
+    # ── Metro Cash & Carry (Regional Listing) — relaunch CBUs across all stages ─
+    # Metro C&C is a listing-based (SBM) regional chain; CIC assignment is manual.
+
+    # Immediate Actions — Third / Stock Movement Initiated
+    # RL_PKG → New CIC required (packaging change changes EAN for listing chains)
+    {"predecessor_cbu_code": "CBU-50018921", "successor_cbu_code": "CBU-50019021", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-MH-001", "cic": "CIC-MCC1-MH-MCC", "trigger_stage": "Third", "urgency_color": "Red", "ccr_status": "Action Required", "execution_type": "Manual", "new_cic_required": True,  "content_update_required": True, "rundown_required": True},
+    # RL_ART_PKG → Existing CIC reused (artwork-only relaunch for listing chain)
+    {"predecessor_cbu_code": "CBU-50018922", "successor_cbu_code": "CBU-50019022", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-DL-001", "cic": "CIC-MCC2-DL-MCC", "trigger_stage": "Third", "urgency_color": "Red", "ccr_status": "Action Required", "execution_type": "Manual", "new_cic_required": False, "content_update_required": True, "rundown_required": True},
+
+    # Upcoming — Second / FTR Approved
+    {"predecessor_cbu_code": "CBU-50018901", "successor_cbu_code": "CBU-50019002", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-MH-001", "cic": "CIC-FTR2-MH-MCC", "trigger_stage": "Second", "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Manual", "new_cic_required": False, "content_update_required": True, "rundown_required": True},
+    # Upcoming — First / Production Started
+    {"predecessor_cbu_code": "CBU-50018906", "successor_cbu_code": "CBU-50019007", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-DL-001", "cic": "CIC-FTR7-DL-MCC", "trigger_stage": "First",  "urgency_color": "Amber", "ccr_status": "Upcoming", "execution_type": "Manual", "new_cic_required": False, "content_update_required": True, "rundown_required": True},
+    # Upcoming — None / trigger not yet fired (no CIC assigned for this depot yet)
+    {"predecessor_cbu_code": "CBU-50018921", "successor_cbu_code": "CBU-50019021", "customer_chain": "Metro Cash & Carry", "customer_code": "MCC-KA-001", "cic": None, "trigger_stage": "None", "urgency_color": "None", "ccr_status": "Upcoming", "execution_type": "None"},
 
 ]
