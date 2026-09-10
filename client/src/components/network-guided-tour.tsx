@@ -9,7 +9,7 @@ type TourStep = {
   title: string;
   description: string;
   path: "network" | "edit";
-  prepareSelector?: string;
+  prepareSelectors?: string[];
   advanceSelector?: string;
 };
 
@@ -37,7 +37,7 @@ const STEPS: TourStep[] = [
     title: "Find a CBU quickly",
     description: "Search by CBU code, material description, or brand. You can combine search with filters.",
     path: "network",
-    prepareSelector: '[data-testid="tab-entries"]',
+    prepareSelectors: ['[data-testid="tab-entries"]'],
   },
   {
     selector: '[data-testid="button-toggle-filters"]',
@@ -71,10 +71,92 @@ const STEPS: TourStep[] = [
     path: "edit",
   },
   {
-    selector: '[data-testid="tab-distribution"]',
-    title: "Set up distribution",
-    description: "Distribution is where geography, depots, channels, and customer mappings are reviewed and maintained.",
+    selector: '[data-testid="basic-info-fields"]',
+    title: "Review Basic Info field definitions",
+    description: "Identification fields describe the CBU and are sourced from master data. Locked fields are read-only, while manually maintained fields remain editable.",
     path: "edit",
+    prepareSelectors: ['[data-testid="tab-basic"]'],
+  },
+  {
+    selector: '[data-testid="basic-info-editable-fields"]',
+    title: "Maintain ownership and timeline",
+    description: "Update the assignee and planning dates here. Date rules shown below each field help keep the change, start, and end dates in sequence.",
+    path: "edit",
+    prepareSelectors: ['[data-testid="tab-basic"]'],
+  },
+  {
+    selector: '[data-testid="distribution-geography-depot"]',
+    title: "Fill geography and depot coverage",
+    description: "Select each geography the CBU will serve, then choose at least one valid depot for every selected geography.",
+    path: "edit",
+    prepareSelectors: [
+      '[data-testid="tab-distribution"]',
+      '[data-testid="tab-distribution-geo-depot"]',
+    ],
+  },
+  {
+    selector: '[data-testid="distribution-channel"]',
+    title: "Map channels by geography",
+    description: "Choose the sales channels available in each geography. These selections drive the distribution and pricing views.",
+    path: "edit",
+    prepareSelectors: [
+      '[data-testid="tab-distribution"]',
+      '[data-testid="tab-distribution-channel"]',
+    ],
+  },
+  {
+    selector: '[data-testid="distribution-customer-mapping"]',
+    title: "Complete customer mapping",
+    description: "For applicable modern-trade geographies, map the customer chains that should receive this CBU.",
+    path: "edit",
+    prepareSelectors: [
+      '[data-testid="tab-distribution"]',
+      '[data-testid="tab-customer-mapping"]',
+    ],
+  },
+  {
+    selector: '[data-testid="distribution-matrix"]',
+    title: "Review the Distribution Matrix",
+    description: "Confirm the combined geography, depot, and channel coverage before moving to sourcing.",
+    path: "edit",
+    prepareSelectors: [
+      '[data-testid="tab-distribution"]',
+      '[data-testid="tab-distribution-summary"]',
+    ],
+  },
+  {
+    selector: '[data-testid="sourcing-matrix-content"]',
+    title: "Configure the Sourcing Matrix",
+    description: "Use decentralized sourcing when each depot supplies itself, or centralized sourcing to assign distribution depots to sourcing depots.",
+    path: "edit",
+    prepareSelectors: ['[data-testid="tab-sourcing"]'],
+  },
+  {
+    selector: '[data-testid^="price-lot-row-"]',
+    title: "View price-lot details",
+    description: "Open a price lot to review its MRP, validity period, and geographic or channel applicability. The tour does not change pricing.",
+    path: "edit",
+    prepareSelectors: [
+      '[data-testid="tab-pricing"]',
+      '[data-testid="tab-price-lots"]',
+    ],
+  },
+  {
+    selector: '[data-testid="pricing-status-summary"]',
+    title: "Review pricing coverage",
+    description: "The pricing status summary shows which geography and channel combinations have an active price.",
+    path: "edit",
+    prepareSelectors: [
+      '[data-testid="tab-pricing"]',
+      '[data-testid="tab-pricing-summary"]',
+    ],
+  },
+  {
+    selector: '[data-testid="tab-content-finance"]',
+    title: "Update Finance Inputs",
+    description: "Enter MRP, margins, price-off, and wrapper price here. Select percentage or number where available and resolve validation messages before saving.",
+    path: "edit",
+    prepareSelectors: ['[data-testid="tab-finance"]'],
   },
 ];
 
@@ -183,8 +265,8 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
       }
     }
 
-    if (next.prepareSelector) {
-      const control = await waitForTarget(next.prepareSelector);
+    for (const selector of next.prepareSelectors ?? []) {
+      const control = await waitForTarget(selector);
       if (request !== requestRef.current) return false;
       if (!control) {
         setTransitionError("The next section is not available yet. Retry or go back.");
@@ -349,6 +431,7 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
             role="dialog"
             aria-modal="true"
             aria-labelledby="network-tour-title"
+             aria-describedby="network-tour-description"
             tabIndex={-1}
             className="pointer-events-auto fixed rounded-xl border border-cyan-200 bg-white p-5 text-slate-900 shadow-2xl outline-none"
             style={cardStyle}
@@ -366,7 +449,7 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
               Step {stepIndex + 1} of {STEPS.length}
             </p>
             <h2 id="network-tour-title" className="pr-6 text-lg font-bold">{step.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            <p id="network-tour-description" className="mt-2 text-sm leading-relaxed text-slate-600">
               {rect ? step.description : transitionError ?? "Finding this part of the page…"}
             </p>
             <div className="mt-5 flex items-center justify-between gap-3">

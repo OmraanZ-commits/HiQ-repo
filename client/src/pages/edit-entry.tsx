@@ -764,7 +764,7 @@ export default function EditEntry() {
             </TabsList>
 
             <TabsContent value="basic" className="mt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="basic-info-fields">
                 <Card>
                   <CardHeader className="pb-4">
                     <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Identification</h3>
@@ -777,7 +777,7 @@ export default function EditEntry() {
                     <ReadOnlyField label="Copy from Existing CBU" value={form.copyCbu} testId="input-copy-cbu" />
                   </CardContent>
                 </Card>
-                <Card>
+                <Card data-testid="basic-info-editable-fields">
                   <CardHeader className="pb-4">
                     <h3 className="text-sm font-semibold text-[#0d8ecf] dark:text-[#4db8e8]">Dates & Timeline</h3>
                   </CardHeader>
@@ -901,11 +901,11 @@ export default function EditEntry() {
             <TabsContent value="distribution" className="mt-0">
               <Tabs defaultValue="geo-depot" className="w-full">
                 <TabsList className="grid w-full grid-cols-4 mb-4">
-                  <TabsTrigger value="geo-depot" className="text-xs">
+                  <TabsTrigger value="geo-depot" className="text-xs" data-testid="tab-distribution-geo-depot">
                     <Building2 className="h-3.5 w-3.5 mr-1.5" />
                     Geo → Depot
                   </TabsTrigger>
-                  <TabsTrigger value="geo-channel" className="text-xs">
+                  <TabsTrigger value="geo-channel" className="text-xs" data-testid="tab-distribution-channel">
                     <Radio className="h-3.5 w-3.5 mr-1.5" />
                     Geo → Channel
                   </TabsTrigger>
@@ -918,7 +918,7 @@ export default function EditEntry() {
                       </Badge>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="summary" className="text-xs">
+                  <TabsTrigger value="summary" className="text-xs" data-testid="tab-distribution-summary">
                     <Info className="h-3.5 w-3.5 mr-1.5" />
                     Summary
                   </TabsTrigger>
@@ -1291,7 +1291,7 @@ export default function EditEntry() {
                 </TabsContent>
 
                 {/* ── Customer Mapping Sub-Tab ─────────────────────────── */}
-                <TabsContent value="customer-mapping" className="mt-0">
+                <TabsContent value="customer-mapping" className="mt-0" data-testid="distribution-customer-mapping">
                   {mtGeos.length === 0 ? (
                     <Card>
                       <CardContent className="py-12 text-center">
@@ -1491,7 +1491,7 @@ export default function EditEntry() {
             </TabsContent>
 
             {/* ── Sourcing Matrix Tab ───────────────────────────────── */}
-            <TabsContent value="sourcing" className="mt-0">
+            <TabsContent value="sourcing" className="mt-0" data-testid="sourcing-matrix-content">
               {(() => {
                 const isDecentralized = sourcingMode === "decentralized";
                 // Depots that appear as values in the mapping are "sourcing depots" and are locked to themselves
@@ -1695,11 +1695,11 @@ export default function EditEntry() {
             <TabsContent value="pricing" className="mt-0">
               <Tabs defaultValue="price-lots" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="price-lots" className="text-xs">
+                  <TabsTrigger value="price-lots" className="text-xs" data-testid="tab-price-lots">
                     <IndianRupee className="h-3.5 w-3.5 mr-1.5" />
                     Price Lots
                   </TabsTrigger>
-                  <TabsTrigger value="pricing-summary" className="text-xs">
+                  <TabsTrigger value="pricing-summary" className="text-xs" data-testid="tab-pricing-summary">
                     <Info className="h-3.5 w-3.5 mr-1.5" />
                     Pricing Summary
                   </TabsTrigger>
