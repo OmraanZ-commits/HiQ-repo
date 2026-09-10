@@ -114,6 +114,17 @@ function waitForPath(predicate: (path: string) => boolean, attempts = 50): Promi
   });
 }
 
+function activateControl(control: HTMLElement) {
+  // Radix Tabs activates on mousedown rather than a synthetic click alone.
+  // Sending the real pointer sequence also remains compatible with standard buttons.
+  control.dispatchEvent(new MouseEvent("mousedown", {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+  }));
+  control.click();
+}
+
 export function NetworkGuidedTourProvider({ children }: { children: ReactNode }) {
   const [location, navigate] = useLocation();
   const [active, setActive] = useState(false);
@@ -175,7 +186,11 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
     if (next.prepareSelector) {
       const control = await waitForTarget(next.prepareSelector);
       if (request !== requestRef.current) return false;
-      control?.click();
+      if (!control) {
+        setTransitionError("The next section is not available yet. Retry or go back.");
+        return false;
+      }
+      activateControl(control);
     }
 
     const element = await waitForTarget(next.selector);
@@ -215,7 +230,7 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
           setTransitioning(false);
           return;
         }
-        control.click();
+        activateControl(control);
         const routeReady = await waitForPath(path => path.startsWith("/edit/"));
         if (!routeReady) {
           setTransitionError("The CBU workspace did not open. Retry or go back to the Network list.");
