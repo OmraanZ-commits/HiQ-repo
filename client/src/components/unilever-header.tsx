@@ -1,4 +1,4 @@
-import { Search, Bell, User, Activity, UserCheck, UserX, Mail, Layers, CheckCircle2 } from "lucide-react";
+import { Search, Bell, User, Activity, UserCheck, UserX, Mail, Layers, CheckCircle2, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useNotificationStore, markAllRead } from "@/lib/notification-store";
 import type { AppNotification } from "@/lib/notification-store";
+import { useNetworkGuidedTour } from "@/lib/network-guided-tour-context";
 
 interface UnileverHeaderProps {
   module?: "network" | "paid-bible" | "ccr";
@@ -104,6 +105,7 @@ export function UnileverHeader({ module = "network", activeTab, onTabChange }: U
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [location, navigate] = useLocation();
   const { unreadCount, notifications } = useNotificationStore();
+  const { start: startNetworkTour, active: networkTourActive } = useNetworkGuidedTour();
   const hasNotifications = notifications.length > 0;
   const top5 = notifications.slice(0, 5);
 
@@ -169,6 +171,19 @@ export function UnileverHeader({ module = "network", activeTab, onTabChange }: U
           </div>
 
           <div className="flex items-center gap-3">
+            {module === "network" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-white no-default-hover-elevate no-default-active-elevate gap-1.5"
+                onClick={startNetworkTour}
+                disabled={networkTourActive}
+                data-testid="button-network-guided-tour"
+              >
+                <CircleHelp className="h-4 w-4" />
+                <span className="hidden sm:inline">Guided tour</span>
+              </Button>
+            )}
             {searchOpen ? (
               <Input
                 type="search"

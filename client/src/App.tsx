@@ -21,6 +21,7 @@ import CcrConfigurePage from "@/pages/ccr-configure";
 import CcrMtListingPage from "@/pages/ccr-mt-listing";
 import CcrMtListingDetailPage from "@/pages/ccr-mt-listing-detail";
 import CcrCustomerProfilePage from "@/pages/ccr-customer-profile";
+import { NetworkGuidedTourProvider } from "@/components/network-guided-tour";
 
 function Router() {
   return (
@@ -52,7 +53,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <NetworkGuidedTourProvider>
+          <Router />
+        </NetworkGuidedTourProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
