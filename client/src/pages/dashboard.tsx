@@ -89,6 +89,20 @@ export default function Dashboard() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewEntry, setViewEntry] = useState<NetworkEntry | null>(null);
 
+  useEffect(() => {
+    const showDraftFilter = () => setShowFilters(true);
+    const selectDraft = () => {
+      setShowFilters(true);
+      setStatusFilter("Draft");
+    };
+    window.addEventListener("network-tour:show-draft-filter", showDraftFilter);
+    window.addEventListener("network-tour:select-draft", selectDraft);
+    return () => {
+      window.removeEventListener("network-tour:show-draft-filter", showDraftFilter);
+      window.removeEventListener("network-tour:select-draft", selectDraft);
+    };
+  }, [setShowFilters, setStatusFilter]);
+
   // ── FTR Excel Upload ────────────────────────────────────────────────────────
   const ftrExcelRef = useRef<HTMLInputElement>(null);
   const queryClientDash = useQueryClient();
@@ -288,10 +302,20 @@ export default function Dashboard() {
                     <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">Status</label>
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[160px]" data-testid="select-status-filter"><SelectValue /></SelectTrigger>
-                        <SelectContent>
+                        <SelectTrigger
+                          className="w-[160px]"
+                          data-testid="select-status-filter"
+                          data-filter-value={statusFilter}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="z-[110]">
                           <SelectItem value="all">All Statuses</SelectItem>
-                          {STATUS_FLOW.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          {STATUS_FLOW.map(s => (
+                            <SelectItem key={s} value={s} data-testid={`status-filter-option-${s.toLowerCase().replace(/\s+/g, "-")}`}>
+                              {s}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

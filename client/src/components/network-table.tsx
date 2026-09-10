@@ -186,6 +186,7 @@ export function NetworkTable({ entries, onView, onEdit, lifecycleMap = {} }: Net
                           variant="ghost"
                           onClick={() => onEdit(entry)}
                           data-testid={`button-edit-${entry.id}`}
+                         data-network-status={entry.networkStatus || ""}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>

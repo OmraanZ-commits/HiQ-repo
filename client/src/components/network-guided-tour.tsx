@@ -10,7 +10,11 @@ type TourStep = {
   description: string;
   path: "network" | "edit";
   prepareSelectors?: string[];
+  prepareEvent?: string;
   advanceSelector?: string;
+  requiredAttribute?: { name: string; value: string; message: string };
+  action?: { label: string; event: string };
+  exitOnTargetClick?: boolean;
 };
 
 const STEPS: TourStep[] = [
@@ -52,11 +56,24 @@ const STEPS: TourStep[] = [
     path: "network",
   },
   {
-    selector: '[data-testid^="button-edit-"]',
-    title: "Open a CBU workspace",
-    description: "The pencil action opens the selected CBU. Continue to see its status flow and planning sections.",
+    selector: '[data-testid="select-status-filter"]',
+    title: "Filter the list to Draft CBUs",
+    description: "Choose Draft so the rest of this walkthrough uses a CBU whose planning information can still be updated.",
     path: "network",
-    advanceSelector: '[data-testid^="button-edit-"]',
+    prepareEvent: "network-tour:show-draft-filter",
+    requiredAttribute: {
+      name: "data-filter-value",
+      value: "Draft",
+      message: "Select Draft before continuing so the tour opens an editable CBU.",
+    },
+    action: { label: "Select Draft", event: "network-tour:select-draft" },
+  },
+  {
+    selector: '[data-testid^="button-edit-"][data-network-status="Draft"]',
+    title: "Open a Draft CBU workspace",
+    description: "This pencil action belongs to a Draft CBU. Continue to update its planning information.",
+    path: "network",
+    advanceSelector: '[data-testid^="button-edit-"][data-network-status="Draft"]',
   },
   {
     selector: '[data-testid="status-flow-container"]',
@@ -105,9 +122,16 @@ const STEPS: TourStep[] = [
     ],
   },
   {
+    selector: '[data-testid="tab-customer-mapping"]',
+    title: "Open Customer Mapping",
+    description: "Use this Distribution sub-tab to maintain customer-chain coverage for modern-trade geographies.",
+    path: "edit",
+    prepareSelectors: ['[data-testid="tab-distribution"]'],
+  },
+  {
     selector: '[data-testid="distribution-customer-mapping"]',
-    title: "Complete customer mapping",
-    description: "For applicable modern-trade geographies, map the customer chains that should receive this CBU.",
+    title: "Complete customer-chain mapping",
+    description: "Select the applicable customer chains for each modern-trade geography. If no MT geography is configured, this screen explains what is needed first.",
     path: "edit",
     prepareSelectors: [
       '[data-testid="tab-distribution"]',
@@ -157,6 +181,21 @@ const STEPS: TourStep[] = [
     description: "Enter MRP, margins, price-off, and wrapper price here. Select percentage or number where available and resolve validation messages before saving.",
     path: "edit",
     prepareSelectors: ['[data-testid="tab-finance"]'],
+  },
+  {
+    selector: '[data-testid="button-save-draft"]',
+    title: "Save the CBU as a Draft",
+    description: "Save Draft keeps your updates without activating the CBU. You can use it now, or continue to review the activation action.",
+    path: "edit",
+    prepareSelectors: ['[data-testid="tab-basic"]'],
+    exitOnTargetClick: true,
+  },
+  {
+    selector: '[data-testid="button-activate"]',
+    title: "Submit and activate the CBU",
+    description: "Submit & Activate validates the required dates, distribution, sourcing, and finance inputs, then asks for confirmation. Activation only occurs after you explicitly confirm.",
+    path: "edit",
+    exitOnTargetClick: true,
   },
 ];
 
@@ -242,6 +281,14 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
     }, 0);
   }, []);
 
+  const exitForBusinessAction = useCallback(() => {
+    requestRef.current += 1;
+    setActive(false);
+    setTransitionError(null);
+    setTarget(null);
+    setRect(null);
+  }, []);
+
   const prepareStep = useCallback(async (nextIndex: number): Promise<boolean> => {
     const request = ++requestRef.current;
     const next = STEPS[nextIndex];
@@ -263,6 +310,10 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
         setTransitionError("Open a CBU from the Network table before continuing.");
         return false;
       }
+    }
+
+    if (next.prepareEvent) {
+      window.dispatchEvent(new CustomEvent(next.prepareEvent));
     }
 
     for (const selector of next.prepareSelectors ?? []) {
@@ -302,6 +353,16 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
     setTransitioning(true);
     setTransitionError(null);
     const current = STEPS[stepIndex];
+    if (nextIndex > stepIndex && current.requiredAttribute) {
+      const currentTarget = document.querySelector<HTMLElement>(current.selector);
+      const { name, value, message } = current.requiredAttribute;
+      if (currentTarget?.getAttribute(name) !== value) {
+        setTransitionError(message);
+        transitionRef.current = false;
+        setTransitioning(false);
+        return;
+      }
+    }
     if (nextIndex > stepIndex && current.advanceSelector) {
       const alreadyAdvanced = window.location.pathname.startsWith("/edit/");
       if (!alreadyAdvanced) {
@@ -328,6 +389,18 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
     transitionRef.current = false;
     setTransitioning(false);
   }, [close, prepareStep, stepIndex]);
+
+  const runStepAction = useCallback(async () => {
+    if (!step.action || transitionRef.current) return;
+    transitionRef.current = true;
+    setTransitioning(true);
+    setTransitionError(null);
+    window.dispatchEvent(new CustomEvent(step.action.event));
+    await new Promise(resolve => window.setTimeout(resolve, 50));
+    await prepareStep(stepIndex);
+    transitionRef.current = false;
+    setTransitioning(false);
+  }, [prepareStep, step, stepIndex]);
 
   const start = useCallback(() => {
     launchElementRef.current = document.activeElement as HTMLElement | null;
@@ -357,6 +430,12 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
       window.removeEventListener("scroll", update, true);
     };
   }, [active, target]);
+
+  useEffect(() => {
+    if (!active || !target || !step.exitOnTargetClick) return;
+    target.addEventListener("click", exitForBusinessAction, { capture: true, once: true });
+    return () => target.removeEventListener("click", exitForBusinessAction, { capture: true });
+  }, [active, exitForBusinessAction, step.exitOnTargetClick, target]);
 
   useEffect(() => {
     if (!active) return;
@@ -450,11 +529,16 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
             </p>
             <h2 id="network-tour-title" className="pr-6 text-lg font-bold">{step.title}</h2>
             <p id="network-tour-description" className="mt-2 text-sm leading-relaxed text-slate-600">
-              {rect ? step.description : transitionError ?? "Finding this part of the page…"}
+              {transitionError ?? (rect ? step.description : "Finding this part of the page…")}
             </p>
             <div className="mt-5 flex items-center justify-between gap-3">
               <Button variant="ghost" size="sm" onClick={() => close("dismissed")}>Skip tour</Button>
               <div className="flex gap-2">
+                {step.action && (
+                  <Button variant="outline" size="sm" onClick={runStepAction} disabled={transitioning}>
+                    {step.action.label}
+                  </Button>
+                )}
                 {!rect && transitionError && (
                   <Button variant="outline" size="sm" onClick={() => void retry()} disabled={transitioning}>
                     Retry
