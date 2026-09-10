@@ -199,7 +199,7 @@ export default function EditEntry() {
     customerMapping, updateCustomerMapping, selectAllCustomerChains, clearAllCustomerChains, mtGeos,
     allClustersSelected, allDepotsSelected,
     selectedLeafCount,
-    computedYear, isDraft,
+    computedYear, isDraft, activationErrors,
   } = useNetworkEntryForm({ 
     geographyDepotMap: GEOGRAPHY_DEPOT_MAP,
     topChannels: TOP_CHANNELS,
@@ -450,22 +450,27 @@ export default function EditEntry() {
 
   // Wrapped submit — runs all cross-tab validations before the form's own submit
   const handleFormSubmit = (e?: React.FormEvent | React.MouseEvent) => {
-    // 1. Distribution: every selected geo that has a known depot mapping must have at least one depot selected
-    const distGeoMissingDepot = selectedGeo.filter(geo => {
-      const geoDepots = GEOGRAPHY_DEPOT_MAP[geo] || [];
-      return geoDepots.length > 0 && !geoDepots.some(d => selectedDepots.includes(d));
-    });
-    if (distGeoMissingDepot.length > 0) {
+    const distributionErrors = isDraft
+      ? activationErrors.filter(error =>
+          error.includes("cluster") || error.includes("depot") || error.includes("channel")
+        )
+      : selectedGeo
+          .filter(geo => {
+            const validDepots = GEOGRAPHY_DEPOT_MAP[geo] || [];
+            return validDepots.length > 0 && !validDepots.some(depot => selectedDepots.includes(depot));
+          })
+          .map(geo => `Select at least one depot for ${geo}`);
+    if (distributionErrors.length > 0) {
       setActiveTab("distribution");
       toast({
-        title: "Depot required for selected geography",
-        description: `Please select at least one depot for: ${distGeoMissingDepot.join(", ")}`,
+        title: "Distribution information required",
+        description: distributionErrors.join(". "),
         variant: "destructive",
       });
       return;
     }
 
-    // 2. Sourcing — centralized: every distribution depot must have a sourcing depot assigned
+    // Sourcing — centralized: every distribution depot must have a sourcing depot assigned
     if (sourcingMode === "centralized") {
       const unassigned = selectedDepots.filter(d => !sourcingDepotMapping[d]);
       if (unassigned.length > 0) {
@@ -586,6 +591,35 @@ export default function EditEntry() {
     );
   }
 
+  const changeDateErrors = activationErrors.filter(error =>
+    error.startsWith("Network Change Date")
+  );
+  const startDateErrors = activationErrors.filter(error =>
+    error.startsWith("Start Date")
+  );
+  const endDateErrors = activationErrors.filter(error =>
+    error.startsWith("End Date")
+  );
+  const geographyDepotErrors = activationErrors.filter(error =>
+    error.includes("cluster") || error.includes("depot")
+  );
+  const channelErrors = activationErrors.filter(error =>
+    error.includes("channel")
+  );
+  const sourcingErrors = sourcingMode === "centralized"
+    ? selectedDepots.filter(depot => !sourcingDepotMapping[depot]).map(depot => `Assign a sourcing depot for ${depot}`)
+    : [];
+  const financeErrors = Object.values(finErrors).filter(Boolean);
+  const allActivationErrors = [
+    ...activationErrors,
+    ...sourcingErrors,
+    ...financeErrors,
+  ];
+  const readinessAttrs = (errors: string[]) => ({
+    "data-tour-ready": errors.length === 0 ? "true" : "false",
+    "data-tour-message": errors.join(". "),
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <UnileverHeader />
@@ -669,7 +703,12 @@ export default function EditEntry() {
                   {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Draft
                 </Button>
-                <Button onClick={handleFormSubmit} disabled={isPending} data-testid="button-activate">
+                <Button
+                  onClick={handleFormSubmit}
+                  disabled={isPending}
+                  data-testid="button-activate"
+                  {...readinessAttrs(allActivationErrors)}
+                >
                   {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
                   Submit & Activate
                 </Button>
@@ -800,6 +839,7 @@ export default function EditEntry() {
                         min={form.cbuCreatedDate ? addDays(form.cbuCreatedDate, 1) : undefined}
                         onChange={e => updateField("networkChangeDate", e.target.value)}
                         data-testid="input-network-change-date"
+                        {...readinessAttrs(changeDateErrors)}
                       />
                     </FormField>
                     <FormField label="Start Date" hint={form.networkChangeDate ? `Must be on or after change date: ${formatDateDisplay(form.networkChangeDate)}` : undefined}>
@@ -809,6 +849,7 @@ export default function EditEntry() {
                         min={form.networkChangeDate || undefined}
                         onChange={e => updateField("startDate", e.target.value)}
                         data-testid="input-start-date"
+                        {...readinessAttrs(startDateErrors)}
                       />
                     </FormField>
                     <FormField label="End Date" hint={form.startDate ? `Must be on or after start date: ${formatDateDisplay(form.startDate)}` : undefined}>
@@ -818,6 +859,7 @@ export default function EditEntry() {
                         min={form.startDate || undefined}
                         onChange={e => updateField("endDate", e.target.value)}
                         data-testid="input-end-date"
+                        {...readinessAttrs(endDateErrors)}
                       />
                     </FormField>
                   </CardContent>
@@ -925,7 +967,10 @@ export default function EditEntry() {
                 </TabsList>
 
                 <TabsContent value="geo-depot" className="mt-0">
-                  <Card data-testid="distribution-geography-depot">
+                  <Card
+                    data-testid="distribution-geography-depot"
+                    {...readinessAttrs(geographyDepotErrors)}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1029,7 +1074,10 @@ export default function EditEntry() {
                 </TabsContent>
 
                 <TabsContent value="geo-channel" className="mt-0">
-                  <Card data-testid="distribution-channel">
+                  <Card
+                    data-testid="distribution-channel"
+                    {...readinessAttrs(channelErrors)}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1491,7 +1539,12 @@ export default function EditEntry() {
             </TabsContent>
 
             {/* ── Sourcing Matrix Tab ───────────────────────────────── */}
-            <TabsContent value="sourcing" className="mt-0" data-testid="sourcing-matrix-content">
+            <TabsContent
+              value="sourcing"
+              className="mt-0"
+              data-testid="sourcing-matrix-content"
+              {...readinessAttrs(sourcingErrors)}
+            >
               {(() => {
                 const isDecentralized = sourcingMode === "decentralized";
                 // Depots that appear as values in the mapping are "sourcing depots" and are locked to themselves
@@ -2009,7 +2062,7 @@ export default function EditEntry() {
 
             {/* ── Finance Inputs Tab ────────────────────────────────────── */}
             <TabsContent value="finance" className="mt-0">
-              <Card data-testid="tab-content-finance">
+              <Card data-testid="tab-content-finance" {...readinessAttrs(financeErrors)}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
                     <ReceiptText className="h-4 w-4 text-[#00b0d7]" />

@@ -12,7 +12,7 @@ type TourStep = {
   prepareSelectors?: string[];
   prepareEvent?: string;
   advanceSelector?: string;
-  requiredAttribute?: { name: string; value: string; message: string };
+  requiredAttribute?: { name: string; value: string; message: string; messageAttribute?: string };
   action?: { label: string; event: string };
   exitOnTargetClick?: boolean;
 };
@@ -95,11 +95,43 @@ const STEPS: TourStep[] = [
     prepareSelectors: ['[data-testid="tab-basic"]'],
   },
   {
-    selector: '[data-testid="basic-info-editable-fields"]',
-    title: "Maintain ownership and timeline",
-    description: "Update the assignee and planning dates here. Date rules shown below each field help keep the change, start, and end dates in sequence.",
+    selector: '[data-testid="input-network-change-date"]',
+    title: "Set the Network Change Date",
+    description: "Enter the planned network change date. It must be after the CBU Created Date.",
     path: "edit",
     prepareSelectors: ['[data-testid="tab-basic"]'],
+    requiredAttribute: {
+      name: "data-tour-ready",
+      value: "true",
+      message: "Enter a valid Network Change Date before continuing.",
+      messageAttribute: "data-tour-message",
+    },
+  },
+  {
+    selector: '[data-testid="input-start-date"]',
+    title: "Set the Start Date",
+    description: "Enter the start date. It must be on or after the Network Change Date.",
+    path: "edit",
+    prepareSelectors: ['[data-testid="tab-basic"]'],
+    requiredAttribute: {
+      name: "data-tour-ready",
+      value: "true",
+      message: "Enter a valid Start Date before continuing.",
+      messageAttribute: "data-tour-message",
+    },
+  },
+  {
+    selector: '[data-testid="input-end-date"]',
+    title: "Set the End Date",
+    description: "Enter the end date. It must be on or after the Start Date.",
+    path: "edit",
+    prepareSelectors: ['[data-testid="tab-basic"]'],
+    requiredAttribute: {
+      name: "data-tour-ready",
+      value: "true",
+      message: "Enter a valid End Date before continuing.",
+      messageAttribute: "data-tour-message",
+    },
   },
   {
     selector: '[data-testid="distribution-geography-depot"]',
@@ -110,6 +142,12 @@ const STEPS: TourStep[] = [
       '[data-testid="tab-distribution"]',
       '[data-testid="tab-distribution-geo-depot"]',
     ],
+    requiredAttribute: {
+      name: "data-tour-ready",
+      value: "true",
+      message: "Select a geography and valid depot coverage before continuing.",
+      messageAttribute: "data-tour-message",
+    },
   },
   {
     selector: '[data-testid="distribution-channel"]',
@@ -120,6 +158,12 @@ const STEPS: TourStep[] = [
       '[data-testid="tab-distribution"]',
       '[data-testid="tab-distribution-channel"]',
     ],
+    requiredAttribute: {
+      name: "data-tour-ready",
+      value: "true",
+      message: "Select at least one channel before continuing.",
+      messageAttribute: "data-tour-message",
+    },
   },
   {
     selector: '[data-testid="tab-customer-mapping"]',
@@ -154,6 +198,12 @@ const STEPS: TourStep[] = [
     description: "Use decentralized sourcing when each depot supplies itself, or centralized sourcing to assign distribution depots to sourcing depots.",
     path: "edit",
     prepareSelectors: ['[data-testid="tab-sourcing"]'],
+    requiredAttribute: {
+      name: "data-tour-ready",
+      value: "true",
+      message: "Complete the sourcing depot assignments before continuing.",
+      messageAttribute: "data-tour-message",
+    },
   },
   {
     selector: '[data-testid^="price-lot-row-"]',
@@ -181,6 +231,12 @@ const STEPS: TourStep[] = [
     description: "Enter MRP, margins, price-off, and wrapper price here. Select percentage or number where available and resolve validation messages before saving.",
     path: "edit",
     prepareSelectors: ['[data-testid="tab-finance"]'],
+    requiredAttribute: {
+      name: "data-tour-ready",
+      value: "true",
+      message: "Correct the invalid Finance Inputs before continuing.",
+      messageAttribute: "data-tour-message",
+    },
   },
   {
     selector: '[data-testid="button-save-draft"]',
@@ -196,6 +252,12 @@ const STEPS: TourStep[] = [
     description: "Submit & Activate validates the required dates, distribution, sourcing, and finance inputs, then asks for confirmation. Activation only occurs after you explicitly confirm.",
     path: "edit",
     exitOnTargetClick: true,
+    requiredAttribute: {
+      name: "data-tour-ready",
+      value: "true",
+      message: "Complete all mandatory activation information before submitting.",
+      messageAttribute: "data-tour-message",
+    },
   },
 ];
 
@@ -254,6 +316,8 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const [transitionError, setTransitionError] = useState<string | null>(null);
+  const [requirementMet, setRequirementMet] = useState(true);
+  const [requirementMessage, setRequirementMessage] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const editPathRef = useRef<string | null>(null);
   const transitionRef = useRef(false);
@@ -355,9 +419,11 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
     const current = STEPS[stepIndex];
     if (nextIndex > stepIndex && current.requiredAttribute) {
       const currentTarget = document.querySelector<HTMLElement>(current.selector);
-      const { name, value, message } = current.requiredAttribute;
+      const { name, value, message, messageAttribute } = current.requiredAttribute;
       if (currentTarget?.getAttribute(name) !== value) {
-        setTransitionError(message);
+        setTransitionError(
+          (messageAttribute && currentTarget?.getAttribute(messageAttribute)) || message
+        );
         transitionRef.current = false;
         setTransitioning(false);
         return;
@@ -430,6 +496,34 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
       window.removeEventListener("scroll", update, true);
     };
   }, [active, target]);
+
+  useEffect(() => {
+    const requirement = step.requiredAttribute;
+    if (!active || !target || !requirement) {
+      setRequirementMet(true);
+      setRequirementMessage(null);
+      return;
+    }
+    const update = () => {
+      const met = target.getAttribute(requirement.name) === requirement.value;
+      const dynamicMessage = requirement.messageAttribute
+        ? target.getAttribute(requirement.messageAttribute)
+        : null;
+      setRequirementMet(met);
+      setRequirementMessage(met ? null : (dynamicMessage || requirement.message));
+      if (met) setTransitionError(null);
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(target, {
+      attributes: true,
+      attributeFilter: [
+        requirement.name,
+        ...(requirement.messageAttribute ? [requirement.messageAttribute] : []),
+      ],
+    });
+    return () => observer.disconnect();
+  }, [active, step.requiredAttribute, target]);
 
   useEffect(() => {
     if (!active || !target || !step.exitOnTargetClick) return;
@@ -529,7 +623,7 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
             </p>
             <h2 id="network-tour-title" className="pr-6 text-lg font-bold">{step.title}</h2>
             <p id="network-tour-description" className="mt-2 text-sm leading-relaxed text-slate-600">
-              {transitionError ?? (rect ? step.description : "Finding this part of the page…")}
+               {transitionError ?? requirementMessage ?? (rect ? step.description : "Finding this part of the page…")}
             </p>
             <div className="mt-5 flex items-center justify-between gap-3">
               <Button variant="ghost" size="sm" onClick={() => close("dismissed")}>Skip tour</Button>
@@ -555,7 +649,7 @@ export function NetworkGuidedTourProvider({ children }: { children: ReactNode })
                 </Button>
                 <Button
                   size="sm"
-                  disabled={transitioning || (!rect && step.path === "edit")}
+                   disabled={transitioning || !requirementMet || (!rect && step.path === "edit")}
                   onClick={() => void goTo(stepIndex + 1)}
                   data-testid="button-tour-next"
                 >

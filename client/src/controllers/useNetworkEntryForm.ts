@@ -327,13 +327,19 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     const ch = (form.channel as string[]) || [];
     if (geo.length === 0) errors.push("At least one cluster must be selected");
     if (dep.length === 0) errors.push("At least one depot must be selected");
+    geo.forEach(selectedGeo => {
+      const validDepots = geographyDepotMap[selectedGeo] || [];
+      if (validDepots.length > 0 && !validDepots.some(depot => dep.includes(depot))) {
+        errors.push(`Select at least one depot for ${selectedGeo}`);
+      }
+    });
     if (ch.filter(c => c !== "MT").length === 0) errors.push("At least one channel must be selected");
 
     return errors;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!form || !entry) return;
 
     const isDraft = entry.networkStatus === "Draft";
@@ -428,6 +434,7 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
   const selectedLeafCount = leafChannels.filter(c => selectedChannels.includes(c.code)).length;
   const computedYear = form ? computeYear(form.cbuCreatedDate) : null;
   const isDraft = entry?.networkStatus === "Draft";
+  const activationErrors = validateForActivation();
 
   // Geos where at least one MT sub-channel is selected (or the MT parent itself)
   const mtGeos = selectedGeo.filter(geo => {
@@ -525,5 +532,6 @@ export function useNetworkEntryForm(options: UseNetworkEntryFormOptions = {}) {
     selectedLeafCount,
     computedYear,
     isDraft,
+    activationErrors,
   };
 }
