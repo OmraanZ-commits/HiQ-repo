@@ -736,10 +736,10 @@ export default function CcrMasterMaintenancePage() {
   // selectedKeys are "cbuCode||chainName" pairs — carries both CBU and chain for export
   const requestSapMutation = useMutation({
     mutationFn: async (selectedKeys: string[]) => {
-      const cbuCodes = selectedKeys.map(cbuFromKey);
+      const cbuCodes = Array.from(new Set(selectedKeys.map(cbuFromKey)));
       return apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" });
     },
-    onSuccess: (_data, selectedKeys) => {
+    onSuccess: async (_data, selectedKeys) => {
       invalidateSummaries();
       setOverviewSelected(new Set());
       setRequestSapDialog(false);
@@ -748,6 +748,13 @@ export default function CcrMasterMaintenancePage() {
         description: `${selectedKeys.length} CBU${selectedKeys.length > 1 ? "s" : ""} submitted for SAP update.`,
       });
       setActiveTab("requested");
+      // Generate the same consolidated SAP export produced by the Mapping
+      // Initiated flow, preserving each selected CBU + customer-chain pair.
+      const pairs = selectedKeys.map(key => {
+        const [cbu_code, customer_chain] = key.split("||");
+        return { cbu_code, customer_chain };
+      });
+      await handleExportPairs(pairs);
     },
     onError: (err: Error) => {
       toast({ title: "Request failed", description: err.message, variant: "destructive" });
@@ -758,7 +765,7 @@ export default function CcrMasterMaintenancePage() {
   // Keys are "successorCbuCode||customerChain" — same shape as overview keys.
   const requestInitiatedSapMutation = useMutation({
     mutationFn: async (selectedKeys: string[]) => {
-      const cbuCodes = selectedKeys.map(cbuFromKey);
+      const cbuCodes = Array.from(new Set(selectedKeys.map(cbuFromKey)));
       return apiRequest("POST", "/api/ccr/post-cbus", { cbu_codes: cbuCodes, posted_by: "demo-user" });
     },
     onSuccess: async (_data, selectedKeys) => {
@@ -874,11 +881,15 @@ export default function CcrMasterMaintenancePage() {
       return;
     }
     try {
-      const rows: object[] = await fetch("/api/ccr/bulk-export", {
+      const response = await fetch("/api/ccr/bulk-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cbu_chain_pairs: pairs }),
-      }).then(r => r.json());
+      });
+      if (!response.ok) {
+        throw new Error(`Export request failed with status ${response.status}`);
+      }
+      const rows: object[] = await response.json();
 
       if (rows.length === 0) {
         toast({ title: "No mapping rows found to export", variant: "destructive" });
