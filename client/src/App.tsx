@@ -21,6 +21,7 @@ import CcrConfigurePage from "@/pages/ccr-configure";
 import CcrMtListingPage from "@/pages/ccr-mt-listing";
 import CcrMtListingDetailPage from "@/pages/ccr-mt-listing-detail";
 import CcrCustomerProfilePage from "@/pages/ccr-customer-profile";
+import AtpAgentDemoPage from "@/pages/atp-agent-demo";
 import { NetworkGuidedTourProvider } from "@/components/network-guided-tour";
 
 function Router() {
@@ -39,6 +40,7 @@ function Router() {
       <Route path="/ccr" component={CcrWorkspacePage} />
       <Route path="/ccr/master-maintenance" component={CcrMasterMaintenancePage} />
       <Route path="/ccr/mt-listing" component={CcrMtListingPage} />
+      <Route path="/ccr/atp-agent-demo" component={AtpAgentDemoPage} />
       <Route path="/ccr/mt-listing/:cbuCode" component={CcrMtListingDetailPage} />
       <Route path="/ccr/customer-profile" component={CcrCustomerProfilePage} />
       <Route path="/ccr/line-items/:id" component={CcrDetailPage} />
