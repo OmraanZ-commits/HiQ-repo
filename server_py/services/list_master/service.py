@@ -54,6 +54,16 @@ class ListMasterService:
                         centralized_geos: list, centralized_depots: list) -> Optional[dict]:
         return self.storage.update_sourcing(entry_id, sourcing_mode, centralized_geos, centralized_depots)
 
+    def apply_transition_agent_sourcing(
+        self, entry_id: str, added_depots: list, sourcing_mode: str,
+        centralized_geos: list, centralized_depots: list,
+        sourcing_depot_mapping: dict,
+    ) -> Optional[dict]:
+        return self.storage.apply_transition_agent_sourcing(
+            entry_id, added_depots, sourcing_mode, centralized_geos,
+            centralized_depots, sourcing_depot_mapping,
+        )
+
     def merge_customer_mapping(self, entry_id: str, requested_customer_mapping: dict) -> Optional[dict]:
         return self.storage.merge_customer_mapping(entry_id, requested_customer_mapping)
 

@@ -1,61 +1,79 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  TRANSITION_RISK_SCENARIOS,
-  evaluateTransitionRisk,
-  type RiskDemoScenario,
+  evaluateTransitionRisk, isCurrentSnapshot,
+  type BasepackEvidence, type ClearanceEvidence, type DepotStockEvidence,
+  type NetworkEvidence, type RequestEvidence,
 } from "./transition-risk-demo";
 
-function scenario(id: string): RiskDemoScenario {
-  const found = TRANSITION_RISK_SCENARIOS.find(item => item.id === id);
-  assert.ok(found, `Missing scenario ${id}`);
-  return found;
-}
+const today = new Date().toISOString().slice(0, 10);
+const basepack: BasepackEvidence = {
+  basepackCode: "BP-READY", basepackName: "Ready pack",
+  effectiveStatus: "Draft", derivedStatus: "Draft",
+};
+const entry: NetworkEvidence = {
+  id: "entry-1", basepack: "BP-READY", cbuCode: "CBU-1",
+  networkChangeDate: today, networkStatus: "Pricing Updated",
+  depot: ["DLGH"], mstnPercentage: 92, mstnByDepot: { DLGH: 92 },
+  predecessorDoh: 4, successorDoh: 8, slobRisk: false,
+};
+const mapped: DepotStockEvidence = {
+  id: "stock-1", basepackCode: "BP-READY", cbuCode: "CBU-1",
+  depotCode: "DLGH", quantityCases: 96, snapshotDate: today,
+};
+const clearance: ClearanceEvidence = {
+  criteriaMet: true, mstnCoverage: 100,
+  materials: [{ code: "CBU-1", mstnCleared: true, mstnByDepot: { DLGH: 92 } }],
+};
 
-test("the four repeatable stories produce low, medium, high, and insufficient evidence", () => {
-  const levels = TRANSITION_RISK_SCENARIOS.map(item => evaluateTransitionRisk(item).assessment.level);
-  assert.deepEqual(levels, ["Low", "High", "Insufficient evidence", "Medium"]);
+test("current explicit mapped stock and clearance support a pending activation request", () => {
+  const review = evaluateTransitionRisk(entry, basepack, [mapped], [], clearance);
+  assert.equal(review.activationReady, true);
+  assert.deepEqual(review.unmappedStock, []);
+  assert.equal(review.agents[2].evidence.status, "pass");
 });
 
-test("each specialist returns a sourced finding and the expected agent handoff order", () => {
-  const { agents } = evaluateTransitionRisk(scenario("healthy"));
-  assert.deepEqual(agents.map(agent => agent.id), ["quality", "lifecycle", "stock", "depot", "blockers"]);
-  assert.ok(agents.every(agent => agent.evidence.source.startsWith("Dummy ")));
-  assert.ok(agents.every(agent => agent.evidence.detail.length > 0));
+test("stock outside the network is based on quantities, not MSTN or DOH", () => {
+  const outside = { ...mapped, id: "stock-2", depotCode: "ERKH", quantityCases: 75 };
+  const review = evaluateTransitionRisk(entry, basepack, [mapped, outside], [], clearance);
+  assert.deepEqual(review.unmappedStock.map(row => row.depotCode), ["ERKH"]);
+  assert.match(review.agents[2].evidence.detail, /ERKH: 75 cases/);
+  assert.deepEqual(evaluateTransitionRisk(entry, basepack, [], [], clearance).unmappedStock, []);
+  assert.deepEqual(evaluateTransitionRisk(entry, basepack, [{ ...outside, quantityCases: 0 }], [], clearance).unmappedStock, []);
 });
 
-test("multiple concrete concerns produce a high-risk recommendation with cited drivers", () => {
-  const { agents, assessment } = evaluateTransitionRisk(scenario("blockers"));
-  assert.equal(assessment.level, "High");
-  assert.equal(assessment.confidence, "High");
-  assert.equal(agents.filter(agent => agent.evidence.status === "concern").length, 4);
-  assert.ok(assessment.drivers.some(driver => driver.includes("SLOB yes")));
-  assert.ok(assessment.drivers.some(driver => driver.includes("1/4 DCs")));
+test("stale or missing stock and failed clearance block automatic actions", () => {
+  const stale = { ...mapped, depotCode: "ERKH", snapshotDate: "2020-01-01" };
+  assert.equal(isCurrentSnapshot(stale.snapshotDate), false);
+  const review = evaluateTransitionRisk(entry, basepack, [stale], [], clearance);
+  assert.equal(review.activationReady, false);
+  assert.deepEqual(review.unmappedStock, []);
+  assert.equal(review.assessment.level, "Insufficient evidence");
+  assert.equal(evaluateTransitionRisk(entry, basepack, [mapped], [], { ...clearance, criteriaMet: false }).activationReady, false);
 });
 
-test("stale, missing, or conflicting critical data cannot be classified as low risk", () => {
-  const base = scenario("healthy");
-  const cases: RiskDemoScenario[] = [
-    { ...base, snapshotAgeDays: 47 },
-    { ...base, predecessorDoh: null },
-    { ...base, aggregateMstn: 92, readyDepots: 1 },
-    { ...base, aggregateMstn: 20, readyDepots: 4 },
-    { ...base, srStatus: "unknown" },
+test("every CBU and mapped depot needs its own stock evidence for basepack activation", () => {
+  const second: NetworkEvidence = {
+    ...entry, id: "entry-2", cbuCode: "CBU-2", depot: ["DLGH", "MMDH"],
+    mstnByDepot: { DLGH: 90, MMDH: 91 },
+  };
+  assert.equal(evaluateTransitionRisk(entry, basepack, [mapped], [], clearance, [entry, second]).activationReady, false);
+  const complete = [
+    mapped,
+    { ...mapped, id: "stock-2", cbuCode: "CBU-2" },
+    { ...mapped, id: "stock-3", cbuCode: "CBU-2", depotCode: "MMDH" },
   ];
-
-  for (const item of cases) {
-    const { assessment } = evaluateTransitionRisk(item);
-    assert.equal(assessment.level, "Insufficient evidence");
-    assert.equal(assessment.confidence, "Low");
-  }
+  assert.equal(evaluateTransitionRisk(entry, basepack, complete, [], clearance, [entry, second]).activationReady, true);
 });
 
-test("a single manageable concern becomes medium rather than high risk", () => {
-  const result = evaluateTransitionRisk(scenario("monitor"));
-  assert.equal(result.assessment.level, "Medium");
-  assert.equal(result.assessment.confidence, "High");
-  assert.deepEqual(result.assessment.nextChecks, [
-    "Confirm the remaining depot readiness gaps.",
-    "Recheck the evidence before the planned change.",
-  ]);
+test("pending approval prevents repeating activation and detects an existing amendment", () => {
+  const pending: RequestEvidence[] = [
+    { id: "SR-1", srType: "basepack-status-change", status: "pending", targetStatus: "Active Pack", basepackCode: "BP-READY" },
+    { id: "SR-2", srType: "sourcing-amendment", status: "pending", cbuCode: "CBU-1", addedDepots: ["ERKH"] },
+  ];
+  const review = evaluateTransitionRisk(entry, basepack, [mapped], pending, clearance);
+  assert.equal(review.activationReady, false);
+  assert.equal(review.pendingActivation?.id, "SR-1");
+  assert.equal(review.pendingAmendments[0].id, "SR-2");
+  assert.equal(evaluateTransitionRisk(entry, basepack, [mapped], [{ ...pending[0], status: "approved" }], clearance).activationReady, true);
 });

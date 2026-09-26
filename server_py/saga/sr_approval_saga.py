@@ -346,9 +346,22 @@ class SrApprovalSaga:
                            result={"reason": "ListMasterService not available"})
             return
 
-        result = self.list_master_service.update_sourcing(
-            cbu_id, sourcing_mode, centralized_geos, centralized_depots
-        )
+        agent_action_key = sr.get("agentActionKey") or ""
+        if agent_action_key.startswith("transition-risk:sourcing:"):
+            result = self.list_master_service.apply_transition_agent_sourcing(
+                cbu_id,
+                sr.get("addedDepots") or [],
+                sourcing_mode,
+                centralized_geos,
+                centralized_depots,
+                sr.get("sourcingDepotMapping") or {},
+            )
+        else:
+            # Preserve the pre-existing replacement semantics for manual SRs;
+            # the agent-only additive behavior is intentionally opt-in.
+            result = self.list_master_service.update_sourcing(
+                cbu_id, sourcing_mode, centralized_geos, centralized_depots
+            )
         if not result:
             raise LookupError(f"CBU {cbu_id} not found when applying sourcing amendment")
 

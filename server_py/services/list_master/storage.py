@@ -152,6 +152,45 @@ class ListMasterStorage:
         finally:
             db.close()
 
+    def apply_transition_agent_sourcing(
+        self, entry_id: str, added_depots: list, sourcing_mode: str,
+        centralized_geos: list, centralized_depots: list,
+        sourcing_depot_mapping: dict,
+    ) -> Optional[dict]:
+        """Atomically apply the narrow mapping effect for an approved agent SR."""
+        db = SessionLocal()
+        try:
+            row = db.query(NetworkEntryModel).filter(
+                NetworkEntryModel.id == entry_id
+            ).with_for_update().first()
+            if not row:
+                return None
+
+            def merge_unique(existing, additions):
+                merged = list(existing or [])
+                merged.extend(value for value in (additions or []) if value not in merged)
+                return merged
+
+            row.depot = merge_unique(row.depot, added_depots)
+            row.sourcing_mode = sourcing_mode
+            row.centralized_geos = merge_unique(row.centralized_geos, centralized_geos)
+
+            # Agent requests add their selected centralized source to the existing
+            # scope; they never replace scope that was already configured.
+            source_scope = list(centralized_depots or []) if sourcing_mode == "centralized" else []
+            if sourcing_mode == "centralized":
+                source_scope.extend((sourcing_depot_mapping or {}).values())
+            row.centralized_depots = merge_unique(row.centralized_depots, source_scope)
+
+            existing_mapping = dict(row.sourcing_depot_mapping or {})
+            existing_mapping.update(sourcing_depot_mapping or {})
+            row.sourcing_depot_mapping = existing_mapping
+            db.commit()
+            db.refresh(row)
+            return db_row_to_api(row)
+        finally:
+            db.close()
+
     def merge_customer_mapping(self, entry_id: str, requested_customer_mapping: dict) -> Optional[dict]:
         """Merge/overwrite per-geo customer chain mapping into the CBU record."""
         db = SessionLocal()

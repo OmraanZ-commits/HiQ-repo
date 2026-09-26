@@ -7,7 +7,7 @@ from server_py.db import SessionLocal, ServiceRequestModel
 
 def _row_to_dict(row: ServiceRequestModel) -> dict:
     bp_code = row.basepack_code
-    return {
+    result = {
         "id": str(row.id),
         "srType": row.sr_type,
         "status": row.status,
@@ -52,9 +52,27 @@ def _row_to_dict(row: ServiceRequestModel) -> dict:
         "createdAt": row.created_at.isoformat() if row.created_at else None,
         "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
     }
+    agent_action_key = getattr(row, "agent_action_key", None)
+    if agent_action_key:
+        result["agentActionKey"] = agent_action_key
+    sourcing_mapping = getattr(row, "sourcing_depot_mapping", None)
+    if sourcing_mapping is not None:
+        result["sourcingDepotMapping"] = sourcing_mapping
+    return result
 
 
 class ServiceRequestStorage:
+    def get_pending_by_agent_action_key(self, key: str) -> Optional[dict]:
+        db = SessionLocal()
+        try:
+            row = db.query(ServiceRequestModel).filter(
+                ServiceRequestModel.agent_action_key == key,
+                ServiceRequestModel.status == "pending",
+            ).order_by(ServiceRequestModel.created_at.desc()).first()
+            return _row_to_dict(row) if row else None
+        finally:
+            db.close()
+
     def get_all(self, sr_type: Optional[str] = None, status: Optional[str] = None,
                 business_group: Optional[str] = None) -> List[dict]:
         db = SessionLocal()
@@ -124,6 +142,8 @@ class ServiceRequestStorage:
                 pricing_complete=data.get("pricingComplete"),
                 sourcing_complete=data.get("sourcingComplete"),
                 depot_decisions=data.get("depotDecisions"),
+                sourcing_depot_mapping=data.get("sourcingDepotMapping"),
+                agent_action_key=data.get("agentActionKey"),
                 created_at=now,
                 updated_at=now,
             )
@@ -197,6 +217,8 @@ class ServiceRequestStorage:
                     pricing_complete=seed.get("pricingComplete"),
                     sourcing_complete=seed.get("sourcingComplete"),
                     depot_decisions=seed.get("depotDecisions"),
+                    sourcing_depot_mapping=seed.get("sourcingDepotMapping"),
+                    agent_action_key=seed.get("agentActionKey"),
                     created_at=now,
                     updated_at=now,
                 )

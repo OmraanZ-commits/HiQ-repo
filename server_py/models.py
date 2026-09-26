@@ -70,6 +70,7 @@ class NetworkEntryBase(BaseModel):
     sourcingMode: Optional[str] = None  # "decentralized" | "centralized"
     centralizedGeos: Optional[List[str]] = Field(default_factory=list)
     centralizedDepots: Optional[List[str]] = Field(default_factory=list)
+    sourcingDepotMapping: Optional[dict] = Field(default_factory=dict)
     customerMapping: Optional[dict] = Field(default_factory=dict)
 
 
@@ -402,6 +403,8 @@ class ServiceRequestBase(BaseModel):
     pricingComplete: Optional[bool] = None
     sourcingComplete: Optional[bool] = None
     depotDecisions: Optional[List[dict]] = None
+    sourcingDepotMapping: Optional[dict] = None
+    agentActionKey: Optional[str] = None
 
 
 class InsertServiceRequest(ServiceRequestBase):

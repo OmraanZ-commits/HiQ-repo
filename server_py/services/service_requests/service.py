@@ -182,7 +182,8 @@ class ServiceRequestService:
     def get_by_id(self, sr_id: str) -> Optional[dict]:
         return self.storage.get_by_id(sr_id)
 
-    def raise_sr(self, data: InsertServiceRequest, assigned_users: Optional[dict] = None) -> dict:
+    def raise_sr(self, data: InsertServiceRequest, assigned_users: Optional[dict] = None,
+                 agent_action_key: Optional[str] = None) -> dict:
         if data.srType not in SR_TYPES:
             raise ValueError(f"Invalid SR type: {data.srType}")
 
@@ -198,6 +199,7 @@ class ServiceRequestService:
         approvers = _build_approvers(assigned_users)
         payload = data.model_dump()
         payload["approvers"] = approvers
+        payload["agentActionKey"] = agent_action_key
 
         basepack_code = payload.get("basepackCode") or payload.get("basepakCode")
         validation_summary = _compute_validation_checks(payload.get("cbuCode"), basepack_code)

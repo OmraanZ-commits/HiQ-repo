@@ -174,6 +174,10 @@ class MstnDohStorage:
                 )
                 WHERE mstn_by_depot IS NOT NULL
                   AND mstn_by_depot != '{}'
+                  -- Keep the dedicated transition-risk activation fixture's
+                  -- explicit seed evidence stable; all operational rows retain
+                  -- the existing cumulative refresh behavior.
+                  AND NOT (cbu_code = 'CBU-99149003' AND basepack = 'BP-TR-READY-03')
             """))
             rows_updated = result.rowcount
 

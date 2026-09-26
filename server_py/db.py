@@ -13,6 +13,7 @@ from sqlalchemy import (
     Date,
     Boolean,
     ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
@@ -96,6 +97,7 @@ class NetworkEntryModel(Base):
     sourcing_mode = Column(String, nullable=True)  # "decentralized" | "centralized"
     centralized_geos = Column(JSONB, nullable=True, default=[])
     centralized_depots = Column(JSONB, nullable=True, default=[])
+    sourcing_depot_mapping = Column(JSONB, nullable=True, default={})
     customer_mapping = Column(JSONB, nullable=True, default={})
 
 
@@ -293,8 +295,25 @@ class ServiceRequestModel(Base):
     pricing_complete = Column(Boolean, nullable=True)
     sourcing_complete = Column(Boolean, nullable=True)
     depot_decisions = Column(JSONB, nullable=True)
+    sourcing_depot_mapping = Column(JSONB, nullable=True)
+    agent_action_key = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+
+
+class DepotStockModel(Base):
+    __tablename__ = "depot_stock"
+    __table_args__ = (
+        UniqueConstraint("cbu_code", "basepack_code", "depot_code", name="uq_depot_stock_cbu_basepack_depot"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cbu_code = Column(String, nullable=False)
+    basepack_code = Column(String, nullable=False)
+    depot_code = Column(String, nullable=False)
+    quantity_cases = Column(Float, nullable=False)
+    snapshot_date = Column(Date, nullable=False)
+    created_at = Column(DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
 
 
 class BasepakStatusOverrideModel(Base):
@@ -525,6 +544,20 @@ def run_migrations():
     """Apply additive column migrations that create_all won't handle on existing tables."""
     from sqlalchemy import text
     with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS sourcing_depot_mapping JSONB"
+        ))
+        conn.execute(text(
+            "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS agent_action_key VARCHAR"
+        ))
+        conn.execute(text(
+            "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS sourcing_depot_mapping JSONB"
+        ))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_service_requests_pending_agent_action "
+            "ON service_requests (agent_action_key) "
+            "WHERE agent_action_key IS NOT NULL AND status = 'pending'"
+        ))
         conn.execute(text(
             "ALTER TABLE network_entries ADD COLUMN IF NOT EXISTS launch_type VARCHAR"
         ))
@@ -1472,6 +1505,7 @@ FIELD_MAP_TO_DB = {
     "sourcingMode": "sourcing_mode",
     "centralizedGeos": "centralized_geos",
     "centralizedDepots": "centralized_depots",
+    "sourcingDepotMapping": "sourcing_depot_mapping",
     "customerMapping": "customer_mapping",
 }
 

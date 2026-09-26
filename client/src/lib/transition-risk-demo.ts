@@ -1,245 +1,206 @@
 export type FindingStatus = "pass" | "concern" | "unknown" | "conflict";
 export type RiskLevel = "Low" | "Medium" | "High" | "Insufficient evidence";
-export type Confidence = "High" | "Low";
-export type ReviewChoice = "accept" | "challenge" | "escalate";
 
-export interface AgentEvidence {
-  status: FindingStatus;
-  source: string;
-  detail: string;
+export interface NetworkEvidence {
+  id: string;
+  basepack: string | null;
+  basepackDescription?: string | null;
+  cbuCode: string | null;
+  materialDescription?: string | null;
+  bg?: string | null;
+  brand?: string | null;
+  networkStatus?: string | null;
+  networkChangeDate?: string | null;
+  typeOfNetwork?: string | null;
+  priceUpdatedAt?: string | null;
+  predecessorDoh?: number | null;
+  successorDoh?: number | null;
+  dohSnapshotDate?: string | null;
+  slobRisk?: boolean | null;
+  mstnPercentage?: number | null;
+  mstnByDepot?: Record<string, number> | null;
+  depot?: string[] | null;
+  sourcingMode?: string | null;
 }
 
-export interface RiskDemoScenario {
+export interface BasepackEvidence {
+  basepackCode: string;
+  basepackName: string;
+  effectiveStatus: string;
+  derivedStatus: string;
+}
+
+export interface DepotStockEvidence {
   id: string;
-  title: string;
-  cbu: string;
-  changeDate: string;
-  changeDays: number;
-  snapshotAgeDays: number | null;
-  predecessorDoh: number | null;
-  successorDoh: number | null;
-  slobRisk: boolean | null;
-  aggregateMstn: number | null;
-  readyDepots: number | null;
-  totalDepots: number;
-  srStatus: "none" | "pending" | "unknown";
-  priceAndSourcingComplete: boolean | null;
-  summary: string;
+  cbuCode: string;
+  basepackCode: string;
+  depotCode: string;
+  quantityCases: number;
+  snapshotDate: string;
+}
+
+export interface RequestEvidence {
+  id: string;
+  srType: string;
+  status: string;
+  basepackCode?: string | null;
+  cbuCode?: string | null;
+  targetStatus?: string | null;
+  addedDepots?: string[] | null;
+  approvers?: Array<{ label?: string; assignedTo?: string; status: string }> | null;
+}
+
+export interface ClearanceEvidence {
+  criteriaMet: boolean;
+  mstnCoverage: number;
+  materials: Array<{ code: string; mstnCleared: boolean; mstnByDepot?: Record<string, number> }>;
 }
 
 export interface AgentFinding {
   id: "quality" | "lifecycle" | "stock" | "depot" | "blockers";
   name: string;
   role: string;
-  evidence: AgentEvidence;
+  evidence: { status: FindingStatus; source: string; detail: string };
 }
 
 export interface RiskAssessment {
   level: RiskLevel;
-  confidence: Confidence;
-  drivers: string[];
-  nextChecks: string[];
+  confidence: "High" | "Low";
   explanation: string;
+  drivers: string[];
 }
-
-export const TRANSITION_RISK_SCENARIOS: RiskDemoScenario[] = [
-  {
-    id: "healthy",
-    title: "Healthy transition",
-    cbu: "DEMO-CBU-A",
-    changeDate: "18 Oct 2026",
-    changeDays: 22,
-    snapshotAgeDays: 1,
-    predecessorDoh: 2,
-    successorDoh: 10,
-    slobRisk: false,
-    aggregateMstn: 100,
-    readyDepots: 4,
-    totalDepots: 4,
-    srStatus: "none",
-    priceAndSourcingComplete: true,
-    summary: "Recent evidence, no material blocker, and all four depots ready.",
-  },
-  {
-    id: "blockers",
-    title: "Concrete blockers",
-    cbu: "DEMO-CBU-B",
-    changeDate: "02 Oct 2026",
-    changeDays: 6,
-    snapshotAgeDays: 1,
-    predecessorDoh: 18,
-    successorDoh: 2,
-    slobRisk: true,
-    aggregateMstn: 25,
-    readyDepots: 1,
-    totalDepots: 4,
-    srStatus: "pending",
-    priceAndSourcingComplete: false,
-    summary: "An imminent change date combines with a stock imbalance, depot gaps, and a pending request.",
-  },
-  {
-    id: "uncertain",
-    title: "Stale and conflicting evidence",
-    cbu: "DEMO-CBU-C",
-    changeDate: "05 Oct 2026",
-    changeDays: 9,
-    snapshotAgeDays: 47,
-    predecessorDoh: null,
-    successorDoh: 7,
-    slobRisk: null,
-    aggregateMstn: 92,
-    readyDepots: 1,
-    totalDepots: 4,
-    srStatus: "unknown",
-    priceAndSourcingComplete: null,
-    summary: "The stock snapshot is stale, predecessor DOH is missing, and aggregate MSTN conflicts with depot detail.",
-  },
-  {
-    id: "monitor",
-    title: "Manageable concern",
-    cbu: "DEMO-CBU-D",
-    changeDate: "13 Oct 2026",
-    changeDays: 17,
-    snapshotAgeDays: 2,
-    predecessorDoh: 5,
-    successorDoh: 8,
-    slobRisk: false,
-    aggregateMstn: 50,
-    readyDepots: 2,
-    totalDepots: 4,
-    srStatus: "none",
-    priceAndSourcingComplete: true,
-    summary: "Evidence is current; half the depots still need readiness follow-up, without another blocker.",
-  },
-];
 
 export const AGENT_ORDER: AgentFinding["id"][] = [
-  "quality",
-  "lifecycle",
-  "stock",
-  "depot",
-  "blockers",
+  "quality", "lifecycle", "stock", "depot", "blockers",
 ];
 
-function makeEvidence(status: FindingStatus, source: string, detail: string): AgentEvidence {
-  return { status, source, detail };
+export function isCurrentSnapshot(value: string | null | undefined, today = new Date()): boolean {
+  if (!value) return false;
+  const day = new Date(`${value.slice(0, 10)}T00:00:00Z`).getTime();
+  if (!Number.isFinite(day)) return false;
+  const currentDay = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  return day <= currentDay && currentDay - day <= 30 * 24 * 60 * 60 * 1000;
 }
 
-export function evaluateTransitionRisk(s: RiskDemoScenario): {
+export function evaluateTransitionRisk(
+  entry: NetworkEvidence,
+  basepack: BasepackEvidence,
+  stock: DepotStockEvidence[],
+  requests: RequestEvidence[],
+  clearance: ClearanceEvidence | null,
+  basepackEntries: NetworkEvidence[] = [entry],
+): {
   agents: AgentFinding[];
   assessment: RiskAssessment;
+  unmappedStock: DepotStockEvidence[];
+  activationReady: boolean;
+  pendingActivation?: RequestEvidence;
+  pendingAmendments: RequestEvidence[];
 } {
+  const mapped = new Set(entry.depot ?? []);
+  const cbustock = stock.filter(row =>
+    row.cbuCode === entry.cbuCode && row.basepackCode === basepack.basepackCode);
+  const freshStock = cbustock.filter(row => isCurrentSnapshot(row.snapshotDate));
+  const unmappedStock = freshStock.filter(row =>
+    row.quantityCases > 0 && !mapped.has(row.depotCode));
+  const pending = requests.filter(row => row.status === "pending");
+  const pendingActivation = pending.find(row =>
+    row.srType === "basepack-status-change" &&
+    row.targetStatus === "Active Pack" &&
+    row.basepackCode === basepack.basepackCode);
+  const pendingAmendments = pending.filter(row =>
+    row.srType === "sourcing-amendment" && row.cbuCode === entry.cbuCode);
+  const scored = Object.entries(entry.mstnByDepot ?? {});
+  const missingScores = Array.from(mapped).filter(depot => !scored.some(([code]) => code === depot));
+  const scoreCount = scored.filter(([depot, score]) => mapped.has(depot) && score >= 80).length;
+  const completeBasepackStock = basepackEntries.length > 0 && basepackEntries.every(material => {
+    const depots = material.depot ?? [];
+    return depots.length > 0 && depots.every(depot =>
+      stock.some(row => row.basepackCode === basepack.basepackCode &&
+        row.cbuCode === material.cbuCode && row.depotCode === depot &&
+        row.quantityCases > 0 && isCurrentSnapshot(row.snapshotDate)));
+  });
+  const qualityStatus: FindingStatus = !entry.cbuCode || !entry.basepack
+    ? "unknown"
+    : cbustock.length === 0 || freshStock.length === 0
+      ? "unknown" : cbustock.some(row => !isCurrentSnapshot(row.snapshotDate))
+        ? "concern" : "pass";
+  const stockSummary = cbustock.length
+    ? cbustock.map(row => `${row.depotCode}: ${row.quantityCases} cases (${row.snapshotDate}${mapped.has(row.depotCode) ? ", mapped" : ", unmapped"})`).join("; ")
+    : "No depot-level stock record is available for this CBU.";
+  const dohSummary = `Predecessor DOH ${entry.predecessorDoh ?? "not recorded"}; successor DOH ${entry.successorDoh ?? "not recorded"}; SLOB ${entry.slobRisk == null ? "not recorded" : entry.slobRisk ? "flagged" : "not flagged"}.`;
+  const changeDate = entry.networkChangeDate
+    ? new Date(`${entry.networkChangeDate.slice(0, 10)}T00:00:00Z`) : null;
+  const daysToChange = changeDate && !Number.isNaN(changeDate.getTime())
+    ? Math.ceil((changeDate.getTime() - Date.now()) / 86400000) : null;
   const agents: AgentFinding[] = [
     {
-      id: "quality",
-      name: "Data quality",
-      role: "Checks freshness and completeness",
-      evidence: s.snapshotAgeDays == null
-        ? makeEvidence("unknown", "Dummy Network Visibility snapshot", "Snapshot date is missing.")
-        : s.snapshotAgeDays > 30
-          ? makeEvidence("concern", "Dummy Network Visibility snapshot", `Snapshot is ${s.snapshotAgeDays} days old; treat critical stock evidence as stale.`)
-          : makeEvidence("pass", "Dummy Network Visibility snapshot", `Snapshot is ${s.snapshotAgeDays} day${s.snapshotAgeDays === 1 ? "" : "s"} old; recent for this demo.`),
+      id: "quality", name: "Data quality", role: "Verifies stock snapshot and CBU identity",
+      evidence: {
+        status: qualityStatus, source: "Network entries · depot stock snapshots",
+        detail: qualityStatus === "unknown" ? "CBU identity or a current depot stock snapshot is missing. Do not infer stock from DOH or MSTN."
+          : qualityStatus === "concern" ? "At least one depot stock snapshot is older than 30 days or in the future; only current rows can drive an action."
+            : `Current depot stock records are available for ${entry.cbuCode}.`,
+      },
     },
     {
-      id: "lifecycle",
-      name: "Lifecycle",
-      role: "Checks transition timing",
-      evidence: s.changeDays <= 7
-        ? makeEvidence("concern", "Dummy Network Visibility change date", `${s.changeDate} is ${s.changeDays} days away; confirm readiness before the planned change.`)
-        : s.changeDays <= 21
-          ? makeEvidence("concern", "Dummy Network Visibility change date", `${s.changeDate} is ${s.changeDays} days away; keep readiness checks visible.`)
-          : makeEvidence("pass", "Dummy Network Visibility change date", `${s.changeDate} is ${s.changeDays} days away; no immediate timing concern in this story.`),
+      id: "lifecycle", name: "Lifecycle", role: "Checks the recorded network change date",
+      evidence: {
+        status: daysToChange == null ? "unknown" : daysToChange < 0 ? "concern" : "pass",
+        source: "Network entries · networkChangeDate",
+        detail: daysToChange == null ? "No valid network change date is recorded."
+          : `${entry.networkChangeDate} · ${daysToChange < 0 ? `${Math.abs(daysToChange)} days ago` : `${daysToChange} days away`}.`,
+      },
     },
     {
-      id: "stock",
-      name: "Stock health",
-      role: "Compares predecessor/successor DOH and SLOB",
-      evidence: s.predecessorDoh == null || s.successorDoh == null || s.slobRisk == null
-        ? makeEvidence("unknown", "Dummy Paid Bible stock snapshot", `Predecessor DOH ${s.predecessorDoh ?? "missing"} · successor DOH ${s.successorDoh ?? "missing"} · SLOB ${s.slobRisk == null ? "unknown" : s.slobRisk ? "yes" : "no"}.`)
-        : s.slobRisk || s.predecessorDoh - s.successorDoh >= 6
-          ? makeEvidence("concern", "Dummy Paid Bible stock snapshot", `Predecessor DOH ${s.predecessorDoh} · successor DOH ${s.successorDoh} · SLOB ${s.slobRisk ? "yes" : "no"}; investigate stock imbalance.`)
-          : makeEvidence("pass", "Dummy Paid Bible stock snapshot", `Predecessor DOH ${s.predecessorDoh} · successor DOH ${s.successorDoh} · SLOB no.`),
+      id: "stock", name: "Stock health", role: "Checks explicit depot stock and available DOH/SLOB",
+      evidence: {
+        status: !freshStock.length ? "unknown" : unmappedStock.length || entry.slobRisk ? "concern" : "pass",
+        source: "Depot stock snapshots · Network entries DOH/SLOB",
+        detail: `${stockSummary} ${dohSummary}`,
+      },
     },
     {
-      id: "depot",
-      name: "Depot readiness",
-      role: "Checks MSTN coverage by DC",
-      evidence: s.readyDepots == null || s.aggregateMstn == null
-        ? makeEvidence("unknown", "Dummy Paid Bible depot view", "Depot-level readiness or aggregate MSTN is missing.")
-        : (s.aggregateMstn >= 80 && s.readyDepots / s.totalDepots < 0.7) ||
-          (s.aggregateMstn < 80 && s.readyDepots === s.totalDepots)
-          ? makeEvidence("conflict", "Dummy Paid Bible aggregate and depot views", `Aggregate MSTN ${s.aggregateMstn}% conflicts with ${s.readyDepots}/${s.totalDepots} DCs ready.`)
-          : s.readyDepots / s.totalDepots < 0.7
-            ? makeEvidence("concern", "Dummy Paid Bible depot view", `${s.readyDepots}/${s.totalDepots} DCs meet the illustrative 80% MSTN readiness marker.`)
-            : makeEvidence("pass", "Dummy Paid Bible depot view", `${s.readyDepots}/${s.totalDepots} DCs meet the illustrative 80% MSTN readiness marker.`),
+      id: "depot", name: "Depot readiness", role: "Checks mapped depot MSTN and activation clearance",
+      evidence: {
+        status: !mapped.size || missingScores.length || entry.mstnPercentage == null || !clearance
+          ? "unknown" : !clearance.criteriaMet ? "concern" : "pass",
+        source: "Network entries · MSTN by depot · clearance-check",
+        detail: !mapped.size ? "No mapped depots are recorded." :
+          `${scoreCount}/${mapped.size} mapped depots have MSTN ≥80%; CBU MSTN ${entry.mstnPercentage ?? "not recorded"}%. ` +
+          (missingScores.length ? `Missing scores: ${missingScores.join(", ")}. ` : "") +
+          (clearance ? `Basepack clearance: ${clearance.criteriaMet ? "met" : "not met"} (${clearance.mstnCoverage}% CBU coverage).` : "Clearance is unavailable."),
+      },
     },
     {
-      id: "blockers",
-      name: "SR / approval blockers",
-      role: "Checks the dummy request queue",
-      evidence: s.srStatus === "unknown" || s.priceAndSourcingComplete == null
-        ? makeEvidence("unknown", "Dummy SR queue", `Request ${s.srStatus}; price and sourcing ${s.priceAndSourcingComplete == null ? "not verified" : s.priceAndSourcingComplete ? "complete" : "incomplete"}.`)
-        : s.srStatus === "pending" || !s.priceAndSourcingComplete
-          ? makeEvidence("concern", "Dummy SR queue", `Request ${s.srStatus}; price and sourcing ${s.priceAndSourcingComplete ? "complete" : "incomplete"}.`)
-          : makeEvidence("pass", "Dummy SR queue", "No open request; price and sourcing checks are complete in this story."),
+      id: "blockers", name: "SR / approvals", role: "Finds pending requests and human approval steps",
+      evidence: {
+        status: pendingActivation || pendingAmendments.length ? "concern" : "pass",
+        source: "Service requests · pending approval queue",
+        detail: pendingActivation || pendingAmendments.length
+          ? `Pending activation ${pendingActivation?.id ?? "none"}; pending sourcing amendments ${pendingAmendments.map(sr => sr.id).join(", ") || "none"}.`
+          : "No pending activation or sourcing amendment was found for this selection.",
+      },
     },
   ];
-
-  const criticalEvidenceUnusable =
-    s.snapshotAgeDays == null ||
-    s.snapshotAgeDays > 30 ||
-    s.predecessorDoh == null ||
-    s.successorDoh == null ||
-    s.slobRisk == null ||
-    s.readyDepots == null ||
-    s.aggregateMstn == null ||
-    s.srStatus === "unknown" ||
-    s.priceAndSourcingComplete == null ||
-    agents.some(a => a.evidence.status === "conflict" || a.evidence.status === "unknown");
-
-  const concerns = agents.filter(a => a.evidence.status === "concern");
-  let level: RiskLevel;
-  let confidence: Confidence;
-  let explanation: string;
-
-  if (criticalEvidenceUnusable) {
-    level = "Insufficient evidence";
-    confidence = "Low";
-    explanation = "Critical evidence is stale, missing, or contradictory. The system cannot safely rank this case; send it for manual investigation.";
-  } else if (concerns.length >= 3) {
-    level = "High";
-    confidence = "High";
-    explanation = "Several independent, current signals identify concrete blockers. A planner should prioritize intervention.";
-  } else if (concerns.length > 0) {
-    level = "Medium";
-    confidence = "High";
-    explanation = "Evidence is current and usable, but at least one concern needs follow-up before the transition.";
-  } else {
-    level = "Low";
-    confidence = "High";
-    explanation = "The available evidence is current and no specialist found a material blocker. Continue routine monitoring.";
-  }
-
-  const drivers = concerns.map(a => `${a.name}: ${a.evidence.detail}`);
-  if (level === "Insufficient evidence") {
-    drivers.push(...agents
-      .filter(a => a.evidence.status === "unknown" || a.evidence.status === "conflict")
-      .map(a => `${a.name}: ${a.evidence.detail}`));
-    if (s.snapshotAgeDays != null && s.snapshotAgeDays > 30) {
-      drivers.push(`Data quality: stock snapshot is stale at ${s.snapshotAgeDays} days.`);
-    }
-  }
-
-  const nextChecks = level === "Insufficient evidence"
-    ? ["Request a fresh stock snapshot.", "Reconcile aggregate MSTN with DC-level readiness.", "Confirm the SR and approval status."]
-    : level === "High"
-      ? ["Ask stock and depot owners for recovery plans.", "Review the pending request before the planned change."]
-      : level === "Medium"
-        ? ["Confirm the remaining depot readiness gaps.", "Recheck the evidence before the planned change."]
-        : ["Continue routine monitoring.", "Re-run the review if new blockers appear."];
-
+  const uncertain = agents.some(agent => agent.evidence.status === "unknown" || agent.evidence.status === "conflict");
+  const concerns = agents.filter(agent => agent.evidence.status === "concern");
+  const level: RiskLevel = uncertain ? "Insufficient evidence"
+    : concerns.length >= 3 ? "High" : concerns.length ? "Medium" : "Low";
+  const assessment: RiskAssessment = {
+    level, confidence: uncertain ? "Low" : "High",
+    explanation: uncertain
+      ? "Some evidence is missing. Only actions with verified, current inputs can be submitted; other decisions need human investigation."
+      : concerns.length
+        ? "The stored evidence shows one or more concerns. Existing clearance and approval rules decide whether requests can proceed."
+        : "The available evidence shows no concern in these five checks. Final status still depends on approval.",
+    drivers: concerns.map(agent => `${agent.name}: ${agent.evidence.detail}`),
+  };
   return {
-    agents,
-    assessment: { level, confidence, drivers, nextChecks, explanation },
+    agents, assessment, unmappedStock,
+    activationReady: basepack.effectiveStatus !== "Active Pack" &&
+      !!clearance?.criteriaMet && !pendingActivation && qualityStatus === "pass" &&
+      mapped.size > 0 && missingScores.length === 0 && completeBasepackStock,
+    pendingActivation, pendingAmendments,
   };
 }

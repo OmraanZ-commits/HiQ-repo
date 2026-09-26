@@ -5,3 +5,4 @@
 - [SR Demand Visibility is per-CBU](sr-demand-visibility-by-cbu.md) — a basepack can have multiple CBUs; Demand Visibility must show one card per CBU, not a single basepack-level aggregate
 - [Canvas-only task review](canvas-only-task-review.md) — pair no-code canvas deliverables with a reviewable workspace storyboard when closing assigned tasks.
 - [Local Playwright browser](local-playwright-browser.md) — Playwright's managed Chromium paths may be empty; use the system Chromium for headless interaction checks.
+- [Seed-backed action eligibility](seed-backed-action-eligibility.md) — validate persisted evidence after startup; insert-only seeds and background refresh can invalidate fixture assumptions.

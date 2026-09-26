@@ -72,6 +72,9 @@ from server_py.services.demand_forecast.router import (
     set_service as set_demand_forecast_service,
 )
 from server_py.seed_demand_forecast import generate_demand_forecast_seeds
+from server_py.services.transition_risk.router import router as transition_risk_router, set_service as set_transition_risk_service
+from server_py.services.transition_risk.storage import TransitionRiskStorage
+from server_py.services.transition_risk.service import TransitionRiskService
 
 from server_py.seed_reference_data import CHANNEL_SEEDS, CLUSTER_SEEDS, DEPOT_SEEDS, NETWORK_CHANGE_TYPE_SEEDS, CLUSTER_REGION_STATE_SEEDS, CCR_ACCOUNT_SEEDS, CCR_RULE_SEEDS
 from server_py.seed_users import USER_SEEDS
@@ -131,6 +134,7 @@ app.include_router(paid_bible_router, prefix="/api/paid-bible", tags=["Paid Bibl
 app.include_router(ftr_router, prefix="/api/ftr", tags=["FTR"])
 app.include_router(ccr_router, prefix="/api/ccr", tags=["CCR"])
 app.include_router(demand_forecast_router, prefix="/api/demand-forecast", tags=["Demand Visibility"])
+app.include_router(transition_risk_router, prefix="/api/transition-risk", tags=["Transition Risk"])
 
 
 @app.on_event("startup")
@@ -162,6 +166,9 @@ async def startup():
         CLUSTER_REGION_STATE_SEEDS, CCR_ACCOUNT_SEEDS, CCR_RULE_SEEDS,
     )
 
+    transition_risk_storage = TransitionRiskStorage()
+    transition_risk_storage.seed_depot_stock()
+
     users_storage = UsersStorage()
     users_service = UsersService(users_storage)
     set_users_service(users_service)
@@ -179,6 +186,13 @@ async def startup():
     mstn_doh_service = MstnDohService(mstn_doh_storage)
     mstn_doh_service.set_list_storage(list_storage)
     set_mstn_doh_service(mstn_doh_service)
+    set_transition_risk_service(TransitionRiskService(
+        transition_risk_storage,
+        sr_service,
+        list_service,
+        ref_service,
+        mstn_doh_service,
+    ))
 
     paid_bible_storage = PaidBibleStorage()
     paid_bible_service = PaidBibleService(paid_bible_storage, sr_service=sr_service)
