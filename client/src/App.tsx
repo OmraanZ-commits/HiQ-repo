@@ -22,6 +22,7 @@ import CcrMtListingPage from "@/pages/ccr-mt-listing";
 import CcrMtListingDetailPage from "@/pages/ccr-mt-listing-detail";
 import CcrCustomerProfilePage from "@/pages/ccr-customer-profile";
 import AtpAgentDemoPage from "@/pages/atp-agent-demo";
+import TransitionRiskDemoPage from "@/pages/transition-risk-demo";
 import { NetworkGuidedTourProvider } from "@/components/network-guided-tour";
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/network" component={Dashboard} />
+      <Route path="/network/transition-risk-demo" component={TransitionRiskDemoPage} />
       <Route path="/paid-bible" component={PaidBiblePage} />
       <Route path="/paid-bible/basepacks/:bpCode" component={BasepakDetailPage} />
       <Route path="/paid-bible/requests/:id" component={ServiceRequestDetailPage} />
