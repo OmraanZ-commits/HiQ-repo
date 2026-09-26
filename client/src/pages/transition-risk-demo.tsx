@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import {
   AlertTriangle, ArrowLeft, ArrowRight, Bot, CalendarDays, Check, ChevronRight,
   CircleCheck, CircleHelp, ClipboardCheck, Database, FileCheck2, GitCompareArrows,
-  MapPin, Package, Pause, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Users,
+  MapPin, Package, Pause, Play, RotateCcw, ShieldCheck, Sparkles, Users,
 } from "lucide-react";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ const REVIEW_CHOICES: { value: ReviewChoice; label: string; description: string 
   { value: "escalate", label: "Escalate for investigation", description: "Hand off for manual investigation." },
 ];
 
-function Kicker({ children }: { children: string }) {
+function Kicker({ children }: { children: ReactNode }) {
   return <p className="text-[11px] font-bold uppercase tracking-[0.17em] text-cyan-700">{children}</p>;
 }
 
@@ -183,7 +183,7 @@ export default function TransitionRiskDemoPage() {
             </div>
             <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5 text-xs leading-relaxed text-blue-900">
               <div className="mb-2 flex items-center gap-2 font-bold"><ShieldCheck className="h-4 w-4" /> Safety boundary</div>
-              This page uses deterministic dummy fixtures, not live CBU/SR data or AI inference. Risk categories are illustrative, not production policy. Review buttons never call a server or change a record.
+              This page uses deterministic dummy fixtures, not live CBU/SR data or AI inference. Risk categories are illustrative, not production policy; no accuracy or savings claim is implied. Review buttons never call a server, approve requests, update status, or submit to SAP.
             </div>
           </aside>
 
@@ -195,7 +195,9 @@ export default function TransitionRiskDemoPage() {
                   <h2 className="mt-1 text-lg font-bold">{scenario.cbu} <span className="font-normal text-slate-400">/</span> Fictional transition review</h2>
                   <p className="mt-1 text-xs text-slate-500">Planned change: {scenario.changeDate} · {scenario.changeDays} days away</p>
                 </div>
-                <Badge variant="outline" className={riskStyle(assessment.level)} data-testid="risk-summary-badge">{assessment.level} · {assessment.confidence} confidence</Badge>
+                <Badge variant="outline" className={stage < 7 ? "border-cyan-200 bg-cyan-50 text-cyan-800" : riskStyle(assessment.level)} data-testid="risk-summary-badge">
+                  {stage < 7 ? "Analysis in progress" : `${assessment.level} · ${assessment.confidence} confidence`}
+                </Badge>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10" aria-label="Simulation workflow">
                 {STAGES.map((item, index) => (
@@ -261,7 +263,7 @@ export default function TransitionRiskDemoPage() {
                 </div>
               </div>}
 
-              {activeAgent && <AgentStage agent={activeAgent} index={stage - 1} scenario={scenario} />}
+              {activeAgent && <AgentStage agent={activeAgent} index={stage - 2} scenario={scenario} />}
 
               {stage === 7 && <div className="space-y-5">
                 <div className={`rounded-2xl border p-5 ${riskStyle(assessment.level)}`}>
@@ -317,6 +319,12 @@ export default function TransitionRiskDemoPage() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
                   <b>Risk assessment:</b> {assessment.level} · {assessment.confidence} confidence<br />
                   <span className="text-slate-600">{assessment.explanation}</span>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+                  <b>Hypothetical follow-up:</b>
+                  <ul className="mt-2 space-y-1 text-slate-600">
+                    {assessment.nextChecks.map((check, index) => <li key={index}>• {check}</li>)}
+                  </ul>
                 </div>
                 <p className="text-xs font-medium text-amber-800">No CBU, SR, approval, network status, or SAP record was read or changed. This outcome is simulated only.</p>
                 <Button onClick={reset} data-testid="risk-demo-replay"><RotateCcw className="mr-2 h-4 w-4" /> Replay this case</Button>

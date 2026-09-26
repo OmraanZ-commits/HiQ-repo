@@ -39,6 +39,7 @@ test("stale, missing, or conflicting critical data cannot be classified as low r
     { ...base, snapshotAgeDays: 47 },
     { ...base, predecessorDoh: null },
     { ...base, aggregateMstn: 92, readyDepots: 1 },
+    { ...base, aggregateMstn: 20, readyDepots: 4 },
     { ...base, srStatus: "unknown" },
   ];
 

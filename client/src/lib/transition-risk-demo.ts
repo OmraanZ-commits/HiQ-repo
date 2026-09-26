@@ -166,8 +166,9 @@ export function evaluateTransitionRisk(s: RiskDemoScenario): {
       role: "Checks MSTN coverage by DC",
       evidence: s.readyDepots == null || s.aggregateMstn == null
         ? makeEvidence("unknown", "Dummy Paid Bible depot view", "Depot-level readiness or aggregate MSTN is missing.")
-        : s.aggregateMstn >= 80 && s.readyDepots / s.totalDepots < 0.7
-          ? makeEvidence("conflict", "Dummy Paid Bible aggregate and depot views", `Aggregate MSTN ${s.aggregateMstn}% conflicts with only ${s.readyDepots}/${s.totalDepots} DCs ready.`)
+        : (s.aggregateMstn >= 80 && s.readyDepots / s.totalDepots < 0.7) ||
+          (s.aggregateMstn < 80 && s.readyDepots === s.totalDepots)
+          ? makeEvidence("conflict", "Dummy Paid Bible aggregate and depot views", `Aggregate MSTN ${s.aggregateMstn}% conflicts with ${s.readyDepots}/${s.totalDepots} DCs ready.`)
           : s.readyDepots / s.totalDepots < 0.7
             ? makeEvidence("concern", "Dummy Paid Bible depot view", `${s.readyDepots}/${s.totalDepots} DCs meet the illustrative 80% MSTN readiness marker.`)
             : makeEvidence("pass", "Dummy Paid Bible depot view", `${s.readyDepots}/${s.totalDepots} DCs meet the illustrative 80% MSTN readiness marker.`),
