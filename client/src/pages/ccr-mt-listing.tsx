@@ -61,6 +61,25 @@ const SCENARIO_META: Record<ChainScenario, { badge: string; pill: string }> = {
   "National Non-Listing":     { badge: "bg-blue-50 border-blue-200",     pill: "bg-blue-100 text-blue-700 border border-blue-200" },
 };
 
+const ATP_LAST_RUN_STORAGE_KEY = "ccr-mt-listing-atp-last-run";
+
+function readLastAtpRun(): string | null {
+  try {
+    const value = window.localStorage.getItem(ATP_LAST_RUN_STORAGE_KEY);
+    return value && Number.isFinite(Date.parse(value)) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatLastRun(value: string | null): string {
+  if (!value) return "Not run yet";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 // ─── DOH mock helpers ─────────────────────────────────────────────────────────
 // Deterministic mock DOH (Days on Hand) values for demo.
 // Successor DOH > 5 AND predecessor DOH < 3 → DOH condition met for National Non-Listing.
@@ -409,6 +428,7 @@ export default function CcrMtListingPage() {
   const qc = useQueryClient();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("mt-output");
+  const [lastAtpRun, setLastAtpRun] = useState<string | null>(readLastAtpRun);
 
   // Selection state
   const [outputSelected, setOutputSelected]   = useState<Set<string>>(new Set());
@@ -496,6 +516,22 @@ export default function CcrMtListingPage() {
   const requestedByChain = useMemo(() => groupByChain(requestedEntries), [requestedEntries, chainSet]);
   const validatedByChain = useMemo(() => groupByChain(validatedEntries), [validatedEntries, chainSet]);
   const errorByChain     = useMemo(() => groupByChain(errorEntries),     [errorEntries,     chainSet]);
+
+  const atpPayloadRecords = useMemo(
+    () => Object.entries(outputByChain).flatMap(([customerChain, entries]) =>
+      entries.map(entry => ({
+        customerChain,
+        successorCbu: entry.cbuCode ?? null,
+        predecessorCbu: (entry as any).predecessorCode ?? null,
+        basepackCode: entry.basepack ?? null,
+        networkChangeType: entry.typeOfNetwork ?? null,
+        networkStatus: entry.networkStatus ?? null,
+        networkChangeDate: entry.networkChangeDate ?? null,
+        depots: entry.depot ?? [],
+      })),
+    ),
+    [outputByChain],
+  );
 
   // ── Selection helpers ──────────────────────────────────────────────────────
 
@@ -594,6 +630,31 @@ export default function CcrMtListingPage() {
     requestSapMutation.mutate(pairs.map(p => p.cbuCode));
   }
 
+  function handleExportAtpPayload() {
+    const generatedAt = new Date().toISOString();
+    const payload = {
+      schema: "ccr-mt-listing-atp-payload-v1",
+      generatedAt,
+      records: atpPayloadRecords,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `MT_Listing_ATP_Payload_${generatedAt.slice(0, 10)}.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    setLastAtpRun(generatedAt);
+    try {
+      window.localStorage.setItem(ATP_LAST_RUN_STORAGE_KEY, generatedAt);
+    } catch {
+      // Keep the timestamp visible for this page session when storage is unavailable.
+    }
+  }
+
   function dialogItems(selected: Set<string>, pool: NetworkEntry[]) {
     return [...selected].map(key => {
       const cbu = cbuFromKey(key);
@@ -609,11 +670,28 @@ export default function CcrMtListingPage() {
       <UnileverHeader module="ccr" />
 
       <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-5">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">MT Listing</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Successor-predecessor CBU updates required as part of the CCR MT listing ruleset
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">MT Listing</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Successor-predecessor CBU updates required as part of the CCR MT listing ruleset
+            </p>
+          </div>
+          <div className="flex flex-col items-start gap-1 sm:items-end">
+            <Button
+              size="sm"
+              className="gap-2 bg-[#1f36c7] hover:bg-[#1730b0]"
+              onClick={handleExportAtpPayload}
+              disabled={entriesLoading || atpPayloadRecords.length === 0}
+              data-testid="export-atp-payload"
+            >
+              <Download className="h-4 w-4" />
+              Export ATP Payload
+            </Button>
+            <p className="text-xs text-muted-foreground" aria-live="polite" data-testid="atp-last-run">
+              Last run: {formatLastRun(lastAtpRun)}
+            </p>
+          </div>
         </div>
 
         <Card className="overflow-clip">
