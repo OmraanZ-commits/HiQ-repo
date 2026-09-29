@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { buildCustomerOrderingMaster, type CustomerOrderingRow } from "@/lib/customer-ordering-master";
 import { customerOrderingSample } from "@/lib/customer-ordering-sample";
+import { AutoMailerMaster } from "@/components/ccr/auto-mailer-master";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +14,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Building2, Download, GitBranch, Mail, Package, Settings,
+  Building2, Download, GitBranch, Package, Settings,
   ShieldCheck, SlidersHorizontal, Truck, Users, Zap, Eye,
   AlertCircle,
 } from "lucide-react";
@@ -542,15 +543,13 @@ export default function CcrCustomerProfilePage() {
                     </div>
                   </div>
 
-                  <EmptySection
-                    icon={Mail}
-                    title="Auto-Mailer Email IDs"
-                    message="Email addresses for each automated notification type."
-                    columns={["Mailer Type", "Email ID", "CC", "Trigger Event", "Frequency", "Active"]}
+                  <AutoMailerMaster
+                    key={selectedChain}
+                    customerChain={selectedChain}
+                    customerMappings={codeMappings}
+                    mappingsLoading={codesLoading}
+                    mappingsError={codesError}
                   />
-                  <div className="text-xs text-muted-foreground pl-1">
-                    Mailer types: Error Log · Exception Report · Appointment Portal · SOB Trigger
-                  </div>
 
                   <EmptySection
                     icon={ShieldCheck}

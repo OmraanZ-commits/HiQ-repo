@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import re
 from typing import Optional, Any, List
 
 from server_py.services.ccr.service import CcrService
-from server_py.db import SessionLocal, CcrCustomerMasterModel, ServiceRequestModel
+from server_py.db import (
+    SessionLocal, CcrCustomerMasterModel, CcrCustomerCodeMappingModel,
+    CcrAutoMailerModel, ServiceRequestModel,
+)
 
 
 async def _get_session_user() -> dict:
@@ -91,6 +95,57 @@ async def get_customers():
 @router.get("/customers/{customer_chain}/code-mapping")
 async def get_code_mapping(customer_chain: str):
     return _svc().get_code_mappings_for_chain(customer_chain)
+
+
+AUTO_MAILER_CATEGORIES = {"appointment-portal", "error-logs", "exception-reports", "sob-trigger"}
+
+
+class AutoMailerEmailsRequest(BaseModel):
+    emails: list[str]
+
+
+@router.get("/customers/{customer_chain}/auto-mailer")
+async def get_auto_mailer(customer_chain: str):
+    with SessionLocal() as db:
+        rows = db.query(CcrAutoMailerModel).filter(
+            CcrAutoMailerModel.customer_chain == customer_chain
+        ).order_by(CcrAutoMailerModel.customer_code, CcrAutoMailerModel.category).all()
+        return [
+            {"customerCode": row.customer_code, "category": row.category, "emails": row.emails}
+            for row in rows
+        ]
+
+
+@router.put("/customers/{customer_chain}/auto-mailer/{customer_code}/{category}")
+async def put_auto_mailer(customer_chain: str, customer_code: str, category: str, request: AutoMailerEmailsRequest):
+    if category not in AUTO_MAILER_CATEGORIES:
+        raise HTTPException(status_code=400, detail="Unknown auto-mailer category")
+    emails = [email.strip() for email in request.emails]
+    if any(not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) for email in emails):
+        raise HTTPException(status_code=422, detail="Enter valid email addresses, one per line")
+    if len({email.casefold() for email in emails}) != len(emails):
+        raise HTTPException(status_code=422, detail="Duplicate email addresses are not allowed")
+    with SessionLocal() as db:
+        exists = db.query(CcrCustomerCodeMappingModel.id).filter(
+            CcrCustomerCodeMappingModel.customer_chain == customer_chain,
+            CcrCustomerCodeMappingModel.customer_code == customer_code,
+        ).first()
+        if not exists:
+            raise HTTPException(status_code=404, detail="Customer is not mapped to this chain")
+        row = db.query(CcrAutoMailerModel).filter(
+            CcrAutoMailerModel.customer_chain == customer_chain,
+            CcrAutoMailerModel.customer_code == customer_code,
+            CcrAutoMailerModel.category == category,
+        ).first()
+        if row:
+            row.emails = emails
+        else:
+            db.add(CcrAutoMailerModel(
+                customer_chain=customer_chain, customer_code=customer_code,
+                category=category, emails=emails,
+            ))
+        db.commit()
+        return {"customerCode": customer_code, "category": category, "emails": emails}
 
 
 @router.get("/cic-mappings/summary")

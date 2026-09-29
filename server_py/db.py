@@ -424,6 +424,19 @@ class CcrCustomerCodeMappingModel(Base):
     listing_based = Column(Boolean, nullable=False, default=False)
 
 
+class CcrAutoMailerModel(Base):
+    __tablename__ = "ccr_auto_mailer"
+    __table_args__ = (
+        UniqueConstraint("customer_chain", "customer_code", "category", name="uq_ccr_auto_mailer_scope"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_chain = Column(String, nullable=False, index=True)
+    customer_code = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    emails = Column(JSONB, nullable=False, default=list)
+
+
 class CcrCicMappingModel(Base):
     __tablename__ = "ccr_cic_mapping"
 
