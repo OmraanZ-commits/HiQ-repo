@@ -5,6 +5,7 @@ import { buildCustomerOrderingMaster, type CustomerOrderingRow } from "@/lib/cus
 import { customerOrderingSample } from "@/lib/customer-ordering-sample";
 import { AutoMailerMaster } from "@/components/ccr/auto-mailer-master";
 import { EdiMasterConditions } from "@/components/ccr/edi-master-conditions";
+import { CssMaster } from "@/components/ccr/css-master";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import {
   Building2, Download, GitBranch, Package, Settings,
-  ShieldCheck, SlidersHorizontal, Truck, Users, Zap, Eye,
+  SlidersHorizontal, Truck, Users, Zap, Eye,
   AlertCircle,
 } from "lucide-react";
 
@@ -547,12 +548,7 @@ export default function CcrCustomerProfilePage() {
                     mappingsError={codesError}
                   />
 
-                  <EmptySection
-                    icon={ShieldCheck}
-                    title="CSS Master"
-                    message="Customer-specific CSS applicability: Pre-shipment, Post-shipment or Not Applicable."
-                    columns={["Customer Code", "CSS Type", "Applicability", "CSS Reference", "Effective Date", "Status"]}
-                  />
+                  <CssMaster key={selectedChain} customerChain={selectedChain} />
                 </TabsContent>
 
                 {/* ── Tab 3: BSS Master ──────────────────────────── */}

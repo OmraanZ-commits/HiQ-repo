@@ -5,6 +5,7 @@ import re
 from typing import Optional, Any, List
 
 from server_py.services.ccr.service import CcrService
+from server_py.services.ccr.css_master import read_css_configuration, css_for_customers
 from server_py.db import (
     SessionLocal, CcrCustomerMasterModel, CcrCustomerCodeMappingModel,
     CcrAutoMailerModel, ServiceRequestModel,
@@ -122,6 +123,21 @@ async def get_edi_conditions():
             {"customer": "0000134698", "outputType": "ZAMZ", "billType": "ZG07", "conditionRecord": "0000048940"},
         ],
     }
+
+
+@router.get("/css-master/configuration")
+async def get_css_configuration():
+    """Rows from the supplied CSS configuration, independent of the selected chain."""
+    return read_css_configuration()
+
+
+@router.get("/customers/{customer_chain}/css-master")
+async def get_css_master_for_chain(customer_chain: str):
+    mappings = _svc().get_code_mappings_for_chain(customer_chain)
+    return css_for_customers(
+        [row["customerCode"] for row in mappings],
+        read_css_configuration(),
+    )
 
 
 AUTO_MAILER_CATEGORIES = {"appointment-portal", "error-logs", "exception-reports", "sob-trigger"}
