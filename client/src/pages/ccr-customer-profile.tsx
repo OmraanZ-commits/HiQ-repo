@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
+import { buildCustomerOrderingMaster, type CustomerOrderingRow } from "@/lib/customer-ordering-master";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -65,6 +66,23 @@ const MAPPING_COLUMNS = [
   { technical: "RDPRF", business: "Rounding profile", value: (_row: CicMapping) => null },
   { technical: "YH3SD_VENDOR_CODE", business: "Vendor Code", value: (_row: CicMapping) => null },
 ] as const;
+
+const ORDERING_COLUMNS: { label: string; value: (row: CustomerOrderingRow) => string | null }[] = [
+  { label: "Customer", value: row => row.customer },
+  { label: "Depot", value: row => row.depot },
+  { label: "Vendor_Code", value: row => row.vendorCode },
+  { label: "PO_Validity", value: row => row.poValidity },
+  { label: "Lead_Time", value: row => row.leadTime },
+  { label: "Rounding_Profile", value: row => row.roundingProfile },
+  { label: "TS_ID", value: row => row.tsId },
+  { label: "Shipping_Point", value: row => row.shippingPoint },
+  { label: "License_20B", value: row => row.license20B },
+  { label: "License_20B_Expiry", value: row => row.license20BExpiry },
+  { label: "License_21B", value: row => row.license21B },
+  { label: "License_21B_Expiry", value: row => row.license21BExpiry },
+  { label: "License_FDL", value: row => row.licenseFDL },
+  { label: "License_FDL_Expiry", value: row => row.licenseFDLExpiry },
+];
 
 // ─── Shared empty-state component ─────────────────────────────────────────────
 
@@ -215,6 +233,9 @@ export default function CcrCustomerProfilePage() {
   const hasChain = !!selectedChain;
   const nonGeoCount = mappingRows.filter(row => !row.depot).length;
   const nonMappedCount = mappingRows.filter(row => row.status === "Non-Mapped").length;
+  const orderingRows = useMemo(() => buildCustomerOrderingMaster({
+    customerDepots: codeMappings,
+  }), [codeMappings]);
 
   function downloadMappingMaster() {
     const headers = MAPPING_COLUMNS.map(column => column.technical);
@@ -427,12 +448,45 @@ export default function CcrCustomerProfilePage() {
                 {/* ── Tab 2: Operational Masters ─────────────────── */}
                 <TabsContent value="operational" className="space-y-5 mt-0">
 
-                  <EmptySection
-                    icon={Package}
-                    title="PO, Lead Time & Logistics"
-                    message="PO validity, lead time, rounding profile, vendor code, FSSAI validity and PDP."
-                    columns={["Customer Code", "PO Validity (Days)", "Lead Time (Days)", "Rounding Profile", "Vendor Code", "FSSAI Validity", "PDP Flag", "Effective Date"]}
-                  />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      PO, Lead Time & Logistics
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      One row per customer. Depot comes from customer–depot mapping; vendor is matched by customer + depot;
+                      PO and PDP by customer; 20B, 21B and FDL licenses are shown side by side.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {orderingRows.length} customers · Vendor, PO, PDP and FSSAI source data is not connected yet; unavailable values show as —.
+                    </p>
+                    <div className="border rounded-md overflow-x-auto">
+                      <Table className="min-w-max">
+                        <TableHeader>
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            {ORDERING_COLUMNS.map(column => (
+                              <TableHead key={column.label} className="text-xs font-semibold whitespace-nowrap">{column.label}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {codesError ? (
+                            <TableRow><TableCell colSpan={ORDERING_COLUMNS.length} className="h-20 text-center text-xs text-destructive">Could not load customer–depot mapping.</TableCell></TableRow>
+                          ) : codesLoading ? (
+                            <TableRow><TableCell colSpan={ORDERING_COLUMNS.length} className="h-20 text-center text-xs text-muted-foreground">Loading customer–depot mapping…</TableCell></TableRow>
+                          ) : orderingRows.length === 0 ? (
+                            <TableRow><TableCell colSpan={ORDERING_COLUMNS.length} className="h-20 text-center text-xs text-muted-foreground">No customer–depot mappings for this chain.</TableCell></TableRow>
+                          ) : orderingRows.map(row => (
+                            <TableRow key={row.customer}>
+                              {ORDERING_COLUMNS.map(column => (
+                                <TableCell key={column.label} className="text-xs whitespace-nowrap font-mono">{column.value(row) ?? "—"}</TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
 
                   <EmptySection
                     icon={Zap}

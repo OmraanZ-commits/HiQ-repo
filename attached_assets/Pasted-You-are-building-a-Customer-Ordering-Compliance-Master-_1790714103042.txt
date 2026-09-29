@@ -1,0 +1,212 @@
+You are building a Customer Ordering & Compliance Master from multiple source files.
+
+OBJECTIVE
+Create a single master table with ONE ROW PER CUSTOMER.
+
+The final table should combine:
+
+1. Customer → Depot Mapping
+2. Vendor Code Mapping
+3. PO Validity / Lead Time / Rounding Profile
+4. PDP Configuration
+5. FSSAI License Information
+
+==================================================================
+SOURCE TABLES
+==================================================================
+
+1. CUSTOMER_DEPOT_MAPPING
+
+Columns:
+- Customer
+- Depot
+
+Example:
+Customer      Depot
+0000100003    ABDH
+0000100006    BNDH
+0000101024    PATH
+0000101075    ABDH
+
+==================================================================
+
+2. VENDOR_MAPPING
+
+Columns:
+- Cust Code
+- Depot
+- Vendor Code
+
+Example:
+Cust Code     Depot    Vendor Code
+0000100003    ABDH     0025010452
+0000100006    BNDH     0025010454
+0000101024    PATH     0025016777
+0000101075    ABDH     0025010452
+
+Join Key:
+Customer + Depot
+
+==================================================================
+
+3. PO_VALIDITY
+
+Columns:
+- Customer
+- Plant
+- Validity
+- Lead Time
+- Order Qty Rounding Profile
+- Sales Type
+
+Example:
+Customer      Plant    Validity    Rounding Profile
+0000100003    ABDH     7           NULL
+0000100006    BNDH     7           NULL
+0000101024    PATH     7           ZRR4
+0000101075    ABDH     7           ZRR4
+
+Join Key:
+Customer
+
+==================================================================
+
+4. PDP
+
+Columns:
+- Customer
+- Plant
+- TS ID
+- Shipping Point
+
+Example:
+Customer      Plant    TS ID      Shipping Point
+0000100003    ABDH     CLOSED     ABD
+0000100006    BNDH     CLOSED     BND
+0000101024    PATH     CLOSED     PAT
+0000101075    ABDH     CLOSED     ABD
+
+Join Key:
+Customer
+
+==================================================================
+
+5. FSSAI
+
+Columns:
+- Customer
+- Type
+- License No
+- Status
+- Start Date
+- End Date
+
+Example:
+
+Customer      Type    License No     Status    End Date
+0000101024    20B     0000013624     C         31-Dec-2026
+0000101024    21B     0000013239     C         31-Dec-2026
+0000101024    FDL     0000010533     C         10-Dec-2027
+
+0000101075    20B     0000012368     C         24-Feb-2026
+0000101075    21B     0000012369     C         24-Feb-2026
+0000101075    FDL     0000010507     C         11-Dec-2029
+
+0000100003    FDL     0000010615     C         29-Jun-2022
+
+0000100006    FDL     0000015182     C         05-Jul-2022
+
+IMPORTANT:
+A CUSTOMER CAN HAVE MULTIPLE FSSAI LICENSES.
+
+Typical pattern:
+
+Customer
+ ├─ 20B License
+ ├─ 21B License
+ └─ FDL License
+
+DO NOT CREATE MULTIPLE OUTPUT ROWS.
+
+Instead pivot the FSSAI records into columns.
+
+==================================================================
+BUSINESS RULES
+==================================================================
+
+Rule 1:
+Final output grain = ONE ROW PER CUSTOMER
+
+Rule 2:
+Get Depot from Customer_Depot_Mapping.
+
+Rule 3:
+Get Vendor Code using:
+Customer + Depot
+
+Rule 4:
+Join PO Validity using Customer.
+
+Rule 5:
+Join PDP using Customer.
+
+Rule 6:
+Pivot FSSAI Types into columns:
+
+20B -> 20B License No, 20B Expiry
+
+21B -> 21B License No, 21B Expiry
+
+FDL -> FDL License No, FDL Expiry
+
+Rule 7:
+If multiple licenses exist for same customer and same type:
+
+Priority:
+1. Lic.status = 'C'
+2. Latest End Date
+
+Rule 8:
+Preserve leading zeros in all customer codes, license numbers and vendor codes.
+
+Treat all identifiers as TEXT.
+
+==================================================================
+EXPECTED OUTPUT
+==================================================================
+
+Columns:
+
+Customer
+Depot
+Vendor_Code
+PO_Validity
+Lead_Time
+Rounding_Profile
+TS_ID
+Shipping_Point
+
+License_20B
+License_20B_Expiry
+
+License_21B
+License_21B_Expiry
+
+License_FDL
+License_FDL_Expiry
+
+==================================================================
+EXPECTED SAMPLE OUTPUT
+==================================================================
+
+Customer    Depot  Vendor_Code  PO_Validity  TS_ID   Shipping_Point  License_20B  20B_Expiry   License_21B  21B_Expiry   License_FDL  FDL_Expiry
+
+0000100003  ABDH   0025010452   7            CLOSED  ABD             NULL         NULL         NULL         NULL         0000010615   29-Jun-2022
+
+0000100006  BNDH   0025010454   7            CLOSED  BND             NULL         NULL         NULL         NULL         0000015182   05-Jul-2022
+
+0000101024  PATH   0025016777   7            CLOSED  PAT             0000013624   31-Dec-2026  0000013239   31-Dec-2026  0000010533   10-Dec-2027
+
+0000101075  ABDH   0025010452   7            CLOSED  ABD             0000012368   24-Feb-2026  0000012369   24-Feb-2026  0000010507   11-Dec-2029
+
+Build the final master table using the above rules and structure.
