@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,6 +31,40 @@ type CcrCustomer = {
   behaviourType: string;
   cseId?: string;
 };
+
+type CodeMapping = {
+  id: string;
+  customerChain: string;
+  customerCode: string;
+  subChannel: string | null;
+  depot: string | null;
+};
+
+type CicMapping = {
+  id: string;
+  customerCode: string;
+  salesOrg: string | null;
+  channel: string | null;
+  cbuCode: string | null;
+  cic: string | null;
+  cicDescription: string | null;
+  depot: string | null;
+  status: string | null;
+};
+
+const MAPPING_COLUMNS = [
+  { technical: "KUNNR", business: "Customer code", value: (row: CicMapping) => row.customerCode },
+  { technical: "VKORG", business: "Sales Org", value: (row: CicMapping) => row.salesOrg },
+  { technical: "VTWEG", business: "Distr Channel", value: (row: CicMapping) => row.channel },
+  { technical: "MATNR", business: "Material", value: (row: CicMapping) => row.cbuCode },
+  { technical: "KDMAT", business: "Customer Item Code", value: (row: CicMapping) => row.cic },
+  { technical: "POSTX", business: "CUSTOMERITEMDESCRIPTION", value: (row: CicMapping) => row.cicDescription },
+  { technical: "WERKS", business: "Depot", value: (row: CicMapping) => row.depot },
+  { technical: "SORTL", business: "MTSTATUS", value: (row: CicMapping) => row.status },
+  { technical: "EKGRP", business: "Purchase Group", value: (_row: CicMapping) => null },
+  { technical: "RDPRF", business: "Rounding profile", value: (_row: CicMapping) => null },
+  { technical: "YH3SD_VENDOR_CODE", business: "Vendor Code", value: (_row: CicMapping) => null },
+] as const;
 
 // ─── Shared empty-state component ─────────────────────────────────────────────
 
@@ -129,18 +164,68 @@ export default function CcrCustomerProfilePage() {
     select: (data: any) => (Array.isArray(data) ? data : data?.customers ?? []),
   });
 
-  // Unified chain list — accounts table is the broader one (19 chains)
-  const chains = useMemo(
-    () => accounts.map(a => a.accountName).sort(),
-    [accounts],
-  );
+  const { data: codeMappings = [], isLoading: codesLoading, isError: codesError } = useQuery<CodeMapping[]>({
+    queryKey: ["/api/ccr/customers", selectedChain, "code-mapping"],
+    queryFn: async () => {
+      const response = await fetch(`/api/ccr/customers/${encodeURIComponent(selectedChain)}/code-mapping`);
+      if (!response.ok) throw new Error("Could not load customer code mappings");
+      return response.json();
+    },
+    enabled: !!selectedChain,
+  });
 
-  const selectedAccount  = accounts.find(a => a.accountName === selectedChain);
+  const { data: mappingRows = [], isLoading: mappingsLoading, isError: mappingsError } = useQuery<CicMapping[]>({
+    queryKey: ["/api/ccr/cic-mappings", selectedChain],
+    queryFn: async () => {
+      const response = await fetch(`/api/ccr/cic-mappings?customer_chain=${encodeURIComponent(selectedChain)}`);
+      if (!response.ok) throw new Error("Could not load Mapping Master");
+      return response.json();
+    },
+    enabled: !!selectedChain,
+  });
+
+  // Account display names and CCR storage names are not identical for every chain.
+  const chains = useMemo(() => {
+    const aliases: Record<string, string> = {
+      "D-MART": "DMart",
+      "METRO C&C": "Metro Cash & Carry",
+    };
+    const normalized = (name: string) => name.replace(/[^a-z0-9]/gi, "").toLowerCase();
+    const options = accounts.map(account => ({
+      label: account.accountName,
+      value: aliases[account.accountName] ??
+        customers.find(customer => normalized(customer.customerChain) === normalized(account.accountName))?.customerChain ??
+        account.accountName,
+    }));
+    for (const customer of customers) {
+      if (!options.some(option => option.value === customer.customerChain)) {
+        options.push({ label: customer.customerChain, value: customer.customerChain });
+      }
+    }
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }, [accounts, customers]);
+
+  const selectedAccount  = accounts.find(a =>
+    chains.some(option => option.value === selectedChain && option.label === a.accountName),
+  );
   const selectedCustomer = customers.find(c =>
-    c.customerChain.toUpperCase() === selectedChain,
+    c.customerChain === selectedChain,
   );
 
   const hasChain = !!selectedChain;
+  const nonGeoCount = mappingRows.filter(row => !row.depot).length;
+  const nonMappedCount = mappingRows.filter(row => row.status === "Non-Mapped").length;
+
+  function downloadMappingMaster() {
+    const headers = MAPPING_COLUMNS.map(column => column.technical);
+    const businessHeaders = MAPPING_COLUMNS.map(column => column.business);
+    const values = mappingRows.map(row => MAPPING_COLUMNS.map(column => column.value(row) ?? ""));
+    const sheet = XLSX.utils.aoa_to_sheet([headers, businessHeaders, ...values]);
+    sheet["!cols"] = MAPPING_COLUMNS.map(column => ({ wch: Math.max(column.technical.length, column.business.length) + 2 }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "Mapping Master");
+    XLSX.writeFile(workbook, `Customer_Mapping_Master_${selectedChain.replace(/[^a-z0-9-]/gi, "_")}.xlsx`);
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -172,8 +257,8 @@ export default function CcrCustomerProfilePage() {
                   <SelectValue placeholder="Select a customer chain…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {chains.map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                   {chains.map(c => (
+                     <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -253,20 +338,40 @@ export default function CcrCustomerProfilePage() {
                 {/* ── Tab 1: Customer Hierarchy ──────────────────── */}
                 <TabsContent value="hierarchy" className="space-y-5 mt-0">
 
-                  {/* Chain-level overview */}
-                  <EmptySection
-                    icon={Building2}
-                    title="Chain Details"
-                    columns={["Account Name", "Channel", "Coverage Type", "Behaviour Type", "CCR Action", "CSE Owner", "Status"]}
-                  />
-
-                  {/* Sub-channel & codes */}
-                  <EmptySection
-                    icon={GitBranch}
-                    title="Sub-Channel & Customer Codes"
-                    message="Customer code hierarchy — chain, sub-channel and individual ship-to codes."
-                    columns={["Customer Code", "Sub-Channel", "Trade Channel", "Depot / Plant", "Listing Based", "CLOT", "Active"]}
-                  />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <GitBranch className="h-4 w-4 text-muted-foreground" />
+                      Customer Hierarchy
+                    </div>
+                    <p className="text-xs text-muted-foreground">Chain → Sub channel → Customer code → Depot code</p>
+                    <div className="border rounded-md overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            {["Chain", "Sub channel", "Customer code", "Depot code"].map(column => (
+                              <TableHead key={column} className="text-xs font-semibold whitespace-nowrap">{column}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {codesError ? (
+                            <TableRow><TableCell colSpan={4} className="text-center text-xs text-destructive">Could not load customer hierarchy.</TableCell></TableRow>
+                          ) : codesLoading ? (
+                            <TableRow><TableCell colSpan={4} className="text-center text-xs text-muted-foreground">Loading hierarchy…</TableCell></TableRow>
+                          ) : codeMappings.length === 0 ? (
+                            <TableRow><TableCell colSpan={4} className="text-center text-xs text-muted-foreground">No customer codes configured for this chain.</TableCell></TableRow>
+                          ) : codeMappings.map(row => (
+                            <TableRow key={row.id}>
+                              <TableCell className="text-xs">{row.customerChain}</TableCell>
+                              <TableCell className="text-xs">{row.subChannel || "—"}</TableCell>
+                              <TableCell className="text-xs font-mono">{row.customerCode}</TableCell>
+                              <TableCell className="text-xs font-mono">{row.depot || "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
 
                   {/* Mapping Master */}
                   <div className="space-y-2">
@@ -275,8 +380,8 @@ export default function CcrCustomerProfilePage() {
                         <Download className="h-4 w-4 text-muted-foreground" />
                         Mapping Master
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="h-7 text-xs" disabled>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="h-7 text-xs" disabled={mappingsLoading || mappingsError || mappingRows.length === 0} onClick={downloadMappingMaster}>
                           <Download className="h-3 w-3 mr-1" /> Download (.xlsx)
                         </Button>
                         <Button variant="outline" size="sm" className="h-7 text-xs" disabled>
@@ -284,24 +389,35 @@ export default function CcrCustomerProfilePage() {
                         </Button>
                       </div>
                     </div>
-                    <div className="border rounded-md overflow-hidden">
-                      <Table>
+                    <p className="text-xs text-muted-foreground">
+                      {mappingRows.length} mapping records · {nonMappedCount} non-mapped · {nonGeoCount} without a depot (non-geo). Blank source fields are shown as —.
+                    </p>
+                    <div className="border rounded-md overflow-x-auto">
+                      <Table className="min-w-max">
                         <TableHeader>
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            {["Customer Code", "CBU Code", "CIC", "Channel", "Depot", "Mapped Date", "Status"].map(c => (
-                              <TableHead key={c} className="text-xs font-semibold">{c}</TableHead>
+                            {MAPPING_COLUMNS.map(column => (
+                              <TableHead key={column.technical} className="text-xs font-semibold whitespace-nowrap py-2">
+                                <span className="block font-mono text-[10px] text-muted-foreground">{column.technical}</span>
+                                {column.business}
+                              </TableHead>
                             ))}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          <TableRow>
-                            <TableCell colSpan={7} className="h-20 text-center text-xs text-muted-foreground">
-                              <div className="flex flex-col items-center gap-1.5">
-                                <AlertCircle className="h-4 w-4 text-muted-foreground/50" />
-                                Download the Excel template to view or amend the mapping master.
-                              </div>
-                            </TableCell>
-                          </TableRow>
+                          {mappingsError ? (
+                            <TableRow><TableCell colSpan={MAPPING_COLUMNS.length} className="h-20 text-center text-xs text-destructive">Could not load Mapping Master.</TableCell></TableRow>
+                          ) : mappingsLoading ? (
+                            <TableRow><TableCell colSpan={MAPPING_COLUMNS.length} className="h-20 text-center text-xs text-muted-foreground">Loading mappings…</TableCell></TableRow>
+                          ) : mappingRows.length === 0 ? (
+                            <TableRow><TableCell colSpan={MAPPING_COLUMNS.length} className="h-20 text-center text-xs text-muted-foreground">No mapping records for this chain.</TableCell></TableRow>
+                          ) : mappingRows.map(row => (
+                            <TableRow key={row.id}>
+                              {MAPPING_COLUMNS.map(column => (
+                                <TableCell key={column.technical} className="text-xs whitespace-nowrap">{column.value(row) || "—"}</TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
                         </TableBody>
                       </Table>
                     </div>
