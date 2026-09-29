@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { buildCustomerOrderingMaster, type CustomerOrderingRow } from "@/lib/customer-ordering-master";
+import { customerOrderingSample } from "@/lib/customer-ordering-sample";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -70,19 +71,20 @@ const MAPPING_COLUMNS = [
 const ORDERING_COLUMNS: { label: string; value: (row: CustomerOrderingRow) => string | null }[] = [
   { label: "Customer", value: row => row.customer },
   { label: "Depot", value: row => row.depot },
-  { label: "Vendor_Code", value: row => row.vendorCode },
-  { label: "PO_Validity", value: row => row.poValidity },
-  { label: "Lead_Time", value: row => row.leadTime },
-  { label: "Rounding_Profile", value: row => row.roundingProfile },
+  { label: "VendorCode", value: row => row.vendorCode },
+  { label: "POValidity", value: row => row.poValidity },
+  { label: "RoundingProfile", value: row => row.roundingProfile },
   { label: "TS_ID", value: row => row.tsId },
-  { label: "Shipping_Point", value: row => row.shippingPoint },
-  { label: "License_20B", value: row => row.license20B },
-  { label: "License_20B_Expiry", value: row => row.license20BExpiry },
-  { label: "License_21B", value: row => row.license21B },
-  { label: "License_21B_Expiry", value: row => row.license21BExpiry },
-  { label: "License_FDL", value: row => row.licenseFDL },
-  { label: "License_FDL_Expiry", value: row => row.licenseFDLExpiry },
+  { label: "ShippingPoint", value: row => row.shippingPoint },
+  { label: "License20B", value: row => row.license20B },
+  { label: "License20BExpiry", value: row => row.license20BExpiry },
+  { label: "License21B", value: row => row.license21B },
+  { label: "License21BExpiry", value: row => row.license21BExpiry },
+  { label: "LicenseFDL", value: row => row.licenseFDL },
+  { label: "LicenseFDLExpiry", value: row => row.licenseFDLExpiry },
 ];
+
+const sampleOrderingRows = buildCustomerOrderingMaster(customerOrderingSample);
 
 // ─── Shared empty-state component ─────────────────────────────────────────────
 
@@ -171,6 +173,7 @@ const BSS_LEVELS = [
 
 export default function CcrCustomerProfilePage() {
   const [selectedChain, setSelectedChain] = useState<string>("");
+  const [showOrderingSample, setShowOrderingSample] = useState(false);
 
   const { data: accounts = [] } = useQuery<CcrAccount[]>({
     queryKey: ["/api/reference-data/ccr-accounts"],
@@ -236,6 +239,7 @@ export default function CcrCustomerProfilePage() {
   const orderingRows = useMemo(() => buildCustomerOrderingMaster({
     customerDepots: codeMappings,
   }), [codeMappings]);
+  const displayedOrderingRows = showOrderingSample ? sampleOrderingRows : orderingRows;
 
   function downloadMappingMaster() {
     const headers = MAPPING_COLUMNS.map(column => column.technical);
@@ -273,7 +277,10 @@ export default function CcrCustomerProfilePage() {
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Customer Chain</span>
               </div>
-              <Select value={selectedChain} onValueChange={setSelectedChain}>
+              <Select value={selectedChain} onValueChange={(chain) => {
+                setSelectedChain(chain);
+                setShowOrderingSample(false);
+              }}>
                 <SelectTrigger className="h-8 text-xs w-64" data-testid="select-customer-chain">
                   <SelectValue placeholder="Select a customer chain…" />
                 </SelectTrigger>
@@ -449,17 +456,33 @@ export default function CcrCustomerProfilePage() {
                 <TabsContent value="operational" className="space-y-5 mt-0">
 
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      PO, Lead Time & Logistics
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        PO, Lead Time & Logistics
+                      </div>
+                      <div className="flex gap-1" aria-label="Operational master data view">
+                        <Button size="sm" className="h-7 text-xs" variant={showOrderingSample ? "outline" : "secondary"} onClick={() => setShowOrderingSample(false)}>
+                          Current chain
+                        </Button>
+                        <Button size="sm" className="h-7 text-xs" variant={showOrderingSample ? "secondary" : "outline"} onClick={() => setShowOrderingSample(true)}>
+                          Sample output
+                        </Button>
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       One row per customer. Depot comes from customer–depot mapping; vendor is matched by customer + depot;
                       PO and PDP by customer; 20B, 21B and FDL licenses are shown side by side.
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {orderingRows.length} customers · Vendor, PO, PDP and FSSAI source data is not connected yet; unavailable values show as —.
-                    </p>
+                    {showOrderingSample ? (
+                      <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                        Sample output — 4 example customers from the supplied specification. These are not records for {selectedChain}.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {orderingRows.length} customers · Only customer–depot mapping is available for this chain. Unavailable values show as —.
+                      </p>
+                    )}
                     <div className="border rounded-md overflow-x-auto">
                       <Table className="min-w-max">
                         <TableHeader>
@@ -470,13 +493,13 @@ export default function CcrCustomerProfilePage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {codesError ? (
+                          {!showOrderingSample && codesError ? (
                             <TableRow><TableCell colSpan={ORDERING_COLUMNS.length} className="h-20 text-center text-xs text-destructive">Could not load customer–depot mapping.</TableCell></TableRow>
-                          ) : codesLoading ? (
+                          ) : !showOrderingSample && codesLoading ? (
                             <TableRow><TableCell colSpan={ORDERING_COLUMNS.length} className="h-20 text-center text-xs text-muted-foreground">Loading customer–depot mapping…</TableCell></TableRow>
-                          ) : orderingRows.length === 0 ? (
+                          ) : displayedOrderingRows.length === 0 ? (
                             <TableRow><TableCell colSpan={ORDERING_COLUMNS.length} className="h-20 text-center text-xs text-muted-foreground">No customer–depot mappings for this chain.</TableCell></TableRow>
-                          ) : orderingRows.map(row => (
+                          ) : displayedOrderingRows.map(row => (
                             <TableRow key={row.customer}>
                               {ORDERING_COLUMNS.map(column => (
                                 <TableCell key={column.label} className="text-xs whitespace-nowrap font-mono">{column.value(row) ?? "—"}</TableCell>

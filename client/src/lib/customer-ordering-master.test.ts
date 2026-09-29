@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCustomerOrderingMaster } from "./customer-ordering-master";
+import { customerOrderingSample } from "./customer-ordering-sample";
+
+test("supplied sample sources produce four consolidated rows with text IDs and pivoted licenses", () => {
+  const rows = buildCustomerOrderingMaster(customerOrderingSample);
+  assert.deepEqual(rows.map(row => row.customer), ["0000100003", "0000100006", "0000101024", "0000101075"]);
+  assert.equal(rows[0].vendorCode, "0025010452");
+  assert.equal(rows[0].licenseFDL, "0000010615");
+  assert.equal(rows[0].license20B, null);
+  assert.equal(rows[1].shippingPoint, "BND");
+  assert.equal(rows[2].roundingProfile, "ZRR4");
+  assert.equal(rows[2].license20B, "0000013624");
+  assert.equal(rows[2].license21BExpiry, "31-Dec-2026");
+  assert.equal(rows[2].licenseFDL, "0000010533");
+  assert.equal(rows[3].licenseFDLExpiry, "11-Dec-2029");
+});
 
 test("joins by the specified keys and pivots licenses without multiplying customer rows", () => {
   const rows = buildCustomerOrderingMaster({

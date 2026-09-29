@@ -6,3 +6,4 @@
 - [Canvas-only task review](canvas-only-task-review.md) — pair no-code canvas deliverables with a reviewable workspace storyboard when closing assigned tasks.
 - [Local Playwright browser](local-playwright-browser.md) — Playwright's managed Chromium paths may be empty; use the system Chromium for headless interaction checks.
 - [Seed-backed action eligibility](seed-backed-action-eligibility.md) — validate persisted evidence after startup; insert-only seeds and background refresh can invalidate fixture assumptions.
+- [Ordering master sample separation](ordering-master-samples.md) — keep illustrative compliance rows visibly separate from live chain data; never attribute examples to a selected customer chain.

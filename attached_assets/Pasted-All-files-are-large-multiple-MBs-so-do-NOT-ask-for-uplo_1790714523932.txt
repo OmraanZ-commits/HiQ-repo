@@ -1,0 +1,141 @@
+All files are large (multiple MBs) so do NOT ask for uploads.
+
+Build the solution using the schemas and sample data below.
+
+=================================================================
+SOURCE 1 : CUSTOMER_DEPOT_MAPPING
+=================================================================
+
+Customer,Depot
+
+0000100003,ABDH
+0000100006,BNDH
+0000101024,PATH
+0000101075,ABDH
+
+=================================================================
+SOURCE 2 : VENDOR_MAPPING
+=================================================================
+
+CustCode,Depot,VendorCode
+
+0000100003,ABDH,0025010452
+0000100006,BNDH,0025010454
+0000101024,PATH,0025016777
+0000101075,ABDH,0025010452
+
+Join Key:
+Customer + Depot
+
+=================================================================
+SOURCE 3 : PO_VALIDITY
+=================================================================
+
+Customer,Plant,Validity,RoundingProfile
+
+0000100003,ABDH,7,NULL
+0000100006,BNDH,7,NULL
+0000101024,PATH,7,ZRR4
+0000101075,ABDH,7,ZRR4
+
+Join Key:
+Customer
+
+=================================================================
+SOURCE 4 : PDP
+=================================================================
+
+Customer,Plant,TS_ID,ShippingPoint
+
+0000100003,ABDH,CLOSED,ABD
+0000100006,BNDH,CLOSED,BND
+0000101024,PATH,CLOSED,PAT
+0000101075,ABDH,CLOSED,ABD
+
+Join Key:
+Customer
+
+=================================================================
+SOURCE 5 : FSSAI
+=================================================================
+
+Customer,Type,LicenseNo,LicenseStatus,StartDate,EndDate
+
+0000101024,20B,0000013624,C,01-Jan-2022,31-Dec-2026
+0000101024,21B,0000013239,C,01-Jan-2022,31-Dec-2026
+0000101024,FDL,0000010533,C,08-Feb-2023,10-Dec-2027
+
+0000101075,20B,0000012368,C,25-Feb-2021,24-Feb-2026
+0000101075,21B,0000012369,C,25-Feb-2021,24-Feb-2026
+0000101075,FDL,0000010507,C,09-Dec-2024,11-Dec-2029
+
+0000100003,FDL,0000010615,C,01-Jul-2017,29-Jun-2022
+0000100006,FDL,0000015182,C,07-Jul-2017,05-Jul-2022
+
+Important:
+
+One customer can have multiple FSSAI licenses.
+
+Example:
+
+Customer 0000101024 has:
+- 20B License
+- 21B License
+- FDL License
+
+Therefore do NOT create multiple output rows.
+
+Pivot FSSAI records into columns.
+
+=================================================================
+FINAL TABLE REQUIREMENT
+=================================================================
+
+One row per Customer.
+
+Columns:
+
+Customer
+Depot
+VendorCode
+POValidity
+RoundingProfile
+TS_ID
+ShippingPoint
+
+License20B
+License20BExpiry
+
+License21B
+License21BExpiry
+
+LicenseFDL
+LicenseFDLExpiry
+
+=================================================================
+EXPECTED OUTPUT EXAMPLE
+=================================================================
+
+Customer    Depot VendorCode POValidity TS_ID ShippingPoint License20B License20BExpiry License21B License21BExpiry LicenseFDL LicenseFDLExpiry
+
+0000100003  ABDH  0025010452 7 CLOSED ABD NULL NULL NULL NULL 0000010615 29-Jun-2022
+
+0000100006  BNDH  0025010454 7 CLOSED BND NULL NULL NULL NULL 0000015182 05-Jul-2022
+
+0000101024  PATH  0025016777 7 CLOSED PAT 0000013624 31-Dec-2026 0000013239 31-Dec-2026 0000010533 10-Dec-2027
+
+0000101075  ABDH  0025010452 7 CLOSED ABD 0000012368 24-Feb-2026 0000012369 24-Feb-2026 0000010507 11-Dec-2029
+
+Business Rules:
+
+1. Final table grain = one row per customer.
+2. Customer determines depot.
+3. Vendor comes from Customer + Depot.
+4. Join PO Validity using Customer.
+5. Join PDP using Customer.
+6. Pivot FSSAI Type values (20B, 21B, FDL) into separate columns.
+7. Preserve leading zeros for all IDs.
+8. If multiple licenses exist for same Customer and Type, choose:
+   a. License Status = C
+   b. Latest End Date
+`
