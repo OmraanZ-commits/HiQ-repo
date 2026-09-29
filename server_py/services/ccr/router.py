@@ -97,6 +97,33 @@ async def get_code_mapping(customer_chain: str):
     return _svc().get_code_mappings_for_chain(customer_chain)
 
 
+# The supplied EDI specification contains examples, not chain-specific master records.
+# Keep them explicitly identified as samples until an authoritative source is connected.
+@router.get("/edi/masters")
+async def get_edi_masters():
+    return {
+        "source": "sample",
+        "rows": [
+            {"customer": "44B482", "organizationId": "HK76M", "plant": "300", "customerGroup": "RKWI"},
+            {"customer": "0000330868", "organizationId": "4702", "plant": "300", "customerGroup": "WALMART"},
+            {"customer": "0000134698", "organizationId": "1021", "plant": "300", "customerGroup": "DMART"},
+        ],
+    }
+
+
+@router.get("/edi/conditions")
+async def get_edi_conditions():
+    return {
+        "source": "sample",
+        "rows": [
+            {"customer": "10A217", "outputType": "ZEDA", "billType": "ZG07", "conditionRecord": "0000021725"},
+            {"customer": "10A217", "outputType": "ZAMZ", "billType": "ZG07", "conditionRecord": "0000021761"},
+            {"customer": "133698", "outputType": "ZEDI", "billType": "MT/SL", "conditionRecord": "0000004325"},
+            {"customer": "0000134698", "outputType": "ZAMZ", "billType": "ZG07", "conditionRecord": "0000048940"},
+        ],
+    }
+
+
 AUTO_MAILER_CATEGORIES = {"appointment-portal", "error-logs", "exception-reports", "sob-trigger"}
 
 

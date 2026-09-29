@@ -1,0 +1,86 @@
+Create a simple UI mockup for EDI configuration.
+
+Do NOT build a complex drill-down or parent-child screen.
+
+Use a simple toggle control at the top similar to:
+
+[ EDI Masters ] [ EDI Conditions ]
+
+When EDI Masters is selected, show:
+
+---------------------------------------------------------
+EDI Masters
+
+Search: [ Customer Code __________________ ]
+
+---------------------------------------------------------
+| Customer | Organization ID | Plant | Customer Group |
+---------------------------------------------------------
+| 44B482   | HK76M           | 300   | RKWI          |
+| 0000330868 | 4702         | 300   | WALMART       |
+| 0000134698 | 1021         | 300   | DMART         |
+---------------------------------------------------------
+
+Buttons:
+[Export]
+
+No edit capability.
+
+==================================================================
+
+When EDI Conditions is selected, show:
+
+---------------------------------------------------------
+EDI Conditions
+
+Search: [ Customer Code __________________ ]
+
+---------------------------------------------------------
+| Customer | Output Type | Bill Type | Condition Record |
+---------------------------------------------------------
+| 10A217   | ZEDA       | ZG07      | 0000021725       |
+| 10A217   | ZAMZ       | ZG07      | 0000021761       |
+| 133698   | ZEDI       | MT/SL     | 0000004325       |
+| 0000134698 | ZAMZ     | ZG07      | 0000048940       |
+---------------------------------------------------------
+
+Buttons:
+[Export]
+
+No edit capability.
+
+==================================================================
+
+Design Principles
+
+1. Keep it lightweight.
+2. One API for EDI Masters.
+3. One API for EDI Conditions.
+4. Toggle only changes the dataset being displayed.
+5. Search should filter Customer Code.
+6. No nested tables.
+7. No side panels.
+8. No expandable rows.
+9. No configuration screen.
+10. Mimic an SAP admin lookup screen.
+
+==================================================================
+
+Visual Layout
+
++------------------------------------------------------+
+|                EDI Master & Conditions               |
++------------------------------------------------------+
+
+      [ EDI Masters ] [ EDI Conditions ]
+
+      Search Customer: [_____________]
+
+      TABLE
+
+      [Export]
+
++------------------------------------------------------+
+
+Focus on simplicity and quick implementation.
+This screen is meant only for viewing EDI setup information and not maintenance.

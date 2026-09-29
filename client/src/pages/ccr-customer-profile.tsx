@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { buildCustomerOrderingMaster, type CustomerOrderingRow } from "@/lib/customer-ordering-master";
 import { customerOrderingSample } from "@/lib/customer-ordering-sample";
 import { AutoMailerMaster } from "@/components/ccr/auto-mailer-master";
+import { EdiMasterConditions } from "@/components/ccr/edi-master-conditions";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -512,12 +513,7 @@ export default function CcrCustomerProfilePage() {
                     </div>
                   </div>
 
-                  <EmptySection
-                    icon={Zap}
-                    title="EDI Master & Conditions"
-                    message="EDI integration setup, message types and active conditions per customer code."
-                    columns={["Customer Code", "EDI Type", "Message Type", "Condition Set", "Direction", "Partner ID", "Status", "Last Synced"]}
-                  />
+                  <EdiMasterConditions customerChain={selectedChain} />
 
                   {/* Delivery Type */}
                   <div className="space-y-2">
