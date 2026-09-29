@@ -140,6 +140,35 @@ async def get_css_master_for_chain(customer_chain: str):
     )
 
 
+@router.get("/bss-exceptions/sample")
+async def get_bss_exception_sample():
+    """Illustrative rows from the supplied screenshot, not selected-chain records.
+
+    Preserve SAP context fields in the API even though the lookup UI needs only
+    Customer, Material, and Batch.
+    """
+    examples = [
+        ("VIBC13H", "0AA6009601"),
+        ("VIBC13H", "0AA60096C1"),
+        ("VIBC13H", "0AA60096E0"),
+        ("VIBC13H", "0AA60096E2"),
+        ("VIBC13Z", "0AA6009600"),
+        ("VIBC13Z", "0AA6009601"),
+        ("VIBC13Z", "0AA6009602"),
+    ]
+    return {
+        "source": "sample",
+        "rows": [
+            {
+                "cl": "300", "dchl": None, "grp4": None,
+                "customer": "0000132906", "material": material,
+                "priceLot": None, "batch": batch,
+            }
+            for material, batch in examples
+        ],
+    }
+
+
 AUTO_MAILER_CATEGORIES = {"appointment-portal", "error-logs", "exception-reports", "sob-trigger"}
 
 

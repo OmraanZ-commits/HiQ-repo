@@ -6,6 +6,7 @@ import { customerOrderingSample } from "@/lib/customer-ordering-sample";
 import { AutoMailerMaster } from "@/components/ccr/auto-mailer-master";
 import { EdiMasterConditions } from "@/components/ccr/edi-master-conditions";
 import { CssMaster } from "@/components/ccr/css-master";
+import { BssExceptionList } from "@/components/ccr/bss-exception-list";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -585,13 +586,7 @@ export default function CcrCustomerProfilePage() {
                     ))}
                   </Tabs>
 
-                  {/* BSS Exception List */}
-                  <EmptySection
-                    icon={AlertCircle}
-                    title="BSS Exception List"
-                    message="CBUs or customer codes explicitly excluded from standard BSS sorting rules."
-                    columns={["Customer Code", "CBU / Material", "Exception Type", "Reason", "Override Sorting Rule", "Valid From", "Valid To", "Raised By"]}
-                  />
+                  <BssExceptionList customerChain={selectedChain} />
 
                   {/* Auto BSS Maintenance */}
                   <div className="space-y-2">

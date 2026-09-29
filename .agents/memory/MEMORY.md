@@ -7,3 +7,4 @@
 - [Local Playwright browser](local-playwright-browser.md) — Playwright's managed Chromium paths may be empty; use the system Chromium for headless interaction checks.
 - [Seed-backed action eligibility](seed-backed-action-eligibility.md) — validate persisted evidence after startup; insert-only seeds and background refresh can invalidate fixture assumptions.
 - [Operational master sample separation](ordering-master-samples.md) — keep illustrative operational data visibly separate from live chain data; never attribute examples to a selected chain.
+- [BSS exception presentation](bss-exception-presentation.md) — keep SAP context fields in backend responses, but show only Customer, Material, and Batch in the exception list.
