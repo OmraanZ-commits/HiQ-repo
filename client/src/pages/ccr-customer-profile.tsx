@@ -7,6 +7,7 @@ import { AutoMailerMaster } from "@/components/ccr/auto-mailer-master";
 import { EdiMasterConditions } from "@/components/ccr/edi-master-conditions";
 import { CssMaster } from "@/components/ccr/css-master";
 import { BssExceptionList } from "@/components/ccr/bss-exception-list";
+import { BssMasterLevels } from "@/components/ccr/bss-master-levels";
 import { UnileverHeader } from "@/components/unilever-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -143,35 +144,6 @@ function EmptySection({
     </div>
   );
 }
-
-// ─── BSS level sub-tab ────────────────────────────────────────────────────────
-
-const BSS_LEVELS = [
-  {
-    id: "l1",
-    label: "Chain Level",
-    description: "Customer chain × Sorting Rule × Freshness",
-    columns: ["Customer Chain", "Sorting Rule", "Valid Days from Prod Date", "Min Shelf Life (%)", "Freshness Criteria", "Status"],
-  },
-  {
-    id: "l2",
-    label: "Chain × BG",
-    description: "Customer chain × Business Group × Sorting Rule × Freshness",
-    columns: ["Customer Chain", "Business Group", "Sorting Rule", "Valid Days from Prod Date", "Min Shelf Life (%)", "Freshness Criteria", "Status"],
-  },
-  {
-    id: "l3",
-    label: "Chain × BG × CBU",
-    description: "Customer chain × Business Group × CBU Pricelot × Sorting Rule × Freshness",
-    columns: ["Customer Chain", "Business Group", "CBU / Pricelot", "Sorting Rule", "Valid Days from Prod Date", "Fresh ATP Threshold", "Status"],
-  },
-  {
-    id: "l4",
-    label: "Code × BG × CBU",
-    description: "Customer Code × Business Group × CBU Pricelot — most granular level",
-    columns: ["Customer Code", "Business Group", "CBU / Pricelot", "Sorting Rule", "Valid Days from Prod Date", "Fresh ATP Threshold", "Override Reason", "Status"],
-  },
-];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -565,26 +537,7 @@ export default function CcrCustomerProfilePage() {
                     </span>
                   </div>
 
-                  {/* 4-level BSS tabs */}
-                  <Tabs defaultValue="l1">
-                    <TabsList className="h-7">
-                      {BSS_LEVELS.map(l => (
-                        <TabsTrigger key={l.id} value={l.id} className="text-[11px] h-6 px-2.5">
-                          {l.label}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                    {BSS_LEVELS.map(l => (
-                      <TabsContent key={l.id} value={l.id} className="mt-3">
-                        <p className="text-xs text-muted-foreground mb-3">{l.description}</p>
-                        <EmptySection
-                          icon={SlidersHorizontal}
-                          title={`BSS — ${l.label}`}
-                          columns={l.columns}
-                        />
-                      </TabsContent>
-                    ))}
-                  </Tabs>
+                  <BssMasterLevels key={selectedChain} customerChain={selectedChain} />
 
                   <BssExceptionList customerChain={selectedChain} />
 

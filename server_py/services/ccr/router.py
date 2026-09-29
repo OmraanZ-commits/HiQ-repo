@@ -169,6 +169,35 @@ async def get_bss_exception_sample():
     }
 
 
+@router.get("/bss-master/sample")
+async def get_bss_master_sample():
+    """Supplied Myntra examples; no chain-specific BSS master is connected yet.
+
+    The source's Valid Day from Prod Date is mapped to freshness (days).
+    Validity dates are not part of this response.
+    """
+    source_rows = [
+        ("FHPF100", "Horlicks PRO Fitness Kulfi 400g BIB", 146),
+        ("HPPC100", "Protein Powder 180g Chocolate", 108),
+    ]
+    return {
+        "source": "sample",
+        "rows": [
+            {
+                "customerChain": "Myntra",
+                "customerCode": "10B596",
+                "bg": "Nutrition",
+                "cbu": cbu,
+                "cbuDescription": description,
+                "priceLot": None,
+                "sortingRule": "YMTFIFO",
+                "freshness": valid_day_from_prod_date,
+            }
+            for cbu, description, valid_day_from_prod_date in source_rows
+        ],
+    }
+
+
 AUTO_MAILER_CATEGORIES = {"appointment-portal", "error-logs", "exception-reports", "sob-trigger"}
 
 
