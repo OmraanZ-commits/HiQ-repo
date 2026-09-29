@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import {
   Building2, Download, GitBranch, Package, Settings,
-  SlidersHorizontal, Truck, Users, Zap, Eye,
+  SlidersHorizontal, Truck, Users, Zap,
   AlertCircle,
 } from "lucide-react";
 
@@ -239,7 +239,7 @@ export default function CcrCustomerProfilePage() {
           <div>
             <h2 className="text-xl font-bold text-foreground">Customer Profile Master</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Consolidated master data for each customer chain — hierarchy, operations, BSS rules and data visibility
+              Consolidated master data for each customer chain — hierarchy, operations and BSS rules
             </p>
           </div>
           <Badge variant="outline" className="text-xs mt-1">Skeletal — data pending</Badge>
@@ -333,9 +333,6 @@ export default function CcrCustomerProfilePage() {
                   </TabsTrigger>
                   <TabsTrigger value="bss"         className="text-xs h-7 px-3 gap-1.5">
                     <SlidersHorizontal className="h-3 w-3" /> BSS Master
-                  </TabsTrigger>
-                  <TabsTrigger value="visibility"  className="text-xs h-7 px-3 gap-1.5">
-                    <Eye className="h-3 w-3" /> Data Visibility
                   </TabsTrigger>
                 </TabsList>
 
@@ -571,71 +568,6 @@ export default function CcrCustomerProfilePage() {
                       </div>
                     </div>
                   </div>
-                </TabsContent>
-
-                {/* ── Tab 4: Data Visibility ─────────────────────── */}
-                <TabsContent value="visibility" className="space-y-5 mt-0">
-
-                  <div className="flex items-start gap-3 text-xs bg-amber-50 border border-amber-100 rounded-md px-4 py-3">
-                    <Eye className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
-                    <span className="text-amber-700">
-                      Data visibility rules apply only to <span className="font-semibold">Listed CBUs</span>.
-                      Four levels of visibility are supported — each level controls which users / roles can see allocation and ATP data for that scope.
-                    </span>
-                  </div>
-
-                  {[
-                    {
-                      level: "Level 1",
-                      scope: "Customer Chain",
-                      desc:  "Visibility scoped to the entire customer chain — all codes, all BGs.",
-                      columns: ["Customer Chain", "User / Role", "Visibility Scope", "Access Type", "Valid From", "Status"],
-                    },
-                    {
-                      level: "Level 2",
-                      scope: "Customer Chain × Business Group",
-                      desc:  "Visibility restricted to a specific BG within the chain.",
-                      columns: ["Customer Chain", "Business Group", "User / Role", "Access Type", "Valid From", "Status"],
-                    },
-                    {
-                      level: "Level 3",
-                      scope: "Customer Chain × BG × CBU",
-                      desc:  "Granular visibility down to individual CBU within a BG.",
-                      columns: ["Customer Chain", "Business Group", "CBU", "User / Role", "Access Type", "Valid From", "Status"],
-                    },
-                    {
-                      level: "Level 4",
-                      scope: "Customer Code × BG × CBU",
-                      desc:  "Most granular — per ship-to code, BG and CBU.",
-                      columns: ["Customer Code", "Business Group", "CBU", "User / Role", "Access Type", "Valid From", "Status"],
-                    },
-                  ].map(vis => (
-                    <div key={vis.level} className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-[10px] px-1.5">{vis.level}</Badge>
-                        <span className="text-xs font-semibold text-foreground">{vis.scope}</span>
-                        <span className="text-xs text-muted-foreground">— {vis.desc}</span>
-                      </div>
-                      <div className="border rounded-md overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/30 hover:bg-muted/30">
-                              {vis.columns.map(c => (
-                                <TableHead key={c} className="text-xs font-semibold">{c}</TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell colSpan={vis.columns.length} className="h-12 text-center text-xs text-muted-foreground">
-                                No visibility rules configured for {vis.level}.
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  ))}
                 </TabsContent>
 
               </Tabs>
