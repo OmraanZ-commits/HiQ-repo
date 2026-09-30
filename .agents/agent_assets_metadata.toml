@@ -6,3 +6,34 @@ id = "wKpkPreNQUCLucTuZmFjW"
 uri = "file://SCOPE_OF_WORK.md"
 type = "text"
 title = "Functional Scope — Network Planning & Admin Center"
+logical_id = "38005ad2-431a-47a7-ac82-b923ef2d61fd"
+
+[[outputs]]
+id = "WVbnrqh2gbGkQZZZ-T8EA"
+uri = "file://attached_assets/generated_audio/ccr-marketing-voiceover.mp3"
+type = "audio"
+title = "CCR app marketing voiceover"
+description = "Text-to-speech audio: Every customer change has a next step. CCR brings relaunch work into one connected workflow. Workspace surfaces trigger stages, priorities, and SLA deadlines. Master Maintenance…"
+logical_id = "fcb93524-307a-403e-9e2b-5835eb9e9453"
+
+[[outputs]]
+id = "iBaPZoVTmrnaP_Fe7Mgy8"
+uri = "file://attached_assets/generated_audio/ccr-marketing-music.mp3"
+type = "audio"
+title = "CCR corporate tech music"
+description = "Generated music: Polished, subtle corporate technology background music for an enterprise software product overview. Warm optimistic piano plucks, soft modern synth pads, light restrained rhythmic pu…"
+logical_id = "44624090-fa63-4a18-836b-36066f97b5f9"
+
+[[outputs]]
+id = "s75K50ciPsR2OI9vdnB2C"
+uri = "file://attached_assets/generated_videos/ccr-app-marketing-video-720p.mp4"
+type = "video"
+title = "CCR Application Marketing Video"
+description = "45-second 16:9 product overview in 720p, featuring CCR Workspace, Master Maintenance, MT Listing, and Customer Profile with narration and original background music."
+logical_id = "f88d5eed-e6f5-46f1-b705-600a7a955bb6"
+content_hash = "sha256:37ea6dd500c0a5d02b8eb5292ab07005cfaab05a48a2768908a0c69c1b274599"
+size = 3914246
+mtime_ms = 1790766463849
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/f88d5eed-e6f5-46f1-b705-600a7a955bb6/b91b21e6-288c-4c4a-b55d-a4e459d3d7ee"
+storage_version_token = "1790766491286784"
+content_type = "video/mp4"
