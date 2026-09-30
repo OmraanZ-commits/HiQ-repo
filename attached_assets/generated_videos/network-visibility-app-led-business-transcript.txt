@@ -1,0 +1,51 @@
+Network Visibility Portal — app-led business film transcript
+Original AI-generated music and imagery; application footage captured from the running app.
+ATP detail and guided exception examples are deterministic. No live ATP refresh or SAP writes.
+
+[0000.0–0008.4] THE CHALLENGE — One relaunch. Many connected decisions.
+A product relaunch is not a single switch. Supply, assortment, customer codes, and approvals must move together, often across different teams.
+
+[0008.4–0015.6] THE CHALLENGE — Make the handoff visible
+When those handoffs are fragmented, the next team can miss what changed. The portal brings the linked work into a traceable view.
+
+[0015.6–0023.2] NETWORK PLANNING — Start with the network lifecycle
+Network Planning follows a material through its lifecycle. Teams can inspect the predecessor and successor, the change type, and the intended network dates.
+
+[0023.2–0030.5] NETWORK PLANNING — See where supply is affected
+Sourcing and distribution views show which geographies, depots, and channels are in scope. Readiness is checked before a request moves onward.
+
+[0030.5–0038.7] NETWORK PLANNING — Review before advancing
+A service request carries the proposed change into review. Status and approval keep the decision explicit, so teams can distinguish planned work from accepted work.
+
+[0038.7–0045.9] PAID BIBLE — Translate the change to assortment
+Paid Bible connects basepacks and materials to the places they must be sold. Teams see the geography and channel combinations that need attention.
+
+[0045.9–0054.2] PAID BIBLE — Track readiness, not just intent
+Readiness and request review expose the remaining work. That helps a reviewer see what is configured, what is pending, and what still needs a decision.
+
+[0054.2–0064.0] CCR — Connect old and new customer codes
+CCR then focuses on customer-code continuity. Predecessor and successor CBUs, chain-specific mappings, and SAP-update status make the commercial handoff reviewable.
+
+[0064.0–0075.0] CCR · ATP — First, distinguish export from refresh
+At MT Listing, Export ATP Payload downloads JSON built from output records. Its last-run timestamp is stored in this browser. It does not fetch live ATP.
+
+[0075.0–0085.0] CCR · ATP — Inspect the batch-level example
+The detail view demonstrates ATP criteria by customer code, CBU, depot, and batch. It checks stock age against valid days and whether pricing is valid.
+
+[0085.0–0094.4] CCR · ATP — Rules outrank a bigger number
+In the guided exception demo, customer classification and the change-type ruleset come first. Missing rules, a new CIC requirement, or rundown can stop a proposal.
+
+[0094.4–0103.3] CCR · ATP — Compare only eligible candidates
+The demo compares usable successor ATP with eligible alternatives at the depot. National non-listing cases also check days of holding and the CLOT gate.
+
+[0103.3–0112.4] CCR · ATP — Present an outcome for review
+The result can retain, switch, defer, or escalate a mapping. The demo presents a before-and-after proposal for human review; it never executes the change.
+
+[0112.4–0120.6] ADMIN CENTER — Keep the foundations in view
+Admin Center supports the reference data and access behind these workflows. Clear ownership of those foundations helps teams interpret the same change consistently.
+
+[0120.6–0128.6] THE COORDINATION BENEFIT — One connected view of the work
+Together, these views let teams follow a relaunch from network plan to assortment and customer-code mapping, while keeping exceptions and approvals visible.
+
+[0128.6–0136.6] NETWORK VISIBILITY PORTAL — From change to a reviewable decision
+The aim is straightforward: fewer ambiguous handoffs, a clearer record of what is ready, and better context for the people making the next decision.

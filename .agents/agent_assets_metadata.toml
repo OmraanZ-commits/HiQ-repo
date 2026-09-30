@@ -229,3 +229,53 @@ mtime_ms = 1790771272258
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/41002fe1-035b-4b09-aa23-5b14e8ae23ec/05bc5fd5-8a4e-4acd-bbe4-ee7310db7e8b"
 storage_version_token = "1790771395659236"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "bApGO8xfodLx4fOT8UwVF"
+uri = "file://attached_assets/generated_audio/business-film-score.mp3"
+type = "audio"
+title = "generated_music"
+description = "Generated music: Original instrumental brand-film score for a two-and-a-half minute enterprise technology and supply chain marketing video. Opening has subtle tension and soft piano, builds into mode…"
+logical_id = "5a985751-d602-40f2-b10c-29e7866d81f0"
+
+[[outputs]]
+id = "8b-_Dk1WaP42rOm-B-1MW"
+uri = "file://attached_assets/generated_videos/network-visibility-app-led-business-film-1080p.mp4"
+type = "video"
+title = "App-led business film"
+description = "2:16 · Full HD · English narration, original music, on-screen captions and genuine portal navigation."
+logical_id = "1315cc3e-dbdf-4721-a6c4-d8c3b8b4e9d6"
+content_hash = "sha256:28418e054e06e026927199bc637bb82e79fb7266793fb12e5a4b3589585bef36"
+size = 12493402
+mtime_ms = 1790773088261
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/1315cc3e-dbdf-4721-a6c4-d8c3b8b4e9d6/879b696c-3299-4b7e-9295-e65d86e5293a"
+storage_version_token = "1790773119049328"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "urITbXpPn1d4LRyR9CMq0"
+uri = "file://attached_assets/generated_videos/network-visibility-app-led-business-transcript.txt"
+type = "text"
+title = "Film transcript"
+description = "Timecoded English narration with product and ATP-demo boundaries."
+logical_id = "122fb0d8-de09-4148-98e9-19292a9570fb"
+content_hash = "sha256:ff50f5b99443e8f9563eeea2162803472cbaaf6befea8ec167baa00cf4b0c642"
+size = 3808
+mtime_ms = 1790773002647
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/122fb0d8-de09-4148-98e9-19292a9570fb/49be2ca4-8611-4a34-9818-d10e0359f9d1"
+storage_version_token = "1790773120461401"
+content_type = "text/plain"
+
+[[outputs]]
+id = "5GDShaTyRT7sp_JIIhwew"
+uri = "file://attached_assets/generated_videos/network-visibility-app-led-business-captions.srt"
+type = "unspecified"
+title = "Timed captions"
+description = "Separate SRT subtitle file for the app-led film."
+logical_id = "45d78e86-d84f-455f-a008-b6c1c00dae6e"
+content_hash = "sha256:6f9d0b94226e9403079710ff2311bdb98878fb21c93851a0ce750494e404b539"
+size = 3903
+mtime_ms = 1790773002648
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/45d78e86-d84f-455f-a008-b6c1c00dae6e/446c2d1f-68c1-4067-90b6-2fa7fade77a3"
+storage_version_token = "1790773121706040"
+content_type = "application/octet-stream"
