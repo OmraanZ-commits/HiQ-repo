@@ -1,0 +1,171 @@
+1
+00:00:00,270 --> 00:00:03,873
+A product relaunch is not a single switch. Supply, assortment,
+
+2
+00:00:03,873 --> 00:00:07,836
+customer codes, and approvals must move together, often across different teams.
+
+3
+00:00:08,636 --> 00:00:11,606
+When those handoffs are fragmented, the next team can miss what
+
+4
+00:00:11,606 --> 00:00:14,576
+changed. The portal brings the linked work into a traceable view.
+
+5
+00:00:15,886 --> 00:00:18,262
+Network Planning follows a material through its lifecycle.
+
+6
+00:00:18,262 --> 00:00:20,341
+Teams can inspect the predecessor and successor,
+
+7
+00:00:20,341 --> 00:00:22,716
+the change type, and the intended network dates.
+
+8
+00:00:23,516 --> 00:00:26,474
+Sourcing and distribution views show which geographies, depots, and channels
+
+9
+00:00:26,474 --> 00:00:29,728
+are in scope. Readiness is checked before a request moves onward.
+
+10
+00:00:30,766 --> 00:00:33,132
+A service request carries the proposed change into
+
+11
+00:00:33,132 --> 00:00:35,793
+review. Status and approval keep the decision explicit, so
+
+12
+00:00:35,793 --> 00:00:38,158
+teams can distinguish planned work from accepted work.
+
+13
+00:00:38,958 --> 00:00:41,098
+Paid Bible connects basepacks and materials to the
+
+14
+00:00:41,098 --> 00:00:42,971
+places they must be sold. Teams see
+
+15
+00:00:42,971 --> 00:00:45,111
+the geography and channel combinations that need attention.
+
+16
+00:00:46,208 --> 00:00:48,604
+Readiness and request review expose the remaining work.
+
+17
+00:00:48,604 --> 00:00:51,300
+That helps a reviewer see what is configured, what
+
+18
+00:00:51,300 --> 00:00:53,696
+is pending, and what still needs a decision.
+
+19
+00:00:54,496 --> 00:00:58,995
+CCR then focuses on customer-code continuity. Predecessor and successor CBUs,
+
+20
+00:00:58,995 --> 00:01:03,494
+chain-specific mappings, and SAP-update status make the commercial handoff reviewable.
+
+21
+00:01:04,294 --> 00:01:07,817
+At MT Listing, Export ATP Payload downloads JSON built
+
+22
+00:01:07,817 --> 00:01:10,949
+from output records. Its last-run timestamp is stored
+
+23
+00:01:10,949 --> 00:01:14,472
+in this browser. It does not fetch live ATP.
+
+24
+00:01:15,272 --> 00:01:18,207
+The detail view demonstrates ATP criteria by customer
+
+25
+00:01:18,207 --> 00:01:21,509
+code, CBU, depot, and batch. It checks stock age
+
+26
+00:01:21,509 --> 00:01:24,444
+against valid days and whether pricing is valid.
+
+27
+00:01:25,244 --> 00:01:28,018
+In the guided exception demo, customer classification and
+
+28
+00:01:28,018 --> 00:01:31,139
+the change-type ruleset come first. Missing rules, a new
+
+29
+00:01:31,139 --> 00:01:33,913
+CIC requirement, or rundown can stop a proposal.
+
+30
+00:01:34,713 --> 00:01:37,403
+The demo compares usable successor ATP with eligible
+
+31
+00:01:37,403 --> 00:01:40,092
+alternatives at the depot. National non-listing cases also
+
+32
+00:01:40,092 --> 00:01:42,782
+check days of holding and the CLOT gate.
+
+33
+00:01:43,582 --> 00:01:46,355
+The result can retain, switch, defer, or escalate
+
+34
+00:01:46,355 --> 00:01:49,129
+a mapping. The demo presents a before-and-after proposal
+
+35
+00:01:49,129 --> 00:01:51,902
+for human review; it never executes the change.
+
+36
+00:01:52,702 --> 00:01:55,260
+Admin Center supports the reference data and access
+
+37
+00:01:55,260 --> 00:01:57,498
+behind these workflows. Clear ownership of those
+
+38
+00:01:57,498 --> 00:02:00,055
+foundations helps teams interpret the same change consistently.
+
+39
+00:02:00,855 --> 00:02:04,483
+Together, these views let teams follow a relaunch from network plan
+
+40
+00:02:04,483 --> 00:02:08,112
+to assortment and customer-code mapping, while keeping exceptions and approvals visible.
+
+41
+00:02:08,912 --> 00:02:11,285
+The aim is straightforward: fewer ambiguous handoffs, a
+
+42
+00:02:11,285 --> 00:02:13,659
+clearer record of what is ready, and better
+
+43
+00:02:13,659 --> 00:02:16,032
+context for the people making the next decision.

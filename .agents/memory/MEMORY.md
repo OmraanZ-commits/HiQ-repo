@@ -9,3 +9,4 @@
 - [Operational master sample separation](ordering-master-samples.md) — keep illustrative operational data visibly separate from live chain data; never attribute examples to a selected chain.
 - [BSS exception presentation](bss-exception-presentation.md) — keep SAP context fields in backend responses, but show only Customer, Material, and Batch in the exception list.
 - [BSS freshness semantics](bss-freshness-semantics.md) — production-date freshness days are not validity dates; present day counts, not raw source names or date-range fields.
+- [Narration generation rate limit](narration-rate-limit.md) — batch ElevenLabs speech requests below the repl-wide request limit; retry 429 failures individually.

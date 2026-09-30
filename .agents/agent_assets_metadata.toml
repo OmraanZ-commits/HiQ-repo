@@ -51,3 +51,181 @@ mtime_ms = 1790769685885
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/20ca2163-a420-4573-8145-9d9378d52b4a/acc6fd41-2e3f-4c13-b134-bec086d8abf1"
 storage_version_token = "1790769718129156"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "cIrW1Z_jmjue0IHMPXBPf"
+uri = "file://attached_assets/generated_audio/full-app-business-bed.mp3"
+type = "audio"
+title = "generated_music"
+description = "Generated music: Original instrumental corporate documentary underscore, understated warm synthesizer pulse, gentle piano and light percussion, confident and thoughtful, dynamic but unobtrusive under…"
+logical_id = "6494e5a0-f491-4bdd-bef1-a6544a33c5c5"
+
+[[outputs]]
+id = "cwO8dXMr-7KWvKgdQmM9G"
+uri = "file://attached_assets/generated_audio/business-voice-02.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: When those handoffs are fragmented, the next team can miss what changed. The portal brings the linked work into a traceable view."
+logical_id = "042021fc-9845-4897-a622-a0147687e62d"
+
+[[outputs]]
+id = "nFD_rtvCyyJwFOiUuHFzx"
+uri = "file://attached_assets/generated_audio/business-voice-06.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: Paid Bible connects basepacks and materials to the places they must be sold. Teams see the geography and channel combinations that need attention."
+logical_id = "2c129822-e289-4049-ad8e-1ea8b4f6fcf4"
+
+[[outputs]]
+id = "RtWe57YPLzb3oH44AydT4"
+uri = "file://attached_assets/generated_audio/business-voice-05.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: A service request carries the proposed change into review. Status and approval keep the decision explicit, so teams can distinguish planned work from accepted work."
+logical_id = "adf710d6-2785-4faa-99ec-9557f6b1b4a2"
+
+[[outputs]]
+id = "NFtLyTg9aa9TYERWGMWBx"
+uri = "file://attached_assets/generated_audio/business-voice-07.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: Readiness and request review expose the remaining work. That helps a reviewer see what is configured, what is pending, and what still needs a decision."
+logical_id = "e3a39a15-29e5-4ad1-9063-8334199118cc"
+
+[[outputs]]
+id = "z8XvMeZPbmi0IBCZ-voLO"
+uri = "file://attached_assets/generated_audio/business-voice-01.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: A product relaunch is not a single switch. Supply, assortment, customer codes, and approvals must move together, often across different teams."
+logical_id = "dc1f6dd1-dd78-4eb2-a81b-822c1808b03f"
+
+[[outputs]]
+id = "OfytF0Dn68t8pghWXcEWY"
+uri = "file://attached_assets/generated_audio/business-voice-03.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: Network Planning follows a material through its lifecycle. Teams can inspect the predecessor and successor, the change type, and the intended network dates."
+logical_id = "27378514-64dc-415b-bef3-fc7901aadaeb"
+
+[[outputs]]
+id = "QdoZ9VnsgXhMiF5Eo9CUZ"
+uri = "file://attached_assets/generated_audio/business-voice-04.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: Sourcing and distribution views show which geographies, depots, and channels are in scope. Readiness is checked before a request moves onward."
+logical_id = "f39ffc3e-6def-4e3c-9b59-8f778286c63a"
+
+[[outputs]]
+id = "P54WrQrtPkcPu6hlgoRR-"
+uri = "file://attached_assets/generated_audio/business-voice-10.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: The detail view demonstrates ATP criteria by customer code, CBU, depot, and batch. It checks stock age against valid days and whether pricing is valid."
+logical_id = "c3afa4de-f11d-4c04-b0e6-30152bfd3552"
+
+[[outputs]]
+id = "ijE4X9I72LPiSUbNReg2t"
+uri = "file://attached_assets/generated_audio/business-voice-08.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: CCR then focuses on customer-code continuity. Predecessor and successor CBUs, chain-specific mappings, and SAP-update status make the commercial handoff reviewable."
+logical_id = "686c0b29-a0f0-442f-a9c0-0e1561a0c3d0"
+
+[[outputs]]
+id = "fwwWH8B3n3etDzcr9VYTu"
+uri = "file://attached_assets/generated_audio/business-voice-09.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: At MT Listing, Export ATP Payload downloads JSON built from output records. Its last-run timestamp is stored in this browser. It does not fetch live ATP."
+logical_id = "8666acc7-d824-4ac4-b635-10e07fcd1873"
+
+[[outputs]]
+id = "IzSTw9FOPlY-R-hKOy9nU"
+uri = "file://attached_assets/generated_audio/business-voice-16.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: The aim is straightforward: fewer ambiguous handoffs, a clearer record of what is ready, and better context for the people making the next decision."
+logical_id = "66a73b9c-4dcf-4686-ad96-699b9c4e171f"
+
+[[outputs]]
+id = "zkOd5Uok1cfLTcIqfvL7w"
+uri = "file://attached_assets/generated_audio/business-voice-11.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: In the guided exception demo, customer classification and the change-type ruleset come first. Missing rules, a new CIC requirement, or rundown can stop a proposal."
+logical_id = "6d72cfe8-aaef-4114-8e44-977045163e95"
+
+[[outputs]]
+id = "wPxe3mMIr6Zo-B1NF95yk"
+uri = "file://attached_assets/generated_audio/business-voice-12.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: The demo compares usable successor ATP with eligible alternatives at the depot. National non-listing cases also check days of holding and the CLOT gate."
+logical_id = "1614da6b-1b55-4da6-be89-3c2d6d711758"
+
+[[outputs]]
+id = "5G9x0c15UrtINxjMphuI9"
+uri = "file://attached_assets/generated_audio/business-voice-13.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: The result can retain, switch, defer, or escalate a mapping. The demo presents a before-and-after proposal for human review; it never executes the change."
+logical_id = "3afbe261-74f9-407a-9f97-67b5431a1616"
+
+[[outputs]]
+id = "tBHzCFQqD2UcOtQ-tCG35"
+uri = "file://attached_assets/generated_audio/business-voice-14.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: Admin Center supports the reference data and access behind these workflows. Clear ownership of those foundations helps teams interpret the same change consistently."
+logical_id = "06c3ab70-655f-473e-b546-8157e3c8b074"
+
+[[outputs]]
+id = "TzN1rtvOFy8RHxrj6tMJG"
+uri = "file://attached_assets/generated_audio/business-voice-15.mp3"
+type = "audio"
+title = "speech"
+description = "Text-to-speech audio: Together, these views let teams follow a relaunch from network plan to assortment and customer-code mapping, while keeping exceptions and approvals visible."
+logical_id = "7a3b29b7-0beb-4da5-a64d-e497c6a603e0"
+
+[[outputs]]
+id = "gfJdVlliE-n4FxH2hK-d1"
+uri = "file://attached_assets/generated_videos/network-visibility-business-story-1080p.mp4"
+type = "video"
+title = "Network Visibility Portal — narrated business video"
+description = "2:16, full HD H.264 MP4 with English narration, synchronized burned-in captions, and a 48-second CCR ATP chapter."
+logical_id = "c3a70a30-f92d-4586-a4e0-c5db0d28294e"
+content_hash = "sha256:e4d8fd4b01484ccc586af321785d8b2482865aaf404528a6e753f51b39898005"
+size = 5448330
+mtime_ms = 1790771343917
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/c3a70a30-f92d-4586-a4e0-c5db0d28294e/77c7eba5-476c-4487-9399-cd037b606338"
+storage_version_token = "1790771393063331"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "jL2LBrDIE70yQHCepHsD-"
+uri = "file://attached_assets/generated_videos/network-visibility-business-transcript.txt"
+type = "text"
+title = "Business video transcript"
+description = "Time-coded narration script for the full video."
+logical_id = "a5c6ce3b-d15c-4b72-91c1-bf954d865065"
+content_hash = "sha256:f8887a368f51a99ba23f4a1651fdca71eb4ba132ea5f0a2d4130d503a5a03161"
+size = 3679
+mtime_ms = 1790771272257
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/a5c6ce3b-d15c-4b72-91c1-bf954d865065/386b7821-0cd9-4510-81e4-f6398f0f48e0"
+storage_version_token = "1790771394391147"
+content_type = "text/plain"
+
+[[outputs]]
+id = "V4y5RGMpES_Uahgy_1A21"
+uri = "file://attached_assets/generated_videos/network-visibility-business-captions.srt"
+type = "unspecified"
+title = "Business video captions (SRT)"
+description = "Separate time-coded subtitle file matching the spoken narration."
+logical_id = "41002fe1-035b-4b09-aa23-5b14e8ae23ec"
+content_hash = "sha256:6f9d0b94226e9403079710ff2311bdb98878fb21c93851a0ce750494e404b539"
+size = 3903
+mtime_ms = 1790771272258
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/41002fe1-035b-4b09-aa23-5b14e8ae23ec/05bc5fd5-8a4e-4acd-bbe4-ee7310db7e8b"
+storage_version_token = "1790771395659236"
+content_type = "application/octet-stream"
