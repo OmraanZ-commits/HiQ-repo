@@ -37,3 +37,17 @@ mtime_ms = 1790766463849
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/f88d5eed-e6f5-46f1-b705-600a7a955bb6/b91b21e6-288c-4c4a-b55d-a4e459d3d7ee"
 storage_version_token = "1790766491286784"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "76LhtIJCcdHS1KdNPoozI"
+uri = "file://attached_assets/generated_videos/full-app-marketing-video-720p.mp4"
+type = "video"
+title = "Full-app marketing video"
+description = "40-second, 16:9 720p motion-led overview of Network Planning, Paid Bible and CCR, with brief real product footage."
+logical_id = "20ca2163-a420-4573-8145-9d9378d52b4a"
+content_hash = "sha256:b6dc96275b6118f15993c4650c6f04a22f3457bff69e8a56baf7f8bb4ea0a0a0"
+size = 1616233
+mtime_ms = 1790769685885
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:b1960fab-b013-4823-8af2-ce6da6bda35c/20ca2163-a420-4573-8145-9d9378d52b4a/acc6fd41-2e3f-4c13-b134-bec086d8abf1"
+storage_version_token = "1790769718129156"
+content_type = "video/mp4"
